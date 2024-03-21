@@ -34,3 +34,33 @@ def summarize_data(df):
 
     # Return the DataFrame
     return summary_df
+
+def export_if_changed(df, filepath, dtypes=None):
+    """
+    Export a pandas DataFrame to a CSV file if it has changed compared to an existing file.
+
+    Parameters:
+    df (pandas.DataFrame): The DataFrame to export.
+    filepath (str): The path to the existing file.
+    dtypes (dict, optional): A dictionary specifying the data types of the columns in the DataFrame. Defaults to None.
+
+    Returns:
+    None
+
+    Raises:
+    FileNotFoundError: If the existing file is not found.
+
+    """
+    # Load the existing data
+    try:
+        existing_df = pd.read_csv(filepath, dtype=dtypes)
+    except FileNotFoundError:
+        existing_df = pd.DataFrame()
+
+    # Check if the dataframes are different
+    if not existing_df.equals(df):
+        # If they are different, write the new data to the file
+        df.to_csv(filepath, index=False)
+        print(f"Data has changed. The file {filepath} has been updated.")
+    else:
+        print(f"No changes in the data. The file {filepath} has not been updated.")
