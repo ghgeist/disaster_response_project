@@ -13,17 +13,16 @@ def summarize_data(df):
     summary_df = df.agg(['nunique', 'count', lambda x: x.isnull().sum()]).transpose()
 
     # Rename the columns
-    summary_df.columns = ['unique_values', 'total_values', 'missing_values']
+    summary_df.columns = ['unique_values', 'total_values', 'values_missing']
     
-    # Calculate the percentage of missing values and round to two decimal places
-    summary_df['missing_percentage'] = round((summary_df['missing_values'] / len(df)) * 100, 2)
+    # Calculate the data completeness
+    summary_df['data_completeness'] = round((summary_df['total_values'] / len(df)) * 100, 2)
     
     #Calculate the percentage of unique values and round to two decimal places
     summary_df['unique_percentage'] = round((summary_df['unique_values'] / summary_df['total_values']) * 100, 2)
     
-    #Re-order the columns. 
-    #The order should be column name, unique value count, uniuqe value percentage, missing_values, missing_percentage, and type
-    summary_df = summary_df[['unique_values', 'unique_percentage', 'missing_values', 'missing_percentage']]
+    #Re-order the columns
+    summary_df = summary_df[['total_values','unique_values', 'unique_percentage', 'values_missing', 'data_completeness']]
 
     # Add column types
     summary_df['type'] = df.dtypes
