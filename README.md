@@ -32,3 +32,17 @@ The data are really messages that were sent during disaster events
 ### Note
 - it looks like we'll need to classify the message as direct, social or news?
 - 
+
+Here are all of the nltk downloads that you'll need in order to run this code
+These downloads only have to be done once per virtual environment
+
+
+#Code to pull in the nltk imports
+import nltk
+nltk.download([
+    'words,
+    'punkt', 
+    'averaged_perceptron_tagger',
+    'maxent_ne_chunker',
+    'wordnet'
+    ])
