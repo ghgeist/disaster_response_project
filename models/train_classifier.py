@@ -63,7 +63,9 @@ def load_data(db_filepath, table_name, feature_columns, target_columns):
         return None, None
 
     try:
-        # Define the features and target variables X and y
+        # Note: this code results in x and y being numpy arrays. CountVectorizer
+        # expects a list of strings. Given that all the rest of the code is designed to operate on numpy arrays,
+        # I'm not sure where we should do the data transformation. 
         x = df[feature_columns].copy().values
         y = df[target_columns].copy().values
         print(f"The data from '{table_name}' has been successfully loaded.")
