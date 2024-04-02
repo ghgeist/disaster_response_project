@@ -1,8 +1,5 @@
 ### To Do
-
-- Understand how many of the original tweets are in English and how many of them are in Creole
-- Understand how many of them have been translated
-    - If they have been translated, how many times have they been translated?
+- Fix the layout of this readme.
 
 ### Housekeeping
 
@@ -37,6 +34,14 @@ Here are all of the nltk downloads that you'll need in order to run this code
 These downloads only have to be done once per virtual environment
 
 
+### Future Directions
+- Optimize Grid Search for Weighted F1-Score instead of Accuracy
+- Use a translation API to ensure tweet translation consistency
+
+# The Problem
+
+The problem here is that I'm pretty sure that my classes are imbalanced. If this is the case, accuracy is probably not a good metric to evaluate the model's performance. The weighted F1 metric is probably better because it accounts for the balance between precision and recall, along with support for the given class. 
+
 #Code to pull in the nltk imports
 import nltk
 nltk.download([
@@ -46,3 +51,8 @@ nltk.download([
     'maxent_ne_chunker',
     'wordnet'
     ])
+
+Original paramters
+{"clf__estimator__min_samples_split": 2, "clf__estimator__n_estimators": 100, "vect__ngram_range": [1, 1]}
+Best parameters
+{"clf__estimator__min_samples_split": 2, "clf__estimator__n_estimators": 200, "vect__ngram_range": [1, 2]}
