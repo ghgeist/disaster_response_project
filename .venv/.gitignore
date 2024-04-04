@@ -1,9 +1,0 @@
-# Python
-.venv/
-
-# Machine learning model files
-*.pkl.gz
-*.pkl
-
-# Logging files
-*.log
