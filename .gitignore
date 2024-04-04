@@ -1,0 +1,12 @@
+# Python
+.venv
+__pycache__
+*.pyc
+
+# Machine learning model files
+*.pkl.gz
+*.pkl
+
+# Logging files
+*.log
+
