@@ -2,5 +2,8 @@
 .venv/
 
 # Machine learning model files
-models/gs_optimized_accuracy_model.pkl.gz
-models/original_accuracy_model.pkl.gz
+*.pkl.gz
+*.pkl
+
+# Logging files
+*.log
