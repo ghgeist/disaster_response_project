@@ -7,7 +7,6 @@ import sys
 import pandas as pd
 from sqlalchemy import create_engine
 
-
 # Set up logging
 logFormatter = logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
 rootLogger = logging.getLogger()
