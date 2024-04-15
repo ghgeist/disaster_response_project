@@ -47,12 +47,12 @@ rootLogger.setLevel(logging.INFO)
 
 FEATURE_COLUMNS =['message']
 TARGET_COLUMNS = [
-    'related', 'request', 'offer', 'aid_related', 'medical_help', 'medical_products', 
-    'search_and_rescue', 'security', 'military', 'child_alone', 'water', 'food', 
-    'shelter', 'clothing', 'money', 'missing_people', 'refugees', 'death', 
-    'other_aid', 'infrastructure_related', 'transport', 'buildings', 'electricity', 
+    'related', 'request', 'offer', 'aid_related', 'medical_help', 'medical_products',
+    'search_and_rescue', 'security', 'military', 'child_alone', 'water', 'food',
+    'shelter', 'clothing', 'money', 'missing_people', 'refugees', 'death',
+    'other_aid', 'infrastructure_related', 'transport', 'buildings', 'electricity',
     'tools', 'hospitals', 'shops', 'aid_centers', 'other_infrastructure',
-    'weather_related', 'floods', 'storm', 'fire', 'earthquake', 'cold', 
+    'weather_related', 'floods', 'storm', 'fire', 'earthquake', 'cold',
     'other_weather', 'direct_report']
 
 STOPWORDS_SET = set(stopwords.words('english'))
@@ -197,7 +197,7 @@ def evaluate_model(model, X_test, Y_test, category_names):
         results_file_path = 'data\\04_fct\\fct_prediction_results.csv'
         results_df.to_csv(results_file_path, index=False)
         logging.info('Evaluation results saved to: %s', results_file_path)
-    
+
     except Exception as e:
         logging.error("Error evaluating model: %s", e)
 
@@ -217,20 +217,43 @@ def save_model(model, model_filepath):
             pickle.dump(model, f)
     except Exception as e:
         logging.error("Error saving model: %s", e)
-        
+
 def main():
+    """
+    Main function to train and save a machine learning model.
+
+    This function performs the following steps:
+    1. Load data from a SQLite database.
+    2. Split the data into a training set and a test set.
+    3. Build a machine learning pipeline.
+    4. Train the model using the training data.
+    5. Evaluate the model using the test data.
+    6. Save the trained model as a pickle file.
+
+    The filepaths for the database and the pickle file are provided as command line arguments.
+
+    Usage:
+    python train_classifier.py <database_filepath> <model_filepath>
+
+    Arguments:
+    database_filepath (str): Filepath for the SQLite database containing preprocessed data.
+    model_filepath (str): Filepath for the output pickle file for the trained model.
+
+    Returns:
+    None
+    """
     if len(sys.argv) == 3:
         database_filepath, model_filepath = sys.argv[1:]
         logging.info('Loading data...\n    DATABASE: %s', database_filepath)
         X, Y = load_data(database_filepath)
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
-        
+
         logging.info('Building model...')
         model = build_model()
-        
+
         logging.info('Training model...')
         model.fit(X_train, Y_train)
-        
+
         logging.info('Evaluating model...')
         evaluate_model(model, X_test, Y_test, TARGET_COLUMNS)
 
