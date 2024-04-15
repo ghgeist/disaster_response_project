@@ -1,7 +1,6 @@
 # Standard library imports
 import os
 import sys
-# Add the parent directory to sys.path to allow importing from there.
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import json
 
@@ -16,20 +15,19 @@ from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
 
 # Local application imports
-# Import the tokenize function from the local train_classifier module.
 from models.train_classifier import tokenize
 
-# Create a Flask web server from the current file.
 app = Flask(__name__)
 
-# Load data from the SQLite database.
+# load data
 engine = create_engine('sqlite:///../data\\02_stg\\stg_disaster_response.db')
 df = pd.read_sql_table('stg_disaster_response', engine)
 
-# Load the trained machine learning model.
+# load model
 model = joblib.load("..\\models\\classifier.pkl")
 
-# Define the main page route.
+
+# index webpage displays cool visuals and receives user input text for model
 @app.route('/')
 @app.route('/index')
 def index():
@@ -44,11 +42,11 @@ def index():
     Returns:
         A rendered HTML template ('master.html') with data for visuals.
     """
-    # Extract data needed for visuals.
+    # extract data needed for visuals
     genre_counts = df.groupby('genre').count()['message']
     genre_names = list(genre_counts.index)
     
-    # Create visuals for the web page.
+    # create visuals
     graphs = [
         {
             'data': [
@@ -70,14 +68,15 @@ def index():
         }
     ]
     
-    # Encode plotly graphs in JSON.
+    # encode plotly graphs in JSON
     ids = ["graph-{}".format(i) for i, _ in enumerate(graphs)]
     graphJSON = json.dumps(graphs, cls=plotly.utils.PlotlyJSONEncoder)
     
-    # Render the web page with plotly graphs.
+    # render web page with plotly graphs
     return render_template('master.html', ids=ids, graphJSON=graphJSON)
 
-# Define the page route that handles user query and displays model results.
+
+# web page that handles user query and displays model results
 @app.route('/go')
 def go():
     """
@@ -93,24 +92,34 @@ def go():
     Returns:
         A rendered HTML template ('go.html') with the user's query and classification results.
     """
-    # Save user input in query.
+    # save user input in query
     query = request.args.get('query', '') 
 
-    # Use model to predict classification for query.
+    # use model to predict classification for query
     classification_labels = model.predict([query])[0]
     classification_results = dict(zip(df.columns[4:], classification_labels))
 
-    # Render the go.html template and pass the data into the template.
+    # This will render the go.html Please see that file. 
     return render_template(
         'go.html',
         query=query,
         classification_result=classification_results
     )
 
-# Define the main function that starts the Flask web server.
+
 def main():
+    """
+    Runs the application on the specified host and port.
+
+    Parameters:
+    - host (str): The host IP address to run the application on.
+    - port (int): The port number to run the application on.
+    - debug (bool): Whether to enable debug mode or not.
+
+    Returns:
+    None
+    """
     app.run(host='0.0.0.0', port=3000, debug=True)
 
-# If this file is executed directly, start the web server.
 if __name__ == '__main__':
     main()
