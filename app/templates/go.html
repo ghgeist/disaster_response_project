@@ -1,24 +1,23 @@
-{% extends "master.html" %}
-{% block title %}Results{% endblock %}
+{% extends "master.html" %} <!-- Extends the base template "master.html" -->
 
-{% block message %}
+{% block title %}Results{% endblock %} <!-- Title of the page is set to "Results" -->
+
+{% block message %} <!-- Block for displaying the message -->
     <hr />
     <h4 class="text-center">MESSAGE</h4>
-    <p class="text-center"><i>{{query}}</i></p>
+    <p class="text-center"><i>{{query}}</i></p> <!-- The variable "query" is displayed here -->
 {% endblock %}
 
-{% block content %}
+{% block content %} <!-- Block for the main content of the page -->
     <h1 class="text-center">Result</h1>
         <ul class="list-group">
-            {% for category, classification in classification_result.items() %}
-                {% if classification == 1 %}
+            {% for category, classification in classification_result.items() %} <!-- Looping over the "classification_result" dictionary -->
+                {% if classification == 1 %} <!-- If the classification is 1, the list item will have the "list-group-item-success" class -->
                     <li class="list-group-item list-group-item-success text-center">{{category.replace('_', ' ').title()}}</li>
-                {% else %}
+                {% else %} <!-- If the classification is not 1, the list item will have the "list-group-item-dark" class -->
                     <li class="list-group-item list-group-item-dark text-center">{{category.replace('_', ' ').title()}}</li>
                 {% endif %}
             {% endfor %}
-
         </div>
     </div>
-
 {% endblock %}
