@@ -1,4 +1,4 @@
-![alt text](image.png)
+![Alt text](.images/image.png)
 
 # Signal Storm: Leveraging Machine Learning to Identify Requests for Help During Natural Disasters
 
