@@ -18,7 +18,7 @@ This code creates a machine learning pipeline that can be used to classify tweet
 - **Natural Language Processing:** nltk
 - **NLTK Resources:** works, punkt, averaged_perception_tagger, maxent_ne_chunker, wordnet
 - **Machine Learning:** scikit-learn, joblib
-- **Web App:** Flask
+- **Web App:** Flask, Bootstrap
 
 ## Instructions
 *_Note_*: If you're using a virtual environment, please make sure its activated before you run these commands. 
