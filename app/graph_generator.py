@@ -1,5 +1,6 @@
 import warnings
 import plotly.graph_objs as go
+import pandas as pd
 
 
 def prepare_genre_data(df):
