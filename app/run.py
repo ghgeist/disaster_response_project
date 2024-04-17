@@ -42,29 +42,46 @@ def index():
     Returns:
         A rendered HTML template ('master.html') with data for visuals.
     """
-    # extract data needed for visuals
-    genre_counts = df.groupby('genre').count()['message'].sort_values(ascending=True)
-    genre_names = list(genre_counts.index)
+    # Group by 'genre' and 'related', count 'message', unstack 'related', and sum across rows
+    genre_counts = df.groupby(['genre', 'related']).count()['message'].unstack().sum(axis=1)
+
+    # Sort genres by count
+    sorted_genres = genre_counts.sort_values(ascending=True).index
+
+    # Get sorted genre names
+    genre_names = list(sorted_genres)
+
+    # Group by 'genre' and 'related' again, count 'message', and unstack 'related'
+    genre_related_counts = df.groupby(['genre', 'related']).count()['message'].unstack()
+
+    # Reindex with sorted genre names
+    genre_related_counts = genre_related_counts.reindex(genre_names)
     
-    # create visuals
+    # Create a dictionary to map 'related' values to new names
+    related_names = {0: 'not related', 1: 'related', 2: 'ambiguous'}    
+
+    # Create visuals
     graphs = [
         {
             'data': [
                 Bar(
                     y=genre_names,
-                    x=genre_counts,
+                    x=genre_related_counts[col],
+                    name=related_names[col],  # Use mapped name
                     orientation='h'
                 )
+                for col in genre_related_counts.columns
             ],
 
             'layout': {
-                'title': 'Distribution of Message Genres',
+                'title': 'Messages per Genre and Relatedness',
                 'xaxis': {
                     'title': "Count"
                 },
                 'yaxis': {
                     'title': "Genre"
-                }
+                },
+                'barmode': 'stack'
             }
         }
     ]
