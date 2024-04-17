@@ -43,7 +43,7 @@ def index():
         A rendered HTML template ('master.html') with data for visuals.
     """
     # extract data needed for visuals
-    genre_counts = df.groupby('genre').count()['message']
+    genre_counts = df.groupby('genre').count()['message'].sort_values(ascending=True)
     genre_names = list(genre_counts.index)
     
     # create visuals
@@ -51,17 +51,18 @@ def index():
         {
             'data': [
                 Bar(
-                    x=genre_names,
-                    y=genre_counts
+                    y=genre_names,
+                    x=genre_counts,
+                    orientation='h'
                 )
             ],
 
             'layout': {
                 'title': 'Distribution of Message Genres',
-                'yaxis': {
+                'xaxis': {
                     'title': "Count"
                 },
-                'xaxis': {
+                'yaxis': {
                     'title': "Genre"
                 }
             }
