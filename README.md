@@ -26,7 +26,7 @@ This code creates a machine learning pipeline that can be used to classify tweet
     - To run ETL pipeline that cleans data and stores in database:
         `python data/process_data.py data\01_raw\disaster_messages.csv data\01_raw\disaster_categories.csv data\02_stg\stg_disaster_response.db`
     - To run ML pipeline that trains classifier and saves the resulting model:
-        `python models\train_classifier.py data/DisasterResponse.db models\classifier.pkl`
+        `python models\train_classifier.py data\02_stg\stg_disaster_response.db models\classifier.pkl`
         - **WARNING**: If you're running the pipeline locally, this might take a few minutes. The script will run use n-1 cores.
 2. To run the Flask app:
   - Go to `app` directory: `cd app`

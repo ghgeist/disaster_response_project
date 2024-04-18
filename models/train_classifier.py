@@ -246,8 +246,11 @@ def main():
         database_filepath, model_filepath = sys.argv[1:]
         logging.info('Loading data...\n    DATABASE: %s', database_filepath)
         X, Y = load_data(database_filepath)
+        if X is None or Y is None:
+            logging.error('Error loading data from database')
+            return
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
-
+        
         logging.info('Building model...')
         model = build_model()
 
