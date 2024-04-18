@@ -78,7 +78,7 @@ Here median percent changes between the two models per output class:
 | Macro Avg      | 0.00%     | -0.41% | -0.75%   |
 | Weighted Avg   | -0.06%    | 0.00%  | -0.04%   |
 
-The data shows that the optimized model increase precision by .04% for relevant tweets (1), but decrease recall and the f1-score (-8.% and -5.6% respectively). This means that the optimized model is detecting positive cases more accurately, but at the expense of being able to detect all positive cases. This is not a trade that we want to make because we want to make sure that we're capturing as many true positive requests for help. In addition, changing `vect__ngram_range` from (1, 1) to (1, 2) and `clf__estimator__n_estimators` from 100 to 200 increased training time from approximately one minute to seven minutes (a 700% increase in computational time).
+The data shows that the optimized model increase precision by .04% for relevant tweets (1), but decrease recall and the f1-score (-8.% and -5.6% respectively). This means that the optimized model is detecting positive cases more accurately, but at the expense of being able to detect all positive cases. This is not a trade that we want to make because we want to make sure that we're capturing as many true positive requests for help. In addition, changing `vect__ngram_range` from (1, 1) to (1, 2) and `clf__estimator__n_estimators` from 100 to 200 increased training time from approximately one minute to seven minutes (a 700% increase in computational time). In addition, the optimized model is also 561.85 MB larger than the original model (when neither file is compressed).
 
 # Conclusion and Recommendations
 
