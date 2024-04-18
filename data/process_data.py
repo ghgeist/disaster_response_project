@@ -8,8 +8,10 @@ import pandas as pd
 from sqlalchemy import create_engine
 
 # Set up logging
-logFormatter = logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
 rootLogger = logging.getLogger()
+rootLogger.setLevel(logging.INFO)
+
+logFormatter = logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
 
 fileHandler = logging.FileHandler('app.log')
 fileHandler.setFormatter(logFormatter)
@@ -18,8 +20,6 @@ rootLogger.addHandler(fileHandler)
 consoleHandler = logging.StreamHandler()
 consoleHandler.setFormatter(logFormatter)
 rootLogger.addHandler(consoleHandler)
-
-rootLogger.setLevel(logging.INFO)
 
 def load_data(messages_filepath, categories_filepath):
     """
@@ -86,8 +86,28 @@ def clean_data(df):
         # Drop the original categories column from `df`
         df = df.drop('categories', axis=1)
 
+        # Calculate the number and percentage of rows where related = 2
+        num_related_rows_dropped = split_categories[split_categories['related'] == 2].shape[0]
+        percent_related_rows_dropped = round((num_related_rows_dropped / split_categories.shape[0]) * 100,2)
+
+        # Log the message
+        logging.info(
+            "Dropping %s rows where 'related' is 2 which indicates that the message is ambiguous. "
+            "This is %s%% of the data.",
+            num_related_rows_dropped, percent_related_rows_dropped
+)
+        # Drop the rows
+        split_categories = split_categories[split_categories['related'] != 2]
+
         # Join the split categories with the original dataframe
         df = pd.concat([df, split_categories], axis=1)
+
+        # Calculate the number and percentage of duplicate rows
+        num_duplicate_rows = df.duplicated().sum()
+        percent_duplicate_rows = round((num_duplicate_rows / df.shape[0]) * 100,2)
+
+        # Log the message
+        logging.info("""Dropping {} duplicate rows ({}% of the data)""".format(num_duplicate_rows, percent_duplicate_rows))
 
         # Drop duplicates
         df = df.drop_duplicates()
@@ -142,5 +162,4 @@ def main():
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
     main()
