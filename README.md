@@ -42,7 +42,7 @@ The model was built on a combination of the following two data sets:
   - Messages are classified into the genres There are three values: direct, news and social
 - **disaster_categories.csv**
   - Contains the corresponding categories for each message in the disaster_messages dataset. Each category is represented by a binary value (0 or 1), indicating whether the message belongs to that category or not.
-  - the 'related' column indicates if the message is _related_ to the disaster or not. There are three possible values: 1 (related), 0 (not related) and 2 (ambiguous)
+  - the 'related' column indicates if the message is _related_ to the disaster or not. In the raw data, there are three possible values: 1 (related), 0 (not related) and 2 (ambiguous). The ambiguous messages have been dropped from the training set.
 
 # Model Design
 The model is designed as a machine learning pipeline that processes text and classifies it into one of the **36 categories** in the dataset. The pipeline consists of three main steps:
@@ -70,16 +70,15 @@ This process resulted in the following 'optimized' values:
 | `clf__estimator__n_estimators`              | 100            | 200             |
 | `clf__estimator__min_samples_split`         | 2              | 2               |
 
-Here median percent changes between the two models per output class:
-| output_class   | precision | recall | f1-score |
+Here median percent changes between the two models per 'relevant' output class:
+| Output Class   | Precision | Recall | F1-Score |
 |----------------|-----------|--------|----------|
-| 0              | -0.02     | 0.01   | 0.00     |
-| 1              | 0.66      | -1.52  | -0.57    |
-| 2              | 52.38     | 0.00   | 20.75    |
-| macro avg      | 0.00      | -0.43  | -0.44    |
-| weighted avg   | 0.00      | -0.00  | -0.02    |
+| 0              | -0.02%    | 0.01%  | 0.00%    |
+| 1              | 4%        | -8.10% | -5.60%   |
+| Macro Avg      | 0.00%     | -0.41% | -0.75%   |
+| Weighted Avg   | -0.06%    | 0.00%  | -0.04%   |
 
-We see that the data shows the new ML model significantly boosts precision in class 2, but at the cost of reduced recall in class 1. This trade-off decreases the F1-score for class 1, indicating a shift towards specialization in the model's performance across classes. This is not a trade that we want to make because we want to make sure that we're capturing as many true positive requests for help. In addition, changing `vect__ngram_range` from (1, 1) to (1, 2) and `clf__estimator__n_estimators` from 100 to 200 increased training time from approximately two minutes to eight minutes (a 300% increase in computational time).
+The data shows that the optimized model increase precision by .04% for relevant tweets (1), but decrease recall and the f1-score (-8.% and -5.6% respectively). This means that the optimized model is detecting positive cases more accurately, but at the expense of being able to detect all positive cases. This is not a trade that we want to make because we want to make sure that we're capturing as many true positive requests for help. In addition, changing `vect__ngram_range` from (1, 1) to (1, 2) and `clf__estimator__n_estimators` from 100 to 200 increased training time from approximately one minute to seven minutes (a 700% increase in computational time). In addition, the optimized model is also 561.85 MB larger than the original model (when neither file is compressed).
 
 # Conclusion and Recommendations
 
