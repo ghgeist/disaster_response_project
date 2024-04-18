@@ -70,7 +70,7 @@ This process resulted in the following 'optimized' values:
 | `clf__estimator__n_estimators`              | 100            | 200             |
 | `clf__estimator__min_samples_split`         | 2              | 2               |
 
-Here median percent changes between the two models per output class:
+Here median percent changes between the two models per 'relevant' output class:
 | Output Class   | Precision | Recall | F1-Score |
 |----------------|-----------|--------|----------|
 | 0              | -0.02%    | 0.01%  | 0.00%    |
