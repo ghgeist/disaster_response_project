@@ -60,33 +60,16 @@ URL_REGEX = r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F]
 URL_PLACE_HOLDER = "urlplaceholder"
 
 def load_data(db_filepath):
-    """
-    Load data from a SQLite database and return features and labels for machine learning.
-
-    The table name is assumed to be the same as the file name (without the extension).
-
-    Parameters:
-    db_filepath (str): The file path of the SQLite database.
-
-    Returns:
-    X (numpy.ndarray): The features for the machine learning model.
-    y (numpy.ndarray): The labels for the machine learning model.
-
-    If an error occurs while loading the data, both X and y will be None.
-    """
     try:
-        # Create a valid SQLAlchemy URL for a SQLite database
         database_url = 'sqlite:///' + db_filepath.replace('\\', '/')
         engine = create_engine(database_url)
     except OperationalError:
         logging.error("Error connecting to database at %s", db_filepath)
         return None, None
 
-    # Extract table name from the file name
     table_name = os.path.splitext(os.path.basename(db_filepath))[0]
 
     try:
-        # Create a dataframe from the engine
         df = pd.read_sql_table(table_name, engine)
     except ValueError:
         logging.error("Table %s not found in database", table_name)
@@ -96,7 +79,6 @@ def load_data(db_filepath):
         X = df.message.values
         y = df[TARGET_COLUMNS].values
 
-        # For debugging
         nan_columns = df[TARGET_COLUMNS].isna().any()
         nan_columns_list = nan_columns[nan_columns == True].index.tolist()
 
@@ -114,7 +96,7 @@ def load_data(db_filepath):
         logging.error(e)
         return None, None
 
-        return X, y
+    return X, y
 
 def tokenize(text):
     """
