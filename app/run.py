@@ -21,11 +21,19 @@ from app.graph_generator import *
 app = Flask(__name__)
 
 # load data
-engine = create_engine('sqlite:///../data\\02_stg\\stg_disaster_response.db')
-df = pd.read_sql_table('stg_disaster_response', engine)
+try:
+    engine = create_engine('sqlite:///../data\\02_stg\\stg_disaster_response.db')
+    df = pd.read_sql_table('stg_disaster_response', engine)
+except Exception as e:
+    print(f"Error loading data from database: {e}", file=sys.stderr)
+    sys.exit(1)
 
 # load model
-model = joblib.load("..\\models\\classifier.pkl")
+try:
+    model = joblib.load("..\\models\\classifier.pkl")
+except Exception as e:
+    print(f"Error loading model: {e}", file=sys.stderr)
+    sys.exit(1)
 
 
 # index webpage displays cool visuals and receives user input text for model
@@ -33,36 +41,40 @@ model = joblib.load("..\\models\\classifier.pkl")
 @app.route('/index')
 def index():
     """
-    This function handles the main page of the web application. It prepares the data for the genre and message type 
+    This function handles the main page of the web application. It prepares the data for the genre and message type
     graphs, encodes the graphs in JSON format, and renders the 'master.html' template with the graph data.
 
-    The function first prepares the data for the genre and message type graphs using the 'prepare_genre_data' and 
-    'classify_message_types' functions respectively. It then creates the graphs using the 'create_genre_visual' and 
+    The function first prepares the data for the genre and message type graphs using the 'prepare_genre_data' and
+    'classify_message_types' functions respectively. It then creates the graphs using the 'create_genre_visual' and
     'plot_message_types' functions.
 
-    The graphs are then encoded in JSON format using the 'json.dumps' function with 'plotly.utils.PlotlyJSONEncoder' 
+    The graphs are then encoded in JSON format using the 'json.dumps' function with 'plotly.utils.PlotlyJSONEncoder'
     as the encoder class.
 
-    Finally, the function renders the 'master.html' template, passing the graph IDs and the JSON-encoded graph data 
+    Finally, the function renders the 'master.html' template, passing the graph IDs and the JSON-encoded graph data
     to the template.
 
     Returns:
         A rendered HTML template ('master.html') with the graph IDs and JSON-encoded graph data.
     """
-    #create genre graph
-    genre_names, genre_related_counts = prepare_genre_data(df)
-    genre_graph = create_genre_visual(genre_names, genre_related_counts)
+    try:
+        # create genre graph
+        genre_names, genre_related_counts = prepare_genre_data(df)
+        genre_graph = create_genre_visual(genre_names, genre_related_counts)
 
-    #Create message_type graph
-    message_types_df = classify_message_types(df)
-    message_type_graph = plot_message_types(message_types_df)
+        # Create message_type graph
+        message_types_df = classify_message_types(df)
+        message_type_graph = plot_message_types(message_types_df)
 
-    #Create list of visuals
-    graphs = [genre_graph, message_type_graph]
+        # Create list of visuals
+        graphs = [genre_graph, message_type_graph]
 
-    # encode plotly graphs in JSON
-    ids = ["graph-{}".format(i) for i, _ in enumerate(graphs)]
-    graphJSON = json.dumps(graphs, cls=plotly.utils.PlotlyJSONEncoder)
+        # encode plotly graphs in JSON
+        ids = ["graph-{}".format(i) for i, _ in enumerate(graphs)]
+        graphJSON = json.dumps(graphs, cls=plotly.utils.PlotlyJSONEncoder)
+
+    except Exception as err:
+        abort(500, description=f"Error preparing data for visualization: {err}")
 
     # render web page with plotly graphs
     return render_template('master.html', ids=ids, graphJSON=graphJSON)
@@ -84,12 +96,16 @@ def go():
     Returns:
         A rendered HTML template ('go.html') with the user's query and classification results.
     """
-    # save user input in query
-    query = request.args.get('query', '')
+    try:
+        # save user input in query
+        query = request.args.get('query', '')
 
-    # use model to predict classification for query
-    classification_labels = model.predict([query])[0]
-    classification_results = dict(zip(df.columns[4:], classification_labels))
+        # use model to predict classification for query
+        classification_labels = model.predict([query])[0]
+        classification_results = dict(zip(df.columns[4:], classification_labels))
+
+    except Exception as e:
+        return render_template('error.html', message=f"Error processing query: {e}")
 
     # This will render the go.html Please see that file.
     return render_template(
@@ -97,7 +113,6 @@ def go():
         query=query,
         classification_result=classification_results
     )
-
 
 def main():
     """
