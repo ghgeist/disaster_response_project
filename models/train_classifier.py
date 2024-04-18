@@ -95,11 +95,26 @@ def load_data(db_filepath):
     try:
         X = df.message.values
         y = df[TARGET_COLUMNS].values
+
+        # For debugging
+        nan_columns = df[TARGET_COLUMNS].isna().any()
+        nan_columns_list = nan_columns[nan_columns == True].index.tolist()
+
+        if len(nan_columns_list) > 0:
+            logging.error("Columns with NaN values: %s", nan_columns_list)
+            raise ValueError(
+                            "NaN values found in columns: %s. Check the TARGET_COLUMNS to make sure they are set up correctly "
+                            "or the underlying data" % nan_columns_list
+                        )
+
     except KeyError as e:
         logging.error("Column %s not found in table", e.args[0])
         return None, None
+    except ValueError as e:
+        logging.error(e)
+        return None, None
 
-    return X, y
+        return X, y
 
 def tokenize(text):
     """
@@ -250,7 +265,7 @@ def main():
             logging.error('Error loading data from database')
             return
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
-        
+
         logging.info('Building model...')
         model = build_model()
 
