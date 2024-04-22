@@ -1,0 +1,5 @@
+output_class,precision_base,recall_base,f1-score_base,precision_optimized,recall_optimized,f1-score_optimized,percent_difference
+0,96.0,100.0,98.0,96.0,100.0,98.0,0.0
+1,75.0,8.0,14.0,78.0,4.0,7.0,-50.0
+macro avg,85.0,54.0,57.0,85.0,52.0,53.0,-7.02
+weighted avg,96.0,96.0,95.0,95.0,96.0,94.0,-1.05
