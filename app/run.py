@@ -20,6 +20,7 @@ from app.graph_generator import *
 
 app = Flask(__name__)
 
+#TO DO: Change this so you can specific the model that you want the app to run
 # load data
 try:
     engine = create_engine('sqlite:///../data\\02_stg\\stg_disaster_response.db')

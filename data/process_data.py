@@ -173,7 +173,7 @@ def drop_duplicates(df):
     try:
         num_duplicate_rows = df.duplicated().sum()
         percent_duplicate_rows = round((num_duplicate_rows / df.shape[0]) * 100,2)
-        logging.info("""Dropping {} duplicate rows ({}% of the data)""".format(num_duplicate_rows, percent_duplicate_rows))
+        logging.info("Dropping %s duplicate rows (%s%% of the data)", num_duplicate_rows, percent_duplicate_rows)
         df = df.drop_duplicates()
     except Exception as e:
         logging.error("Error dropping duplicates: %s", e)
@@ -229,6 +229,16 @@ def save_data(df, database_filename):
     df.to_sql(table_name, engine, index=False, if_exists='replace')
 
 def main():
+    """
+    Load data from the specified input files, clean the data, and save it to a database.
+
+    The file paths are provided as command-line arguments. The first argument is the path to the messages file, 
+    the second argument is the path to the categories file, and the third argument is the path to the database 
+    where the cleaned data will be saved.
+
+    If the correct number of arguments are not provided, an error message is logged and the function returns 
+    without doing anything.
+    """
     if len(sys.argv) == 4:
 
         messages_filepath, categories_filepath, database_filepath = sys.argv[1:]

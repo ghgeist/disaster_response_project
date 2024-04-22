@@ -25,9 +25,20 @@ This code creates a machine learning pipeline that can be used to classify tweet
 1. To set up the database and machine learning model, run the following commands:
     - To run ETL pipeline that cleans data and stores in database:
         `python data/process_data.py data\01_raw\disaster_messages.csv data\01_raw\disaster_categories.csv data\02_stg\stg_disaster_response.db`
-    - To run ML pipeline that trains classifier and saves the resulting model:
+    - To train the ML pipeline that trains the classifier on the base parameters and save the resulting model:
         `python models\train_classifier.py data\02_stg\stg_disaster_response.db models\classifier.pkl`
-        - **WARNING**: If you're running the pipeline locally, this might take a few minutes. The script will run use n-1 cores.
+      The script will then issue the following prompts. Respond "yes", "no" or "exit":
+        1. Decide whether to retrain the base model. If the user chooses to retrain, the script loads the base parameters, builds a model using these parameters, trains the model, evaluates it, and saves it to a pickle file.
+
+        2. Decide to estimate the grid search runtime. If the user chooses to estimate, the script loads the grid search parameters and runs a grid search on a small subset of the data to estimate the runtime.
+
+        3. Decide to run a full grid search. If the user chooses to run the grid search, the script runs the grid search, saves the results, and saves the best parameters found by the grid search.
+
+        4. Decide to retrain the model using the optimized parameters found by the grid search. If the user chooses to retrain, the script loads the optimized parameters, builds a model using these parameters, trains the model, evaluates it, and saves it to a pickle file.
+        
+        **WARNING**: If you're running the pipeline locally, this might take a few minutes. The script will run use n-1 cores.
+
+
 2. To run the Flask app:
   - Go to `app` directory: `cd app`
   - Run the web app: `python run.py`
@@ -42,7 +53,7 @@ The model was built on a combination of the following two data sets:
   - Messages are classified into the genres There are three values: direct, news and social
 - **disaster_categories.csv**
   - Contains the corresponding categories for each message in the disaster_messages dataset. Each category is represented by a binary value (0 or 1), indicating whether the message belongs to that category or not.
-  - the 'related' column indicates if the message is _related_ to the disaster or not. In the raw data, there are three possible values: 1 (related), 0 (not related) and 2 (ambiguous). The ambiguous messages have been dropped from the training set.
+  - The 'related' column indicates if the message is _related_ to the disaster or not. In the raw data, there are three possible values: 1 (related), 0 (not related) and 2 (ambiguous). The ambiguous messages have been dropped from the training set.
 
 # Model Design
 The model is designed as a machine learning pipeline that processes text and classifies it into one of the **36 categories** in the dataset. The pipeline consists of three main steps:
@@ -56,6 +67,14 @@ The model is designed as a machine learning pipeline that processes text and cla
 The trained model is saved to a pickle file for future use.
 
 # Tuning the Model for Accuracy
+Here are the median values for the original model:
+| output_class | precision | recall | f1-score |
+|--------------|-----------|--------|----------|
+| 0            | 96        | 100    | 98       |
+| 1            | 75        | 8      | 14       |
+| macro avg    | 85        | 54     | 57       |
+| weighted avg | 96        | 96     | 95       |
+
 I used GridSearchCV to tune the model for accuracy, and tested the following parameters:
 | Parameter                              | Values                              |
 |----------------------------------------|-------------------------------------|
@@ -70,15 +89,26 @@ This process resulted in the following 'optimized' values:
 | `clf__estimator__n_estimators`              | 100            | 200             |
 | `clf__estimator__min_samples_split`         | 2              | 2               |
 
-Here median percent changes between the two models per 'relevant' output class:
-| Output Class   | Precision | Recall | F1-Score |
-|----------------|-----------|--------|----------|
-| 0              | -0.02%    | 0.01%  | 0.00%    |
-| 1              | 4%        | -8.10% | -5.60%   |
-| Macro Avg      | 0.00%     | -0.41% | -0.75%   |
-| Weighted Avg   | -0.06%    | 0.00%  | -0.04%   |
+Here are the median values for the optimized model:
+| output_class | precision | recall | f1-score |
+|--------------|-----------|--------|----------|
+| 0            | 96        | 100    | 98       |
+| 1            | 78        | 4      | 7        |
+| macro avg    | 85        | 52     | 53       |
+| weighted avg | 95        | 96     | 94       |
 
-The data shows that the optimized model increase precision by .04% for relevant tweets (1), but decrease recall and the f1-score (-8.% and -5.6% respectively). This means that the optimized model is detecting positive cases more accurately, but at the expense of being able to detect all positive cases. This is not a trade that we want to make because we want to make sure that we're capturing as many true positive requests for help. In addition, changing `vect__ngram_range` from (1, 1) to (1, 2) and `clf__estimator__n_estimators` from 100 to 200 increased training time from approximately one minute to seven minutes (a 700% increase in computational time). In addition, the optimized model is also 561.85 MB larger than the original model (when neither file is compressed).
+Here are the percent changes between the two model:
+| output_class  | precision | recall | f1-score |
+|---------------|-----------|--------|----------|
+| 0             | 0.00      | 0.0    | 0.00     |
+| 1             | 4.00      | -50.0  | -50.00   |
+| macro avg     | 0.00      | -3.7   | -7.02    |
+| weighted avg  | -1.04     | 0.0    | -1.05    |
+
+
+The data shows that the optimized model increase precision by 4% for relevant tweets, but decrease recall and the f1-score by 50%. This means that the optimized model is detecting positive cases more accurately, but at the expense of being able to detect all positive cases. This is not a trade that we want to make because we want to make sure that we're capturing as many true positive requests for help. Furthermore, the recall rates for both models are extremely low, highlighting a major drawback in prioritizing precision at a considerable cost to overall performance.
+
+In addition, changing `vect__ngram_range` from (1, 1) to (1, 2) and `clf__estimator__n_estimators` from 100 to 200 increased training time from approximately one minute to seven minutes (a 700% increase in computational time). In addition, the optimized model is also 561.85 MB larger than the original model (when neither file is compressed).
 
 # Conclusion and Recommendations
 

@@ -1,15 +1,14 @@
 import warnings
-import plotly.graph_objs as go
 import pandas as pd
-
+import plotly.graph_objs as go
 
 def prepare_genre_data(df):
     """
     Prepare genre data for visualization.
-    
+
     Parameters:
     df (pd.DataFrame): DataFrame containing 'genre', 'related', and 'message' columns.
-    
+
     Returns:
     genre_names (list): List of genre names sorted by count.
     genre_related_counts (pd.DataFrame): DataFrame of counts of 'related' per genre.
@@ -28,22 +27,22 @@ def prepare_genre_data(df):
 
     # Reindex with sorted genre names
     genre_related_counts = genre_related_counts.reindex(genre_names)
-    
+
     return genre_names, genre_related_counts
 
 def create_genre_visual(genre_names, genre_related_counts):
     """
     Create a Plotly graph object for genre data.
-    
+
     Parameters:
     genre_names (list): List of genre names.
     genre_related_counts (pd.DataFrame): DataFrame of counts of 'related' per genre.
-    
+
     Returns:
     genre_graph (dict): Dictionary representing a Plotly graph object.
     """
     # Create a dictionary to map 'related' values to new names
-    related_names = {0: 'not related', 1: 'related', 2: 'ambiguous'}    
+    related_names = {0: 'not related', 1: 'related', 2: 'ambiguous'}
 
     # Create visuals
     genre_graph = {
@@ -73,10 +72,10 @@ def create_genre_visual(genre_names, genre_related_counts):
 def classify_message_types(df):
     """
     Classify message types based on 'request', 'offer', and 'direct_report' columns.
-    
+
     Parameters:
     df (pd.DataFrame): DataFrame containing 'message', 'request', 'offer', 'direct_report', and other columns.
-    
+
     Returns:
     df_filtered (pd.DataFrame): Filtered DataFrame with a new 'message_type' column and duplicates dropped.
     """
@@ -108,10 +107,10 @@ def classify_message_types(df):
 def plot_message_types(df):
     """
     Create a Plotly graph object for message type data.
-    
+
     Parameters:
     df (pd.DataFrame): DataFrame containing a 'message_type' column.
-    
+
     Returns:
     graph (dict): Dictionary representing a Plotly graph object.
     """
