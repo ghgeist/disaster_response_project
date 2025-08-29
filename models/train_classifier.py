@@ -25,6 +25,8 @@ from sklearn.multioutput import MultiOutputClassifier
 from sklearn.pipeline import Pipeline
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
+from imblearn.over_sampling import SMOTE
+from imblearn.over_sampling import MultiOutputSampler
 
 # Download required NLTK resources
 nltk_resources = {
@@ -553,6 +555,57 @@ def get_user_input(prompt):
             print("Invalid input. Please enter 'yes', 'no', or 'exit'.")
 
 
+def apply_smote_sampling(X_train, y_train):
+    """
+    Apply SMOTE oversampling to handle class imbalance in multi-label classification.
+    
+    This function applies SMOTE to each target column individually using MultiOutputSampler
+    to handle the multi-label classification properly. It also handles cases where SMOTE
+    cannot be applied (e.g., single class) and provides before/after class distribution statistics.
+    
+    Args:
+        X_train (numpy.ndarray): Training features
+        y_train (numpy.ndarray): Training labels
+        
+    Returns:
+        tuple: (X_train_resampled, y_train_resampled) - The resampled training data
+        
+    Raises:
+        ValueError: If SMOTE cannot be applied to any target column
+    """
+    try:
+        # Print before class distribution statistics
+        logging.info("Class distribution BEFORE SMOTE:")
+        for i, col in enumerate(TARGET_COLUMNS):
+            unique, counts = np.unique(y_train[:, i], return_counts=True)
+            class_dist = dict(zip(unique, counts))
+            logging.info(f"  {col}: {class_dist}")
+        
+        # Apply SMOTE using MultiOutputSampler for multi-label classification
+        sampler = MultiOutputSampler(
+            SMOTE(random_state=42, k_neighbors=1),
+            random_state=42
+        )
+        
+        X_train_resampled, y_train_resampled = sampler.fit_resample(X_train, y_train)
+        
+        # Print after class distribution statistics
+        logging.info("Class distribution AFTER SMOTE:")
+        for i, col in enumerate(TARGET_COLUMNS):
+            unique, counts = np.unique(y_train_resampled[:, i], return_counts=True)
+            class_dist = dict(zip(unique, counts))
+            logging.info(f"  {col}: {class_dist}")
+        
+        logging.info(f"Training samples: {len(X_train)} -> {len(X_train_resampled)}")
+        
+        return X_train_resampled, y_train_resampled
+        
+    except Exception as e:
+        logging.error(f"Error applying SMOTE: {e}")
+        logging.warning("SMOTE could not be applied. Using original training data.")
+        return X_train, y_train
+
+
 def main():
     """
     Main function to train a classifier.
@@ -586,6 +639,9 @@ def main():
 
         logging.info("Splitting the data into training and test sets...")
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
+
+        logging.info("Applying SMOTE oversampling to handle class imbalance...")
+        X_train, Y_train = apply_smote_sampling(X_train, Y_train)
 
         logging.info("Creating pipeline...")
         pipeline = create_pipeline()
