@@ -21,12 +21,23 @@ from app.graph_generator import *
 
 app = Flask(__name__)
 
-# Serve favicon to avoid 404s from browsers requesting /favicon.ico
+# Serve favicon: prefer .ico, gracefully fall back to .png variants
 @app.route('/favicon.ico')
 def favicon():
     app_dir = os.path.dirname(__file__)
     images_dir = os.path.abspath(os.path.join(app_dir, '..', 'images'))
-    return send_from_directory(images_dir, 'image.png', mimetype='image/png')
+    ico_path = os.path.join(images_dir, 'favicon.ico')
+    png_fallbacks = ['favicon.png', 'image.png']
+
+    if os.path.exists(ico_path):
+        return send_from_directory(images_dir, 'favicon.ico', mimetype='image/x-icon')
+
+    for png_name in png_fallbacks:
+        png_path = os.path.join(images_dir, png_name)
+        if os.path.exists(png_path):
+            return send_from_directory(images_dir, png_name, mimetype='image/png')
+
+    abort(404)
 
 #TO DO: Change this so you can specific the model that you want the app to run
 # load data
