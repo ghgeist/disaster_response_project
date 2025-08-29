@@ -1,0 +1,7 @@
+---
+description: adding or modifying the imports for scriptss
+alwaysApply: false
+---
+Group imports: standard library, third-party, local imports
+Use absolute imports over relative when possible
+Avoid wildcard imports (from module import *)
