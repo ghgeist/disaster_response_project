@@ -4,7 +4,7 @@ import os
 import sys
 
 # Third-party imports
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, abort
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
 from sqlalchemy import create_engine
@@ -23,7 +23,9 @@ app = Flask(__name__)
 #TO DO: Change this so you can specific the model that you want the app to run
 # load data
 try:
-    engine = create_engine('sqlite:///../data\\02_stg\\stg_disaster_response.db')
+    app_dir = os.path.dirname(__file__)
+    db_path = os.path.abspath(os.path.join(app_dir, '..', 'data', '02_stg', 'stg_disaster_response.db'))
+    engine = create_engine(f'sqlite:///{db_path}')
     df = pd.read_sql_table('stg_disaster_response', engine)
 except Exception as e:
     print(f"Error loading data from database: {e}", file=sys.stderr)
@@ -31,7 +33,9 @@ except Exception as e:
 
 # load model
 try:
-    model = joblib.load("..\\models\\classifier.pkl")
+    app_dir = os.path.dirname(__file__)
+    model_path = os.path.abspath(os.path.join(app_dir, '..', 'models', 'classifier.pkl'))
+    model = joblib.load(model_path)
 except Exception as e:
     print(f"Error loading model: {e}", file=sys.stderr)
     sys.exit(1)

@@ -26,7 +26,7 @@ from sklearn.pipeline import Pipeline
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
 
-nltk_resources = ["stopwords", "wordnet"]
+nltk_resources = ["stopwords", "wordnet", "punkt", "punkt_tab"]
 for resource in nltk_resources:
     try:
         nltk.data.find(f"corpora/{resource}")
@@ -96,10 +96,11 @@ URL_REGEX = (
 )
 URL_PLACE_HOLDER = "urlplaceholder"
 
-BASE_PARAMETERS = r"models\base_parameters.json"
-GRID_SEARCH_PARAMETERS = r"models\grid_search_parameters.json"
-GRID_SEARCH_RESULTS = r"models\gs_results.json"
-OPTIMIZED_PARAMETERS = r"models\optimized_parameters.json"
+SCRIPT_DIR = os.path.dirname(__file__)
+BASE_PARAMETERS = os.path.join(SCRIPT_DIR, "base_parameters.json")
+GRID_SEARCH_PARAMETERS = os.path.join(SCRIPT_DIR, "grid_search_parameters.json")
+GRID_SEARCH_RESULTS = os.path.join(SCRIPT_DIR, "gs_results.json")
+OPTIMIZED_PARAMETERS = os.path.join(SCRIPT_DIR, "optimized_parameters.json")
 
 logging.info("Setting random seed...")
 np.random.seed(0)
@@ -350,8 +351,11 @@ def build_model(pipeline, parameters):
     """
     try:
         # Configure the RandomForestClassifier with the given parameters
-        pipeline.set_params(clf__estimator__random_state=42, **parameters)
-    except (ValueError, ImportError) as e:
+        if parameters is None:
+            pipeline.set_params(clf__estimator__random_state=42)
+        else:
+            pipeline.set_params(clf__estimator__random_state=42, **parameters)
+    except (ValueError, ImportError, TypeError) as e:
         logging.error("Error building model: %s", e)
         return None
 
@@ -379,7 +383,9 @@ def evaluate_model(model, model_name, X_test, Y_test, category_names):
             ["category", "output_class", "precision", "recall", "f1-score", "support"]
         ]
 
-        results_file_path = f"data/04_fct/fct_{model_name}_prediction_results.csv"
+        results_file_path = os.path.join(
+            "data", "04_fct", f"fct_{model_name}_prediction_results.csv"
+        )
         results_df.to_csv(results_file_path, index=False)
         logging.info("Evaluation results saved to: %s", results_file_path)
 
@@ -576,7 +582,7 @@ def main():
         if retrain_base_model == "exit":
             sys.exit()
         elif retrain_base_model == "yes":
-            logging.info("Loading base parameters from models\\base_parameters.json...")
+            logging.info("Loading base parameters from %s...", BASE_PARAMETERS)
             base_parameters = load_model_parameters(BASE_PARAMETERS)
             if base_parameters is None:
                 logging.error(
