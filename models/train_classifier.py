@@ -26,12 +26,26 @@ from sklearn.pipeline import Pipeline
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
 
-nltk_resources = ["stopwords", "wordnet", "punkt", "punkt_tab"]
-for resource in nltk_resources:
-    try:
-        nltk.data.find(f"corpora/{resource}")
-    except LookupError:
-        nltk.download(resource)
+# Download required NLTK resources
+nltk_resources = {
+    "corpora": ["stopwords", "wordnet"],
+    "tokenizers": ["punkt"]
+}
+
+for resource_type, resources in nltk_resources.items():
+    for resource in resources:
+        try:
+            if resource_type == "corpora":
+                nltk.data.find(f"corpora/{resource}")
+            elif resource_type == "tokenizers":
+                nltk.data.find(f"tokenizers/{resource}")
+        except LookupError:
+            try:
+                nltk.download(resource)
+                logging.info(f"Downloaded NLTK resource: {resource}")
+            except Exception as e:
+                logging.warning(f"Failed to download NLTK resource {resource}: {e}")
+                # Continue execution as some resources might be optional
 
 
 # Set up logging
