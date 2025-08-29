@@ -9,6 +9,7 @@
 
     <!-- Title of the webpage -->
     <title>Disasters</title>
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
 
     <!-- Linking Bootstrap CSS for styling -->
     <!-- Note: the links are for Bootstrap 3.3.7 and the most recent version is Bootstrap 5 -->
@@ -20,7 +21,17 @@
 
     <!-- Linking jQuery and Plotly.js for interactivity and data visualization -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-3.1.0.min.js" charset="utf-8"></script>
+    <!-- Fallback Plotly.js loading in case CDN fails -->
+    <script>
+        if (typeof Plotly === 'undefined') {
+            console.log('Primary CDN failed, trying alternative...');
+            var script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/plotly.js/3.1.0/plotly.min.js';
+            script.charset = 'utf-8';
+            document.head.appendChild(script);
+        }
+    </script>
 </head>
 
 <body>
@@ -81,11 +92,38 @@
 
 <!-- Script for plotting graphs using Plotly.js -->
 <script type="text/javascript">
-    const graphs = {{graphJSON | safe}};
-    const ids = {{ids | safe}};
-    for(let i in graphs) {
-        Plotly.plot(ids[i], graphs[i].data, graphs[i].layout);
-    }
+    // Wait for DOM and Plotly.js to be fully loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        // Small delay to ensure Plotly.js is fully initialized
+        setTimeout(function() {
+            // Verify Plotly.js is loaded
+            if (typeof Plotly === 'undefined') {
+                console.error('Plotly.js is not loaded. Please check the CDN link.');
+                return;
+            }
+            
+            // Get the graph data from Jinja2 template
+            const graphs = {{graphJSON | safe}};
+            const ids = {{ids | safe}};
+            
+            // Plot each graph
+            for(let i in graphs) {
+                if (graphs[i] && ids[i]) {
+                    try {
+                        // Use Plotly.newPlot for v3.x compatibility
+                        Plotly.newPlot(ids[i], graphs[i].data, graphs[i].layout);
+                        
+                        // Make plots responsive to window resize
+                        window.addEventListener('resize', function() {
+                            Plotly.Plots.resize(ids[i]);
+                        });
+                    } catch (error) {
+                        console.error('Error plotting graph:', error);
+                    }
+                }
+            }
+        }, 100); // 100ms delay
+    });
 </script>
 
 </body>

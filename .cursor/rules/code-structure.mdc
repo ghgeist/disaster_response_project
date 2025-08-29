@@ -1,0 +1,8 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+Functions should do one thing well (single responsibility)
+Keep functions under 50 lines when possible
+Use descriptive variable names over comments

@@ -9,3 +9,7 @@ run = ["sh", "-c", "python app/run.py"]
 
 [agent]
 expertMode = true
+
+[[ports]]
+localPort = 3000
+externalPort = 80

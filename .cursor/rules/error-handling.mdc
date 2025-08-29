@@ -1,0 +1,7 @@
+---
+description: error handling when writing functions
+alwaysApply: false
+---
+Be specific with exception handling (catch ValueError, not Exception)
+Use context managers (with statements) for file/resource handling
+Fail fast - validate inputs early
