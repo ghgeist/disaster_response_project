@@ -3,27 +3,24 @@
 {% block title %}Classification Results{% endblock %} <!-- Title of the page is set to "Results" -->
 
 {% block message %} <!-- Block for displaying the message -->
-    <hr />
+    <hr class="my-4" />
     <h4 class="text-center">MESSAGE</h4>
     <p class="text-center"><i>{{query}}</i></p> <!-- The variable "query" is displayed here -->
 {% endblock %}
 
 {% block content %}
-    <h1 class="text-center">Result</h1>
+    <h1 class="text-center mb-4">Result</h1>
     <div class="container">
-        <div class="row">
+        <div class="row g-3">
             {% set items = classification_result.items()|list %}
             {% for category, classification in items|sort(attribute='1', reverse=true) %}
-                <div class="col-md-3">
+                <div class="col-md-3 col-sm-6">
                     {% if classification == 1 %}
-                        <div class="alert alert-success text-center">{{category.replace('_', ' ').title()}}</div>
+                        <div class="alert alert-success text-center mb-0">{{category.replace('_', ' ').title()}}</div>
                     {% else %}
-                        <div class="alert alert-dark text-center">{{category.replace('_', ' ').title()}}</div>
+                        <div class="alert alert-secondary text-center mb-0">{{category.replace('_', ' ').title()}}</div>
                     {% endif %}
                 </div>
-                {% if loop.index is divisibleby 4 %}
-                    </div><div class="row">
-                {% endif %}
             {% endfor %}
         </div>
     </div>
