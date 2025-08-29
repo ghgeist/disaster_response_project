@@ -4,7 +4,7 @@ import os
 import sys
 
 # Third-party imports
-from flask import Flask, render_template, request, jsonify, abort
+from flask import Flask, render_template, request, jsonify, abort, send_from_directory
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
 from sqlalchemy import create_engine
@@ -20,6 +20,13 @@ from models.train_classifier import tokenize
 from app.graph_generator import *
 
 app = Flask(__name__)
+
+# Serve favicon to avoid 404s from browsers requesting /favicon.ico
+@app.route('/favicon.ico')
+def favicon():
+    app_dir = os.path.dirname(__file__)
+    images_dir = os.path.abspath(os.path.join(app_dir, '..', 'images'))
+    return send_from_directory(images_dir, 'image.png', mimetype='image/png')
 
 #TO DO: Change this so you can specific the model that you want the app to run
 # load data
@@ -39,7 +46,13 @@ def download_model_if_missing() -> str:
     if not os.path.exists(model_path):
         print("Model not found locally, downloading from Google Drive...", file=sys.stderr)
         os.makedirs(os.path.dirname(model_path), exist_ok=True)
-        file_id = os.environ.get('GDRIVE_MODEL_ID', 'YOUR_FILE_ID')
+        file_id = os.environ.get('GDRIVE_MODEL_ID')
+        if not file_id or file_id.strip() in {'', 'YOUR_FILE_ID'}:
+            raise RuntimeError(
+                "GDRIVE_MODEL_ID is not set or is using the placeholder. "
+                f"Provide a valid Google Drive file ID via the GDRIVE_MODEL_ID env var, "
+                f"or place the model at: {model_path}"
+            )
         url = f"https://drive.google.com/uc?export=download&id={file_id}"
         with requests.get(url, stream=True) as r:
             r.raise_for_status()
