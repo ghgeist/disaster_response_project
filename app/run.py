@@ -12,6 +12,7 @@ import joblib
 import pandas as pd
 import plotly
 from plotly.graph_objs import Bar
+import requests
 
 # Local application imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -31,10 +32,27 @@ except Exception as e:
     print(f"Error loading data from database: {e}", file=sys.stderr)
     sys.exit(1)
 
-# load model
-try:
+def download_model_if_missing() -> str:
+    """Ensure the classifier.pkl exists locally; download from Drive if missing."""
     app_dir = os.path.dirname(__file__)
     model_path = os.path.abspath(os.path.join(app_dir, '..', 'models', 'classifier.pkl'))
+    if not os.path.exists(model_path):
+        print("Model not found locally, downloading from Google Drive...", file=sys.stderr)
+        os.makedirs(os.path.dirname(model_path), exist_ok=True)
+        file_id = os.environ.get('GDRIVE_MODEL_ID', 'YOUR_FILE_ID')
+        url = f"https://drive.google.com/uc?export=download&id={file_id}"
+        with requests.get(url, stream=True) as r:
+            r.raise_for_status()
+            with open(model_path, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=1024 * 1024):
+                    if chunk:
+                        f.write(chunk)
+        print("Model downloaded successfully!", file=sys.stderr)
+    return model_path
+
+# load model
+try:
+    model_path = download_model_if_missing()
     model = joblib.load(model_path)
 except Exception as e:
     print(f"Error loading model: {e}", file=sys.stderr)
