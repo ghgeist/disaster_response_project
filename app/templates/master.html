@@ -9,23 +9,8 @@
     <title>{% block title %}Signal Storm{% endblock %}</title>
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
 
-    <!-- Tailwind CSS via CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        // Custom Tailwind theme configuration
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'brand-charcoal': '#1A202C',
-                        'brand-slate': '#2D3748',
-                        'brand-accent-blue': '#3182CE',
-                        'brand-accent-amber': '#F59E0B',
-                    }
-                }
-            }
-        }
-    </script>
+    <!-- Tailwind CSS - Static build for production -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
 
     <!-- jQuery and Plotly.js for charts -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
@@ -165,7 +150,8 @@
         }
 
         try {
-            const graphs = {{ graphJSON | tojson | safe }};
+            const graphsJSON = {{ graphJSON | tojson | safe }};
+            const graphs = JSON.parse(graphsJSON);
             const ids = {{ ids | tojson | safe }};
             
             // Validate that we have valid data
