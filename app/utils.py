@@ -7,7 +7,7 @@ from typing import Optional, Tuple
 from pathlib import Path
 from flask import Flask
 
-from app.services import DataService, ModelService
+from .services import DataService, ModelService
 
 
 def setup_logging(app: Flask) -> None:

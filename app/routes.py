@@ -6,9 +6,9 @@ import logging
 from flask import render_template, request, current_app, send_from_directory, abort
 import plotly
 
-from app.services import DataService, ModelService, load_metric_frames, extract_perf_triplet
-from app.visualizations import ChartGenerator
-from app.utils import validate_message_input, sanitize_input
+from .services import DataService, ModelService, load_metric_frames, extract_perf_triplet
+from .visualizations import ChartGenerator
+from .utils import validate_message_input, sanitize_input
 
 logger = logging.getLogger(__name__)
 
