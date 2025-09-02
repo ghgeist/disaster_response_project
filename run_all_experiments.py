@@ -8,6 +8,7 @@ import subprocess
 import sys
 import time
 import os
+import shlex
 from datetime import datetime
 import json
 
@@ -23,13 +24,23 @@ def run_experiment(experiment_name, sampling_method, model_name):
     start_time = time.time()
     
     try:
-        # Run the training script with automatic input
-        cmd = [
-            sys.executable, 
-            "scripts/train_model.py",
-            "data/02_stg/stg_disaster_response.db",
-            f"models/{model_name}.pkl"
-        ]
+        # Basic input validation to prevent command injection
+        if not experiment_name or not isinstance(experiment_name, str):
+            raise ValueError("Invalid experiment_name")
+        if not sampling_method or not isinstance(sampling_method, str):
+            raise ValueError("Invalid sampling_method")
+        if not model_name or not isinstance(model_name, str):
+            raise ValueError("Invalid model_name")
+        
+        # Sanitize model_name to prevent path traversal
+        model_name = os.path.basename(model_name)  # Remove any path components
+        if not model_name.endswith('.pkl'):
+            model_name += '.pkl'
+        
+        # Basic character validation for model name (check only the base name, not extension)
+        base_name = model_name[:-4] if model_name.endswith('.pkl') else model_name
+        if not base_name or not all(c.isalnum() or c in '._-' for c in base_name):
+            raise ValueError(f"Invalid characters in model_name: {model_name}")
         
         # Determine the input based on experiment type
         if sampling_method == "baseline":
@@ -43,7 +54,14 @@ def run_experiment(experiment_name, sampling_method, model_name):
         else:
             input_data = "1\n"  # default to baseline
         
-        # Run the command
+        # Run the training script with validated inputs
+        cmd = [
+            sys.executable, 
+            "scripts/train_model.py",
+            "data/02_stg/stg_disaster_response.db",
+            f"models/{model_name}"
+        ]
+        
         result = subprocess.run(
             cmd, 
             input=input_data, 
@@ -76,6 +94,7 @@ def run_experiment(experiment_name, sampling_method, model_name):
                 'error': result.stderr
             }
             
+
     except subprocess.TimeoutExpired:
         print(f"⏰ {experiment_name} timed out after 30 minutes!")
         return {
