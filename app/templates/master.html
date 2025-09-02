@@ -188,7 +188,7 @@
         }
 
         try {
-            const graphsJSON = {{ graphJSON | tojson | safe }};
+            const graphsJSON = {{ graphJSON | safe }};
             const graphs = JSON.parse(graphsJSON);
             const ids = {{ ids | tojson | safe }};
             
