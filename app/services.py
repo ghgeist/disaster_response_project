@@ -69,6 +69,20 @@ class ModelService:
             return self._model
             
         try:
+            # Import tokenize function to make it available for unpickling
+            # This is required because the pickled models contain references to this function
+            import sys
+            import os
+            import pickle
+            
+            # Add src to path and import tokenize
+            sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+            from disaster_classifier.data.preprocessor import tokenize
+            
+            # Make tokenize available in the main module for unpickling
+            import __main__
+            __main__.tokenize = tokenize
+            
             # Ensure model exists locally
             if not self.model_path.exists():
                 self._download_model()
