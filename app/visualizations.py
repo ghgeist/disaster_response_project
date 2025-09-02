@@ -10,6 +10,30 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _create_base_layout(title: str, xaxis_title: str, yaxis_title: str) -> go.Layout:
+    """Creates a base layout for Plotly charts with a dark theme."""
+    return go.Layout(
+        title={'text': title, 'font': {'color': '#E2E8F0'}},
+        xaxis={'title': xaxis_title, 'gridcolor': '#2D3D47', 'color': '#A0AEC0'},
+        yaxis={'title': yaxis_title, 'gridcolor': '#2D3D47', 'color': '#A0AEC0'},
+        paper_bgcolor='#2D3D47',
+        plot_bgcolor='#2D3D47',
+        legend={'font': {'color': '#E2E8F0'}},
+        margin={'l': 80, 'r': 50, 't': 80, 'b': 50}
+    )
+
+def _create_bar_trace(x_data, y_data, name, orientation='h', color=None) -> go.Bar:
+    """Creates a bar trace for Plotly charts."""
+    marker = dict(color=color) if color else {}
+    return go.Bar(
+        x=x_data,
+        y=y_data,
+        name=name,
+        orientation=orientation,
+        marker=marker
+    )
+
+
 class ChartGenerator:
     """Service for generating visualization charts."""
     
@@ -64,42 +88,24 @@ class ChartGenerator:
             colors = {'Not Related': '#A0AEC0', 'Related': '#3182CE', 'Ambiguous': '#F59E0B'}
 
             # Create visuals
-            genre_graph = {
-                'data': [
-                    go.Bar(
-                        y=genre_names,
-                        x=genre_related_counts[col],
-                        name=related_names[col],
-                        orientation='h',
-                        marker=dict(color=colors[related_names[col]])
-                    )
-                    for col in genre_related_counts.columns
-                ],
+            traces = [
+                _create_bar_trace(
+                    x_data=genre_related_counts[col],
+                    y_data=genre_names,
+                    name=related_names[col],
+                    color=colors[related_names[col]]
+                )
+                for col in genre_related_counts.columns
+            ]
+            
+            layout = _create_base_layout(
+                'Message Genre Distribution',
+                'Message Count',
+                'Genre'
+            )
+            layout.update(barmode='stack')
 
-                'layout': {
-                    'title': {
-                        'text': 'Message Genre Distribution',
-                        'font': {'color': '#E2E8F0'}
-                    },
-                    'xaxis': {
-                        'title': 'Message Count',
-                        'gridcolor': '#2D3748',
-                        'color': '#A0AEC0'
-                    },
-                    'yaxis': {
-                        'title': 'Genre',
-                        'color': '#A0AEC0'
-                    },
-                    'barmode': 'stack',
-                    'paper_bgcolor': '#2D3748',
-                    'plot_bgcolor': '#2D3748',
-                    'legend': {
-                        'font': {'color': '#E2E8F0'}
-                    },
-                    'margin': {'l': 80, 'r': 50, 't': 80, 'b': 50}
-                }
-            }
-            return genre_graph
+            return {'data': traces, 'layout': layout}
             
         except Exception as e:
             logger.error(f"Error creating genre visual: {e}")
@@ -162,40 +168,23 @@ class ChartGenerator:
             message_types_count = df['message_type'].value_counts().sort_values(ascending=True)
 
             # Create a dictionary representing a Plotly graph object
-            graph = {
-                'data': [
-                    go.Bar(
-                        y=message_types_count.index.tolist(),
-                        x=message_types_count.values.tolist(),
-                        name='Count',
-                        orientation='h',
-                        marker=dict(color='#3182CE')
-                    )
-                ],
+            trace = _create_bar_trace(
+                x_data=message_types_count.values.tolist(),
+                y_data=message_types_count.index.tolist(),
+                name='Count',
+                color='#3182CE'
+            )
+            
+            layout = _create_base_layout(
+                'Direct Message Types',
+                'Number of Messages',
+                'Message Type'
+            )
+            layout.yaxis.update(automargin=True)
+            layout.margin.update(l=100, pad=4)
 
-                'layout': {
-                    'title': {
-                        'text': 'Direct Message Types',
-                        'font': {'color': '#E2E8F0'}
-                    },
-                    'yaxis': {
-                        'title': "Message Type",
-                        'automargin': True,
-                        'color': '#A0AEC0'
-                    },
-                    'xaxis': {
-                        'title': "Number of Messages",
-                        'gridcolor': '#2D3748',
-                        'color': '#A0AEC0'
-                    },
-                    'barmode': 'stack',
-                    'paper_bgcolor': '#2D3748',
-                    'plot_bgcolor': '#2D3748',
-                    'margin': {'l': 100, 'r': 50, 't': 80, 'b': 50, 'pad': 4}
-                }
-            }
 
-            return graph
+            return {'data': [trace], 'layout': layout}
             
         except Exception as e:
             logger.error(f"Error plotting message types: {e}")
@@ -210,48 +199,19 @@ class ChartGenerator:
             base_vals = [metrics_dict.get("precision", [0, 0])[0], metrics_dict.get("recall", [0, 0])[0], metrics_dict.get("f1", [0, 0])[0]]
             opt_vals = [metrics_dict.get("precision", [0, 0])[1], metrics_dict.get("recall", [0, 0])[1], metrics_dict.get("f1", [0, 0])[1]]
 
-            trace_base = go.Bar(x=categories, y=base_vals, name=labels[0])
-            trace_opt = go.Bar(x=categories, y=opt_vals, name=labels[1])
-
-            layout = go.Layout(
-                title={"text": "Baseline vs Optimized Model Performance", "font": {"color": "#E2E8F0"}},
-                yaxis=dict(title="Score (%)", rangemode="tozero", gridcolor="#2D3748", color="#A0AEC0"),
-                xaxis=dict(color="#A0AEC0"),
-                barmode="group",
-                paper_bgcolor="#2D3748",
-                plot_bgcolor="#2D3748",
-                font=dict(color="#E2E8F0"),
-                legend=dict(orientation="h", x=0.5, xanchor="center"),
-                margin={"l": 60, "r": 40, "t": 60, "b": 60},
+            trace_base = _create_bar_trace(categories, base_vals, labels[0], orientation='v')
+            trace_opt = _create_bar_trace(categories, opt_vals, labels[1], orientation='v')
+            
+            layout = _create_base_layout(
+                'Baseline vs Optimized Model Performance',
+                '',
+                'Score (%)'
             )
+            layout.update(barmode='group', legend=dict(orientation='h', x=0.5, xanchor='center'))
+            layout.yaxis.update(rangemode='tozero')
+            layout.margin.update(l=60, r=40, t=60, b=60)
+            
             return {"data": [trace_base, trace_opt], "layout": layout}
         except Exception as e:
             logger.error(f"Error creating performance visual: {e}")
-            raise
-
-    @staticmethod
-    def apply_dark_layout(fig_dict: Dict[str, Any]) -> Dict[str, Any]:
-        """Ensure existing figure dict adopts dark theme styles."""
-        try:
-            layout = fig_dict.get("layout", {})
-            layout.update({
-                "paper_bgcolor": "#2D3748",
-                "plot_bgcolor": "#2D3748",
-                "font": {"color": "#E2E8F0"},
-            })
-            # Make axes readable
-            if "xaxis" in layout:
-                xax = layout["xaxis"]
-                if isinstance(xax, dict):
-                    xax.setdefault("color", "#A0AEC0")
-                    xax.setdefault("gridcolor", "#2D3748")
-            if "yaxis" in layout:
-                yax = layout["yaxis"]
-                if isinstance(yax, dict):
-                    yax.setdefault("color", "#A0AEC0")
-                    yax.setdefault("gridcolor", "#2D3748")
-            fig_dict["layout"] = layout
-            return fig_dict
-        except Exception as e:
-            logger.error(f"Error applying dark layout: {e}")
             raise
