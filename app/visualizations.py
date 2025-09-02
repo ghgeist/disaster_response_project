@@ -60,7 +60,8 @@ class ChartGenerator:
         """
         try:
             # Create a dictionary to map 'related' values to new names
-            related_names = {0: 'not related', 1: 'related', 2: 'ambiguous'}
+            related_names = {0: 'Not Related', 1: 'Related', 2: 'Ambiguous'}
+            colors = {'Not Related': '#A0AEC0', 'Related': '#3182CE', 'Ambiguous': '#F59E0B'}
 
             # Create visuals
             genre_graph = {
@@ -68,21 +69,34 @@ class ChartGenerator:
                     go.Bar(
                         y=genre_names,
                         x=genre_related_counts[col],
-                        name=related_names[col],  # Use mapped name
-                        orientation='h'
+                        name=related_names[col],
+                        orientation='h',
+                        marker=dict(color=colors[related_names[col]])
                     )
                     for col in genre_related_counts.columns
                 ],
 
                 'layout': {
-                    'title': 'Messages per Genre and Relatedness',
+                    'title': {
+                        'text': 'Message Genre Distribution',
+                        'font': {'color': '#E2E8F0'}
+                    },
                     'xaxis': {
-                        'title': "Count"
+                        'title': 'Message Count',
+                        'gridcolor': '#2D3748',
+                        'color': '#A0AEC0'
                     },
                     'yaxis': {
-                        'title': "Genre"
+                        'title': 'Genre',
+                        'color': '#A0AEC0'
                     },
-                    'barmode': 'stack'
+                    'barmode': 'stack',
+                    'paper_bgcolor': '#2D3748',
+                    'plot_bgcolor': '#2D3748',
+                    'legend': {
+                        'font': {'color': '#E2E8F0'}
+                    },
+                    'margin': {'l': 80, 'r': 50, 't': 80, 'b': 50}
                 }
             }
             return genre_graph
@@ -154,30 +168,30 @@ class ChartGenerator:
                         y=message_types_count.index.tolist(),
                         x=message_types_count.values.tolist(),
                         name='Count',
-                        orientation='h'
+                        orientation='h',
+                        marker=dict(color='#3182CE')
                     )
                 ],
 
                 'layout': {
-                    'title': 'Number of Messages per Message Type',
+                    'title': {
+                        'text': 'Direct Message Types',
+                        'font': {'color': '#E2E8F0'}
+                    },
                     'yaxis': {
                         'title': "Message Type",
-                        'automargin': True  # This line ensures that the y-axis labels fit into the layout
+                        'automargin': True,
+                        'color': '#A0AEC0'
                     },
                     'xaxis': {
-                        'title': "Number of Messages"
+                        'title': "Number of Messages",
+                        'gridcolor': '#2D3748',
+                        'color': '#A0AEC0'
                     },
                     'barmode': 'stack',
-                    'autosize': False,
-                    'width': 1000,  # Adjust the width of the graph
-                    'height': 600,  # Adjust the height of the graph
-                    'margin': {
-                        'l': 100,  # Increase left margin to make more room for y-axis labels
-                        'r': 50,
-                        'b': 100,
-                        't': 100,
-                        'pad': 4
-                    },
+                    'paper_bgcolor': '#2D3748',
+                    'plot_bgcolor': '#2D3748',
+                    'margin': {'l': 100, 'r': 50, 't': 80, 'b': 50, 'pad': 4}
                 }
             }
 

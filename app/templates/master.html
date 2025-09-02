@@ -1,129 +1,158 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark"> <!-- Set dark mode as default -->
 
 <head>
-    <!-- Meta tags for responsive design -->
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <!-- Title of the webpage -->
-    <title>Disasters</title>
+    <title>{% block title %}Signal Storm{% endblock %}</title>
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
 
-    <!-- Linking Bootstrap 5 CSS for styling -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
-
-    <!-- Linking jQuery and Plotly.js for interactivity and data visualization -->
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
-    <script src="https://cdn.plot.ly/plotly-3.1.0.min.js" charset="utf-8"></script>
-    <!-- Fallback Plotly.js loading in case CDN fails -->
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        if (typeof Plotly === 'undefined') {
-            console.log('Primary CDN failed, trying alternative...');
-            var script = document.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/plotly.js/3.1.0/plotly.min.js';
-            script.charset = 'utf-8';
-            document.head.appendChild(script);
+        // Custom Tailwind theme configuration
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-charcoal': '#1A202C',
+                        'brand-slate': '#2D3748',
+                        'brand-accent-blue': '#3182CE',
+                        'brand-accent-amber': '#F59E0B',
+                    }
+                }
+            }
         }
     </script>
+
+    <!-- jQuery and Plotly.js for charts -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js" charset="utf-8"></script>
 </head>
 
-<body>
+<body class="bg-brand-charcoal text-gray-200 font-sans">
 
-<!-- Navigation bar -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
-    <div class="container">
-        <a class="navbar-brand" href="/">Disaster Response Project</a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div id="navbar" class="collapse navbar-collapse">
-            <ul class="navbar-nav ms-auto">
-                <!-- TO DO: Figure out how to structure this contact bit -->
-                <li class="nav-item"><a class="nav-link" href="https://www.linkedin.com/in/grantgeist/">Contact</a></li>
-            </ul>
+<!-- Navigation Bar -->
+<nav class="bg-brand-slate shadow-md">
+    <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+        <a class="text-2xl font-bold text-white hover:text-brand-accent-blue" href="/">
+            Signal Storm 🌪️
+        </a>
+        <div class="flex space-x-4">
+            <a class="text-gray-300 hover:text-white" href="https://www.linkedin.com/in/grantgeist/" target="_blank" rel="noopener noreferrer">Contact</a>
+            <a class="text-gray-300 hover:text-white" href="https://github.com/geista" target="_blank" rel="noopener noreferrer">GitHub</a>
         </div>
     </div>
 </nav>
 
-<!-- Hero section (replacing jumbotron) -->
-<div class="bg-primary text-white py-5 mt-5">
-    <div class="container">
-        <h1 class="text-center display-4">Disaster Response Project</h1>
-        <p class="text-center lead">Analyzing message data for disaster response</p>
-        <hr class="my-4" />
+<!-- Main Content Area -->
+<main class="container mx-auto px-6 py-8">
 
-        <!-- Form for entering a message to classify -->
-        <div class="row justify-content-center">
-            <div class="col-lg-8">
-                <form action="/go" method="get">
-                    <div class="input-group input-group-lg mb-3">
-                        <input type="text" class="form-control" name="query" placeholder="Enter a message to classify">
-                        <button type="submit" class="btn btn-success btn-lg">Classify Message</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- Block for displaying a message -->
-        {% block message %}
-        {% endblock %}
+    <!-- Hero Section -->
+    <div class="text-center mb-12">
+        <h1 class="text-4xl md:text-5xl font-extrabold text-white mb-3">
+            Real-Time Disaster Message Classification
+        </h1>
+        <p class="text-lg text-gray-400 max-w-3xl mx-auto">
+            An AI-powered tool to help emergency responders identify and categorize critical needs from text messages.
+        </p>
     </div>
-</div>
 
-<div class="container">
-    <!-- Block for the main content -->
-    {% block content %}
-        <div class="text-center my-5">
-            <h1 class="display-5">Training Dataset Overview</h1>
-        </div>
+    <!-- Classifier Input Form -->
+    <div class="max-w-3xl mx-auto mb-12">
+        <form action="/go" method="get" class="w-full">
+            <div class="flex flex-col sm:flex-row items-center gap-2 bg-brand-slate p-2 rounded-lg shadow-lg">
+                <input
+                    type="text"
+                    class="w-full bg-gray-700 text-white placeholder-gray-400 border border-gray-600 rounded-md py-3 px-4 focus:outline-none focus:ring-2 focus:ring-brand-accent-blue"
+                    name="query"
+                    placeholder="e.g., 'We need water and medical supplies in the town square.'"
+                >
+                <button
+                    type="submit"
+                    class="w-full sm:w-auto bg-brand-accent-blue hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-md transition duration-300 ease-in-out whitespace-nowrap"
+                >
+                    Classify Message
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- This block is for displaying the result of the classification -->
+    {% block message %}
     {% endblock %}
 
-    <!-- Loop for creating divs with ids -->
-    {% for id in ids %}
-        <div id="{{id}}"></div>
-    {% endfor %}
-</div>
+    <div class="container mx-auto">
+        <!-- Main content block for child templates -->
+        {% block content %}
+            <div class="text-center my-8 border-t border-gray-700 pt-8">
+                <h2 class="text-3xl font-bold text-white">Training Dataset Overview</h2>
+            </div>
+        {% endblock %}
 
-<!-- Script for plotting graphs using Plotly.js -->
+        <!-- Container for Plotly charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {% for id in ids %}
+                <div id="{{id}}" class="bg-brand-slate p-4 rounded-lg shadow-lg"></div>
+            {% endfor %}
+        </div>
+    </div>
+
+</main>
+
+<!-- How It Works Section -->
+<section class="bg-brand-slate mt-16 py-12">
+    <div class="container mx-auto px-6 text-center">
+        <h2 class="text-3xl font-bold text-white mb-8">How It Works</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="bg-brand-charcoal p-6 rounded-lg">
+                <h3 class="text-xl font-bold mb-2 text-brand-accent-blue">1. Clean & Process</h3>
+                <p class="text-gray-400">Text is normalized, tokenized, and cleaned to prepare it for the model.</p>
+            </div>
+            <div class="bg-brand-charcoal p-6 rounded-lg">
+                <h3 class="text-xl font-bold mb-2 text-brand-accent-blue">2. Vectorize & Transform</h3>
+                <p class="text-gray-400">Our model converts words into numerical features using TF-IDF.</p>
+            </div>
+            <div class="bg-brand-charcoal p-6 rounded-lg">
+                <h3 class="text-xl font-bold mb-2 text-brand-accent-blue">3. Classify</h3>
+                <p class="text-gray-400">A Multi-Output Classifier predicts the relevant disaster categories.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer class="bg-brand-slate mt-4 py-6">
+    <div class="container mx-auto px-6 text-center text-gray-400">
+        <p>&copy; 2024 Signal Storm Project. A portfolio piece by Grant Geisler.</p>
+    </div>
+</footer>
+
+
+<!-- Script for Plotly graphs -->
 <script type="text/javascript">
-    // Wait for DOM and Plotly.js to be fully loaded
     document.addEventListener('DOMContentLoaded', function() {
-        // Small delay to ensure Plotly.js is fully initialized
-        setTimeout(function() {
-            // Verify Plotly.js is loaded
-            if (typeof Plotly === 'undefined') {
-                console.error('Plotly.js is not loaded. Please check the CDN link.');
-                return;
-            }
-            
-            // Get the graph data from Jinja2 template
+        if (typeof Plotly === 'undefined') {
+            console.error('Plotly.js is not loaded. Please check the CDN link.');
+            return;
+        }
+
+        try {
             const graphs = {{graphJSON | safe}};
             const ids = {{ids | safe}};
-            
-            // Plot each graph
-            for(let i in graphs) {
+
+            for (let i in graphs) {
                 if (graphs[i] && ids[i]) {
-                    try {
-                        // Use Plotly.newPlot for v3.x compatibility
-                        Plotly.newPlot(ids[i], graphs[i].data, graphs[i].layout);
-                        
-                        // Make plots responsive to window resize
-                        window.addEventListener('resize', function() {
-                            Plotly.Plots.resize(ids[i]);
-                        });
-                    } catch (error) {
-                        console.error('Error plotting graph:', error);
-                    }
+                    Plotly.newPlot(ids[i], graphs[i].data, graphs[i].layout, {responsive: true});
                 }
             }
-        }, 100); // 100ms delay
+        } catch (error) {
+            console.error('Error parsing or plotting graph JSON:', error);
+        }
     });
 </script>
-
-<!-- Bootstrap 5 JavaScript Bundle -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
 
 </body>
 </html>
