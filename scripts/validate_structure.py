@@ -148,7 +148,7 @@ def main():
         print("The refactored structure is ready for use.")
         print("\nNext steps:")
         print("1. Install dependencies: pip install -r requirements.txt")
-        print("2. Test training: python scripts/train_model.py data/DisasterResponse.db models/classifier.pkl")
+        print("2. Test training: python scripts/train_model.py data/02_stg/stg_disaster_response.db models/classifier.pkl")
         print("3. Test comparison: python scripts/compare_models.py")
         print("4. Test Flask app: python app/run.py")
     else:
