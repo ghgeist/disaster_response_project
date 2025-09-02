@@ -24,4 +24,4 @@ mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python app/app.py"
+args = "cd /home/runner/workspace && python -m app.app"
