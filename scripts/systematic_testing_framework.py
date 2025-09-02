@@ -15,6 +15,7 @@ import os
 import json
 import subprocess
 import sys
+import shlex
 from datetime import datetime
 from pathlib import Path
 
@@ -36,14 +37,19 @@ class ModelTestingFramework:
         self._create_no_oversampling_version()
         
         try:
-            # Run the baseline training
-            cmd = [
-                sys.executable, "models/train_classifier.py",
-                "data/02_stg/stg_disaster_response.db", 
-                "models/baseline_classifier.pkl"
-            ]
+            # Basic validation for model filename
+            model_filename = "baseline_classifier.pkl"
+            if not model_filename.endswith('.pkl'):
+                model_filename += '.pkl'
             
             print("Training baseline model...")
+            cmd = [
+                sys.executable, 
+                "models/train_classifier.py",
+                "data/02_stg/stg_disaster_response.db", 
+                f"models/{model_filename}"
+            ]
+            
             result = subprocess.run(cmd, capture_output=True, text=True, input="yes\nno\nno\nno\n")
             
             if result.returncode == 0:
@@ -76,14 +82,23 @@ class ModelTestingFramework:
                 # Modify the training script to use specific method
                 self._modify_sampling_method(method)
                 
-                # Run training
-                cmd = [
-                    sys.executable, "models/train_classifier.py",
-                    "data/02_stg/stg_disaster_response.db", 
-                    f"models/{method}_classifier.pkl"
-                ]
+                # Basic validation for method name
+                if not method or not isinstance(method, str):
+                    raise ValueError(f"Invalid method: {method}")
+                
+                # Create safe model filename
+                model_filename = f"{method}_classifier.pkl"
+                if not model_filename.endswith('.pkl'):
+                    model_filename += '.pkl'
                 
                 print(f"Training {method} model...")
+                cmd = [
+                    sys.executable, 
+                    "models/train_classifier.py",
+                    "data/02_stg/stg_disaster_response.db", 
+                    f"models/{model_filename}"
+                ]
+                
                 result = subprocess.run(cmd, capture_output=True, text=True, input="yes\nno\nno\nno\n")
                 
                 if result.returncode == 0:
