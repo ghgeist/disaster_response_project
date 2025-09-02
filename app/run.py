@@ -16,7 +16,8 @@ import requests
 
 # Local application imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from models.train_classifier import tokenize
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+from disaster_classifier.data.preprocessor import tokenize
 from app.graph_generator import *
 
 app = Flask(__name__)

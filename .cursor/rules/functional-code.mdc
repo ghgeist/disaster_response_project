@@ -1,0 +1,6 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+Focus on functional changes only. Ignore linting issues unless they prevent code execution. Prioritize shipping working features over code cleanliness.
