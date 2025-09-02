@@ -14,10 +14,10 @@ def _create_base_layout(title: str, xaxis_title: str, yaxis_title: str) -> go.La
     """Creates a base layout for Plotly charts with a dark theme."""
     return go.Layout(
         title={'text': title, 'font': {'color': '#E2E8F0'}},
-        xaxis={'title': xaxis_title, 'gridcolor': '#2D3D47', 'color': '#A0AEC0'},
-        yaxis={'title': yaxis_title, 'gridcolor': '#2D3D47', 'color': '#A0AEC0'},
-        paper_bgcolor='#2D3D47',
-        plot_bgcolor='#2D3D47',
+        xaxis={'title': xaxis_title, 'gridcolor': '#2D3748', 'color': '#A0AEC0'},
+        yaxis={'title': yaxis_title, 'gridcolor': '#2D3748', 'color': '#A0AEC0'},
+        paper_bgcolor='#1A202C',
+        plot_bgcolor='#1A202C',
         legend={'font': {'color': '#E2E8F0'}},
         margin={'l': 80, 'r': 50, 't': 80, 'b': 50}
     )
@@ -36,6 +36,14 @@ def _create_bar_trace(x_data, y_data, name, orientation='h', color=None) -> go.B
 
 class ChartGenerator:
     """Service for generating visualization charts."""
+    
+    COLOR_PALETTE = {
+        'primary': '#06d6a0',
+        'secondary': '#118ab2',
+        'tertiary': '#ffd166',
+        'quaternary': '#ef476f',
+        'neutral': '#A0AEC0'
+    }
     
     @staticmethod
     def prepare_genre_data(df: pd.DataFrame) -> Tuple[list, pd.DataFrame]:
@@ -85,7 +93,11 @@ class ChartGenerator:
         try:
             # Create a dictionary to map 'related' values to new names
             related_names = {0: 'Not Related', 1: 'Related', 2: 'Ambiguous'}
-            colors = {'Not Related': '#A0AEC0', 'Related': '#3182CE', 'Ambiguous': '#F59E0B'}
+            colors = {
+                'Related': ChartGenerator.COLOR_PALETTE['primary'],
+                'Not Related': ChartGenerator.COLOR_PALETTE['secondary'],
+                'Ambiguous': ChartGenerator.COLOR_PALETTE['tertiary']
+            }
 
             # Create visuals
             traces = [
@@ -104,6 +116,7 @@ class ChartGenerator:
                 'Genre'
             )
             layout.update(barmode='stack')
+            layout.update(legend=dict(orientation='h', yanchor='top', y=-0.2, xanchor='center', x=0.5))
 
             return {'data': traces, 'layout': layout}
             
@@ -172,7 +185,7 @@ class ChartGenerator:
                 x_data=message_types_count.values.tolist(),
                 y_data=message_types_count.index.tolist(),
                 name='Count',
-                color='#3182CE'
+                color=ChartGenerator.COLOR_PALETTE['primary']
             )
             
             layout = _create_base_layout(
@@ -199,8 +212,8 @@ class ChartGenerator:
             base_vals = [metrics_dict.get("precision", [0, 0])[0], metrics_dict.get("recall", [0, 0])[0], metrics_dict.get("f1", [0, 0])[0]]
             opt_vals = [metrics_dict.get("precision", [0, 0])[1], metrics_dict.get("recall", [0, 0])[1], metrics_dict.get("f1", [0, 0])[1]]
 
-            trace_base = _create_bar_trace(categories, base_vals, labels[0], orientation='v')
-            trace_opt = _create_bar_trace(categories, opt_vals, labels[1], orientation='v')
+            trace_base = _create_bar_trace(categories, base_vals, labels[0], orientation='v', color=ChartGenerator.COLOR_PALETTE['secondary'])
+            trace_opt = _create_bar_trace(categories, opt_vals, labels[1], orientation='v', color=ChartGenerator.COLOR_PALETTE['primary'])
             
             layout = _create_base_layout(
                 'Baseline vs Optimized Model Performance',
