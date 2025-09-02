@@ -10,8 +10,40 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _create_base_layout(title: str, xaxis_title: str, yaxis_title: str) -> go.Layout:
+    """Creates a base layout for Plotly charts with a dark theme."""
+    return go.Layout(
+        title={'text': title, 'font': {'color': '#E2E8F0'}},
+        xaxis={'title': xaxis_title, 'gridcolor': '#2D3748', 'color': '#A0AEC0'},
+        yaxis={'title': yaxis_title, 'gridcolor': '#2D3748', 'color': '#A0AEC0'},
+        paper_bgcolor='#1A202C',
+        plot_bgcolor='#1A202C',
+        legend={'font': {'color': '#E2E8F0'}},
+        margin={'l': 80, 'r': 50, 't': 80, 'b': 50}
+    )
+
+def _create_bar_trace(x_data, y_data, name, orientation='h', color=None) -> go.Bar:
+    """Creates a bar trace for Plotly charts."""
+    marker = dict(color=color) if color else {}
+    return go.Bar(
+        x=x_data,
+        y=y_data,
+        name=name,
+        orientation=orientation,
+        marker=marker
+    )
+
+
 class ChartGenerator:
     """Service for generating visualization charts."""
+    
+    COLOR_PALETTE = {
+        'primary': '#06d6a0',
+        'secondary': '#118ab2',
+        'tertiary': '#ffd166',
+        'quaternary': '#ef476f',
+        'neutral': '#A0AEC0'
+    }
     
     @staticmethod
     def prepare_genre_data(df: pd.DataFrame) -> Tuple[list, pd.DataFrame]:
@@ -61,45 +93,32 @@ class ChartGenerator:
         try:
             # Create a dictionary to map 'related' values to new names
             related_names = {0: 'Not Related', 1: 'Related', 2: 'Ambiguous'}
-            colors = {'Not Related': '#A0AEC0', 'Related': '#3182CE', 'Ambiguous': '#F59E0B'}
+            colors = {
+                'Related': ChartGenerator.COLOR_PALETTE['primary'],
+                'Not Related': ChartGenerator.COLOR_PALETTE['secondary'],
+                'Ambiguous': ChartGenerator.COLOR_PALETTE['tertiary']
+            }
 
             # Create visuals
-            genre_graph = {
-                'data': [
-                    go.Bar(
-                        y=genre_names,
-                        x=genre_related_counts[col],
-                        name=related_names[col],
-                        orientation='h',
-                        marker=dict(color=colors[related_names[col]])
-                    )
-                    for col in genre_related_counts.columns
-                ],
+            traces = [
+                _create_bar_trace(
+                    x_data=genre_related_counts[col],
+                    y_data=genre_names,
+                    name=related_names[col],
+                    color=colors[related_names[col]]
+                )
+                for col in genre_related_counts.columns
+            ]
+            
+            layout = _create_base_layout(
+                'Message Genre Distribution',
+                'Message Count',
+                'Genre'
+            )
+            layout.update(barmode='stack')
+            layout.update(legend=dict(orientation='h', yanchor='top', y=-0.2, xanchor='center', x=0.5))
 
-                'layout': {
-                    'title': {
-                        'text': 'Message Genre Distribution',
-                        'font': {'color': '#E2E8F0'}
-                    },
-                    'xaxis': {
-                        'title': 'Message Count',
-                        'gridcolor': '#2D3748',
-                        'color': '#A0AEC0'
-                    },
-                    'yaxis': {
-                        'title': 'Genre',
-                        'color': '#A0AEC0'
-                    },
-                    'barmode': 'stack',
-                    'paper_bgcolor': '#2D3748',
-                    'plot_bgcolor': '#2D3748',
-                    'legend': {
-                        'font': {'color': '#E2E8F0'}
-                    },
-                    'margin': {'l': 80, 'r': 50, 't': 80, 'b': 50}
-                }
-            }
-            return genre_graph
+            return {'data': traces, 'layout': layout}
             
         except Exception as e:
             logger.error(f"Error creating genre visual: {e}")
@@ -162,41 +181,50 @@ class ChartGenerator:
             message_types_count = df['message_type'].value_counts().sort_values(ascending=True)
 
             # Create a dictionary representing a Plotly graph object
-            graph = {
-                'data': [
-                    go.Bar(
-                        y=message_types_count.index.tolist(),
-                        x=message_types_count.values.tolist(),
-                        name='Count',
-                        orientation='h',
-                        marker=dict(color='#3182CE')
-                    )
-                ],
+            trace = _create_bar_trace(
+                x_data=message_types_count.values.tolist(),
+                y_data=message_types_count.index.tolist(),
+                name='Count',
+                color=ChartGenerator.COLOR_PALETTE['primary']
+            )
+            
+            layout = _create_base_layout(
+                'Direct Message Types',
+                'Number of Messages',
+                'Message Type'
+            )
+            layout.yaxis.update(automargin=True)
+            layout.margin.update(l=100, pad=4)
 
-                'layout': {
-                    'title': {
-                        'text': 'Direct Message Types',
-                        'font': {'color': '#E2E8F0'}
-                    },
-                    'yaxis': {
-                        'title': "Message Type",
-                        'automargin': True,
-                        'color': '#A0AEC0'
-                    },
-                    'xaxis': {
-                        'title': "Number of Messages",
-                        'gridcolor': '#2D3748',
-                        'color': '#A0AEC0'
-                    },
-                    'barmode': 'stack',
-                    'paper_bgcolor': '#2D3748',
-                    'plot_bgcolor': '#2D3748',
-                    'margin': {'l': 100, 'r': 50, 't': 80, 'b': 50, 'pad': 4}
-                }
-            }
 
-            return graph
+            return {'data': [trace], 'layout': layout}
             
         except Exception as e:
             logger.error(f"Error plotting message types: {e}")
+            raise
+
+    # --- Performance Deep Dive visualizations ---
+    @staticmethod
+    def create_performance_visual(metrics_dict: Dict[str, list], labels: list) -> Dict[str, Any]:
+        """Create grouped bar chart comparing baseline vs optimized Precision/Recall/F1."""
+        try:
+            categories = ["Precision", "Recall", "F1"]
+            base_vals = [metrics_dict.get("precision", [0, 0])[0], metrics_dict.get("recall", [0, 0])[0], metrics_dict.get("f1", [0, 0])[0]]
+            opt_vals = [metrics_dict.get("precision", [0, 0])[1], metrics_dict.get("recall", [0, 0])[1], metrics_dict.get("f1", [0, 0])[1]]
+
+            trace_base = _create_bar_trace(categories, base_vals, labels[0], orientation='v', color=ChartGenerator.COLOR_PALETTE['secondary'])
+            trace_opt = _create_bar_trace(categories, opt_vals, labels[1], orientation='v', color=ChartGenerator.COLOR_PALETTE['primary'])
+            
+            layout = _create_base_layout(
+                'Baseline vs Optimized Model Performance',
+                '',
+                'Score (%)'
+            )
+            layout.update(barmode='group', legend=dict(orientation='h', x=0.5, xanchor='center'))
+            layout.yaxis.update(rangemode='tozero')
+            layout.margin.update(l=60, r=40, t=60, b=60)
+            
+            return {"data": [trace_base, trace_opt], "layout": layout}
+        except Exception as e:
+            logger.error(f"Error creating performance visual: {e}")
             raise

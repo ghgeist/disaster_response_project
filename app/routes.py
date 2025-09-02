@@ -6,9 +6,9 @@ import logging
 from flask import render_template, request, current_app, send_from_directory, abort
 import plotly
 
-from app.services import DataService, ModelService
-from app.visualizations import ChartGenerator
-from app.utils import validate_message_input, sanitize_input
+from .services import DataService, ModelService, load_metric_frames, extract_perf_triplet
+from .visualizations import ChartGenerator
+from .utils import validate_message_input, sanitize_input
 
 logger = logging.getLogger(__name__)
 
@@ -61,11 +61,36 @@ def register_routes(app):
 
             graphs = [genre_graph, message_type_graph]
 
+            # Performance Deep Dive chart (best-effort; do not crash if missing)
+            descriptions = []
+            try:
+                base_df, opt_df = load_metric_frames()
+                if base_df is not None and opt_df is not None:
+                    metrics, labels = extract_perf_triplet(base_df, opt_df)
+                    perf_graph = ChartGenerator.create_performance_visual(metrics, labels)
+                    graphs.append(perf_graph)
+                    # Descriptions aligned to graphs (index-based)
+                    descriptions = [
+                        "Direct messages dominate disaster communications. Bars show counts by source, stacked by disaster-related vs not. The predominance of direct messages underscores the need to triage individual cries for help.",
+                        "Among disaster-related direct messages, requests for aid are far more common than offers; direct reports are frequent. The model must reliably identify these requests.",
+                        "Baseline (blue) vs Optimized (orange). Precision improves slightly; recall drops significantly. In disasters, missing real help messages is costly.",
+                    ]
+                else:
+                    logger.warning("Performance CSVs missing; skipping performance chart.")
+            except Exception as perf_exc:
+                logger.warning(f"Skipping performance chart due to error: {perf_exc}")
+
             # Encode plotly graphs in JSON
             ids = ["graph-{}".format(i) for i, _ in enumerate(graphs)]
-            graph_json = json.dumps(graphs, cls=plotly.utils.PlotlyJSONEncoder)
+            try:
+                graph_json = json.dumps(graphs, cls=plotly.utils.PlotlyJSONEncoder)
+            except (TypeError, ValueError) as json_error:
+                logger.error(f"Error encoding graphs to JSON: {json_error}")
+                # Fallback: create empty graphs array
+                graph_json = "[]"
+                ids = []
 
-            return render_template('master.html', ids=ids, graphJSON=graph_json)
+            return render_template('master.html', ids=ids, graphJSON=graph_json, descriptions=descriptions)
 
         except Exception as e:
             logger.error(f"Error in index route: {e}")
@@ -87,7 +112,7 @@ def register_routes(app):
             # Validate input
             is_valid, error_message = validate_message_input(query)
             if not is_valid:
-                return render_template('error.html', message=error_message)
+                return render_template('error.html', message=error_message, graphJSON="[]", ids=[])
 
             # Use model to predict classification for query
             classification_results = model_service.predict(query)
@@ -96,12 +121,14 @@ def register_routes(app):
             return render_template(
                 'go.html',
                 query=query,
-                classification_result=classification_results
+                classification_result=classification_results,
+                graphJSON="[]",  # Empty graphs array for go.html
+                ids=[]           # Empty ids array for go.html
             )
 
         except Exception as e:
             logger.error(f"Error in go route: {e}")
-            return render_template('error.html', message=f"Error processing query: {e}")
+            return render_template('error.html', message=f"Error processing query: {e}", graphJSON="[]", ids=[])
 
     @app.route('/health')
     def health_check():
@@ -145,9 +172,9 @@ def register_routes(app):
     @app.errorhandler(404)
     def not_found(error):
         """Handle 404 errors."""
-        return render_template('error.html', message="Page not found"), 404
+        return render_template('error.html', message="Page not found", graphJSON="[]", ids=[]), 404
 
     @app.errorhandler(500)
     def internal_error(error):
         """Handle 500 errors."""
-        return render_template('error.html', message="Internal server error"), 500
+        return render_template('error.html', message="Internal server error", graphJSON="[]", ids=[]), 500

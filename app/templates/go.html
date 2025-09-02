@@ -15,19 +15,16 @@
         <div>
             <h4 class="text-lg font-semibold text-gray-400 uppercase tracking-wider mb-3">Predicted Categories</h4>
             <div class="flex flex-wrap gap-3">
-                {% set results = classification_result.items()|list %}
-                {% set has_results = false %}
-                
-                {% for category, classification in results %}
-                    {% if classification == 1 %}
-                        {% set has_results = true %}
+                {% set has_categories = false %}
+                {% for category, value in classification_result.items() %}
+                    {% if value == 1 %}
+                        {% set has_categories = true %}
                         <span class="bg-brand-accent-amber text-gray-900 text-sm font-bold px-4 py-2 rounded-full shadow-md">
                             {{ category.replace('_', ' ')|title }}
                         </span>
                     {% endif %}
                 {% endfor %}
-
-                {% if not has_results %}
+                {% if not has_categories %}
                     <p class="text-gray-400">This message does not appear to be related to a disaster.</p>
                 {% endif %}
             </div>
@@ -38,7 +35,7 @@
 {% block content %}
     <!-- This section is now used to provide a call to action below the results -->
     <div class="text-center mt-4 mb-8">
-        <a href="/" class="bg-brand-accent-blue hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-md transition duration-300 ease-in-out">
+        <a href="/" class="bg-brand-accent-blue hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue">
             Classify Another Message
         </a>
     </div>

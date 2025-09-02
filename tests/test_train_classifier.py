@@ -37,6 +37,13 @@ for resource in nltk_resources:
     except LookupError:
         nltk.download(resource)
 
+# Ensure WordNet is fully loaded to prevent multiprocessing race conditions
+try:
+    from nltk.corpus import wordnet as wn
+    wn.ensure_loaded()  # This forces complete loading in the main thread
+except Exception as e:
+    pass  # Tests should continue even if WordNet loading fails
+
 #Local Application Imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'models'))
 from train_classifier import load_json, load_model_parameters, load_grid_search_parameters, estimate_grid_search_runtime, run_grid_search

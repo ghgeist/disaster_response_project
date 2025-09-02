@@ -7,9 +7,9 @@ import logging
 from flask import Flask
 from pathlib import Path
 
-from app.config import Config
-from app.routes import register_routes
-from app.utils import setup_logging, init_services
+from .config import Config
+from .routes import register_routes
+from .utils import setup_logging, init_services
 
 
 def create_app(config_class=Config):

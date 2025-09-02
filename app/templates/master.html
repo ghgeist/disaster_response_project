@@ -9,27 +9,27 @@
     <title>{% block title %}Signal Storm{% endblock %}</title>
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
 
-    <!-- Tailwind CSS via CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        // Custom Tailwind theme configuration
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'brand-charcoal': '#1A202C',
-                        'brand-slate': '#2D3748',
-                        'brand-accent-blue': '#3182CE',
-                        'brand-accent-amber': '#F59E0B',
-                    }
-                }
-            }
+    <!-- Tailwind CSS - Static build for production -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
+
+    <!-- Custom styles for accessibility utilities -->
+    <style>
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
         }
-    </script>
+    </style>
 
     <!-- jQuery and Plotly.js for charts -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js" charset="utf-8"></script>
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
 </head>
 
 <body class="bg-brand-charcoal text-gray-200 font-sans">
@@ -38,13 +38,21 @@
 <nav class="bg-brand-slate shadow-md">
     <div class="container mx-auto px-6 py-4 flex justify-between items-center">
         <a class="text-2xl font-bold text-white hover:text-brand-accent-blue" href="/">
-            Signal Storm 🌪️
+            Signal Storm <span role="img" aria-label="Tornado">🌪️</span>
         </a>
-        <div class="flex space-x-4">
-            <a class="text-gray-300 hover:text-white" href="https://www.linkedin.com/in/grantgeist/" target="_blank" rel="noopener noreferrer">Contact</a>
-            <a class="text-gray-300 hover:text-white" href="https://github.com/geista" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <!-- Mobile Menu Button -->
+        <div class="md:hidden">
+            <button id="mobile-menu-button" class="text-white rounded-md p-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+            </button>
+        </div>
+        <!-- Desktop Menu -->
+        <div class="hidden md:flex space-x-4">
+            <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="https://www.linkedin.com/in/grantgeist/" target="_blank" rel="noopener noreferrer">Contact</a>
+            <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="https://github.com/geista" target="_blank" rel="noopener noreferrer">GitHub</a>
         </div>
     </div>
+    <!-- Mobile Menu intentionally removed to avoid duplicate links -->
 </nav>
 
 <!-- Main Content Area -->
@@ -53,10 +61,10 @@
     <!-- Hero Section -->
     <div class="text-center mb-12">
         <h1 class="text-4xl md:text-5xl font-extrabold text-white mb-3">
-            Real-Time Disaster Message Classification
+            Signal Storm: Cutting Through Chaos for Cries of Help
         </h1>
         <p class="text-lg text-gray-400 max-w-3xl mx-auto">
-            An AI-powered tool to help emergency responders identify and categorize critical needs from text messages.
+            An AI-powered tool that triages disaster messages in real time, so first responders can focus on what matters most.
         </p>
     </div>
 
@@ -64,17 +72,19 @@
     <div class="max-w-3xl mx-auto mb-12">
         <form action="/go" method="get" class="w-full">
             <div class="flex flex-col sm:flex-row items-center gap-2 bg-brand-slate p-2 rounded-lg shadow-lg">
+                <label for="query-input" class="sr-only">Enter an emergency message</label>
                 <input
+                    id="query-input"
                     type="text"
                     class="w-full bg-gray-700 text-white placeholder-gray-400 border border-gray-600 rounded-md py-3 px-4 focus:outline-none focus:ring-2 focus:ring-brand-accent-blue"
                     name="query"
-                    placeholder="e.g., 'We need water and medical supplies in the town square.'"
+                    placeholder="Enter an emergency message..."
                 >
                 <button
                     type="submit"
-                    class="w-full sm:w-auto bg-brand-accent-blue hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-md transition duration-300 ease-in-out whitespace-nowrap"
+                    class="w-full sm:w-auto bg-brand-accent-blue hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-md transition duration-300 ease-in-out whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue"
                 >
-                    Classify Message
+                    Analyze Message
                 </button>
             </div>
         </form>
@@ -88,16 +98,23 @@
         <!-- Main content block for child templates -->
         {% block content %}
             <div class="text-center my-8 border-t border-gray-700 pt-8">
-                <h2 class="text-3xl font-bold text-white">Training Dataset Overview</h2>
+                <h2 class="text-3xl font-bold text-white">Understanding the Data Landscape</h2>
             </div>
         {% endblock %}
 
-        <!-- Container for Plotly charts -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {% for id in ids %}
-                <div id="{{id}}" class="bg-brand-slate p-4 rounded-lg shadow-lg"></div>
+        <!-- Container for Plotly charts (first two charts only) -->
+        {% if ids is defined %}
+        <div class="grid grid-cols-1 gap-8">
+            {% for id in ids[:2] %}
+                <div id="{{id}}" class="bg-brand-slate p-4 rounded-lg shadow-lg" style="width: 100%; height: 500px;"></div>
+                {% if descriptions %}
+                <p class="text-sm text-gray-400 text-center max-w-2xl mx-auto -mt-2">
+                    {{ descriptions[loop.index0] if loop.index0 < descriptions|length else '' }}
+                </p>
+                {% endif %}
             {% endfor %}
         </div>
+        {% endif %}
     </div>
 
 </main>
@@ -107,45 +124,100 @@
     <div class="container mx-auto px-6 text-center">
         <h2 class="text-3xl font-bold text-white mb-8">How It Works</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div class="bg-brand-charcoal p-6 rounded-lg">
-                <h3 class="text-xl font-bold mb-2 text-brand-accent-blue">1. Clean & Process</h3>
-                <p class="text-gray-400">Text is normalized, tokenized, and cleaned to prepare it for the model.</p>
+            <div class="bg-brand-charcoal p-8 rounded-lg shadow-lg border border-gray-700 hover:border-brand-accent-blue transition-all duration-300">
+                <h3 class="text-xl font-bold mb-4 text-brand-accent-blue">Data Cleaning</h3>
+                <p class="text-gray-300 leading-relaxed">Merge messages and categories, remove ambiguities and duplicates, and load into a database for a solid training set.</p>
             </div>
-            <div class="bg-brand-charcoal p-6 rounded-lg">
-                <h3 class="text-xl font-bold mb-2 text-brand-accent-blue">2. Vectorize & Transform</h3>
-                <p class="text-gray-400">Our model converts words into numerical features using TF-IDF.</p>
+            <div class="bg-brand-charcoal p-8 rounded-lg shadow-lg border border-gray-700 hover:border-brand-accent-blue transition-all duration-300">
+                <h3 class="text-xl font-bold mb-4 text-brand-accent-blue">Feature Extraction (TF-IDF)</h3>
+                <p class="text-gray-300 leading-relaxed">Custom tokenizer normalizes text and TF-IDF emphasizes critical words while downweighting common terms.</p>
             </div>
-            <div class="bg-brand-charcoal p-6 rounded-lg">
-                <h3 class="text-xl font-bold mb-2 text-brand-accent-blue">3. Classify</h3>
-                <p class="text-gray-400">A Multi-Output Classifier predicts the relevant disaster categories.</p>
+            <div class="bg-brand-charcoal p-8 rounded-lg shadow-lg border border-gray-700 hover:border-brand-accent-blue transition-all duration-300">
+                <h3 class="text-xl font-bold mb-4 text-brand-accent-blue">Multi-Label Model</h3>
+                <p class="text-gray-300 leading-relaxed">A MultiOutput Random Forest tags each message with all relevant categories across 36 disaster needs.</p>
             </div>
         </div>
+    </div>
+    <!-- Performance Deep Dive with embedded chart -->
+    <div class="container mx-auto px-6 text-center mt-12">
+        <h2 class="text-2xl font-bold text-white mb-4">Model Performance Deep Dive</h2>
+        <p class="text-sm text-gray-300 max-w-xl mx-auto mb-6">
+            Baseline vs Optimized: precision improves slightly, but recall drops. In disasters, missing real help messages is costly.
+        </p>
+        
+        <!-- Performance chart container -->
+        {% if ids|length > 2 %}
+        <div class="max-w-4xl mx-auto">
+            <div id="{{ids[2]}}" class="bg-brand-charcoal p-4 rounded-lg shadow-lg mx-auto" style="width: 100%; height: 500px;"></div>
+        </div>
+        {% endif %}
+        
+        <p class="text-xs text-gray-500 text-center mt-4 italic">
+            Blue = Baseline. Orange = Optimized. Notice the precision vs recall trade-off.
+        </p>
     </div>
 </section>
 
 <!-- Footer -->
 <footer class="bg-brand-slate mt-4 py-6">
     <div class="container mx-auto px-6 text-center text-gray-400">
-        <p>&copy; 2024 Signal Storm Project. A portfolio piece by Grant Geisler.</p>
+        <p>&copy; 2024 Signal Storm Project. A portfolio piece by Grant Geist.</p>
     </div>
 </footer>
 
 
 <!-- Script for Plotly graphs -->
 <script type="text/javascript">
+    // Simple script to toggle mobile menu
     document.addEventListener('DOMContentLoaded', function() {
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        if (mobileMenuButton) {
+            mobileMenuButton.addEventListener('click', function() {
+                var menu = document.getElementById('mobile-menu');
+                menu.classList.toggle('hidden');
+            });
+        }
+
         if (typeof Plotly === 'undefined') {
             console.error('Plotly.js is not loaded. Please check the CDN link.');
             return;
         }
 
         try {
-            const graphs = {{graphJSON | safe}};
-            const ids = {{ids | safe}};
+            const graphs = {{ graphJSON | safe }};
+            const ids = {{ ids | tojson | safe }};
+            
+            // Validate that we have valid data
+            if (!graphs || !Array.isArray(graphs)) {
+                console.error('Invalid graphs data:', graphs);
+                return;
+            }
+            if (!ids || !Array.isArray(ids)) {
+                console.error('Invalid ids data:', ids);
+                return;
+            }
+            
+            console.log('Graphs data:', graphs);
+            console.log('Graph IDs:', ids);
 
             for (let i in graphs) {
                 if (graphs[i] && ids[i]) {
-                    Plotly.newPlot(ids[i], graphs[i].data, graphs[i].layout, {responsive: true});
+                    console.log(`Creating plot for ${ids[i]}`);
+                    const element = document.getElementById(ids[i]);
+                    if (element) {
+                        Plotly.newPlot(element, graphs[i].data, graphs[i].layout, {
+                            responsive: true,
+                            displayModeBar: true,
+                            displaylogo: false
+                        });
+                        
+                        // Make plots responsive to window resize
+                        window.addEventListener('resize', function() {
+                            Plotly.Plots.resize(element);
+                        });
+                    } else {
+                        console.error(`Element with id ${ids[i]} not found`);
+                    }
                 }
             }
         } catch (error) {

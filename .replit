@@ -1,11 +1,12 @@
 modules = ["python-3.12", "web"]
-run = "python app/run.py"
+run = "python run.py"
 
 [nix]
-channel = "stable-25_05"
+channel = "stable-25_05"       # your current channel is fine
+pkgs = ["file", "python312Packages.pylint", "stdenv.cc.cc.lib", "zlib"]
 
 [deployment]
-run = ["sh", "-c", "python app/run.py"]
+run = ["sh", "-c", "python run.py"]
 
 [agent]
 expertMode = true
@@ -13,3 +14,6 @@ expertMode = true
 [[ports]]
 localPort = 3000
 externalPort = 80
+
+[workflows]
+runButton = "Run"

@@ -49,6 +49,15 @@ for resource_type, resources in nltk_resources.items():
                 logging.warning(f"Failed to download NLTK resource {resource}: {e}")
                 # Continue execution as some resources might be optional
 
+# Ensure WordNet is fully loaded to prevent multiprocessing race conditions
+try:
+    from nltk.corpus import wordnet as wn
+    wn.ensure_loaded()  # This forces complete loading in the main thread
+    logging.info("WordNet corpus fully loaded and ready for multiprocessing")
+except Exception as e:
+    logging.warning(f"Failed to ensure WordNet is loaded: {e}")
+    # Continue execution but multiprocessing may have issues
+
 
 # Set up logging
 # File handler with detailed format
