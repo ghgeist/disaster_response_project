@@ -52,11 +52,7 @@
             <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="https://github.com/geista" target="_blank" rel="noopener noreferrer">GitHub</a>
         </div>
     </div>
-    <!-- Mobile Menu, show/hide based on button click -->
-    <div id="mobile-menu" class="hidden md:hidden px-6 pb-4">
-        <a href="https://www.linkedin.com/in/grantgeist/" class="block text-gray-300 hover:text-white py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue">Contact</a>
-        <a href="https://github.com/geista" class="block text-gray-300 hover:text-white py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue">GitHub</a>
-    </div>
+    <!-- Mobile Menu intentionally removed to avoid duplicate links -->
 </nav>
 
 <!-- Main Content Area -->
@@ -188,8 +184,7 @@
         }
 
         try {
-            const graphsJSON = {{ graphJSON | safe }};
-            const graphs = JSON.parse(graphsJSON);
+            const graphs = {{ graphJSON | safe }};
             const ids = {{ ids | tojson | safe }};
             
             // Validate that we have valid data
