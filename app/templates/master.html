@@ -53,10 +53,10 @@
     <!-- Hero Section -->
     <div class="text-center mb-12">
         <h1 class="text-4xl md:text-5xl font-extrabold text-white mb-3">
-            Real-Time Disaster Message Classification
+            Signal Storm: Cutting Through Chaos for Cries of Help
         </h1>
         <p class="text-lg text-gray-400 max-w-3xl mx-auto">
-            An AI-powered tool to help emergency responders identify and categorize critical needs from text messages.
+            An AI-powered tool that triages disaster messages in real time, so first responders can focus on what matters most.
         </p>
     </div>
 
@@ -68,13 +68,13 @@
                     type="text"
                     class="w-full bg-gray-700 text-white placeholder-gray-400 border border-gray-600 rounded-md py-3 px-4 focus:outline-none focus:ring-2 focus:ring-brand-accent-blue"
                     name="query"
-                    placeholder="e.g., 'We need water and medical supplies in the town square.'"
+                    placeholder="Enter an emergency message..."
                 >
                 <button
                     type="submit"
                     class="w-full sm:w-auto bg-brand-accent-blue hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-md transition duration-300 ease-in-out whitespace-nowrap"
                 >
-                    Classify Message
+                    Analyze Message
                 </button>
             </div>
         </form>
@@ -88,14 +88,19 @@
         <!-- Main content block for child templates -->
         {% block content %}
             <div class="text-center my-8 border-t border-gray-700 pt-8">
-                <h2 class="text-3xl font-bold text-white">Training Dataset Overview</h2>
+                <h2 class="text-3xl font-bold text-white">Understanding the Data Landscape</h2>
             </div>
         {% endblock %}
 
         <!-- Container for Plotly charts -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="grid grid-cols-1 gap-8">
             {% for id in ids %}
                 <div id="{{id}}" class="bg-brand-slate p-4 rounded-lg shadow-lg"></div>
+                {% if descriptions %}
+                <p class="text-sm text-gray-400 text-center max-w-2xl mx-auto -mt-2">
+                    {{ descriptions[loop.index0] if loop.index0 < descriptions|length else '' }}
+                </p>
+                {% endif %}
             {% endfor %}
         </div>
     </div>
@@ -108,18 +113,28 @@
         <h2 class="text-3xl font-bold text-white mb-8">How It Works</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div class="bg-brand-charcoal p-6 rounded-lg">
-                <h3 class="text-xl font-bold mb-2 text-brand-accent-blue">1. Clean & Process</h3>
-                <p class="text-gray-400">Text is normalized, tokenized, and cleaned to prepare it for the model.</p>
+                <h3 class="text-xl font-bold mb-2 text-brand-accent-blue">Data Cleaning</h3>
+                <p class="text-gray-400">Merge messages and categories, remove ambiguities and duplicates, and load into a database for a solid training set.</p>
             </div>
             <div class="bg-brand-charcoal p-6 rounded-lg">
-                <h3 class="text-xl font-bold mb-2 text-brand-accent-blue">2. Vectorize & Transform</h3>
-                <p class="text-gray-400">Our model converts words into numerical features using TF-IDF.</p>
+                <h3 class="text-xl font-bold mb-2 text-brand-accent-blue">Feature Extraction (TF-IDF)</h3>
+                <p class="text-gray-400">Custom tokenizer normalizes text and TF-IDF emphasizes critical words while downweighting common terms.</p>
             </div>
             <div class="bg-brand-charcoal p-6 rounded-lg">
-                <h3 class="text-xl font-bold mb-2 text-brand-accent-blue">3. Classify</h3>
-                <p class="text-gray-400">A Multi-Output Classifier predicts the relevant disaster categories.</p>
+                <h3 class="text-xl font-bold mb-2 text-brand-accent-blue">Multi-Label Model</h3>
+                <p class="text-gray-400">A MultiOutput Random Forest tags each message with all relevant categories across 36 disaster needs.</p>
             </div>
         </div>
+    </div>
+    <!-- Performance Deep Dive Intro and caption -->
+    <div class="container mx-auto px-6 text-center mt-12">
+        <h2 class="text-2xl font-bold text-white mb-4">Model Performance Deep Dive</h2>
+        <p class="text-sm text-gray-300 max-w-xl mx-auto mb-2">
+            Baseline vs Optimized: precision improves slightly, but recall drops. In disasters, missing real help messages is costly.
+        </p>
+        <p class="text-xs text-gray-500 text-center mt-2 italic">
+            Blue = Baseline. Orange = Optimized. Notice the precision vs recall trade-off.
+        </p>
     </div>
 </section>
 

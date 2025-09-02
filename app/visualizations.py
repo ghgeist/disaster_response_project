@@ -200,3 +200,58 @@ class ChartGenerator:
         except Exception as e:
             logger.error(f"Error plotting message types: {e}")
             raise
+
+    # --- Performance Deep Dive visualizations ---
+    @staticmethod
+    def create_performance_visual(metrics_dict: Dict[str, list], labels: list) -> Dict[str, Any]:
+        """Create grouped bar chart comparing baseline vs optimized Precision/Recall/F1."""
+        try:
+            categories = ["Precision", "Recall", "F1"]
+            base_vals = [metrics_dict.get("precision", [0, 0])[0], metrics_dict.get("recall", [0, 0])[0], metrics_dict.get("f1", [0, 0])[0]]
+            opt_vals = [metrics_dict.get("precision", [0, 0])[1], metrics_dict.get("recall", [0, 0])[1], metrics_dict.get("f1", [0, 0])[1]]
+
+            trace_base = go.Bar(x=categories, y=base_vals, name=labels[0])
+            trace_opt = go.Bar(x=categories, y=opt_vals, name=labels[1])
+
+            layout = go.Layout(
+                title={"text": "Baseline vs Optimized Model Performance", "font": {"color": "#E2E8F0"}},
+                yaxis=dict(title="Score (%)", rangemode="tozero", gridcolor="#2D3748", color="#A0AEC0"),
+                xaxis=dict(color="#A0AEC0"),
+                barmode="group",
+                paper_bgcolor="#2D3748",
+                plot_bgcolor="#2D3748",
+                font=dict(color="#E2E8F0"),
+                legend=dict(orientation="h", x=0.5, xanchor="center"),
+                margin={"l": 60, "r": 40, "t": 60, "b": 60},
+            )
+            return {"data": [trace_base, trace_opt], "layout": layout}
+        except Exception as e:
+            logger.error(f"Error creating performance visual: {e}")
+            raise
+
+    @staticmethod
+    def apply_dark_layout(fig_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """Ensure existing figure dict adopts dark theme styles."""
+        try:
+            layout = fig_dict.get("layout", {})
+            layout.update({
+                "paper_bgcolor": "#2D3748",
+                "plot_bgcolor": "#2D3748",
+                "font": {"color": "#E2E8F0"},
+            })
+            # Make axes readable
+            if "xaxis" in layout:
+                xax = layout["xaxis"]
+                if isinstance(xax, dict):
+                    xax.setdefault("color", "#A0AEC0")
+                    xax.setdefault("gridcolor", "#2D3748")
+            if "yaxis" in layout:
+                yax = layout["yaxis"]
+                if isinstance(yax, dict):
+                    yax.setdefault("color", "#A0AEC0")
+                    yax.setdefault("gridcolor", "#2D3748")
+            fig_dict["layout"] = layout
+            return fig_dict
+        except Exception as e:
+            logger.error(f"Error applying dark layout: {e}")
+            raise
