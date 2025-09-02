@@ -39,7 +39,7 @@ class ModelTestingFramework:
             # Run the baseline training
             cmd = [
                 sys.executable, "models/train_classifier.py",
-                "data/DisasterResponse.db", 
+                "data/02_stg/stg_disaster_response.db", 
                 "models/baseline_classifier.pkl"
             ]
             
@@ -79,7 +79,7 @@ class ModelTestingFramework:
                 # Run training
                 cmd = [
                     sys.executable, "models/train_classifier.py",
-                    "data/DisasterResponse.db", 
+                    "data/02_stg/stg_disaster_response.db", 
                     f"models/{method}_classifier.pkl"
                 ]
                 

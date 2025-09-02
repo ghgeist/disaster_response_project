@@ -1,0 +1,15 @@
+{% extends "master.html" %}
+
+{% block title %}Error{% endblock %}
+
+{% block content %}
+    <div class="max-w-2xl mx-auto my-12 bg-brand-slate p-8 rounded-lg shadow-2xl text-center">
+        <div class="border-2 border-red-500 rounded-lg p-6">
+            <h2 class="text-3xl font-bold text-red-400 mb-4">An Error Occurred</h2>
+            <p class="text-lg text-gray-300 mb-6">{{ message }}</p>
+            <a href="/" class="bg-brand-accent-blue hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-md transition duration-300 ease-in-out">
+                Return to Home
+            </a>
+        </div>
+    </div>
+{% endblock %}

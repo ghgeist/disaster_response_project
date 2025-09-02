@@ -278,7 +278,7 @@ experiments/               # Organized experiment results
 
 ```bash
 # Use the new clean training script
-python scripts/train_model.py data/DisasterResponse.db models/classifier.pkl
+python scripts/train_model.py data/02_stg/stg_disaster_response.db models/classifier.pkl
 
 # Interactive experiment selection:
 # 1. baseline_no_sampling - No sampling applied

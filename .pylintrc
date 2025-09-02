@@ -1,0 +1,76 @@
+[MASTER]
+# Ignore common directories
+ignore=__pycache__,
+       .git,
+       .venv,
+       venv,
+       env,
+       .env,
+       node_modules,
+       .pytest_cache,
+       .coverage,
+       htmlcov,
+       dist,
+       build,
+       *.egg-info
+
+[MESSAGES CONTROL]
+# Disable noisy style warnings, keep only critical error checks
+disable=
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring,
+    line-too-long,
+    trailing-whitespace,
+    missing-final-newline,
+    mixed-line-endings,
+    superfluous-parens,
+    unnecessary-semicolon,
+    trailing-newlines,
+    multiple-statements,
+    wrong-import-order,
+    ungrouped-imports,
+    wrong-import-position,
+    cyclic-import,
+    relative-beyond-top-level,
+    import-outside-toplevel,
+    reimported,
+    consider-using-f-string,
+    consider-using-dict-comprehension,
+    consider-using-set-comprehension,
+    consider-using-generator,
+    use-dict-literal,
+    use-list-literal,
+    use-a-generator,
+    consider-using-with,
+    consider-using-enumerate,
+    consider-iterating-dictionary,
+    chained-comparison,
+    consider-using-ternary,
+    consider-using-join,
+    consider-using-max-builtin,
+    consider-using-min-builtin,
+
+
+[FORMAT]
+# Set maximum line length
+max-line-length=120
+
+[DESIGN]
+# Set reasonable limits
+max-args=10
+max-locals=20
+max-returns=6
+max-branches=15
+max-statements=50
+max-attributes=15
+max-public-methods=20
+max-bool-expr=5
+
+[VARIABLES]
+# Allow common variable names
+good-names=i,j,k,ex,Run,_,x,y,z,df,id
+
+[EXCEPTIONS]
+# Use fully qualified name for Exception
+overgeneral-exceptions=builtins.Exception

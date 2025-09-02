@@ -714,7 +714,7 @@ def main():
             "Please provide the filepath of the disaster messages database "
             "as the first argument and the filepath of the pickle file to "
             "save the model to as the second argument. \n\nExample: python "
-            "train_classifier.py ../data/DisasterResponse.db classifier.pkl"
+            "train_classifier.py ../data/02_stg/stg_disaster_response.db classifier.pkl"
         )
     else:
         database_filepath, model_filepath = sys.argv[1:]

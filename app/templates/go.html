@@ -1,27 +1,45 @@
-{% extends "master.html" %} <!-- Extends the base template "master.html" -->
+{% extends "master.html" %}
 
-{% block title %}Classification Results{% endblock %} <!-- Title of the page is set to "Results" -->
+{% block title %}Classification Results{% endblock %}
 
-{% block message %} <!-- Block for displaying the message -->
-    <hr class="my-4" />
-    <h4 class="text-center">MESSAGE</h4>
-    <p class="text-center"><i>{{query}}</i></p> <!-- The variable "query" is displayed here -->
+{% block message %}
+    <!-- Results container -->
+    <div class="max-w-4xl mx-auto bg-brand-slate p-8 rounded-lg shadow-2xl mb-8">
+        <!-- Display the original query -->
+        <div class="mb-6">
+            <h4 class="text-lg font-semibold text-gray-400 uppercase tracking-wider mb-2">Message</h4>
+            <p class="text-xl text-white bg-gray-700 p-4 rounded-md">"{{query}}"</p>
+        </div>
+
+        <!-- Display the classification results -->
+        <div>
+            <h4 class="text-lg font-semibold text-gray-400 uppercase tracking-wider mb-3">Predicted Categories</h4>
+            <div class="flex flex-wrap gap-3">
+                {% set results = classification_result.items()|list %}
+                {% set has_results = false %}
+                
+                {% for category, classification in results %}
+                    {% if classification == 1 %}
+                        {% set has_results = true %}
+                        <span class="bg-brand-accent-amber text-gray-900 text-sm font-bold px-4 py-2 rounded-full shadow-md">
+                            {{ category.replace('_', ' ')|title }}
+                        </span>
+                    {% endif %}
+                {% endfor %}
+
+                {% if not has_results %}
+                    <p class="text-gray-400">This message does not appear to be related to a disaster.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 {% endblock %}
 
 {% block content %}
-    <h1 class="text-center mb-4">Result</h1>
-    <div class="container">
-        <div class="row g-3">
-            {% set items = classification_result.items()|list %}
-            {% for category, classification in items|sort(attribute='1', reverse=true) %}
-                <div class="col-md-3 col-sm-6">
-                    {% if classification == 1 %}
-                        <div class="alert alert-success text-center mb-0">{{category.replace('_', ' ').title()}}</div>
-                    {% else %}
-                        <div class="alert alert-secondary text-center mb-0">{{category.replace('_', ' ').title()}}</div>
-                    {% endif %}
-                </div>
-            {% endfor %}
-        </div>
+    <!-- This section is now used to provide a call to action below the results -->
+    <div class="text-center mt-4 mb-8">
+        <a href="/" class="bg-brand-accent-blue hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-md transition duration-300 ease-in-out">
+            Classify Another Message
+        </a>
     </div>
 {% endblock %}

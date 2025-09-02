@@ -1,0 +1,10 @@
+{
+  "experiment_name": "conservative_sampling_v1",
+  "timestamp": "2025-09-02T14:02:10.156864",
+  "results": {
+    "experiment_name": "conservative_sampling_v1",
+    "sampling_method": "conservative",
+    "model_saved_to": "models/conservative_model.pkl",
+    "evaluation_completed": true
+  }
+}
