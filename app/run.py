@@ -4,29 +4,31 @@ import os
 import sys
 
 # Third-party imports
-from flask import Flask, render_template, request, jsonify, abort, send_from_directory
-from nltk.stem import WordNetLemmatizer
-from nltk.tokenize import word_tokenize
+from flask import Flask, render_template, request, abort, send_from_directory
 from sqlalchemy import create_engine
+import sqlalchemy.exc
 import joblib
 import pandas as pd
 import plotly
-from plotly.graph_objs import Bar
 import requests
 
 # Local application imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
-from disaster_classifier.data.preprocessor import tokenize
-from app.graph_generator import *
+from app.graph_generator import (
+    prepare_genre_data,
+    create_genre_visual,
+    classify_message_types,
+    plot_message_types
+)
 
 app = Flask(__name__)
 
 # Serve favicon: prefer .ico, gracefully fall back to .png variants
 @app.route('/favicon.ico')
 def favicon():
-    app_dir = os.path.dirname(__file__)
-    images_dir = os.path.abspath(os.path.join(app_dir, '..', 'images'))
+    favicon_dir = os.path.dirname(__file__)
+    images_dir = os.path.abspath(os.path.join(favicon_dir, '..', 'images'))
     ico_path = os.path.join(images_dir, 'favicon.ico')
     png_fallbacks = ['favicon.png', 'image.png']
 
@@ -47,31 +49,31 @@ try:
     db_path = os.path.abspath(os.path.join(app_dir, '..', 'data', '02_stg', 'stg_disaster_response.db'))
     engine = create_engine(f'sqlite:///{db_path}')
     df = pd.read_sql_table('stg_disaster_response', engine)
-except Exception as e:
+except (OSError, pd.errors.DatabaseError, sqlalchemy.exc.SQLAlchemyError) as e:
     print(f"Error loading data from database: {e}", file=sys.stderr)
     sys.exit(1)
 
 def download_model_if_missing() -> str:
     """Ensure the classifier.pkl exists locally; download from Drive if missing."""
-    app_dir = os.path.dirname(__file__)
-    model_path = os.path.abspath(os.path.join(app_dir, '..', 'models', 'classifier.pkl'))
+    download_dir = os.path.dirname(__file__)
+    local_model_path = os.path.abspath(os.path.join(download_dir, '..', 'models', 'classifier.pkl'))
     
-    if os.path.exists(model_path):
-        return model_path
+    if os.path.exists(local_model_path):
+        return local_model_path
     
     print("Model not found locally, downloading from Google Drive...", file=sys.stderr)
-    os.makedirs(os.path.dirname(model_path), exist_ok=True)
+    os.makedirs(os.path.dirname(local_model_path), exist_ok=True)
     
     file_id = os.environ.get('GDRIVE_MODEL_ID')
     if not file_id or file_id.strip() in {'', 'YOUR_FILE_ID', 'YOUR_GOOGLE_DRIVE_FILE_ID'}:
         raise RuntimeError(
             "GDRIVE_MODEL_ID is not set or is using a placeholder. "
             f"Provide a valid Google Drive file ID via the GDRIVE_MODEL_ID env var, "
-            f"or place the model at: {model_path}"
+            f"or place the model at: {local_model_path}"
         )
     
     # Create temporary file for download
-    temp_path = f"{model_path}.tmp"
+    temp_path = f"{local_model_path}.tmp"
     
     try:
         url = f"https://drive.google.com/uc?export=download&id={file_id}"
@@ -102,10 +104,10 @@ def download_model_if_missing() -> str:
             test_model = joblib.load(temp_path)
             del test_model  # Clean up test load
         except Exception as e:
-            raise RuntimeError(f"Downloaded model file is corrupted: {e}")
+            raise RuntimeError(f"Downloaded model file is corrupted: {e}") from e
         
         # If validation passes, move temp file to final location
-        os.replace(temp_path, model_path)
+        os.replace(temp_path, local_model_path)
         print("Model downloaded and validated successfully!", file=sys.stderr)
         
     except Exception as e:
@@ -121,25 +123,25 @@ def download_model_if_missing() -> str:
             raise RuntimeError(
                 f"Download timed out. Please check your internet connection and try again. "
                 f"Error: {e}"
-            )
-        elif "corrupted" in str(e).lower():
+            ) from e
+        if "corrupted" in str(e).lower():
             raise RuntimeError(
                 f"Download failed due to corruption. Please try again. "
                 f"Error: {e}"
-            )
-        else:
-            raise RuntimeError(
-                f"Failed to download model: {e}. "
-                f"Please check the GDRIVE_MODEL_ID or download manually to: {model_path}"
-            )
+            ) from e
+        raise RuntimeError(
+            f"Failed to download model: {e}. "
+            f"Please check the GDRIVE_MODEL_ID or download manually to: {local_model_path}"
+        ) from e
     
-    return model_path
+    return local_model_path
 
 # load model
 try:
     model_path = download_model_if_missing()
     model = joblib.load(model_path)
-except Exception as e:
+except (OSError, joblib.externals.loky.process_executor.TerminatedWorkerError, 
+        joblib.externals.loky.process_executor.BrokenProcessPool) as e:
     print(f"Error loading model: {e}", file=sys.stderr)
     sys.exit(1)
 
@@ -179,13 +181,13 @@ def index():
 
         # encode plotly graphs in JSON
         ids = ["graph-{}".format(i) for i, _ in enumerate(graphs)]
-        graphJSON = json.dumps(graphs, cls=plotly.utils.PlotlyJSONEncoder)
+        graph_json = json.dumps(graphs, cls=plotly.utils.PlotlyJSONEncoder)
 
-    except Exception as err:
+    except (KeyError, ValueError, TypeError) as err:
         abort(500, description=f"Error preparing data for visualization: {err}")
 
     # render web page with plotly graphs
-    return render_template('master.html', ids=ids, graphJSON=graphJSON)
+    return render_template('master.html', ids=ids, graphJSON=graph_json)
 
 
 # web page that handles user query and displays model results
@@ -212,7 +214,7 @@ def go():
         classification_labels = model.predict([query])[0]
         classification_results = dict(zip(df.columns[4:], classification_labels))
 
-    except Exception as e:
+    except (KeyError, ValueError, TypeError, AttributeError) as e:
         return render_template('error.html', message=f"Error processing query: {e}")
 
     # This will render the go.html Please see that file.
