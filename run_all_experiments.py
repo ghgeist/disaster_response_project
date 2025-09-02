@@ -37,8 +37,9 @@ def run_experiment(experiment_name, sampling_method, model_name):
         if not model_name.endswith('.pkl'):
             model_name += '.pkl'
         
-        # Basic character validation for model name
-        if not all(c.isalnum() or c in '._-' for c in model_name.replace('.pkl', '')):
+        # Basic character validation for model name (check only the base name, not extension)
+        base_name = model_name[:-4] if model_name.endswith('.pkl') else model_name
+        if not base_name or not all(c.isalnum() or c in '._-' for c in base_name):
             raise ValueError(f"Invalid characters in model_name: {model_name}")
         
         # Determine the input based on experiment type
