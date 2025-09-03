@@ -1,0 +1,11 @@
+{
+  "experiment_name": "adasyn_moderate_v1",
+  "timestamp": "2025-09-02T13:56:18.279967",
+  "config": {
+    "sampling_method": "adasyn",
+    "test_size": 0.2,
+    "random_state": 42
+  }
+}
+
+

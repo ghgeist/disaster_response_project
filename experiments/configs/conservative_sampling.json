@@ -1,0 +1,11 @@
+{
+  "experiment_name": "conservative_sampling_v1",
+  "timestamp": "2025-09-02T13:59:17.163906",
+  "config": {
+    "sampling_method": "conservative",
+    "test_size": 0.2,
+    "random_state": 42
+  }
+}
+
+
