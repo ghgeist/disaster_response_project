@@ -7,13 +7,6 @@ import numpy as np
 from imblearn.over_sampling import SMOTE, ADASYN
 
 from ..utils.config import TARGET_COLUMNS
-from .multilabel_samplers import (
-    apply_mlsmote,
-    apply_label_powerset_sampling,
-    apply_random_oversampling_multilabel,
-    get_class_weights_multilabel,
-    print_multilabel_class_distribution
-)
 
 
 def apply_smote_sampling(X_train, y_train):
@@ -147,93 +140,3 @@ def apply_multi_label_aware_sampling(X_train, y_train, method='smote'):
         logging.error(f"Error applying {method} sampling: {e}")
         logging.warning(f"{method.upper()} could not be applied. Using original training data.")
         return X_train, y_train
-
-
-def apply_proper_multilabel_sampling(X_train, y_train, method='mlsmote', **kwargs):
-    """
-    Apply proper multi-label aware sampling strategies.
-    
-    This function uses sampling methods specifically designed for multi-label
-    classification, avoiding the limitations of standard SMOTE/ADASYN.
-    
-    Args:
-        X_train (numpy.ndarray): Training features
-        y_train (numpy.ndarray): Training labels (multi-label)
-        method (str): Sampling method to use:
-            - 'mlsmote': Multi-Label SMOTE using binary relevance
-            - 'label_powerset': Label Powerset transformation sampling
-            - 'random_oversample': Random oversampling per label
-            - 'none': No sampling (for comparison)
-        **kwargs: Additional arguments for specific methods
-        
-    Returns:
-        tuple: (X_train_resampled, y_train_resampled) - The resampled training data
-    """
-    try:
-        logging.info(f"Applying {method} for proper multi-label sampling...")
-        
-        # Print initial class distribution
-        print_multilabel_class_distribution(y_train, TARGET_COLUMNS, top_n=10)
-        
-        if method == 'none':
-            logging.info("No sampling applied (baseline)")
-            return X_train, y_train
-            
-        elif method == 'mlsmote':
-            # Multi-Label SMOTE
-            k_neighbors = kwargs.get('k_neighbors', 5)
-            sampling_strategy = kwargs.get('sampling_strategy', 0.5)
-            X_resampled, y_resampled = apply_mlsmote(
-                X_train, y_train, 
-                k_neighbors=k_neighbors,
-                sampling_strategy=sampling_strategy
-            )
-            
-        elif method == 'label_powerset':
-            # Label Powerset sampling
-            sampling_ratio = kwargs.get('sampling_ratio', 0.5)
-            X_resampled, y_resampled = apply_label_powerset_sampling(
-                X_train, y_train,
-                sampling_ratio=sampling_ratio
-            )
-            
-        elif method == 'random_oversample':
-            # Random oversampling
-            sampling_strategy = kwargs.get('sampling_strategy', 0.5)
-            min_samples = kwargs.get('min_samples_threshold', 10)
-            X_resampled, y_resampled = apply_random_oversampling_multilabel(
-                X_train, y_train,
-                sampling_strategy=sampling_strategy,
-                min_samples_threshold=min_samples
-            )
-            
-        else:
-            logging.warning(f"Unknown sampling method: {method}")
-            return X_train, y_train
-            
-        # Print final class distribution
-        logging.info("Class distribution after sampling:")
-        print_multilabel_class_distribution(y_resampled, TARGET_COLUMNS, top_n=10)
-        
-        return X_resampled, y_resampled
-        
-    except Exception as e:
-        logging.error(f"Error in multi-label sampling: {e}")
-        logging.warning("Returning original training data.")
-        return X_train, y_train
-
-
-def get_multilabel_class_weights(y_train, strategy='balanced'):
-    """
-    Get class weights for multi-label classification.
-    
-    Use this as an alternative to resampling by passing weights to the classifier.
-    
-    Args:
-        y_train (numpy.ndarray): Training labels
-        strategy (str): Weight calculation strategy
-        
-    Returns:
-        dict: Class weights for each label
-    """
-    return get_class_weights_multilabel(y_train, weight_strategy=strategy)
