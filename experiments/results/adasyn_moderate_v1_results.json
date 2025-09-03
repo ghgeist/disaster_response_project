@@ -1,0 +1,12 @@
+{
+  "experiment_name": "adasyn_moderate_v1",
+  "timestamp": "2025-09-02T13:59:12.284705",
+  "results": {
+    "experiment_name": "adasyn_moderate_v1",
+    "sampling_method": "adasyn",
+    "model_saved_to": "models/adasyn_model.pkl",
+    "evaluation_completed": true
+  }
+}
+
+

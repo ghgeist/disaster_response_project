@@ -23,7 +23,7 @@ from disaster_classifier.models.pipeline import create_pipeline, build_model, ru
 from disaster_classifier.evaluation.metrics import evaluate_model, save_model, save_gs_results, save_best_parameters
 from disaster_classifier.utils.io import load_model_parameters, load_grid_search_parameters
 from disaster_classifier.utils.interaction import get_user_input
-from disaster_classifier.utils.experiment_tracker import ExperimentTracker, create_experiment_name
+from disaster_classifier.utils.experiment_tracker import ExperimentTracker, create_experiment_name, build_slug
 from sklearn.model_selection import train_test_split
 
 
@@ -74,33 +74,48 @@ def train_experiment(experiment_name: str, sampling_method: str,
             'Y_test': Y_test.shape
         }
     }
-    tracker.save_experiment_config(experiment_name, config)
+    # Build a run slug for flat saving
+    slug = build_slug(sampling_method, version="v1")
+
+    # Legacy nested config (kept small) + flat config
+    try:
+        tracker.save_experiment_config(experiment_name, config)
+    except Exception:
+        pass
+    tracker.save_experiment_config_flat(slug, experiment_name, config)
     
     # Train model
     logging.info("Training model...")
     model = build_model(pipeline, None)  # Use default parameters
     model.fit(X_train, Y_train)
     
-    # Evaluate model
+    # Evaluate model (use slug to make fct file unique per run)
     logging.info("Evaluating model...")
-    evaluate_model(model, experiment_name, X_test, Y_test, TARGET_COLUMNS)
+    evaluate_model(model, slug, X_test, Y_test, TARGET_COLUMNS)
     
     # Save model
+    saved_model_path = None
     if model_filepath is None:
-        model_filepath = tracker.save_model(experiment_name, model)
+        # Save to flat experiments bucket
+        saved_model_path = tracker.save_model_flat(slug, model)
     else:
+        # Respect provided path (backward compatible)
         save_model(model, model_filepath)
+        saved_model_path = model_filepath
     
-    # Save results summary
+    # Save results summary (flat; legacy results kept optional)
     results = {
         'experiment_name': experiment_name,
         'sampling_method': sampling_method,
-        'model_saved_to': model_filepath,
+        'slug': slug,
+        'model_saved_to': saved_model_path,
         'evaluation_completed': True
     }
-    tracker.save_results(experiment_name, results)
+    tracker.save_results_flat(slug, results)
     
     logging.info(f"Experiment {experiment_name} completed successfully!")
+    print(f"SLUG: {slug}")
+    print(f"MODEL_PATH: {saved_model_path}")
     return model
 
 
@@ -111,16 +126,16 @@ def main():
     # Set up logging
     setup_logging()
     
-    if len(sys.argv) != 3:
+    # Accept either: database only, or database + explicit model path (backward compatible)
+    if len(sys.argv) not in (2, 3):
         logging.info(
-            "Please provide the filepath of the disaster messages database "
-            "as the first argument and the filepath of the pickle file to "
-            "save the model to as the second argument. \n\nExample: python "
-            "train_model.py ../data/02_stg/stg_disaster_response.db classifier.pkl"
+            "Usage:\n"
+            "  python scripts/train_model.py data/02_stg/stg_disaster_response.db [models/output.pkl]"
         )
         return
-    
-    database_filepath, model_filepath = sys.argv[1:]
+
+    database_filepath = sys.argv[1]
+    model_filepath = sys.argv[2] if len(sys.argv) == 3 else None
     
     # Interactive experiment selection
     print("\n=== Disaster Response Classification Training ===")
@@ -157,8 +172,9 @@ def main():
     
     if model is not None:
         print(f"\n✅ Experiment '{experiment_name}' completed successfully!")
-        print(f"Model saved to: {model_filepath}")
-        print(f"Results organized in: experiments/{experiment_name}/")
+        if model_filepath:
+            print(f"Model saved to: {model_filepath}")
+        print("Results saved to flat experiments buckets (configs/models/results)")
     else:
         print("\n❌ Experiment failed. Check logs for details.")
 

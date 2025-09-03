@@ -12,7 +12,7 @@ related: []
 
 ### **Phase 1: Automated Experiment Execution (Currently Running!)**
 ```bash
-# ✅ ALREADY RUNNING - No action needed!
+
 python run_all_experiments.py
 ```
 
@@ -23,8 +23,8 @@ python run_all_experiments.py
 - ⏳ **conservative_sampling** - Final experiment
 
 **Timeline:** ~20 minutes total (perfect for your workout!)
+# ✅ Complete!
 
----
 
 ### **Phase 2: Post-Workout Analysis (15-20 minutes)**
 
