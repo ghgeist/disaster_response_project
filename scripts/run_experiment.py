@@ -1,12 +1,22 @@
 #!/usr/bin/env python3
 """
-Clean training script for disaster response classification.
+Interactive experiment training script for disaster response classification.
 
-This script demonstrates professional ML engineering practices with:
-- Modular, single-responsibility components
-- Clear experiment tracking
-- Organized results and model storage
-- Easy comparison between different approaches
+This script provides an interactive menu to select and run individual sampling experiments
+(baseline, SMOTE, ADASYN, etc.) with full experiment tracking and result storage.
+
+Use this script when you want to:
+- Run a single experiment interactively
+- Explore different sampling strategies one at a time
+- Test specific experiment configurations
+
+For automated batch runs of multiple experiments, use run_batch_experiments.py instead.
+
+Usage:
+    python scripts/train_experiment.py data/02_stg/stg_disaster_response.db [model_output.pkl]
+    
+The script will prompt you to select from available experiments and handle all the
+training, evaluation, and result storage automatically.
 """
 
 import sys
@@ -18,11 +28,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from disaster_classifier.utils.config import setup_logging, TARGET_COLUMNS
 from disaster_classifier.data.loader import load_data
+from disaster_classifier.models.pipeline import create_pipeline, build_model
 from disaster_classifier.models.samplers import apply_multi_label_aware_sampling
-from disaster_classifier.models.pipeline import create_pipeline, build_model, run_grid_search
-from disaster_classifier.evaluation.metrics import evaluate_model, save_model, save_gs_results, save_best_parameters
-from disaster_classifier.utils.io import load_model_parameters, load_grid_search_parameters
-from disaster_classifier.utils.interaction import get_user_input
+from disaster_classifier.evaluation.metrics import evaluate_model, save_model
+from disaster_classifier.utils.io import load_model_parameters
 from disaster_classifier.utils.experiment_tracker import ExperimentTracker, create_experiment_name, build_slug
 from sklearn.model_selection import train_test_split
 
@@ -128,10 +137,11 @@ def main():
     
     # Accept either: database only, or database + explicit model path (backward compatible)
     if len(sys.argv) not in (2, 3):
-        logging.info(
-            "Usage:\n"
-            "  python scripts/train_model.py data/02_stg/stg_disaster_response.db [models/output.pkl]"
-        )
+        print("Usage:")
+        print("  python scripts/train_experiment.py data/02_stg/stg_disaster_response.db [models/output.pkl]")
+        print("")
+        print("This script provides interactive experiment selection.")
+        print("For batch runs of multiple experiments, use run_batch_experiments.py instead.")
         return
 
     database_filepath = sys.argv[1]
@@ -171,12 +181,12 @@ def main():
     model = train_experiment(experiment_name, sampling_method, database_filepath, model_filepath)
     
     if model is not None:
-        print(f"\n✅ Experiment '{experiment_name}' completed successfully!")
+        print(f"\n[SUCCESS] Experiment '{experiment_name}' completed successfully!")
         if model_filepath:
             print(f"Model saved to: {model_filepath}")
         print("Results saved to flat experiments buckets (configs/models/results)")
     else:
-        print("\n❌ Experiment failed. Check logs for details.")
+        print("\n[ERROR] Experiment failed. Check logs for details.")
 
 
 if __name__ == "__main__":
