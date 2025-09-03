@@ -171,12 +171,12 @@ def main():
     model = train_experiment(experiment_name, sampling_method, database_filepath, model_filepath)
     
     if model is not None:
-        print(f"\n✅ Experiment '{experiment_name}' completed successfully!")
+        print(f"\n[SUCCESS] Experiment '{experiment_name}' completed successfully!")
         if model_filepath:
             print(f"Model saved to: {model_filepath}")
         print("Results saved to flat experiments buckets (configs/models/results)")
     else:
-        print("\n❌ Experiment failed. Check logs for details.")
+        print("\n[ERROR] Experiment failed. Check logs for details.")
 
 
 if __name__ == "__main__":
