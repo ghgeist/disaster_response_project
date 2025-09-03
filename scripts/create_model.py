@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 """
-Train a classifier from JSON parameters and save to models/classifier.pkl.
+Create a disaster response classification model from JSON parameters.
 
-This script loads base model parameters from model/base_parameters.json,
-trains the pipeline on the provided database, evaluates it, and saves
-the trained model to models/classifier.pkl by default.
+This script loads model parameters from a JSON file and creates a trained model.
+Simple and direct - no experiment tracking or sampling methods. Perfect for:
+- Creating models with specific parameters from model/parameters.json
+- Production model creation
+- Quick model builds without experiment overhead
+
+For interactive experiment selection, use train_experiment.py instead.
 """
 
 import argparse

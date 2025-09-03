@@ -57,7 +57,7 @@ def run_experiment(experiment_name, sampling_method, model_name):
         # Run the training script with validated inputs
         cmd = [
             sys.executable, 
-            "scripts/train_model.py",
+            "scripts/train_experiment.py",
             "data/02_stg/stg_disaster_response.db",
             f"models/{model_name}"
         ]

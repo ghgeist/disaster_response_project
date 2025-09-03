@@ -45,6 +45,7 @@ def load_model_parameters(file_path):
     Load a JSON file and return its contents as a dictionary with parameter processing.
 
     This function opens a JSON file, decodes it into a Python object, and returns that object. 
+    It handles both flat parameter structures and nested structures with metadata.
     It also processes the parameters by converting single-item lists to their values and 
     two-item lists to tuples for sklearn compatibility.
 
@@ -52,11 +53,20 @@ def load_model_parameters(file_path):
     file_path (str): The file path of the JSON file.
 
     Returns:
-    data (dict): The contents of the JSON file as a dictionary, or None if an error occurred.
+    data (dict): The processed parameters as a dictionary, or None if an error occurred.
     """
-    parameters = load_json(file_path)
-    if parameters is None:
+    data = load_json(file_path)
+    if data is None:
         return None
+
+    # Handle nested structure with metadata - extract just the parameters
+    if "parameters" in data and "metadata" in data:
+        parameters = data["parameters"]
+        logging.info(f"Loaded parameters from {data['metadata'].get('model_name', 'unknown')} "
+                    f"version {data['metadata'].get('version', 'unknown')}")
+    else:
+        # Handle flat structure (backward compatibility)
+        parameters = data
 
     # Convert single-item lists to their values and two-item lists to tuples
     for k, v in parameters.items():
