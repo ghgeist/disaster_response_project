@@ -33,10 +33,10 @@ from disaster_classifier.utils.config import setup_logging
 
 DB_PATH = 'data/02_stg/stg_disaster_response.db'
 EXPERIMENTS = [
-    ('baseline', 'baseline', 'No sampling applied'),
-    ('smote', 'smote', 'SMOTE with conservative parameters'),
-    ('adasyn', 'adasyn', 'ADASYN with moderate parameters'),
-    ('conservative', 'conservative', 'Very conservative SMOTE sampling'),
+    ('baseline', None, 'No sampling - establish baseline'),
+    ('class_weights', 'weights', 'Use class weights instead of resampling'),
+    ('mlsmote_conservative', 'mlsmote', 'ML-SMOTE with k=3, ratio=0.3'),
+    ('random_oversample', 'random', 'Random oversampling to 50% majority'),
 ]
 
 

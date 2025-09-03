@@ -64,7 +64,21 @@ def train_experiment(experiment_name: str, sampling_method: str,
     # Apply sampling if not baseline
     if sampling_method != 'baseline':
         logging.info(f"Applying {sampling_method} sampling...")
-        X_train, Y_train = apply_multi_label_aware_sampling(X_train, Y_train, method=sampling_method)
+        # Use the proper multilabel-aware sampling
+        from disaster_classifier.models.samplers import apply_proper_multilabel_sampling
+        
+        method_map = {
+            'smote': 'mlsmote',
+            'adasyn': 'random_oversample',  # ADASYN doesn't work for multilabel
+            'conservative': 'label_powerset'
+        }
+        
+        X_train, Y_train = apply_proper_multilabel_sampling(
+            X_train, Y_train, 
+            method=method_map.get(sampling_method, 'mlsmote'),
+            k_neighbors=3,  # Lower for sparse classes
+            sampling_strategy=0.3  # Conservative ratio
+        )
     
     # Create pipeline
     logging.info("Creating ML pipeline...")
