@@ -213,18 +213,18 @@ def validate_multilabel_sampling(database_filepath):
         for result in successful_methods:
             method = result['method']
             if method == 'class_weighting':
-                logging.info(f"  ✅ {method}: {result.get('n_labels_weighted', 0)} labels weighted")
+                logging.info(f"  [SUCCESS] {method}: {result.get('n_labels_weighted', 0)} labels weighted")
             else:
                 orig = result.get('original_samples', 0)
                 resampled = result.get('resampled_samples', 0)
-                logging.info(f"  ✅ {method}: {orig} -> {resampled} samples")
+                logging.info(f"  [SUCCESS] {method}: {orig} -> {resampled} samples")
     
     if failed_methods:
         logging.info("\nFailed Methods:")
         for result in failed_methods:
             method = result['method']
             error = result.get('error', 'Unknown error')
-            logging.info(f"  ❌ {method}: {error}")
+            logging.info(f"  [FAILED] {method}: {error}")
     
     # Test model training with class weighting (if successful)
     class_weight_model = None
@@ -252,7 +252,7 @@ def validate_multilabel_sampling(database_filepath):
             evaluate_model(class_weight_model, 'class_weighted_validation', 
                          X_test, Y_test, TARGET_COLUMNS[:10])  # Test first 10 labels
             
-            logging.info("✅ Class weighting model training and evaluation successful!")
+            logging.info("Class weighting model training and evaluation successful!")
             
         except Exception as e:
             logging.error(f"Error in model training with class weights: {e}")
@@ -281,10 +281,10 @@ def main():
     success = validate_multilabel_sampling(args.database_filepath)
     
     if success:
-        print("\n🎉 All multi-label sampling methods validated successfully!")
+        print("\n[SUCCESS] All multi-label sampling methods validated successfully!")
         sys.exit(0)
     else:
-        print("\n⚠️  Some validation tests failed. Check logs for details.")
+        print("\n[WARNING] Some validation tests failed. Check logs for details.")
         sys.exit(1)
 
 

@@ -145,13 +145,13 @@ def main():
     save_model(model, args.model_out)
 
     # Success message
-    print(f'\n✅ {model_type.title()} model trained and saved successfully!')
-    print(f'📁 Model path: {args.model_out}')
-    print(f'📊 Evaluation written under data/04_fct as fct_{model_type}_prediction_results.csv')
-    print(f'⏱️  Training time: {train_time:.2f} seconds')
+    print(f'\n[SUCCESS] {model_type.title()} model trained and saved successfully!')
+    print(f'Model path: {args.model_out}')
+    print(f'Evaluation written under data/04_fct as fct_{model_type}_prediction_results.csv')
+    print(f'Training time: {train_time:.2f} seconds')
     
     if not args.baseline:
-        print('🎯 Model includes class weighting for improved minority class detection')
+        print('Model includes class weighting for improved minority class detection')
 
 
 if __name__ == '__main__':
