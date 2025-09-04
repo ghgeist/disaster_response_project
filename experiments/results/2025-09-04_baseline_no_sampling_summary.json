@@ -1,0 +1,11 @@
+{
+  "experiment_name": "baseline_no_sampling",
+  "timestamp": "2025-09-04T15:23:17.927527",
+  "results": {
+    "experiment_name": "baseline_no_sampling",
+    "sampling_method": "baseline",
+    "slug": "baseline_v1-20250904T152017",
+    "model_saved_to": "results\\2025-09-04_baseline_no_sampling.pkl",
+    "evaluation_completed": true
+  }
+}

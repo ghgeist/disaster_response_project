@@ -46,7 +46,7 @@ def evaluate_model(model, model_name, X_test, Y_test, category_names):
         from datetime import datetime
         date_str = datetime.now().strftime("%Y-%m-%d")
         results_file_path = os.path.join(
-            "results", f"{date_str}_{model_name}_metrics.csv"
+            "experiments", "results", f"{date_str}_{model_name}_metrics.csv"
         )
         results_df.to_csv(results_file_path, index=False)
         logging.info("Evaluation results saved to: %s", results_file_path)

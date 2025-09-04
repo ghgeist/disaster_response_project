@@ -218,7 +218,7 @@ def calculate_overall_metrics(metrics_file_path: str) -> dict:
         return None
 
 
-def create_experiment_comparison(results_dir: str = "results") -> str:
+def create_experiment_comparison(results_dir: str = "experiments/results") -> str:
     """
     Create a comparison report of all experiments.
     """
@@ -303,8 +303,6 @@ def train_experiment(experiment_name: str, sampling_method: str,
         database_filepath: Path to the database file
         model_filepath: Path to save the model (optional, will use experiment tracker if not provided)
     """
-    # Ensure results directory exists
-    os.makedirs('results', exist_ok=True)
     
     # Load data
     logging.info("Loading data for experiment: %s", experiment_name)
@@ -369,7 +367,7 @@ def train_experiment(experiment_name: str, sampling_method: str,
 
     # Save config to results directory
     date_str = datetime.now().strftime("%Y-%m-%d")
-    config_path = os.path.join('results', f"{date_str}_{experiment_name}_config.json")
+    config_path = os.path.join('experiments', 'results', f"{date_str}_{experiment_name}_config.json")
     config_with_metadata = {
         'experiment_name': experiment_name,
         'timestamp': datetime.now().isoformat(),
@@ -392,7 +390,7 @@ def train_experiment(experiment_name: str, sampling_method: str,
     if model_filepath is None:
         # Save to results directory
         date_str = datetime.now().strftime("%Y-%m-%d")
-        saved_model_path = os.path.join('results', f"{date_str}_{experiment_name}.pkl")
+        saved_model_path = os.path.join('experiments', 'results', f"{date_str}_{experiment_name}.pkl")
         save_model(model, saved_model_path)
     else:
         # Respect provided path (backward compatible)
@@ -408,7 +406,7 @@ def train_experiment(experiment_name: str, sampling_method: str,
         'evaluation_completed': True
     }
     # Save results summary to results directory
-    results_path = os.path.join('results', f"{date_str}_{experiment_name}_summary.json")
+    results_path = os.path.join('experiments', 'results', f"{date_str}_{experiment_name}_summary.json")
     results_with_metadata = {
         'experiment_name': experiment_name,
         'timestamp': datetime.now().isoformat(),
@@ -549,10 +547,10 @@ def main():
             print(f"Model saved to: {model_filepath}")
         print("Files saved:")
         date_str = datetime.now().strftime("%Y-%m-%d")
-        print(f"  - Model: results/{date_str}_{experiment_name}.pkl")
-        print(f"  - Config: results/{date_str}_{experiment_name}_config.json")
-        print(f"  - Summary: results/{date_str}_{experiment_name}_summary.json")
-        print(f"  - Metrics: results/{date_str}_{experiment_name}_metrics.csv")
+        print(f"  - Model: experiments/results/{date_str}_{experiment_name}.pkl")
+        print(f"  - Config: experiments/results/{date_str}_{experiment_name}_config.json")
+        print(f"  - Summary: experiments/results/{date_str}_{experiment_name}_summary.json")
+        print(f"  - Metrics: experiments/results/{date_str}_{experiment_name}_metrics.csv")
 
         # Show quick comparison if other experiments exist
         print("\n" + "="*50)
