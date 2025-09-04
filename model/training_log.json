@@ -1,0 +1,38 @@
+{
+  "timestamp": "2025-09-04T13:46:10.345753",
+  "model_path": "model/classifier.pkl",
+  "training_time_seconds": 169.72734665870667,
+  "configuration": {
+    "hyperparameters": {
+      "vect__ngram_range": [
+        1,
+        1
+      ],
+      "clf__estimator__n_estimators": 100,
+      "clf__estimator__min_samples_split": 2
+    },
+    "class_weighting": {
+      "enabled": false,
+      "strategy": null
+    },
+    "data_split": {
+      "test_size": 0.2,
+      "random_seed": 42,
+      "train_samples": 20821,
+      "test_samples": 5206
+    },
+    "target_labels": 36
+  },
+  "performance": {
+    "overall_precision": 0.941156209633228,
+    "overall_recall": 0.9489051094890512,
+    "overall_f1": 0.9369791817647513,
+    "positive_class_precision": 0.6050865277310983,
+    "positive_class_recall": 0.21193178447637426,
+    "positive_class_f1": 0.26507836363782644,
+    "total_categories": 36,
+    "test_samples": 5206
+  },
+  "version": "1.0",
+  "status": "production_ready"
+}

@@ -140,3 +140,100 @@ def apply_multi_label_aware_sampling(X_train, y_train, method='smote'):
         logging.error(f"Error applying {method} sampling: {e}")
         logging.warning(f"{method.upper()} could not be applied. Using original training data.")
         return X_train, y_train
+
+
+def get_multilabel_class_weights(y_train, strategy='balanced'):
+    """
+    Compute per-label class weights for a multi-label dataset.
+
+    This returns a list of dictionaries, one per label column, mapping class value
+    (0 or 1) to its weight. For "balanced", weights are computed as:
+        w_c = N / (n_classes * n_c)
+    where N is the number of samples and n_c is the count of class c for that label.
+
+    Args:
+        y_train (numpy.ndarray): Training labels of shape (n_samples, n_labels)
+        strategy (str): Currently only "balanced" is supported
+
+    Returns:
+        list[dict[int, float]]: Weights per label column
+    """
+    try:
+        if y_train is None or len(y_train) == 0:
+            logging.warning("Empty y_train passed to get_multilabel_class_weights")
+            return []
+
+        if strategy != 'balanced':
+            logging.warning("Only 'balanced' strategy is supported; defaulting to 'balanced'.")
+
+        num_labels = y_train.shape[1]
+        weights_per_label = []
+
+        for label_index in range(num_labels):
+            column = y_train[:, label_index]
+            unique, counts = np.unique(column, return_counts=True)
+            class_counts = dict(zip(unique.astype(int), counts.astype(int)))
+
+            count_0 = class_counts.get(0, 0)
+            count_1 = class_counts.get(1, 0)
+
+            if count_0 > 0 and count_1 > 0:
+                total = count_0 + count_1
+                w0 = total / (2.0 * count_0)
+                w1 = total / (2.0 * count_1)
+            else:
+                # If a class is missing, avoid extreme/undefined weights
+                w0 = 1.0
+                w1 = 1.0
+
+            weights_per_label.append({0: float(w0), 1: float(w1)})
+
+        return weights_per_label
+    except Exception as e:
+        logging.error(f"Error computing multilabel class weights: {e}")
+        return []
+
+
+def apply_proper_multilabel_sampling(X_train, y_train, method='none', **kwargs):
+    """
+    Compatibility wrapper for sampling methods referenced in scripts.
+
+    Maps higher-level method names to the available implementations. For now,
+    this routes to conservative, SMOTE, or ADASYN variants, or returns the
+    original data when no sampling is requested.
+
+    Supported methods:
+      - 'none': return inputs unchanged
+      - 'mlsmote': use SMOTE-based approach
+      - 'random_oversample': use a conservative SMOTE fallback
+      - 'label_powerset': use ADASYN as a proxy
+
+    Args:
+        X_train (numpy.ndarray): Training features
+        y_train (numpy.ndarray): Training labels
+        method (str): Method name
+        **kwargs: Unused extra parameters for compatibility
+
+    Returns:
+        tuple: (X_resampled, y_resampled)
+    """
+    try:
+        method = (method or 'none').lower()
+
+        if method == 'none':
+            logging.info("No sampling selected; returning original training data.")
+            return X_train, y_train
+        if method == 'mlsmote':
+            return apply_multi_label_aware_sampling(X_train, y_train, method='smote')
+        if method == 'random_oversample':
+            # Fallback to a conservative SMOTE approach as a proxy for simple oversampling
+            return apply_multi_label_aware_sampling(X_train, y_train, method='conservative')
+        if method == 'label_powerset':
+            # Use ADASYN as a proxy; underlying implementation treats each unique label vector as a class
+            return apply_multi_label_aware_sampling(X_train, y_train, method='adasyn')
+
+        # Default: delegate to the underlying implementation if the name matches
+        return apply_multi_label_aware_sampling(X_train, y_train, method=method)
+    except Exception as e:
+        logging.error(f"Error in apply_proper_multilabel_sampling: {e}")
+        return X_train, y_train
