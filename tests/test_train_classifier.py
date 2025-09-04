@@ -46,7 +46,7 @@ except Exception as e:
 
 #Local Application Imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'models'))
-from train_classifier import load_json, load_model_parameters, load_grid_search_parameters, estimate_grid_search_runtime, run_grid_search
+from train_classifier import load_json, load_model_parameters, load_hyperparameter_optimization_config, estimate_grid_search_runtime, run_grid_search
 
 class TestTrainClassifier(unittest.TestCase):
     @patch('builtins.open', new_callable=MagicMock)
@@ -88,7 +88,7 @@ class TestTrainClassifier(unittest.TestCase):
         mock_load_json.assert_called_once_with('dummy_file_path')
 
     @patch('train_classifier.load_json')
-    def test_load_grid_search_parameters(self, mock_load_json):
+    def test_load_hyperparameter_optimization_config(self, mock_load_json):
         # Define the mock return value
         mock_load_json.return_value = {
             "param1": [1],
@@ -96,7 +96,7 @@ class TestTrainClassifier(unittest.TestCase):
         }
 
         # Call the function
-        result = load_grid_search_parameters('dummy_file_path')
+        result = load_hyperparameter_optimization_config('dummy_file_path')
 
         # Check the result
         expected_result = {
@@ -138,7 +138,7 @@ class TestTrainClassifier(unittest.TestCase):
 
     #     # Define your inputs
     #     pipeline = mock_pipeline
-    #     parameters = load_grid_search_parameters(r'models\grid_search_parameters.json')
+    #     parameters = load_hyperparameter_optimization_config(r'models\hyperparameter_optimization.json')
     #     X_train =[
     #         ['weather', 'update', 'cold', 'front', 'cuba', 'could', 'pas', 'haiti'],
     #         ['is', 'hurricane'], ['looking', 'someone', 'name'],
