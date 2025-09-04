@@ -27,8 +27,8 @@ class ExperimentTracker:
     def ensure_experiments_dir(self):
         """Ensure the experiments directory exists."""
         os.makedirs(self.base_experiments_dir, exist_ok=True)
-        # Also ensure flat structure buckets
-        for subdir in ['configs', 'models', 'results']:
+        # Ensure clean structure: models/ and results/ only
+        for subdir in ['models', 'results']:
             os.makedirs(os.path.join(self.base_experiments_dir, subdir), exist_ok=True)
     
     def create_experiment_dir(self, experiment_name: str) -> str:
@@ -80,7 +80,7 @@ class ExperimentTracker:
     # --- Flat structure helpers -------------------------------------------------
     def save_experiment_config_flat(self, slug: str, experiment_name: str, config: Dict[str, Any]) -> str:
         """
-        Save experiment configuration using the flat 3-bucket layout.
+        Save experiment configuration to results folder.
 
         Args:
             slug: Unique identifier for the run (e.g., 'smote_v1-20250903T104500')
@@ -88,10 +88,12 @@ class ExperimentTracker:
             config: Configuration dictionary
 
         Returns:
-            Path to the saved flat config file
+            Path to the saved config file
         """
         self.ensure_experiments_dir()
-        config_path = os.path.join(self.base_experiments_dir, 'configs', f"{slug}.json")
+        # Add date prefix for better organization
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        config_path = os.path.join(self.base_experiments_dir, 'results', f"{date_str}_{experiment_name}_config.json")
 
         config_with_metadata = {
             'slug': slug,
@@ -103,7 +105,7 @@ class ExperimentTracker:
         with open(config_path, 'w', encoding='utf-8') as f:
             json.dump(config_with_metadata, f, indent=2)
 
-        logging.info(f"[flat] Experiment config saved to: {config_path}")
+        logging.info(f"Experiment config saved to: {config_path}")
         return config_path
     
     def save_model(self, experiment_name: str, model, model_filename: str = "model.pkl") -> str:
@@ -130,7 +132,7 @@ class ExperimentTracker:
 
     def save_model_flat(self, slug: str, model, model_extension: str = "pkl") -> str:
         """
-        Save model using the flat 3-bucket layout.
+        Save model to models folder.
 
         Args:
             slug: Unique identifier for the run
@@ -141,14 +143,18 @@ class ExperimentTracker:
             Path to the saved model file
         """
         self.ensure_experiments_dir()
-        model_filename = f"{slug}.{model_extension}"
+        # Extract experiment name from slug for cleaner naming
+        experiment_name = slug.split('-')[0] if '-' in slug else slug
+        # Add date prefix for better organization
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        model_filename = f"{date_str}_{experiment_name}.{model_extension}"
         model_path = os.path.join(self.base_experiments_dir, 'models', model_filename)
 
         import pickle
         with open(model_path, 'wb') as f:
             pickle.dump(model, f)
 
-        logging.info(f"[flat] Model saved to: {model_path}")
+        logging.info(f"Model saved to: {model_path}")
         return model_path
     
     def save_results(self, experiment_name: str, results: Dict[str, Any], 
@@ -182,17 +188,20 @@ class ExperimentTracker:
 
     def save_results_flat(self, slug: str, results: Dict[str, Any]) -> str:
         """
-        Save results JSON using the flat 3-bucket layout.
+        Save results JSON to results folder.
 
         Args:
             slug: Unique identifier for the run
             results: Results dictionary
 
         Returns:
-            Path to the saved flat results file
+            Path to the saved results file
         """
         self.ensure_experiments_dir()
-        results_path = os.path.join(self.base_experiments_dir, 'results', f"{slug}_results.json")
+        experiment_name = results.get('experiment_name', slug)
+        # Add date prefix for better organization
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        results_path = os.path.join(self.base_experiments_dir, 'results', f"{date_str}_{experiment_name}_summary.json")
 
         results_with_metadata = {
             'slug': slug,
@@ -203,7 +212,7 @@ class ExperimentTracker:
         with open(results_path, 'w', encoding='utf-8') as f:
             json.dump(results_with_metadata, f, indent=2)
 
-        logging.info(f"[flat] Results saved to: {results_path}")
+        logging.info(f"Results summary saved to: {results_path}")
         return results_path
     
     def list_experiments(self) -> list:

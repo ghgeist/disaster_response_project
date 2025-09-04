@@ -1,4 +1,9 @@
 [MASTER]
+init-hook='import sys, os; sys.path.extend([os.path.abspath("."), os.path.abspath("src")])'
+
+[TYPECHECK]
+
+ignored-modules=numpy,scipy,matplotlib,pandas,sklearn
 # Ignore common directories
 ignore=__pycache__,
        .git,

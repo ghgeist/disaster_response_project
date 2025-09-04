@@ -1,5 +1,215 @@
 ````markdown
 ---
+
+## Frozen Eval Set and Reproducible Evaluation (New)
+
+### What and Why
+
+- A frozen eval set is a fixed, immutable subset of the data used for evaluation only. It guarantees apples-to-apples comparisons across models and time.
+- We now create and persist the exact membership to `data/04_fct/eval_ids.csv` as stable UIDs.
+
+### How UIDs are defined
+
+- UID = SHA-1 of `<message>|<row_index>` from the loaded dataset. This remains stable so long as message text and dataset ordering are unchanged.
+
+### Scripts and Defaults
+
+- `scripts/create_frozen_eval_ids.py` — creates the eval IDs CSV once.
+- `scripts/04_create_production_model.py` — defaults to using the frozen eval set if `data/04_fct/eval_ids.csv` exists.
+  - Flags:
+    - `--eval-ids PATH` to explicitly provide a file
+    - `--no-frozen-eval` to force a random split
+  - Logs split mode and sizes to `model/training_log.json`.
+- `scripts/03_create_experimental_model.py` — mirrors the same default and flags.
+  - Snapshots `eval_ids_used.csv` into `experiments/results/` for traceability.
+
+### One-time setup
+
+```bash
+python scripts/create_frozen_eval_ids.py \
+  --db data/02_stg/stg_disaster_response.db \
+  --out data/04_fct/eval_ids.csv \
+  --test-size 0.2 --seed 42
+```
+
+### Train with the frozen eval set (default behavior)
+
+```bash
+# Production model (outputs to model/)
+python scripts/04_create_production_model.py \
+  --db data/02_stg/stg_disaster_response.db \
+  --params model/parameters.json \
+  --class-weights model/class_weights.json \
+  --output model/classifier.pkl
+
+# Experimental model (outputs to experiments/results/)
+python scripts/03_create_experimental_model.py \
+  --db data/02_stg/stg_disaster_response.db \
+  --params experiments/model_candidates/parameters.json \
+  --class-weights experiments/model_candidates/class_weights.json \
+  --output experiments/results/experimental_classifier.pkl
+```
+
+---
+
+## Housekeeping (New)
+
+- Legacy/broken-tokenizer results moved to `experiments/results/legacy_tokenizer/original_prediction_results.csv` and treated as “non-comparable.”
+
+---
+
+## Sampling Experiments Runbook (Updated)
+
+Use the interactive runner to execute baseline experiments:
+
+```bash
+python scripts/01_test_sampling_strategies.py data/02_stg/stg_disaster_response.db
+```
+
+- **Current Status**: Only baseline sampling works with this dataset (SMOTE and ADASYN fail due to data constraints)
+- **Auto-discovery**: Script automatically discovers available strategies from JSON configs in `experiments/experimental_configs/sampling_strategies/`
+- **Fail-fast behavior**: Failed sampling experiments immediately stop with clear error messages (no misleading fallback to baseline)
+- **Batch processing**: When running multiple experiments, failed ones are skipped and successful ones continue
+- Review per-label recall/F1, macro/weighted F1, training time, and model size for successful experiments only
+- Note: These experiments use a consistent random seed. Head-to-head against production should be performed on the frozen eval set using the production/experimental creation scripts above.
+
+---
+
+## Sampling Script Refactoring (New)
+
+### Problem Identified
+The `scripts/01_test_sampling_strategies.py` script contained significant bloat and misleading behavior:
+- **Silent fallbacks**: Failed sampling methods would silently fall back to baseline, creating misleading experiment results
+- **Over-complex validation**: 150+ lines of validation logic for just 2-3 simple JSON configuration files
+- **Redundant file operations**: Complex file movement logic causing potential bugs
+- **Import issues**: Path setup problems affecting reliability
+
+### Solution Implemented
+**Bloat Reduction:**
+- Simplified strategy validation from 32 lines to 16 lines
+- Streamlined discovery logic from 40+ lines to 28 lines
+- Removed complex file movement operations
+- Eliminated redundant directory searching logic
+
+**Fail-Fast Implementation:**
+- **Immediate failure detection**: Sampling failures now stop experiments immediately with clear error messages
+- **No silent fallbacks**: Removed all code that would silently return original data when sampling fails
+- **Batch experiment resilience**: Failed experiments are skipped, successful ones continue
+- **Clear reporting**: Batch summaries show exactly which experiments succeeded vs failed
+
+**Result:**
+- Script reduced from 565 lines to 508 lines (~10% reduction)
+- Eliminated ~100+ lines of bloated validation and file handling logic
+- Honest experiment labeling - no more "SMOTE" experiments that were actually baseline
+- Clear failure messages prevent misleading results
+
+### Current Behavior
+```bash
+# Single experiment failure
+[EXPERIMENT FAILED] smote sampling could not be applied.
+Stopping experiment to prevent misleading results.
+
+# Batch experiment summary  
+BATCH EXPERIMENT SUMMARY
+========================
+Total experiments: 3
+Successful: 2
+Failed: 1
+
+Successful experiments:
+  ✓ baseline_no_sampling_v1
+  ✓ smote_conservative_v1
+
+Failed experiments:
+  ✗ adasyn_moderate_v1
+```
+
+---
+
+## Why SMOTE and ADASYN are disabled (dataset constraints)
+
+**What happens**
+- SMOTE/ADASYN sampling methods fail on this specific dataset due to insufficient minority class samples or data characteristics
+- imbalanced-learn may raise: "Imbalanced-learn currently supports binary, multiclass and binarized encoded multiclass targets. Multilabel and multioutput targets are not supported."
+
+**Root cause**
+- ADASYN expects a 1D target vector \(y\). Our setup is multi-label with \(Y \in \mathbb{R}^{n\times L}\) (one column per disaster category), so calling ADASYN on the full \(Y\) fails.
+- SMOTE requires sufficient samples in minority classes for k-neighbors calculation, which this dataset may not provide
+
+**Current decision**
+- Both SMOTE and ADASYN are disabled (`smote_conservative.disabled.json`) 
+- Script now uses fail-fast behavior instead of silent fallbacks to baseline
+- Only baseline sampling is currently supported for this dataset
+
+### How we could enable ADASYN in the future
+
+- One-vs-Rest with per-label samplers
+  - Train a binary pipeline per label and place ADASYN inside each binary pipeline so that it sees a 1D \(y\) per fit.
+  - Sketch:
+  ```python
+  from imblearn.pipeline import Pipeline
+  from imblearn.over_sampling import ADASYN
+  from sklearn.multiclass import OneVsRestClassifier
+
+  binary_pipeline = Pipeline([
+      ("vect", vectorizer),
+      ("adasyn", ADASYN()),
+      ("clf", base_classifier),
+  ])
+  model = OneVsRestClassifier(binary_pipeline)
+  ```
+  - Caveats: vectorization may be refit per label; memory/time costs can be high. A custom loop that fits the vectorizer once, then applies ADASYN on the transformed space per label, can reduce overhead.
+
+- Label Powerset transformation
+  - Convert multi-label targets to a single multiclass target (unique label combinations), then apply ADASYN.
+  - Caveats: potentially huge class space, many rare classes, and poorer generalization for unseen combinations.
+
+- Prefer multi-label–friendly alternatives
+  - Class weighting in the classifiers (already supported and simple).
+  - Conservative/heuristic resampling that respects label co-occurrence patterns.
+  - Threshold tuning and iterative stratification for fair evaluation splits.
+
+
+## Comparison and Promotion Gates (New)
+
+### Head-to-head comparison
+
+- Compare production (`model/`) vs candidate (`experiments/results/`) using the frozen eval set only.
+- Report deltas for: per-label precision/recall/F1, macro/micro/weighted aggregates, training time, model size.
+- Optional statistical confidence: bootstrap CIs for macro F1 and per-label recall; paired tests for per-label classification changes where applicable.
+
+### Threshold tuning (optional)
+
+- Optimize per-label thresholds for F-beta (β=2) on a validation split (not the frozen eval set) to favor recall; freeze thresholds in the saved model metadata.
+
+### Promotion gates
+
+- Positive-class targets: recall ≥ 25%, F1 ≥ 20%.
+- Fewer zero-recall labels than production.
+- No >2% drop in weighted F1; latency and model size remain reasonable.
+- Must pass “critical phrases” regression: "Help me!", "Save us", "We need help".
+
+---
+
+## Current Status (Today)
+
+- Tokenizer fixed (disaster-aware stopword filtering) and verified.
+- Frozen eval set created at `data/04_fct/eval_ids.csv`.
+- Production and experimental creation scripts updated to default to the frozen eval set with safety flags and logging.
+- Legacy results quarantined to `experiments/results/legacy_tokenizer/`.
+- Production retraining on the frozen eval set: in progress/completed during this session.
+
+---
+
+## Next Steps
+
+1. Run the sampling experiments via `scripts/01_test_sampling_strategies.py` (baseline only - SMOTE/ADASYN disabled for this dataset) and review outputs in `results/`.
+2. Train an experimental candidate with the frozen eval set using `scripts/03_create_experimental_model.py`.
+3. Head-to-head comparison vs production on the frozen eval set; produce a brief delta report and verify promotion gates.
+4. (Optional) Apply per-label threshold tuning (F2) if recall targets are narrowly missed, then re-evaluate on the frozen set.
+5. Promote the winner by keeping `app/config.py` pointing at `model/classifier.pkl` and replacing that artifact; smoke test the Flask app.
+
+---
 title: "Update ML Models"
 date: "2025-09-02"
 status: "active"

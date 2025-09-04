@@ -4,22 +4,16 @@ This directory contains scripts for training, testing, and analyzing disaster re
 
 ## Core Model Creation Scripts
 
-### `create_baseline_model.py`
-Creates a baseline model using default parameters without any class imbalance handling.
-- **Use when**: Establishing baseline performance metrics
-- **Output**: Baseline model with standard performance metrics
-- **Dependencies**: `model/parameters.json`
-
-### `create_weighted_model.py`
-Creates a model with class weighting to handle multi-label class imbalance.
-- **Use when**: Creating production models with improved minority class detection
-- **Output**: Class-weighted model with balanced performance
-- **Dependencies**: `model/parameters.json`
+### `create_production_model.py`
+Creates a production disaster response classification model with class weighting.
+- **Use when**: Creating the main production model for deployment
+- **Output**: Production model (`model/classifier.pkl`), performance metrics, and training logs
+- **Dependencies**: `model/parameters.json`, `model/class_weights.json`
 
 ## Experimental Scripts
 
 ### `test_sampling_strategies.py`
-Tests different sampling methods for handling class imbalance.
+Tests different sampling methods for handling class imbalance with interactive menu.
 - **Use when**: Comparing sampling approaches (SMOTE, ADASYN, conservative)
 - **Output**: Models trained with different sampling strategies
 - **Interactive**: Yes - provides menu for strategy selection
@@ -31,16 +25,24 @@ Performs hyperparameter optimization using GridSearchCV.
 - **Dependencies**: `experiments/configs/hyperparameter_optimization.json`
 
 ### `run_batch_experiments.py`
-Runs multiple experiments in batch mode.
+Runs multiple experiments in batch mode without user interaction.
 - **Use when**: Testing multiple configurations systematically
 - **Output**: Multiple models and comparison results
+- **Runs**: baseline, smote, adasyn, and conservative experiments
 
 ## Analysis Scripts
 
 ### `compare_models.py`
-Compares performance between different models.
+Compares performance between different experiment results.
 - **Use when**: Analyzing differences between model versions
 - **Output**: Performance comparison reports
+- **Dependencies**: Experiment tracker system
+
+### `compare_csv_models.py`
+Enhanced model comparison tool for CSV prediction results.
+- **Use when**: Comparing models using saved CSV results
+- **Output**: Detailed performance comparison reports
+- **Features**: Crystal-clear comparison for portfolio reviewers
 
 ### `validate_multilabel_sampling.py`
 Validates multi-label sampling implementations.
@@ -69,35 +71,50 @@ Contains exploratory data analysis functions.
 - **Use when**: Data exploration and analysis
 - **Output**: Analysis results and insights
 
+## Archive Directory
+
+The `archive/` directory contains legacy scripts that are no longer actively used:
+- `compare_results.py` - Legacy result comparison
+- `run_all_experiments.py` - Legacy experiment runner
+- `systematic_testing_framework.py` - Legacy testing framework
+- `train_classifier_original.py` - Original training script
+- `train_classifier.py` - Legacy training script
+- `validate_structure.py` - Legacy structure validation
+
 ## Usage Examples
 
 ```bash
-# Create baseline model
-python scripts/create_baseline_model.py --out models/baseline.pkl
+# Create production model
+python scripts/create_production_model.py
 
-# Create weighted model
-python scripts/create_weighted_model.py --out models/weighted.pkl
-
-# Test sampling strategies
+# Test sampling strategies (interactive)
 python scripts/test_sampling_strategies.py data/02_stg/stg_disaster_response.db
 
 # Test hyperparameters
 python scripts/test_hyperparameters.py data/02_stg/stg_disaster_response.db models/optimized.pkl
 
-# Compare models
-python scripts/compare_models.py models/baseline.pkl models/weighted.pkl
+# Run batch experiments
+python scripts/run_batch_experiments.py
+
+# Compare models from experiments
+python scripts/compare_models.py experiment1 experiment2
+
+# Compare CSV results
+python scripts/compare_csv_models.py results1.csv results2.csv
 ```
 
 ## Script Dependencies
 
 - **Data**: `data/02_stg/stg_disaster_response.db`
 - **Parameters**: `model/parameters.json`
+- **Class Weights**: `model/class_weights.json`
 - **Hyperparameters**: `experiments/configs/hyperparameter_optimization.json`
 - **Source Code**: `src/disaster_classifier/`
 
 ## Output Locations
 
-- **Models**: `models/` directory
+- **Models**: `model/` directory
 - **Results**: `data/04_fct/` directory
+- **Experiments**: `experiments/` directory
 - **Logs**: `app.log` and console output
 - **Visualizations**: `images/` directory

@@ -1,0 +1,13 @@
+{
+    "metadata": {
+        "model_name": "disaster_classifier_class_weights",
+        "version": "1.0.0",
+        "created_date": "2025-09-04",
+        "description": "Default class weighting configuration (disabled)",
+        "last_modified": "2025-09-04"
+    },
+    "class_weights": {
+        "enabled": false,
+        "strategy": "none"
+    }
+}
