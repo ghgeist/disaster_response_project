@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Sampling Strategy Preset",
+  "type": "object",
+  "properties": {
+    "experiment_name": { "type": "string" },
+    "display_name": { "type": "string" },
+    "description": { "type": "string" },
+    "order": { "type": "integer", "minimum": 0 },
+    "timestamp": { "type": "string" },
+    "config": {
+      "type": "object",
+      "properties": {
+        "sampling_method": {
+          "type": "string",
+          "enum": ["baseline", "smote", "adasyn", "conservative"]
+        },
+        "test_size": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "random_state": { "type": "integer" }
+      },
+      "required": ["sampling_method"],
+      "additionalProperties": true
+    }
+  },
+  "required": ["config"],
+  "additionalProperties": true
+}
+
+

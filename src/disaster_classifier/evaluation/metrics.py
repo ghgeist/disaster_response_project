@@ -42,8 +42,11 @@ def evaluate_model(model, model_name, X_test, Y_test, category_names):
             ["category", "output_class", "precision", "recall", "f1-score", "support"]
         ]
 
+        # Add date prefix for better organization
+        from datetime import datetime
+        date_str = datetime.now().strftime("%Y-%m-%d")
         results_file_path = os.path.join(
-            "data", "04_fct", f"fct_{model_name}_prediction_results.csv"
+            "results", f"{date_str}_{model_name}_metrics.csv"
         )
         results_df.to_csv(results_file_path, index=False)
         logging.info("Evaluation results saved to: %s", results_file_path)
