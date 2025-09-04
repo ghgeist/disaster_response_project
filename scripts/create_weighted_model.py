@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """
-Create a disaster response classification model with class weighting support.
+Create a disaster response classification model with class weighting.
 
-This script creates a trained model with support for multi-label class imbalance
-handling through class weighting, which is the recommended approach for production.
+This script creates a model with class weighting to handle multi-label class imbalance.
+This is the recommended approach for production deployment as it improves minority
+class detection without data duplication.
+
+For baseline models, use create_baseline_model.py instead.
+For sampling experiments, use test_sampling_strategies.py instead.
 """
 
 import argparse

@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 """
-Interactive experiment training script for disaster response classification.
+Test different sampling strategies for disaster response classification.
 
-This script provides an interactive menu to select and run individual sampling experiments
-(baseline, SMOTE, ADASYN, etc.) with full experiment tracking and result storage.
+This script provides an interactive menu to test different sampling methods
+for handling class imbalance in multi-label classification.
 
 Use this script when you want to:
-- Run a single experiment interactively
-- Explore different sampling strategies one at a time
-- Test specific experiment configurations
+- Test sampling strategies (baseline, SMOTE, ADASYN, conservative)
+- Compare different approaches to class imbalance
+- Run individual sampling experiments
 
-For automated batch runs of multiple experiments, use run_batch_experiments.py instead.
+For batch runs of multiple experiments, use run_batch_experiments.py instead.
 
 Usage:
-    python scripts/train_experiment.py data/02_stg/stg_disaster_response.db [model_output.pkl]
+    python scripts/test_sampling_strategies.py data/02_stg/stg_disaster_response.db [model_output.pkl]
     
-The script will prompt you to select from available experiments and handle all the
+The script will prompt you to select from available sampling strategies and handle all the
 training, evaluation, and result storage automatically.
 """
 
@@ -29,7 +29,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 from disaster_classifier.utils.config import setup_logging, TARGET_COLUMNS
 from disaster_classifier.data.loader import load_data
 from disaster_classifier.models.pipeline import create_pipeline, build_model
-from disaster_classifier.models.samplers import apply_multi_label_aware_sampling
+from disaster_classifier.models.samplers import apply_proper_multilabel_sampling
 from disaster_classifier.evaluation.metrics import evaluate_model, save_model
 from disaster_classifier.utils.io import load_model_parameters
 from disaster_classifier.utils.experiment_tracker import ExperimentTracker, create_experiment_name, build_slug
@@ -64,8 +64,6 @@ def train_experiment(experiment_name: str, sampling_method: str,
     # Apply sampling if not baseline
     if sampling_method != 'baseline':
         logging.info(f"Applying {sampling_method} sampling...")
-        # Use the proper multilabel-aware sampling
-        from disaster_classifier.models.samplers import apply_proper_multilabel_sampling
         
         method_map = {
             'smote': 'mlsmote',

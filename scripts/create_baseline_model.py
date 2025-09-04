@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
-Create a disaster response classification model from JSON parameters.
+Create a baseline disaster response classification model.
 
-This script loads model parameters from a JSON file and creates a trained model.
-Simple and direct - no experiment tracking or sampling methods. Perfect for:
-- Creating models with specific parameters from model/parameters.json
-- Production model creation
+This script creates a baseline model using default parameters without any
+class imbalance handling or sampling methods. Perfect for:
+- Establishing baseline performance metrics
+- Creating reference models for comparison
 - Quick model builds without experiment overhead
 
-For interactive experiment selection, use train_experiment.py instead.
+For models with class weighting, use create_weighted_model.py instead.
+For sampling experiments, use test_sampling_strategies.py instead.
 """
 
 import argparse
