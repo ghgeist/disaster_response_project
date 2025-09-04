@@ -249,20 +249,37 @@ def create_experiment_comparison(results_dir: str = "results") -> str:
         Path to the comparison report
     """
     try:
-        
-        # Find all metrics files
-        metrics_files = [f for f in os.listdir(results_dir) if f.endswith('_metrics.csv')]
-        
-        if not metrics_files:
-            logging.warning("No metrics files found for comparison")
+        # Candidate directories to search
+        candidate_dirs = []
+        for d in {results_dir, os.path.join('experiments', 'results'), 'results'}:
+            if os.path.isdir(d):
+                candidate_dirs.append(d)
+
+        if not candidate_dirs:
+            logging.warning("No results directories found (checked: %s)", [results_dir, 'experiments/results', 'results'])
             return None
-            
+
+        # Find metrics files across directories
+        found_files = []
+        for d in candidate_dirs:
+            for f in os.listdir(d):
+                if f.endswith('_metrics.csv') or f == 'performance_metrics.csv':
+                    found_files.append((d, f))
+        
+        if not found_files:
+            logging.warning("No metrics files found for comparison in %s", candidate_dirs)
+            return None
+        
         comparison_data = []
         
-        for metrics_file in metrics_files:
-            # Extract experiment name from filename
-            experiment_name = metrics_file.replace('_metrics.csv', '').split('_', 1)[1]  # Remove date prefix
-            metrics_path = os.path.join(results_dir, metrics_file)
+        for d, metrics_file in found_files:
+            # Derive experiment name
+            if metrics_file.endswith('_metrics.csv') and '_' in metrics_file:
+                experiment_name = metrics_file.replace('_metrics.csv', '').split('_', 1)[1]
+            else:
+                # Fallback name for performance_metrics.csv
+                experiment_name = os.path.basename(d)
+            metrics_path = os.path.join(d, metrics_file)
             
             # Calculate overall metrics
             metrics = calculate_overall_metrics(metrics_path)
@@ -291,7 +308,9 @@ def create_experiment_comparison(results_dir: str = "results") -> str:
         
         # Save comparison report
         date_str = datetime.now().strftime("%Y-%m-%d")
-        comparison_path = os.path.join(results_dir, f"{date_str}_experiment_comparison.csv")
+        # Save into the first available directory
+        out_dir = candidate_dirs[0]
+        comparison_path = os.path.join(out_dir, f"{date_str}_experiment_comparison.csv")
         comparison_df.to_csv(comparison_path, index=False)
         
         # Print summary
@@ -447,7 +466,7 @@ def main():
     else:
         print("(none found in directory)")
         base_offset = 0
-    print(f"{base_offset + 1}. Custom experiment")
+    print(f"{base_offset + 1}. Run all experiments")
     print(f"{base_offset + 2}. Compare all experiments - Show performance comparison")
 
     choice = input(f"\nSelect option (1-{base_offset + 2}): ").strip()
@@ -464,12 +483,34 @@ def main():
         # Prefer experiment_name from file; otherwise generate one
         experiment_name = selected.get('experiment_name') or create_experiment_name(sampling_method)
     elif choice_num == base_offset + 1:
-        experiment_name = input("Enter experiment name: ").strip()
-        sampling_method = input("Enter sampling method (baseline/smote/adasyn/conservative): ").strip()
+        # Run all discovered experiments sequentially
+        if not strategies:
+            print("No strategies discovered to run.")
+            return
+        print("\n=== Running All Experiments ===")
+        for idx, s in enumerate(strategies, start=1):
+            sampling_method = str(s['sampling_method'])
+            experiment_name = s.get('experiment_name') or create_experiment_name(sampling_method)
+            print(f"\n[{idx}/{len(strategies)}] Training: {experiment_name} ({sampling_method})")
+            try:
+                train_experiment(experiment_name, sampling_method, database_filepath, model_filepath)
+            except Exception as e:
+                logging.error("Experiment failed: %s", e)
+                print(f"[ERROR] Failed: {experiment_name}")
+        # After running all, produce a quick comparison if possible
+        print(f"\n{'='*50}")
+        print("ALL EXPERIMENTS COMPLETED - GENERATING COMPARISON")
+        print(f"{'='*50}")
+        comparison_path = create_experiment_comparison()
+        if comparison_path:
+            print(f"\nComparison complete! Results saved to: {comparison_path}")
+        else:
+            print("\nNo metrics found to compare. Check that experiments produced metrics.")
+        return
     elif choice_num == base_offset + 2:
         # Compare all experiments
         print("\n=== Comparing All Experiments ===")
-        comparison_path = create_experiment_comparison("results")
+        comparison_path = create_experiment_comparison()
         if comparison_path:
             print(f"\nComparison complete! Results saved to: {comparison_path}")
         else:
@@ -497,7 +538,8 @@ def main():
         print(f"\n{'='*50}")
         print("QUICK COMPARISON")
         print(f"{'='*50}")
-        comparison_path = create_experiment_comparison("results")
+        comparison_dir = os.path.join('experiments', 'results') if os.path.isdir(os.path.join('experiments', 'results')) else 'results'
+        comparison_path = create_experiment_comparison()
         if comparison_path:
             print(f"\nFull comparison saved to: {comparison_path}")
         print(f"{'='*50}")
