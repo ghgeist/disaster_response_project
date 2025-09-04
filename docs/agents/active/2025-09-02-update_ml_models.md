@@ -66,11 +66,51 @@ Use the interactive runner to execute baseline and imbalance-mitigation variants
 python scripts/01_test_sampling_strategies.py data/02_stg/stg_disaster_response.db
 ```
 
-- Run: baseline, smote, adasyn, conservative; then choose “Compare all experiments.”
+- Run: baseline, smote, conservative; then choose “Compare all experiments.”
 - Review per-label recall/F1 (especially labels that were formerly zero-recall), macro/weighted F1, training time, and model size.
 - Note: These experiments use a consistent random seed. Head-to-head against production should be performed on the frozen eval set using the production/experimental creation scripts above.
 
 ---
+
+## Why ADASYN is disabled (multi-label constraint)
+
+**What happens**
+- imbalanced-learn raises: “Imbalanced-learn currently supports binary, multiclass and binarized encoded multiclass targets. Multilabel and multioutput targets are not supported.”
+
+**Root cause**
+- ADASYN expects a 1D target vector \(y\). Our setup is multi-label with \(Y \in \mathbb{R}^{n\times L}\) (one column per disaster category), so calling ADASYN on the full \(Y\) fails.
+
+**Current decision**
+- We removed ADASYN from the experiment menu. Prior attempts safely fell back to baseline behavior (no oversampling).
+
+### How we could enable ADASYN in the future
+
+- One-vs-Rest with per-label samplers
+  - Train a binary pipeline per label and place ADASYN inside each binary pipeline so that it sees a 1D \(y\) per fit.
+  - Sketch:
+  ```python
+  from imblearn.pipeline import Pipeline
+  from imblearn.over_sampling import ADASYN
+  from sklearn.multiclass import OneVsRestClassifier
+
+  binary_pipeline = Pipeline([
+      ("vect", vectorizer),
+      ("adasyn", ADASYN()),
+      ("clf", base_classifier),
+  ])
+  model = OneVsRestClassifier(binary_pipeline)
+  ```
+  - Caveats: vectorization may be refit per label; memory/time costs can be high. A custom loop that fits the vectorizer once, then applies ADASYN on the transformed space per label, can reduce overhead.
+
+- Label Powerset transformation
+  - Convert multi-label targets to a single multiclass target (unique label combinations), then apply ADASYN.
+  - Caveats: potentially huge class space, many rare classes, and poorer generalization for unseen combinations.
+
+- Prefer multi-label–friendly alternatives
+  - Class weighting in the classifiers (already supported and simple).
+  - Conservative/heuristic resampling that respects label co-occurrence patterns.
+  - Threshold tuning and iterative stratification for fair evaluation splits.
+
 
 ## Comparison and Promotion Gates (New)
 

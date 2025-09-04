@@ -45,7 +45,7 @@ import numpy as np
 
 
 DEFAULT_STRATEGIES_DIR = os.path.join('experiments', 'experimental_configs', 'sampling_strategies')
-ALLOWED_SAMPLING_METHODS = {"baseline", "smote", "adasyn", "conservative"}
+ALLOWED_SAMPLING_METHODS = {"baseline", "smote"}
 
 
 def parse_args() -> argparse.Namespace:
@@ -91,35 +91,19 @@ def load_json_file(file_path: str) -> Optional[dict]:
 
 def validate_strategy_payload(payload: dict) -> Tuple[bool, Optional[str]]:
     """
-    Minimal schema validation for strategy payloads.
-
-    Required:
-      - 'config' dict containing at least 'sampling_method' (str)
-
-    Optional:
-      - 'order' (int), 'display_name' (str), 'description' (str), 'experiment_name' (str)
+    Simple validation for strategy payloads.
     """
     if not isinstance(payload, dict):
         return False, 'payload is not a JSON object'
+    
     config_obj = payload.get('config')
     if not isinstance(config_obj, dict):
         return False, "missing 'config' object"
+    
     method = config_obj.get('sampling_method')
-    if not isinstance(method, str) or not method.strip():
-        return False, "missing or invalid 'config.sampling_method'"
-    if method not in ALLOWED_SAMPLING_METHODS:
+    if not method or method not in ALLOWED_SAMPLING_METHODS:
         return False, f"unsupported sampling_method '{method}' (allowed: {sorted(ALLOWED_SAMPLING_METHODS)})"
-
-    # Optional fields type checks
-    order = payload.get('order')
-    if order is not None and not isinstance(order, int):
-        return False, "optional 'order' must be an integer"
-    if isinstance(order, int) and order < 0:
-        return False, "optional 'order' must be >= 0"
-
-    for key in ('experiment_name', 'display_name', 'description'):
-        if key in payload and payload[key] is not None and not isinstance(payload[key], str):
-            return False, f"optional '{key}' must be a string"
+    
     return True, None
 
 
@@ -127,35 +111,22 @@ def normalize_strategy_entry(file_path: str, payload: dict) -> Dict[str, object]
     """
     Normalize raw payload into a menu-friendly dict.
     """
-    filename = os.path.basename(file_path)
-    name_from_file = os.path.splitext(filename)[0]
-
     config_obj = payload.get('config', {})
     sampling_method = config_obj.get('sampling_method', 'baseline')
-
-    display_name = payload.get('display_name') or payload.get('experiment_name') or name_from_file
-    description = payload.get('description') or f"Strategy: {sampling_method}"
-    order = payload.get('order')
-
+    experiment_name = payload.get('experiment_name', f"{sampling_method}_v1")
+    
     return {
         'path': file_path,
-        'filename': filename,
-        'display_name': display_name,
-        'description': description,
-        'order': int(order) if isinstance(order, int) else None,
+        'display_name': experiment_name,
+        'description': f"Strategy: {sampling_method}",
         'sampling_method': sampling_method,
-        'experiment_name': payload.get('experiment_name'),
+        'experiment_name': experiment_name,
     }
 
 
 def discover_strategies(strategies_dir: str) -> List[Dict[str, object]]:
     """
     Discover valid strategies in a directory.
-
-    - Ignores files by convention: leading '_' or '*.disabled.json'
-    - Validates minimal schema
-    - Respects 'enabled: false'
-    - Returns deterministically sorted list by (order, display_name, filename)
     """
     results: List[Dict[str, object]] = []
 
@@ -163,29 +134,23 @@ def discover_strategies(strategies_dir: str) -> List[Dict[str, object]]:
         logging.warning("Strategies directory not found: %s", strategies_dir)
         return results
 
-    for filename in os.listdir(strategies_dir):
-        if not filename.endswith('.json'):
+    for filename in sorted(os.listdir(strategies_dir)):
+        if not filename.endswith('.json') or is_disabled_filename(filename):
             continue
-        if is_disabled_filename(filename):
-            continue
+            
         file_path = os.path.join(strategies_dir, filename)
         payload = load_json_file(file_path)
         if payload is None:
             continue
+            
         is_valid, reason = validate_strategy_payload(payload)
         if not is_valid:
-            logging.warning("Skipping %s due to invalid schema: %s", filename, reason)
+            logging.warning("Skipping %s: %s", filename, reason)
             continue
+            
         entry = normalize_strategy_entry(file_path, payload)
         results.append(entry)
 
-    # Sorting: entries with explicit order first (ascending), then by display_name or filename
-    def sort_key(e: Dict[str, object]):
-        has_order = 0 if e['order'] is not None else 1
-        name_key = str(e['display_name']).lower() if e.get('display_name') else str(e['filename']).lower()
-        return (has_order, e['order'] if e['order'] is not None else 0, name_key)
-
-    results.sort(key=sort_key)
     return results
 
 
@@ -241,44 +206,27 @@ def calculate_overall_metrics(metrics_file_path: str) -> dict:
 def create_experiment_comparison(results_dir: str = "results") -> str:
     """
     Create a comparison report of all experiments.
-    
-    Args:
-        results_dir: Directory containing experiment results
-        
-    Returns:
-        Path to the comparison report
     """
     try:
-        # Candidate directories to search
-        candidate_dirs = []
-        for d in {results_dir, os.path.join('experiments', 'results'), 'results'}:
-            if os.path.isdir(d):
-                candidate_dirs.append(d)
-
-        if not candidate_dirs:
-            logging.warning("No results directories found (checked: %s)", [results_dir, 'experiments/results', 'results'])
+        if not os.path.isdir(results_dir):
+            logging.warning("Results directory not found: %s", results_dir)
             return None
 
-        # Find metrics files across directories
+        # Find metrics files
         found_files = []
-        for d in candidate_dirs:
-            for f in os.listdir(d):
-                if f.endswith('_metrics.csv') or f == 'performance_metrics.csv':
-                    found_files.append((d, f))
+        for f in os.listdir(results_dir):
+            if f.endswith('_metrics.csv'):
+                found_files.append((results_dir, f))
         
         if not found_files:
-            logging.warning("No metrics files found for comparison in %s", candidate_dirs)
+            logging.warning("No metrics files found for comparison in %s", results_dir)
             return None
         
         comparison_data = []
         
         for d, metrics_file in found_files:
-            # Derive experiment name
-            if metrics_file.endswith('_metrics.csv') and '_' in metrics_file:
-                experiment_name = metrics_file.replace('_metrics.csv', '').split('_', 1)[1]
-            else:
-                # Fallback name for performance_metrics.csv
-                experiment_name = os.path.basename(d)
+            # Derive experiment name from filename
+            experiment_name = metrics_file.replace('_metrics.csv', '').split('_', 1)[1] if '_' in metrics_file else metrics_file
             metrics_path = os.path.join(d, metrics_file)
             
             # Calculate overall metrics
@@ -308,21 +256,19 @@ def create_experiment_comparison(results_dir: str = "results") -> str:
         
         # Save comparison report
         date_str = datetime.now().strftime("%Y-%m-%d")
-        # Save into the first available directory
-        out_dir = candidate_dirs[0]
-        comparison_path = os.path.join(out_dir, f"{date_str}_experiment_comparison.csv")
+        comparison_path = os.path.join(results_dir, f"{date_str}_experiment_comparison.csv")
         comparison_df.to_csv(comparison_path, index=False)
         
         # Print summary
-        print(f"\n{'='*60}")
+        print("\n" + "="*60)
         print("EXPERIMENT COMPARISON RESULTS")
-        print(f"{'='*60}")
+        print("="*60)
         print(f"Best performing experiment: {comparison_df.iloc[0]['experiment']}")
         print(f"Best weighted F1 score: {comparison_df.iloc[0]['weighted_f1']:.4f}")
         print(f"\nFull comparison saved to: {comparison_path}")
-        print(f"\nTop 3 experiments by weighted F1:")
+        print("\nTop 3 experiments by weighted F1:")
         print(comparison_df[['experiment', 'weighted_f1', 'macro_f1', 'weighted_precision', 'weighted_recall']].head(3).to_string(index=False))
-        print(f"{'='*60}")
+        print("="*60)
         
         return comparison_path
         
@@ -395,7 +341,16 @@ def train_experiment(experiment_name: str, sampling_method: str,
         tracker.save_experiment_config(experiment_name, config)
     except (OSError, IOError, ValueError) as e:
         logging.warning("Could not save nested experiment config: %s", e)
-    tracker.save_experiment_config_flat(slug, experiment_name, config)
+    # Save config to results directory
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    config_path = os.path.join('results', f"{date_str}_{experiment_name}_config.json")
+    config_with_metadata = {
+        'experiment_name': experiment_name,
+        'timestamp': datetime.now().isoformat(),
+        'config': config
+    }
+    with open(config_path, 'w', encoding='utf-8') as f:
+        json.dump(config_with_metadata, f, indent=2)
     
     # Train model with loaded parameters
     logging.info("Training model...")
@@ -405,15 +360,17 @@ def train_experiment(experiment_name: str, sampling_method: str,
     # Ensure results directory exists for metrics
     os.makedirs('results', exist_ok=True)
     
-    # Evaluate model (use experiment name for cleaner file naming)
+    # Evaluate model
     logging.info("Evaluating model...")
     evaluate_model(model, experiment_name, X_test, Y_test, TARGET_COLUMNS)
     
     # Save model
     saved_model_path = None
     if model_filepath is None:
-        # Save to flat experiments bucket
-        saved_model_path = tracker.save_model_flat(slug, model)
+        # Save to results directory
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        saved_model_path = os.path.join('results', f"{date_str}_{experiment_name}.pkl")
+        save_model(model, saved_model_path)
     else:
         # Respect provided path (backward compatible)
         save_model(model, model_filepath)
@@ -427,7 +384,15 @@ def train_experiment(experiment_name: str, sampling_method: str,
         'model_saved_to': saved_model_path,
         'evaluation_completed': True
     }
-    tracker.save_results_flat(slug, results)
+    # Save results summary to results directory
+    results_path = os.path.join('results', f"{date_str}_{experiment_name}_summary.json")
+    results_with_metadata = {
+        'experiment_name': experiment_name,
+        'timestamp': datetime.now().isoformat(),
+        'results': results
+    }
+    with open(results_path, 'w', encoding='utf-8') as f:
+        json.dump(results_with_metadata, f, indent=2)
     
     logging.info("Experiment %s completed successfully!", experiment_name)
     print(f"SLUG: {slug}")
@@ -498,9 +463,9 @@ def main():
                 logging.error("Experiment failed: %s", e)
                 print(f"[ERROR] Failed: {experiment_name}")
         # After running all, produce a quick comparison if possible
-        print(f"\n{'='*50}")
+        print("\n" + "="*50)
         print("ALL EXPERIMENTS COMPLETED - GENERATING COMPARISON")
-        print(f"{'='*50}")
+        print("="*50)
         comparison_path = create_experiment_comparison()
         if comparison_path:
             print(f"\nComparison complete! Results saved to: {comparison_path}")
@@ -529,20 +494,19 @@ def main():
             print(f"Model saved to: {model_filepath}")
         print("Files saved:")
         date_str = datetime.now().strftime("%Y-%m-%d")
-        print(f"  - Model: models/{date_str}_{experiment_name}.pkl")
+        print(f"  - Model: results/{date_str}_{experiment_name}.pkl")
         print(f"  - Config: results/{date_str}_{experiment_name}_config.json")
         print(f"  - Summary: results/{date_str}_{experiment_name}_summary.json")
         print(f"  - Metrics: results/{date_str}_{experiment_name}_metrics.csv")
 
         # Show quick comparison if other experiments exist
-        print(f"\n{'='*50}")
+        print("\n" + "="*50)
         print("QUICK COMPARISON")
-        print(f"{'='*50}")
-        comparison_dir = os.path.join('experiments', 'results') if os.path.isdir(os.path.join('experiments', 'results')) else 'results'
+        print("="*50)
         comparison_path = create_experiment_comparison()
         if comparison_path:
             print(f"\nFull comparison saved to: {comparison_path}")
-        print(f"{'='*50}")
+        print("="*50)
     else:
         print("\n[ERROR] Experiment failed. Check logs for details.")
 
