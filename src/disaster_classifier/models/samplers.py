@@ -65,8 +65,7 @@ def apply_smote_sampling(X_train, y_train):
         
     except Exception as e:
         logging.error(f"Error applying SMOTE: {e}")
-        logging.warning("SMOTE could not be applied. Using original training data.")
-        return X_train, y_train
+        raise ValueError(f"SMOTE sampling failed: {e}") from e
 
 
 def apply_multi_label_aware_sampling(X_train, y_train, method='smote'):
@@ -138,8 +137,7 @@ def apply_multi_label_aware_sampling(X_train, y_train, method='smote'):
         
     except Exception as e:
         logging.error(f"Error applying {method} sampling: {e}")
-        logging.warning(f"{method.upper()} could not be applied. Using original training data.")
-        return X_train, y_train
+        raise ValueError(f"{method.upper()} sampling failed: {e}") from e
 
 
 def get_multilabel_class_weights(y_train, strategy='balanced'):
@@ -236,4 +234,4 @@ def apply_proper_multilabel_sampling(X_train, y_train, method='none', **kwargs):
         return apply_multi_label_aware_sampling(X_train, y_train, method=method)
     except Exception as e:
         logging.error(f"Error in apply_proper_multilabel_sampling: {e}")
-        return X_train, y_train
+        raise ValueError(f"Multilabel sampling failed: {e}") from e

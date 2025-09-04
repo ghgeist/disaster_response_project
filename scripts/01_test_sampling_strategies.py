@@ -7,7 +7,7 @@ for handling class imbalance in multi-label classification. It uses the producti
 hyperparameters from model/parameters.json to ensure consistency with the deployed model.
 
 Use this script when you want to:
-- Test sampling strategies (baseline, SMOTE, ADASYN, conservative)
+- Test sampling strategies (currently only baseline works with this dataset)
 - Compare different approaches to class imbalance
 - Run individual sampling experiments with production parameters
 
@@ -38,14 +38,14 @@ from disaster_classifier.models.pipeline import create_pipeline, build_model
 from disaster_classifier.models.samplers import apply_multi_label_aware_sampling
 from disaster_classifier.evaluation.metrics import evaluate_model, save_model
 from disaster_classifier.utils.io import load_model_parameters
-from disaster_classifier.utils.experiment_tracker import ExperimentTracker, create_experiment_name, build_slug
+from disaster_classifier.utils.experiment_tracker import create_experiment_name, build_slug
 from sklearn.model_selection import train_test_split
 import pandas as pd
 import numpy as np
 
 
 DEFAULT_STRATEGIES_DIR = os.path.join('experiments', 'experimental_configs', 'sampling_strategies')
-ALLOWED_SAMPLING_METHODS = {"baseline", "smote"}
+ALLOWED_SAMPLING_METHODS = {"baseline"}  # Only baseline works with this dataset
 
 
 def parse_args() -> argparse.Namespace:
@@ -288,8 +288,8 @@ def train_experiment(experiment_name: str, sampling_method: str,
         database_filepath: Path to the database file
         model_filepath: Path to save the model (optional, will use experiment tracker if not provided)
     """
-    # Initialize experiment tracker
-    tracker = ExperimentTracker()
+    # Ensure results directory exists
+    os.makedirs('results', exist_ok=True)
     
     # Load data
     logging.info("Loading data for experiment: %s", experiment_name)
@@ -306,10 +306,26 @@ def train_experiment(experiment_name: str, sampling_method: str,
     if sampling_method != 'baseline':
         logging.info("Applying %s sampling...", sampling_method)
         
-        X_train, Y_train = apply_multi_label_aware_sampling(
-            X_train, Y_train, 
-            method=sampling_method
-        )
+        try:
+            X_train_sampled, Y_train_sampled = apply_multi_label_aware_sampling(
+                X_train, Y_train, 
+                method=sampling_method
+            )
+            
+            # Check if sampling actually worked (data changed)
+            if len(X_train_sampled) == len(X_train) and np.array_equal(Y_train_sampled, Y_train):
+                logging.error("CRITICAL: %s sampling failed - no changes to training data", sampling_method)
+                print(f"[EXPERIMENT FAILED] {sampling_method} sampling could not be applied.")
+                print("Stopping experiment to prevent misleading results.")
+                return None
+            
+            X_train, Y_train = X_train_sampled, Y_train_sampled
+            
+        except Exception as e:
+            logging.error("CRITICAL: %s sampling failed with exception: %s", sampling_method, e)
+            print(f"[EXPERIMENT FAILED] {sampling_method} sampling failed: {e}")
+            print("Stopping experiment to prevent misleading results.")
+            return None
     
     # Create pipeline
     logging.info("Creating ML pipeline...")
@@ -336,11 +352,6 @@ def train_experiment(experiment_name: str, sampling_method: str,
     # Build a run slug for flat saving
     slug = build_slug(sampling_method, version="v1")
 
-    # Legacy nested config (kept small) + flat config
-    try:
-        tracker.save_experiment_config(experiment_name, config)
-    except (OSError, IOError, ValueError) as e:
-        logging.warning("Could not save nested experiment config: %s", e)
     # Save config to results directory
     date_str = datetime.now().strftime("%Y-%m-%d")
     config_path = os.path.join('results', f"{date_str}_{experiment_name}_config.json")
@@ -356,9 +367,6 @@ def train_experiment(experiment_name: str, sampling_method: str,
     logging.info("Training model...")
     model = build_model(pipeline, loaded_parameters)
     model.fit(X_train, Y_train)
-    
-    # Ensure results directory exists for metrics
-    os.makedirs('results', exist_ok=True)
     
     # Evaluate model
     logging.info("Evaluating model...")
@@ -453,24 +461,56 @@ def main():
             print("No strategies discovered to run.")
             return
         print("\n=== Running All Experiments ===")
+        successful_experiments = []
+        failed_experiments = []
+        
         for idx, s in enumerate(strategies, start=1):
             sampling_method = str(s['sampling_method'])
             experiment_name = s.get('experiment_name') or create_experiment_name(sampling_method)
             print(f"\n[{idx}/{len(strategies)}] Training: {experiment_name} ({sampling_method})")
+            
             try:
-                train_experiment(experiment_name, sampling_method, database_filepath, model_filepath)
+                result = train_experiment(experiment_name, sampling_method, database_filepath, model_filepath)
+                if result is not None:
+                    successful_experiments.append(experiment_name)
+                    print(f"[SUCCESS] Completed: {experiment_name}")
+                else:
+                    failed_experiments.append(experiment_name)
+                    print(f"[FAILED] Skipped: {experiment_name}")
             except Exception as e:
-                logging.error("Experiment failed: %s", e)
-                print(f"[ERROR] Failed: {experiment_name}")
-        # After running all, produce a quick comparison if possible
-        print("\n" + "="*50)
-        print("ALL EXPERIMENTS COMPLETED - GENERATING COMPARISON")
-        print("="*50)
-        comparison_path = create_experiment_comparison()
-        if comparison_path:
-            print(f"\nComparison complete! Results saved to: {comparison_path}")
+                logging.error("Experiment failed with exception: %s", e)
+                failed_experiments.append(experiment_name)
+                print(f"[ERROR] Failed: {experiment_name} - {e}")
+        
+        # Print batch summary
+        print(f"\n{'='*60}")
+        print("BATCH EXPERIMENT SUMMARY")
+        print(f"{'='*60}")
+        print(f"Total experiments: {len(strategies)}")
+        print(f"Successful: {len(successful_experiments)}")
+        print(f"Failed: {len(failed_experiments)}")
+        
+        if successful_experiments:
+            print(f"\nSuccessful experiments:")
+            for exp in successful_experiments:
+                print(f"  ✓ {exp}")
+        
+        if failed_experiments:
+            print(f"\nFailed experiments:")
+            for exp in failed_experiments:
+                print(f"  ✗ {exp}")
+        # Generate comparison only if we have successful experiments
+        if successful_experiments:
+            print("\n" + "="*50)
+            print("GENERATING COMPARISON FOR SUCCESSFUL EXPERIMENTS")
+            print("="*50)
+            comparison_path = create_experiment_comparison()
+            if comparison_path:
+                print(f"\nComparison complete! Results saved to: {comparison_path}")
+            else:
+                print("\nNo metrics found to compare.")
         else:
-            print("\nNo metrics found to compare. Check that experiments produced metrics.")
+            print("\nNo successful experiments to compare.")
         return
     elif choice_num == base_offset + 2:
         # Compare all experiments
