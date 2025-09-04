@@ -1,3 +1,23 @@
+#!/usr/bin/env python3
+"""
+Test hyperparameter optimization for disaster response classification.
+
+This script provides hyperparameter tuning using GridSearchCV to find optimal
+parameters for the disaster response classification model.
+
+Use this script when you want to:
+- Find optimal hyperparameters for the model
+- Compare different parameter combinations
+- Optimize model performance systematically
+
+For baseline models, use create_baseline_model.py instead.
+For class weighting, use create_weighted_model.py instead.
+For sampling experiments, use test_sampling_strategies.py instead.
+
+Usage:
+    python scripts/test_hyperparameters.py data/02_stg/stg_disaster_response.db [model_output.pkl]
+"""
+
 # Standard library imports
 import json
 import logging

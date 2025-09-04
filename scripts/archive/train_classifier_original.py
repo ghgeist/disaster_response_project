@@ -129,7 +129,7 @@ URL_PLACE_HOLDER = "urlplaceholder"
 
 SCRIPT_DIR = os.path.dirname(__file__)
 BASE_PARAMETERS = os.path.join(SCRIPT_DIR, "base_parameters.json")
-GRID_SEARCH_PARAMETERS = os.path.join(SCRIPT_DIR, "grid_search_parameters.json")
+HYPERPARAMETER_OPTIMIZATION = os.path.join(SCRIPT_DIR, "hyperparameter_optimization.json")
 GRID_SEARCH_RESULTS = os.path.join(SCRIPT_DIR, "gs_results.json")
 OPTIMIZED_PARAMETERS = os.path.join(SCRIPT_DIR, "optimized_parameters.json")
 
@@ -295,9 +295,9 @@ def load_model_parameters(file_path):
     return parameters
 
 
-def load_grid_search_parameters(file_path):
+def load_hyperparameter_optimization_config(file_path):
     """
-    Load a JSON file and return its contents as a dictionary.
+    Load a JSON file and return its contents as a dictionary with hyperparameter optimization configuration.
 
     This function opens a JSON file, decodes it into a Python object, and returns that object. 
     If the file does not exist, cannot be opened, or does not contain a valid JSON object, 
@@ -775,11 +775,11 @@ def main():
             sys.exit()
         elif estimate_runtime == "yes":
             logging.info("Loading grid search parameters...")
-            grid_search_parameters = load_grid_search_parameters(GRID_SEARCH_PARAMETERS)
+            hyperparameter_config = load_hyperparameter_optimization_config(HYPERPARAMETER_OPTIMIZATION)
             logging.info("Estimating grid search runtime (using small subset)...")
             estimated_grid_search = run_grid_search(
                 pipeline,
-                grid_search_parameters,
+                hyperparameter_config,
                 X_train,
                 Y_train,
                 use_small_subset=True,
@@ -793,10 +793,10 @@ def main():
             sys.exit()
         elif do_grid_search == "yes":
             logging.info("Starting full grid search...")
-            grid_search_parameters = load_grid_search_parameters(GRID_SEARCH_PARAMETERS)
+            hyperparameter_config = load_hyperparameter_optimization_config(HYPERPARAMETER_OPTIMIZATION)
             grid_search = run_grid_search(
                 pipeline,
-                grid_search_parameters,
+                hyperparameter_config,
                 X_train,
                 Y_train,
                 use_small_subset=False,

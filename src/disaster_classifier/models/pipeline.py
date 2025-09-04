@@ -13,12 +13,15 @@ from sklearn.pipeline import Pipeline
 from ..data.preprocessor import tokenize
 
 
-def create_pipeline():
+def create_pipeline(use_class_weights=False):
     """
     Create a machine learning pipeline.
 
     This function creates a pipeline that first vectorizes the text data using CountVectorizer and a custom tokenizer,
     then applies a TF-IDF transformation, and finally uses a multi-output classifier.
+
+    Args:
+        use_class_weights (bool): Whether to enable class weight support in the pipeline
 
     Returns:
     pipeline (sklearn.pipeline.Pipeline): The machine learning pipeline.
@@ -40,7 +43,10 @@ def create_pipeline():
                 (
                     "clf",
                     MultiOutputClassifier(
-                        RandomForestClassifier(n_jobs=multiprocessing.cpu_count() - 1)
+                        RandomForestClassifier(
+                            n_jobs=multiprocessing.cpu_count() - 1,
+                            class_weight='balanced' if use_class_weights else None
+                        )
                     ),
                 ),  # Use MultiOutputClassifier with RandomForest, n_jobs specifies cores
             ]
@@ -50,6 +56,36 @@ def create_pipeline():
         return None
 
     return pipeline
+
+
+def create_pipeline_with_custom_weights(class_weights_dict=None):
+    """
+    Create a machine learning pipeline with custom class weights for multi-label classification.
+
+    Note: For multi-label classification with MultiOutputClassifier, class weights are applied
+    automatically when using 'balanced' class_weight. This function serves as a foundation
+    for more advanced weight customization if needed.
+
+    Args:
+        class_weights_dict (dict, optional): Dictionary mapping label indices to class weight dictionaries
+
+    Returns:
+        pipeline (sklearn.pipeline.Pipeline): The machine learning pipeline with class weights
+    """
+    try:
+        # For multi-label classification, use balanced class weights
+        # MultiOutputClassifier will handle per-label weighting automatically
+        pipeline = create_pipeline(use_class_weights=True)
+        
+        if pipeline is None:
+            return None
+            
+        logging.info("Pipeline configured with balanced class weights for multi-label classification")
+        return pipeline
+        
+    except Exception as e:
+        logging.error("Error creating pipeline with custom weights: %s", e)
+        return None
 
 
 def build_model(pipeline, parameters):

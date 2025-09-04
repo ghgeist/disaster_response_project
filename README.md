@@ -34,10 +34,13 @@ src/disaster_classifier/          # Core ML package
     ├── interaction.py           # User interaction utilities
     └── experiment_tracker.py    # Experiment management
 
-scripts/                          # Professional training interface
-├── train_model.py               # Clean training script
+scripts/                          # Professional training and testing interface
+├── create_baseline_model.py     # Baseline model creation
+├── create_weighted_model.py     # Class-weighted model creation
+├── test_sampling_strategies.py  # Sampling strategy testing
+├── test_hyperparameters.py      # Hyperparameter optimization
 ├── compare_models.py            # Model comparison tool
-└── systematic_testing_framework.py  # Automated testing
+└── run_batch_experiments.py     # Batch experiment runner
 
 experiments/                      # Organized experiment results
 ├── baseline_no_sampling_v1/
@@ -85,7 +88,11 @@ app/                              # Web application
 
 2. **Train a model**:
    ```bash
-   python scripts/train_model.py data/02_stg/stg_disaster_response.db models/classifier.pkl
+   # Create baseline model
+   python scripts/create_baseline_model.py --out models/baseline.pkl
+   
+   # Create weighted model (recommended)
+   python scripts/create_weighted_model.py --out models/weighted.pkl
    ```
 
 3. **Run the web application**:
@@ -154,11 +161,14 @@ The system supports organized experimentation with different sampling strategies
 
 ### Running Experiments
 ```bash
-# Interactive experiment selection
-python scripts/train_model.py data/02_stg/stg_disaster_response.db models/classifier.pkl
+# Test sampling strategies
+python scripts/test_sampling_strategies.py data/02_stg/stg_disaster_response.db
+
+# Test hyperparameters
+python scripts/test_hyperparameters.py data/02_stg/stg_disaster_response.db models/optimized.pkl
 
 # Compare experiment results
-python scripts/compare_models.py
+python scripts/compare_models.py models/baseline.pkl models/weighted.pkl
 ```
 
 ### Experiment Tracking
@@ -228,10 +238,13 @@ The system evaluates models using comprehensive metrics:
 ### Testing
 ```bash
 # Validate project structure
-python scripts/validate_structure.py
+python scripts/system_validation.py
 
-# Run systematic testing framework
-python scripts/systematic_testing_framework.py
+# Run batch experiments
+python scripts/run_batch_experiments.py
+
+# Validate multilabel sampling
+python scripts/validate_multilabel_sampling.py
 ```
 
 ### Contributing

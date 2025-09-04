@@ -13,10 +13,10 @@ from ..utils.config import STOPWORDS_SET, URL_REGEX, URL_PLACE_HOLDER
 
 def tokenize(text):
     """
-    Tokenize the message data.
+    Tokenize with disaster-aware stopword filtering.
 
     This function detects and replaces URLs, removes punctuation, tokenizes the text, 
-    removes stop words, and lemmatizes the tokens.
+    removes stop words while preserving disaster-critical words, and lemmatizes the tokens.
 
     Parameters:
     text (str): The text to be tokenized.
@@ -33,8 +33,12 @@ def tokenize(text):
         text = text.translate(str.maketrans("", "", string.punctuation))
         # Tokenize text
         tokens = word_tokenize(text)
-        # Remove stop words
-        tokens = [token for token in tokens if token not in STOPWORDS_SET]
+        
+        # DISASTER-AWARE stopword removal
+        disaster_critical = {'me', 'us', 'we', 'i', 'my', 'our', 'help', 'please', 'save', 'rescue'}
+        tokens = [token for token in tokens 
+                 if token.lower() not in STOPWORDS_SET or token.lower() in disaster_critical]
+        
         # Lemmatize tokens
         lemmatizer = WordNetLemmatizer()
         cleaned_tokens = [

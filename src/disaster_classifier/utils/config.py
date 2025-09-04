@@ -113,7 +113,7 @@ URL_PLACE_HOLDER = "urlplaceholder"
 # File paths
 SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 BASE_PARAMETERS = os.path.join(SCRIPT_DIR, "models", "base_parameters.json")
-GRID_SEARCH_PARAMETERS = os.path.join(SCRIPT_DIR, "models", "grid_search_parameters.json")
+HYPERPARAMETER_OPTIMIZATION = os.path.join(SCRIPT_DIR, "models", "hyperparameter_optimization.json")
 GRID_SEARCH_RESULTS = os.path.join(SCRIPT_DIR, "models", "gs_results.json")
 OPTIMIZED_PARAMETERS = os.path.join(SCRIPT_DIR, "models", "optimized_parameters.json")
 

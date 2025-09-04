@@ -79,9 +79,9 @@ def load_model_parameters(file_path):
     return parameters
 
 
-def load_grid_search_parameters(file_path):
+def load_hyperparameter_optimization_config(file_path):
     """
-    Load a JSON file and return its contents as a dictionary with grid search parameter processing.
+    Load a JSON file and return its contents as a dictionary with hyperparameter optimization configuration.
 
     This function opens a JSON file, decodes it into a Python object, and returns that object. 
     It also processes the parameters by converting single-item lists to their values and 
