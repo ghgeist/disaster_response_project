@@ -1,5 +1,117 @@
 ````markdown
 ---
+
+## Frozen Eval Set and Reproducible Evaluation (New)
+
+### What and Why
+
+- A frozen eval set is a fixed, immutable subset of the data used for evaluation only. It guarantees apples-to-apples comparisons across models and time.
+- We now create and persist the exact membership to `data/04_fct/eval_ids.csv` as stable UIDs.
+
+### How UIDs are defined
+
+- UID = SHA-1 of `<message>|<row_index>` from the loaded dataset. This remains stable so long as message text and dataset ordering are unchanged.
+
+### Scripts and Defaults
+
+- `scripts/create_frozen_eval_ids.py` — creates the eval IDs CSV once.
+- `scripts/04_create_production_model.py` — defaults to using the frozen eval set if `data/04_fct/eval_ids.csv` exists.
+  - Flags:
+    - `--eval-ids PATH` to explicitly provide a file
+    - `--no-frozen-eval` to force a random split
+  - Logs split mode and sizes to `model/training_log.json`.
+- `scripts/03_create_experimental_model.py` — mirrors the same default and flags.
+  - Snapshots `eval_ids_used.csv` into `experiments/results/` for traceability.
+
+### One-time setup
+
+```bash
+python scripts/create_frozen_eval_ids.py \
+  --db data/02_stg/stg_disaster_response.db \
+  --out data/04_fct/eval_ids.csv \
+  --test-size 0.2 --seed 42
+```
+
+### Train with the frozen eval set (default behavior)
+
+```bash
+# Production model (outputs to model/)
+python scripts/04_create_production_model.py \
+  --db data/02_stg/stg_disaster_response.db \
+  --params model/parameters.json \
+  --class-weights model/class_weights.json \
+  --output model/classifier.pkl
+
+# Experimental model (outputs to experiments/results/)
+python scripts/03_create_experimental_model.py \
+  --db data/02_stg/stg_disaster_response.db \
+  --params experiments/model_candidates/parameters.json \
+  --class-weights experiments/model_candidates/class_weights.json \
+  --output experiments/results/experimental_classifier.pkl
+```
+
+---
+
+## Housekeeping (New)
+
+- Legacy/broken-tokenizer results moved to `experiments/results/legacy_tokenizer/original_prediction_results.csv` and treated as “non-comparable.”
+
+---
+
+## Sampling Experiments Runbook (Updated)
+
+Use the interactive runner to execute baseline and imbalance-mitigation variants:
+
+```bash
+python scripts/01_test_sampling_strategies.py data/02_stg/stg_disaster_response.db
+```
+
+- Run: baseline, smote, adasyn, conservative; then choose “Compare all experiments.”
+- Review per-label recall/F1 (especially labels that were formerly zero-recall), macro/weighted F1, training time, and model size.
+- Note: These experiments use a consistent random seed. Head-to-head against production should be performed on the frozen eval set using the production/experimental creation scripts above.
+
+---
+
+## Comparison and Promotion Gates (New)
+
+### Head-to-head comparison
+
+- Compare production (`model/`) vs candidate (`experiments/results/`) using the frozen eval set only.
+- Report deltas for: per-label precision/recall/F1, macro/micro/weighted aggregates, training time, model size.
+- Optional statistical confidence: bootstrap CIs for macro F1 and per-label recall; paired tests for per-label classification changes where applicable.
+
+### Threshold tuning (optional)
+
+- Optimize per-label thresholds for F-beta (β=2) on a validation split (not the frozen eval set) to favor recall; freeze thresholds in the saved model metadata.
+
+### Promotion gates
+
+- Positive-class targets: recall ≥ 25%, F1 ≥ 20%.
+- Fewer zero-recall labels than production.
+- No >2% drop in weighted F1; latency and model size remain reasonable.
+- Must pass “critical phrases” regression: "Help me!", "Save us", "We need help".
+
+---
+
+## Current Status (Today)
+
+- Tokenizer fixed (disaster-aware stopword filtering) and verified.
+- Frozen eval set created at `data/04_fct/eval_ids.csv`.
+- Production and experimental creation scripts updated to default to the frozen eval set with safety flags and logging.
+- Legacy results quarantined to `experiments/results/legacy_tokenizer/`.
+- Production retraining on the frozen eval set: in progress/completed during this session.
+
+---
+
+## Next Steps
+
+1. Run the sampling experiments via `scripts/01_test_sampling_strategies.py` (baseline, smote, adasyn, conservative) and review outputs in `results/`.
+2. Train an experimental candidate with the frozen eval set using `scripts/03_create_experimental_model.py`.
+3. Head-to-head comparison vs production on the frozen eval set; produce a brief delta report and verify promotion gates.
+4. (Optional) Apply per-label threshold tuning (F2) if recall targets are narrowly missed, then re-evaluate on the frozen set.
+5. Promote the winner by keeping `app/config.py` pointing at `model/classifier.pkl` and replacing that artifact; smoke test the Flask app.
+
+---
 title: "Update ML Models"
 date: "2025-09-02"
 status: "active"

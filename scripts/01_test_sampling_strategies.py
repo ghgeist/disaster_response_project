@@ -14,7 +14,8 @@ Use this script when you want to:
 For batch runs of multiple experiments, use run_batch_experiments.py instead.
 
 Usage:
-    python scripts/test_sampling_strategies.py data/02_stg/stg_disaster_response.db [model_output.pkl]
+    python scripts/test_sampling_strategies.py [data/02_stg/stg_disaster_response.db] [model_output.pkl]
+    (DB path is optional; defaults to data/02_stg/stg_disaster_response.db)
     
 The script will prompt you to select from available sampling strategies and handle all the
 training, evaluation, and result storage automatically.
@@ -57,7 +58,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description='Train and evaluate sampling strategy experiments'
     )
-    parser.add_argument('database_filepath', help='Path to SQLite database file')
+    parser.add_argument('database_filepath', nargs='?', default='data/02_stg/stg_disaster_response.db',
+                        help='Path to SQLite database file (default: data/02_stg/stg_disaster_response.db)')
     parser.add_argument('model_filepath', nargs='?', default=None,
                         help='Optional path to save the trained model')
     parser.add_argument('--strategies-dir', default=os.getenv('STRATEGIES_DIR', DEFAULT_STRATEGIES_DIR),

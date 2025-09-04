@@ -24,6 +24,8 @@ import logging
 import json
 from datetime import datetime
 from time import time
+import hashlib
+import shutil
 
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
@@ -165,6 +167,10 @@ def main():
                        help='Test size fraction (default: 0.2)')
     parser.add_argument('--seed', dest='seed', type=int, default=42,
                        help='Random seed (default: 42)')
+    parser.add_argument('--eval-ids', dest='eval_ids_path', default=None,
+                       help='Path to CSV of eval UIDs; if not provided, defaults to data/04_fct/eval_ids.csv if present')
+    parser.add_argument('--no-frozen-eval', dest='no_frozen_eval', action='store_true',
+                       help='Force random split even if an eval IDs file exists')
 
     args = parser.parse_args()
 
@@ -188,11 +194,50 @@ def main():
 
     logging.info(f'Loaded {len(X)} samples with {Y.shape[1]} labels')
 
-    # Split data
-    logging.info(f'Splitting data (test_size={args.test_size}, seed={args.seed})...')
-    X_train, X_test, Y_train, Y_test = train_test_split(
-        X, Y, test_size=args.test_size, random_state=args.seed
-    )
+    # Determine split mode (frozen eval vs random)
+    eval_ids_file = None
+    if not args.no_frozen_eval:
+        candidate = args.eval_ids_path or os.path.join('data', '04_fct', 'eval_ids.csv')
+        if os.path.isfile(candidate):
+            eval_ids_file = candidate
+
+    def _compute_uids(messages):
+        uids_local = []
+        for idx, msg in enumerate(messages):
+            text = '' if msg is None else str(msg)
+            uid_src = f"{text}|{idx}"
+            uids_local.append(hashlib.sha1(uid_src.encode('utf-8')).hexdigest())
+        return uids_local
+
+    if eval_ids_file:
+        logging.info('Using frozen eval set from %s', eval_ids_file)
+        try:
+            eval_df = pd.read_csv(eval_ids_file)
+            eval_uids = set(eval_df['uid'].astype(str).tolist())
+        except Exception as e:
+            logging.error('Failed to read eval IDs file: %s', e)
+            sys.exit(1)
+
+        uids = _compute_uids(X)
+        uid_series = pd.Series(uids)
+        is_eval = uid_series.isin(eval_uids).values
+
+        match_count = int(is_eval.sum())
+        expected_eval = int(len(X) * args.test_size)
+        if match_count == 0 or match_count < max(1, int(0.5 * expected_eval)):
+            logging.error('Eval IDs coverage too low (matched %d, expected around %d). Aborting.', match_count, expected_eval)
+            sys.exit(1)
+
+        X_train, X_test = X[~is_eval], X[is_eval]
+        Y_train, Y_test = Y[~is_eval], Y[is_eval]
+        logging.info('Split via frozen eval set. Train: %d, Eval: %d', len(X_train), len(X_test))
+        print(f"Using frozen eval set from {eval_ids_file} (eval samples: {len(X_test)})")
+    else:
+        # Random split fallback
+        logging.info(f'Splitting data randomly (test_size={args.test_size}, seed={args.seed})...')
+        X_train, X_test, Y_train, Y_test = train_test_split(
+            X, Y, test_size=args.test_size, random_state=args.seed
+        )
 
     # Load hyperparameters
     logging.info(f'Loading hyperparameters from {args.params_path}')
@@ -252,6 +297,13 @@ def main():
         model, X_test, Y_test, TARGET_COLUMNS, results_dir
     )
 
+    # Snapshot the eval IDs used for this run (traceability)
+    if eval_ids_file:
+        try:
+            shutil.copyfile(eval_ids_file, os.path.join(results_dir, 'eval_ids_used.csv'))
+        except Exception as e:
+            logging.warning('Could not snapshot eval IDs file: %s', e)
+
     # Save model
     os.makedirs(results_dir, exist_ok=True)
     logging.info(f'Saving model to {args.model_out}')
@@ -268,7 +320,10 @@ def main():
             'test_size': args.test_size,
             'random_seed': args.seed,
             'train_samples': len(X_train),
-            'test_samples': len(X_test)
+            'test_samples': len(X_test),
+            'mode': 'frozen_eval' if eval_ids_file else 'random_split',
+            'eval_ids_file': eval_ids_file,
+            'eval_uid_count': int(len(X_test))
         },
         'target_labels': len(TARGET_COLUMNS)
     }
