@@ -29,8 +29,9 @@ This document outlines a systematic approach to **diagnosing, improving, and val
 
 ### Important Context
 - **Baseline Model Uses Optimized Parameters**: The "baseline" model actually uses previously optimized parameters from original GridSearchCV (n_estimators=100, ngram_range=[1,1])
-- **This Strengthens Analysis**: We're diagnosing why an **already-optimized model** fails, not a naive baseline
-- **Portfolio Advantage**: Shows systematic problem diagnosis beyond just hyperparameter tuning
+- **⚠️ Optimization Compromised**: The original GridSearchCV was optimized on **incorrectly preprocessed data** ("Help me!" → `['help']`), so these hyperparameters may not be optimal for correctly preprocessed data
+- **This Strengthens Analysis**: We're diagnosing why an **already-optimized model** fails, and discovering the optimization itself was compromised
+- **Portfolio Advantage**: Shows systematic problem diagnosis beyond just hyperparameter tuning, including data quality issues
 
 ## Implementation Strategy
 
@@ -61,8 +62,20 @@ This document outlines a systematic approach to **diagnosing, improving, and val
 
 4. **Retrain Model with Fixed Preprocessing**
    ```bash
-   # Create new model with fixed preprocessing
+   # Create new model with fixed preprocessing (using current hyperparameters)
    python scripts/create_baseline_model.py --out models/fixed_preprocessing.pkl
+   ```
+
+5. **Test Fixed Model Performance**
+   ```bash
+   # Test if "Help me!" now classifies correctly
+   python -c "import sys; sys.path.append('src'); from disaster_classifier.models.pipeline import load_model; model = load_model('models/fixed_preprocessing.pkl'); print('Help me! classification:', model.predict(['Help me!']))"
+   ```
+
+6. **Re-optimize Hyperparameters (If Needed)**
+   ```bash
+   # If performance still poor, re-run GridSearchCV with fixed preprocessing
+   python scripts/test_hyperparameters.py --preprocessing fixed
    ```
 
 #### Success Criteria
@@ -70,6 +83,7 @@ This document outlines a systematic approach to **diagnosing, improving, and val
 - **✅ Preprocessing Fixed**: "Help me!" tokenizes to preserve "me" and critical words
 - **🎯 Model Retrained**: New model with fixed preprocessing correctly classifies "Help me!"
 - **🎯 Performance Validated**: Quantified improvement in critical case classification
+- **🎯 Hyperparameter Re-optimization (If Needed)**: Re-run GridSearchCV with fixed preprocessing if performance still poor
 
 #### Implementation Results
 **✅ COMPLETED**: Disaster-aware stopword filtering implemented in `src/disaster_classifier/data/preprocessor.py`
