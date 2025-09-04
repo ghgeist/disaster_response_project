@@ -54,7 +54,7 @@ python scripts/03_create_experimental_model.py \
 
 ## Housekeeping (New)
 
-- Legacy/broken-tokenizer results moved to `experiments/results/legacy_tokenizer/original_prediction_results.csv` and treated as “non-comparable.”
+- No separate `experiments/results/legacy_tokenizer/` folder is present in the repo. Legacy/broken-tokenizer results are not currently checked in.
 
 ---
 
@@ -72,6 +72,7 @@ python scripts/01_test_sampling_strategies.py data/02_stg/stg_disaster_response.
 - **Batch processing**: When running multiple experiments, failed ones are skipped and successful ones continue
 - Review per-label recall/F1, macro/weighted F1, training time, and model size for successful experiments only
 - Note: These experiments use a consistent random seed. Head-to-head against production should be performed on the frozen eval set using the production/experimental creation scripts above.
+  - Today, only `baseline.json` exists in `experiments/experimental_configs/sampling_strategies/`. The script currently restricts allowed methods to `baseline`.
 
 ---
 
@@ -104,25 +105,8 @@ The `scripts/01_test_sampling_strategies.py` script contained significant bloat 
 - Clear failure messages prevent misleading results
 
 ### Current Behavior
-```bash
-# Single experiment failure
-[EXPERIMENT FAILED] smote sampling could not be applied.
-Stopping experiment to prevent misleading results.
-
-# Batch experiment summary  
-BATCH EXPERIMENT SUMMARY
-========================
-Total experiments: 3
-Successful: 2
-Failed: 1
-
-Successful experiments:
-  ✓ baseline_no_sampling_v1
-  ✓ smote_conservative_v1
-
-Failed experiments:
-  ✗ adasyn_moderate_v1
-```
+- Interactive runner lists only `baseline` today (other strategies disabled by config and discovery).
+- Results are written to `experiments/results/` with dated filenames and summaries; use the built-in comparison option to review.
 
 ---
 
@@ -196,8 +180,8 @@ Failed experiments:
 - Tokenizer fixed (disaster-aware stopword filtering) and verified.
 - Frozen eval set created at `data/04_fct/eval_ids.csv`.
 - Production and experimental creation scripts updated to default to the frozen eval set with safety flags and logging.
-- Legacy results quarantined to `experiments/results/legacy_tokenizer/`.
-- Production retraining on the frozen eval set: in progress/completed during this session.
+- No `experiments/results/legacy_tokenizer/` folder exists in the repo.
+- Training artifacts exist under `model/` (production outputs) and `experiments/results/` (experimental outputs).
 
 ---
 
@@ -208,6 +192,7 @@ Failed experiments:
 3. Head-to-head comparison vs production on the frozen eval set; produce a brief delta report and verify promotion gates.
 4. (Optional) Apply per-label threshold tuning (F2) if recall targets are narrowly missed, then re-evaluate on the frozen set.
 5. Promote the winner by keeping `app/config.py` pointing at `model/classifier.pkl` and replacing that artifact; smoke test the Flask app.
+   - Note: The Flask app currently looks for `models/classifier.pkl` via `app/config.py`. Either place the promoted artifact at `models/classifier.pkl` or update `MODEL_PATH` to point to `model/classifier.pkl`.
 
 ---
 title: "Update ML Models"
@@ -252,7 +237,7 @@ This document outlines a systematic approach to **diagnosing, improving, and val
 
 ### 🚀 Phase 1: Automated Experiment Execution
 ```bash
-python run_all_experiments.py
+python scripts/run_batch_experiments.py
 ````
 
 **Queue status:**
@@ -271,9 +256,9 @@ python run_all_experiments.py
 #### Step 1: Verify outputs
 
 ```bash
-ls -la experiments/
-ls -la models/*.pkl
-cat experiment_report_*.json
+ls -la experiments/results/
+ls -la model/*.pkl experiments/results/*.pkl
+cat experiments/results/*_summary.json
 ```
 
 #### Step 2: Compare results
@@ -286,7 +271,9 @@ python scripts/compare_models.py
 
 ```bash
 ls -la data/04_fct/
-cat data/04_fct/fct_*_prediction_results.csv
+cat data/04_fct/fct_*_prediction_results.csv   # from sampling experiments
+cat model/performance_metrics.csv               # from production runs
+cat experiments/results/performance_metrics.csv # from experimental runs
 ```
 
 ---
@@ -325,25 +312,19 @@ print(tokenize('Help me!')); print(tokenize('Save us')); print(tokenize('We need
 4. **Retrain with fixed preprocessing**
 
    ```bash
-   python scripts/create_baseline_model.py --out models/fixed_preprocessing.pkl
+   python scripts/04_create_production_model.py --output model/fixed_preprocessing.pkl
    ```
 
 5. **Sanity check**
 
-   ```bash
-   python -c "import sys; sys.path.append('src'); \
-   ```
-
-from disaster\_classifier.models.pipeline import load\_model;&#x20;
-m=load\_model('models/fixed\_preprocessing.pkl');&#x20;
-print(m.predict(\['Help me!']))"
-
-````
+```bash
+python -c "import pickle; m=pickle.load(open('model/fixed_preprocessing.pkl','rb')); print(m.predict(['Help me!']))"
+```
 
 6. **Re-optimize (if needed)**
 ```bash
-python scripts/test_hyperparameters.py --preprocessing fixed
-````
+python scripts/02_test_hyperparameters.py data/02_stg/stg_disaster_response.db model/optimized.pkl
+```
 
 #### Success Criteria
 
@@ -390,12 +371,9 @@ tokens = [t for t in tokens if (t.lower() not in STOPWORDS_SET) or (t.lower() in
 #### Experiment Driver
 
 ```bash
-python scripts/establish_baseline.py --model baseline --output results/baseline_results.json
-python scripts/test_hypothesis.py --hypothesis class_imbalance --method class_weighting
-python scripts/test_hypothesis.py --hypothesis preprocessing --method conservative_preprocessing
-python scripts/test_hypothesis.py --hypothesis architecture --method svm_classifier
-python scripts/test_hypothesis.py --hypothesis features --method enhanced_features
-python scripts/validate_results.py --results results/ --significance_level 0.05
+# Use batch experiments and hyperparameter tester available in repo
+python scripts/run_batch_experiments.py
+python scripts/02_test_hyperparameters.py data/02_stg/stg_disaster_response.db model/optimized.pkl
 ```
 
 ---
@@ -428,9 +406,9 @@ cd app && python app.py
 If further lift needed:
 
 ```bash
-python scripts/systematic_testing_framework.py
-python scripts/train_model.py data/02_stg/stg_disaster_response.db models/custom_model.pkl
-# choose custom experiment
+python scripts/run_batch_experiments.py
+python scripts/02_test_hyperparameters.py data/02_stg/stg_disaster_response.db model/custom_model.pkl
+# choose configurations as needed
 ```
 
 Tune:
@@ -538,7 +516,7 @@ Tune:
 * Production scripts:
 
   * `scripts/validate_multilabel_sampling.py`
-  * `scripts/create_model_with_weighting.py`
+  * `scripts/04_create_production_model.py` (enable via `model/class_weights.json`)
 * System validation:
 
   * Weights computed for all 36 labels in \~0.02s
@@ -585,10 +563,12 @@ Tune:
 ### 3) Working System Showcase
 
 ```bash
-python scripts/demonstrate_system.py --showcase critical_cases
-# Shows: "Help me!" correctly classified
-# Before/after comparison
-# Real-time classification in Flask app
+# Option A: Quick CLI check with promoted model
+python -c "import pickle; m=pickle.load(open('model/classifier.pkl','rb')); print(m.predict(['Help me!','Save us','We need help']))"
+
+# Option B: Run the Flask app and test in the UI
+cd app && python app.py
+# Visit http://127.0.0.1:3000 and enter critical phrases
 ```
 
 ### 4) Documentation Artifacts
