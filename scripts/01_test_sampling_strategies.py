@@ -170,24 +170,39 @@ def calculate_overall_metrics(metrics_file_path: str) -> dict:
         # Filter to only include class 0 and 1 (binary classification results)
         binary_df = df[df['output_class'].isin([0, 1])]
         
+        if binary_df.empty:
+            logging.warning("No binary classification results found in %s", metrics_file_path)
+            return None
+        
         # Calculate macro averages (average across all categories)
-        macro_precision = binary_df[binary_df['output_class'] == 1]['precision'].mean()
-        macro_recall = binary_df[binary_df['output_class'] == 1]['recall'].mean()
-        macro_f1 = binary_df[binary_df['output_class'] == 1]['f1-score'].mean()
+        class_1_metrics = binary_df[binary_df['output_class'] == 1]
+        
+        if class_1_metrics.empty:
+            logging.warning("No positive class metrics found in %s", metrics_file_path)
+            return None
+            
+        macro_precision = class_1_metrics['precision'].fillna(0.0).mean()
+        macro_recall = class_1_metrics['recall'].fillna(0.0).mean()
+        macro_f1 = class_1_metrics['f1-score'].fillna(0.0).mean()
         
         # Calculate weighted averages (weighted by support)
-        weighted_precision = np.average(
-            binary_df[binary_df['output_class'] == 1]['precision'], 
-            weights=binary_df[binary_df['output_class'] == 1]['support']
-        )
-        weighted_recall = np.average(
-            binary_df[binary_df['output_class'] == 1]['recall'], 
-            weights=binary_df[binary_df['output_class'] == 1]['support']
-        )
-        weighted_f1 = np.average(
-            binary_df[binary_df['output_class'] == 1]['f1-score'], 
-            weights=binary_df[binary_df['output_class'] == 1]['support']
-        )
+        class_1_data = binary_df[binary_df['output_class'] == 1]
+        weights = class_1_data['support'].values
+        
+        # Handle case where all weights are zero (no positive predictions)
+        if np.sum(weights) == 0:
+            weighted_precision = 0.0
+            weighted_recall = 0.0
+            weighted_f1 = 0.0
+        else:
+            # Fill NaN values with 0.0 before calculating weighted averages
+            precision_values = class_1_data['precision'].fillna(0.0).values
+            recall_values = class_1_data['recall'].fillna(0.0).values
+            f1_values = class_1_data['f1-score'].fillna(0.0).values
+            
+            weighted_precision = np.average(precision_values, weights=weights)
+            weighted_recall = np.average(recall_values, weights=weights)
+            weighted_f1 = np.average(f1_values, weights=weights)
         
         return {
             'macro_precision': macro_precision,
@@ -232,7 +247,7 @@ def create_experiment_comparison(results_dir: str = "results") -> str:
             # Calculate overall metrics
             metrics = calculate_overall_metrics(metrics_path)
             
-            if metrics:
+            if metrics is not None:
                 comparison_data.append({
                     'experiment': experiment_name,
                     'macro_precision': metrics['macro_precision'],
