@@ -66,9 +66,11 @@ experiments/                      # Organized experiment results
 └── conservative_sampling_v1/
 
 app/                              # Web application
-├── app.py                       # Flask application
+├── app.py                       # Flask application factory
 ├── visualizations.py            # Visualization components
 └── templates/                   # HTML templates
+
+run.py                           # Application entry point
 ```
 
 ## 🚀 Quick Start
@@ -130,6 +132,8 @@ source venv/bin/activate
    python run.py
    ```
    Open your browser to `http://localhost:3000`
+   
+   **Note**: Use `run.py` as the entry point (not `app/app.py`) as it properly handles the Flask application factory and configuration.
 
 ### Replit Deployment
 
@@ -230,6 +234,8 @@ The Flask web application provides:
 ```bash
 python run.py
 ```
+
+**Note**: The `run.py` file serves as the application entry point and properly imports the Flask app from `app/app.py`.
 
 #### Replit Deployment
 The application is pre-configured for Replit deployment:
