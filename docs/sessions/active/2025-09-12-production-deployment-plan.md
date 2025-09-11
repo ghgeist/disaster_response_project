@@ -92,6 +92,13 @@ print('✅ Deployment model loads successfully')
 "
 ```
 
+**📝 Google Drive Model Update Note:**
+- **Current GDrive Model**: 1GB+ RandomForest model (classifier.pkl)
+- **New GDrive Model**: 1.5MB TF-IDF + LogisticRegression model
+- **Action Required**: Upload the new 1.5MB model to Google Drive to replace the old 1GB model
+- **Benefits**: 99.85% size reduction, faster downloads, same performance
+- **Files to Upload**: `model/classifier.pkl`, `model/thresholds.json`, `model/label_order.json`, `model/training_log.json`
+
 ### 3. **Restart Production Services**
 ```bash
 # Restart Flask application to load new model
