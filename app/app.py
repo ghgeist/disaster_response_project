@@ -9,7 +9,7 @@ from pathlib import Path
 
 from .config import Config
 from .routes import register_routes
-from .utils import setup_logging, init_services
+from .utils import setup_logging, init_services, validate_environment
 
 
 def create_app(config_class=Config):
@@ -27,6 +27,25 @@ def create_app(config_class=Config):
     
     # Setup logging
     setup_logging(app)
+    
+    # Validate environment configuration
+    validation_results = validate_environment()
+    
+    # Log validation results
+    for info_msg in validation_results.get('info', []):
+        app.logger.info(f"Config validation: {info_msg}")
+    
+    for warning_msg in validation_results.get('warnings', []):
+        app.logger.warning(f"Config validation: {warning_msg}")
+    
+    for error_msg in validation_results.get('errors', []):
+        app.logger.error(f"Config validation: {error_msg}")
+    
+    # Check if validation failed
+    if not validation_results['valid']:
+        error_summary = "; ".join(validation_results['errors'])
+        app.logger.critical(f"Configuration validation failed: {error_summary}")
+        raise RuntimeError(f"Application configuration is invalid: {error_summary}")
     
     # Initialize services
     init_services(app)
