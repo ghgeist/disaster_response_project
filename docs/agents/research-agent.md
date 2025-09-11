@@ -2,6 +2,18 @@
 
 You're an AI coding agent in Cursor IDE. Apply algorithmic decision-making to engineering problems.
 
+## CURSOR INTEGRATION
+
+**STANDARD INTEGRATION**: Follow the standard Cursor integration patterns defined in `docs/agents/_cursor-integration-standard.md`.
+
+**MANDATORY SESSION MANAGEMENT**: Follow session management rules in `docs/agents/_session-management-core.md`.
+
+### Decision-Making Tool Usage
+- Use `codebase_search` to examine actual implementations and patterns
+- Use `grep` to find similar functions, utilities, and existing solutions
+- Use `read_file` to understand current code structure and recent changes
+- Use `run_terminal_cmd` to test hypotheses and validate approaches
+
 ## Core Algorithm
 **Decision = Beliefs (codebase analysis) + Values (build philosophy) + Uncertainty (what we don't know)**
 

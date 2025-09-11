@@ -4,6 +4,7 @@ Services for data and model management.
 import json
 import logging
 import os
+import pickle
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -32,8 +33,14 @@ def _read_metrics_csv(path: Path) -> Optional[pd.DataFrame]:
         if "output_class" in df.columns:
             df["output_class"] = df["output_class"].astype(str)
         return df
+    except (FileNotFoundError, pd.errors.EmptyDataError) as exc:
+        logger.error(f"File not found or empty metrics CSV {path}: {exc}")
+        return None
+    except (pd.errors.ParserError, UnicodeDecodeError) as exc:
+        logger.error(f"Parse error in metrics CSV {path}: {exc}")
+        return None
     except Exception as exc:
-        logger.error(f"Failed reading metrics CSV {path}: {exc}")
+        logger.error(f"Unexpected error reading metrics CSV {path}: {exc}")
         return None
 
 
@@ -183,8 +190,14 @@ class ModelService:
             self._load_artifacts()
             return self._model
             
+        except (FileNotFoundError, OSError) as e:
+            logger.error(f"Model file not found or inaccessible: {e}")
+            raise RuntimeError(f"Model file not found: {e}") from e
+        except (joblib.externals.loky.process_executor.TerminatedWorkerError, pickle.PickleError) as e:
+            logger.error(f"Model file corrupted or incompatible: {e}")
+            raise RuntimeError(f"Model file is corrupted: {e}") from e
         except Exception as e:
-            logger.error(f"Error loading model: {e}")
+            logger.error(f"Unexpected error loading model: {e}")
             raise RuntimeError(f"Failed to load model: {e}") from e
     
     def _download_model(self) -> None:
@@ -330,8 +343,14 @@ class ModelService:
             results = dict(zip(category_names, classification_labels))
             return results
             
+        except (ValueError, AttributeError) as e:
+            logger.error(f"Model prediction input error: {e}")
+            raise RuntimeError(f"Invalid input for prediction: {e}") from e
+        except (OSError, FileNotFoundError) as e:
+            logger.error(f"Model file access error during prediction: {e}")
+            raise RuntimeError(f"Model file access failed: {e}") from e
         except Exception as e:
-            logger.error(f"Error making prediction: {e}")
+            logger.error(f"Unexpected error making prediction: {e}")
             raise RuntimeError(f"Prediction failed: {e}") from e
 
     def _load_artifacts(self) -> None:

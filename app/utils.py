@@ -107,10 +107,10 @@ def sanitize_input(text: str) -> str:
 
 def validate_environment() -> dict:
     """
-    Validate environment configuration.
+    Validate environment configuration with comprehensive checks.
     
     Returns:
-        Dictionary with validation results
+        Dictionary with validation results including errors, warnings, and status
     """
     import os
     from pathlib import Path
@@ -118,25 +118,66 @@ def validate_environment() -> dict:
     validation_results = {
         'valid': True,
         'errors': [],
-        'warnings': []
+        'warnings': [],
+        'info': []
     }
     
     # Check file paths
     base_dir = Path(__file__).parent.parent
     data_dir = base_dir / 'data' / '02_stg'
-    models_dir = base_dir / 'models'
+    models_dir = base_dir / 'model'  # Use correct directory name from config
+    images_dir = base_dir / 'images'
     
+    # Check required directories
     if not data_dir.exists():
         validation_results['errors'].append(f"Data directory not found: {data_dir}")
         validation_results['valid'] = False
+    else:
+        validation_results['info'].append(f"Data directory found: {data_dir}")
     
     if not models_dir.exists():
         validation_results['warnings'].append(f"Models directory not found: {models_dir}")
+    else:
+        validation_results['info'].append(f"Models directory found: {models_dir}")
+    
+    if not images_dir.exists():
+        validation_results['warnings'].append(f"Images directory not found: {images_dir}")
+    else:
+        validation_results['info'].append(f"Images directory found: {images_dir}")
     
     # Check database file
     db_file = data_dir / 'stg_disaster_response.db'
     if not db_file.exists():
         validation_results['errors'].append(f"Database file not found: {db_file}")
         validation_results['valid'] = False
+    else:
+        validation_results['info'].append(f"Database file found: {db_file}")
+    
+    # Check model file
+    model_file = models_dir / 'classifier.pkl'
+    if not model_file.exists():
+        validation_results['warnings'].append(f"Model file not found: {model_file}")
+        # Check if Google Drive ID is configured for download
+        gdrive_id = os.environ.get('GDRIVE_MODEL_ID')
+        if not gdrive_id or gdrive_id.strip() in {'', 'YOUR_FILE_ID', 'YOUR_GOOGLE_DRIVE_FILE_ID'}:
+            validation_results['errors'].append("Model file not found and GDRIVE_MODEL_ID not configured")
+            validation_results['valid'] = False
+        else:
+            validation_results['info'].append("Model file not found locally, but GDRIVE_MODEL_ID is configured for download")
+    else:
+        validation_results['info'].append(f"Model file found: {model_file}")
+    
+    # Check environment variables
+    secret_key = os.environ.get('SECRET_KEY')
+    if not secret_key or secret_key == 'dev-secret-key-change-in-production':
+        validation_results['warnings'].append("Using default SECRET_KEY - change in production")
+    
+    # Check log file directory
+    log_file = base_dir / 'app.log'
+    log_dir = log_file.parent
+    if not log_dir.exists():
+        validation_results['warnings'].append(f"Log directory not found: {log_dir}")
+    else:
+        validation_results['info'].append(f"Log directory found: {log_dir}")
     
     return validation_results
