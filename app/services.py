@@ -150,6 +150,8 @@ class ModelService:
         self.model_path = model_path
         self.gdrive_model_id = gdrive_model_id
         self._model = None
+        self._thresholds = None
+        self._label_order = None
     
     def load_model(self) -> Any:
         """Load the ML model, downloading if necessary."""
@@ -178,6 +180,8 @@ class ModelService:
             # Load the model
             self._model = joblib.load(self.model_path)
             logger.info(f"Model loaded successfully from {self.model_path}")
+            # Attempt to load thresholds and label order co-located with model
+            self._load_artifacts()
             return self._model
             
         except Exception as e:
@@ -261,30 +265,103 @@ class ModelService:
             ) from e
     
     def predict(self, text: str) -> dict:
-        """Make a prediction on the given text."""
+        """Make a prediction on the given text using per-label thresholds when available."""
         if self._model is None:
             self.load_model()
         
         try:
-            # Get prediction from model
-            classification_labels = self._model.predict([text])[0]
+            category_names = self._get_label_order()
+            # Try probability-based thresholding
+            try:
+                proba = self._model.predict_proba([text])
+                # predict_proba for MultiOutput returns a list of arrays, one per label
+                # Each array shape: (n_samples, n_classes); we want probability of positive class
+                if isinstance(proba, list) and len(proba) == len(category_names):
+                    probs = []
+                    for idx, p in enumerate(proba):
+                        if p.shape[1] == 1:
+                            # Single column: assume it's the positive class probability
+                            prob_val = p[:, 0][0]
+                            probs.append(prob_val)
+                            logger.debug(f"Label {idx} ({category_names[idx]}): single column prob={prob_val:.4f}")
+                        elif p.shape[1] == 2:
+                            # Two columns: assume class 1 is positive (standard binary classification)
+                            prob_val = p[:, 1][0]
+                            probs.append(prob_val)
+                            logger.debug(f"Label {idx} ({category_names[idx]}): two columns prob={prob_val:.4f} (class 1)")
+                        else:
+                            # Unexpected number of columns
+                            logger.warning(f"Unexpected predict_proba shape {p.shape} for label {idx}, falling back to predict")
+                            raise TypeError(f"Unexpected predict_proba shape {p.shape}")
+                else:
+                    # Some wrappers may return ndarray; fallback to simple predict
+                    raise TypeError("Unexpected predict_proba output; using predict fallback")
+                thresholds = self._get_thresholds_map()
+                labels = []
+                for idx, label_name in enumerate(category_names):
+                    threshold = thresholds.get(label_name, 0.5)
+                    labels.append(1 if probs[idx] >= threshold else 0)
+                classification_labels = labels
+            except Exception as prob_exc:
+                logger.warning(f"Probability path failed ({prob_exc}); falling back to default predict")
+                classification_labels = self._model.predict([text])[0]
             
-            # Get category names (these should ideally come from the data service)
-            category_names = [
-                'related', 'request', 'offer', 'aid_related', 'medical_help',
-                'medical_products', 'search_and_rescue', 'security', 'military',
-                'child_alone', 'water', 'food', 'shelter', 'clothing', 'money',
-                'missing_people', 'refugees', 'death', 'other_aid', 'infrastructure_related',
-                'transport', 'buildings', 'electricity', 'tools', 'hospitals',
-                'shops', 'aid_centers', 'other_infrastructure', 'weather_related',
-                'floods', 'storm', 'fire', 'earthquake', 'cold', 'other_weather',
-                'direct_report'
-            ]
-            
-            # Create results dictionary
             results = dict(zip(category_names, classification_labels))
             return results
             
         except Exception as e:
             logger.error(f"Error making prediction: {e}")
             raise RuntimeError(f"Prediction failed: {e}") from e
+
+    def _load_artifacts(self) -> None:
+        """Load thresholds.json and label_order.json from the model directory if present."""
+        try:
+            model_dir = self.model_path.parent
+            thresholds_path = model_dir / "thresholds.json"
+            label_order_path = model_dir / "label_order.json"
+            import json
+            if thresholds_path.exists():
+                with open(thresholds_path, "r", encoding="utf-8") as f:
+                    self._thresholds = json.load(f)
+            else:
+                self._thresholds = None
+            if label_order_path.exists():
+                with open(label_order_path, "r", encoding="utf-8") as f:
+                    self._label_order = json.load(f)
+            else:
+                self._label_order = None
+        except Exception as exc:
+            logger.warning(f"Failed loading model artifacts (thresholds/label_order): {exc}")
+            self._thresholds = None
+            self._label_order = None
+
+    def _get_label_order(self) -> list:
+        """Return label order from artifact if present, else fallback to hardcoded order."""
+        if isinstance(self._label_order, list) and self._label_order:
+            return self._label_order
+        return [
+            'related', 'request', 'offer', 'aid_related', 'medical_help',
+            'medical_products', 'search_and_rescue', 'security', 'military',
+            'child_alone', 'water', 'food', 'shelter', 'clothing', 'money',
+            'missing_people', 'refugees', 'death', 'other_aid', 'infrastructure_related',
+            'transport', 'buildings', 'electricity', 'tools', 'hospitals',
+            'shops', 'aid_centers', 'other_infrastructure', 'weather_related',
+            'floods', 'storm', 'fire', 'earthquake', 'cold', 'other_weather',
+            'direct_report'
+        ]
+
+    def _get_thresholds_map(self) -> dict:
+        """Return thresholds map; if missing, return defaults for 8 high-impact labels at 0.5."""
+        # Default thresholds map
+        default = {}
+        target_labels = {
+            'medical_help', 'search_and_rescue', 'water', 'food', 'shelter',
+            'hospitals', 'security', 'weather_related'
+        }
+        for name in self._get_label_order():
+            default[name] = 0.5 if name in target_labels else 0.5
+        if isinstance(self._thresholds, dict) and self._thresholds:
+            # Merge, favoring stored thresholds
+            merged = {**default, **self._thresholds}
+            return merged
+        return default
