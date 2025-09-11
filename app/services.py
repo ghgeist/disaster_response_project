@@ -275,9 +275,24 @@ class ModelService:
             try:
                 proba = self._model.predict_proba([text])
                 # predict_proba for MultiOutput returns a list of arrays, one per label
-                # Each array shape: (n_samples, 2); we want probability of class 1
+                # Each array shape: (n_samples, n_classes); we want probability of positive class
                 if isinstance(proba, list) and len(proba) == len(category_names):
-                    probs = [p[:, 1][0] if p.shape[1] > 1 else p[:, 0][0] for p in proba]
+                    probs = []
+                    for idx, p in enumerate(proba):
+                        if p.shape[1] == 1:
+                            # Single column: assume it's the positive class probability
+                            prob_val = p[:, 0][0]
+                            probs.append(prob_val)
+                            logger.debug(f"Label {idx} ({category_names[idx]}): single column prob={prob_val:.4f}")
+                        elif p.shape[1] == 2:
+                            # Two columns: assume class 1 is positive (standard binary classification)
+                            prob_val = p[:, 1][0]
+                            probs.append(prob_val)
+                            logger.debug(f"Label {idx} ({category_names[idx]}): two columns prob={prob_val:.4f} (class 1)")
+                        else:
+                            # Unexpected number of columns
+                            logger.warning(f"Unexpected predict_proba shape {p.shape} for label {idx}, falling back to predict")
+                            raise TypeError(f"Unexpected predict_proba shape {p.shape}")
                 else:
                     # Some wrappers may return ndarray; fallback to simple predict
                     raise TypeError("Unexpected predict_proba output; using predict fallback")
