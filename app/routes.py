@@ -162,17 +162,53 @@ def register_routes(app):
     def go():
         """
         Handle user query and display model classification results.
+        Supports both GET requests with query parameters (backward compatibility) 
+        and POST requests with form validation.
         """
         form = MessageForm()
         
         # Handle GET requests (backward compatibility)
         if request.method == 'GET':
             query = request.args.get('query', '')
-            if query:
-                # Redirect to POST with flash message for better UX
-                flash('Please use the form below to analyze messages.', 'info')
+            if not query:
+                # No query parameter, redirect to index
                 return redirect(url_for('index'))
-            else:
+            
+            # Process query parameter directly
+            try:
+                # Get services from app context
+                model_service = current_app.model_service
+                
+                # Sanitize and validate user input
+                query = sanitize_input(query)
+                is_valid, error_message = validate_message_input(query)
+                
+                if not is_valid:
+                    flash(error_message, 'error')
+                    return redirect(url_for('index'))
+
+                # Use model to predict classification for query
+                classification_results = model_service.predict(query)
+                
+                # Flash success message
+                flash('Message analyzed successfully!', 'success')
+
+                # Render results
+                return render_template(
+                    'go.html',
+                    query=query,
+                    classification_result=classification_results,
+                    graphJSON="[]",  # Empty graphs array for go.html
+                    ids=[]           # Empty ids array for go.html
+                )
+
+            except (ValueError, RuntimeError) as e:
+                logger.error("Model prediction error in go route (GET): %s", e)
+                flash("Error processing message. Please try again.", 'error')
+                return redirect(url_for('index'))
+            except Exception as e:
+                logger.error("Unexpected error in go route (GET): %s", e)
+                flash("An unexpected error occurred. Please try again.", 'error')
                 return redirect(url_for('index'))
         
         # Handle POST requests with form validation
@@ -206,11 +242,11 @@ def register_routes(app):
                 )
 
             except (ValueError, RuntimeError) as e:
-                logger.error("Model prediction error in go route: %s", e)
+                logger.error("Model prediction error in go route (POST): %s", e)
                 flash("Error processing message. Please try again.", 'error')
                 return render_template('master.html', form=form, ids=[], graphJSON="[]", descriptions=[])
             except Exception as e:
-                logger.error("Unexpected error in go route: %s", e)
+                logger.error("Unexpected error in go route (POST): %s", e)
                 flash("An unexpected error occurred. Please try again.", 'error')
                 return render_template('master.html', form=form, ids=[], graphJSON="[]", descriptions=[])
         else:
