@@ -105,10 +105,19 @@ def build_model(pipeline, parameters):
     """
     try:
         # Configure the RandomForestClassifier with the given parameters
+        default_params = {
+            "clf__estimator__n_estimators": 100,
+            "clf__estimator__max_depth": 25,
+            "clf__estimator__min_samples_leaf": 2,
+            "clf__estimator__max_features": "sqrt",
+        }
+
         if parameters is None:
-            pipeline.set_params(clf__estimator__random_state=42)
+            pipeline.set_params(clf__estimator__random_state=42, **default_params)
         else:
-            pipeline.set_params(clf__estimator__random_state=42, **parameters)
+            # Merge defaults for any missing downsizing guard params
+            merged = {**default_params, **parameters}
+            pipeline.set_params(clf__estimator__random_state=42, **merged)
     except (ValueError, ImportError, TypeError) as e:
         logging.error("Error building model: %s", e)
         return None

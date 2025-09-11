@@ -43,6 +43,8 @@ from disaster_classifier.evaluation.metrics import evaluate_model, save_model
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 import pandas as pd
+import numpy as np
+import joblib
 
 
 def load_class_weights_config(file_path):
@@ -146,6 +148,83 @@ def save_training_log(results_dir, config, performance_summary, training_time, m
     return log_path
 
 
+def _compute_f2_thresholds_for_labels(model, X_eval, Y_eval, labels, all_category_names):
+    """Compute F2-optimized thresholds for the selected labels; fallback to 0.5 when unreliable."""
+    try:
+        proba_list = model.predict_proba(X_eval)
+    except Exception as e:
+        logging.warning(f"predict_proba failed ({e}); returning default thresholds=0.5")
+        return {name: 0.5 for name in labels}, {name: "default" for name in labels}
+
+    thresholds = {}
+    sources = {}
+    beta = 2.0
+    eps = 1e-12
+    # map category to index
+    name_to_idx = {name: i for i, name in enumerate(all_category_names)}
+    for name in labels:
+        idx = name_to_idx.get(name)
+        if idx is None:
+            thresholds[name] = 0.5
+            sources[name] = "default"
+            continue
+        y_true = Y_eval[:, idx]
+        if np.sum(y_true) == 0:
+            thresholds[name] = 0.5
+            sources[name] = "default"
+            continue
+        # MultiOutputClassifier returns list of arrays, one per label
+        try:
+            probs = proba_list[idx]
+            # shape (n_samples, 2) -> class 1
+            p = probs[:, 1] if probs.ndim == 2 and probs.shape[1] > 1 else probs.ravel()
+        except Exception:
+            thresholds[name] = 0.5
+            sources[name] = "default"
+            continue
+
+        best_t = 0.5
+        best_f = -1.0
+        # candidate thresholds: unique probs clipped plus a grid
+        candidates = np.unique(np.clip(p, 0.0, 1.0))
+        if candidates.size > 200:
+            # subsample to keep compute reasonable
+            q = np.linspace(0.05, 0.95, 19)
+            candidates = np.unique(np.concatenate([np.quantile(p, q), [0.5]]))
+        else:
+            candidates = np.unique(np.concatenate([candidates, [0.5]]))
+        for t in candidates:
+            y_pred = (p >= float(t)).astype(int)
+            tp = float(np.sum((y_pred == 1) & (y_true == 1)))
+            fp = float(np.sum((y_pred == 1) & (y_true == 0)))
+            fn = float(np.sum((y_pred == 0) & (y_true == 1)))
+            prec = tp / (tp + fp + eps)
+            rec = tp / (tp + fn + eps)
+            f = (1 + beta ** 2) * (prec * rec) / (beta ** 2 * prec + rec + eps)
+            if f > best_f:
+                best_f = f
+                best_t = float(t)
+        if best_f <= 0:
+            thresholds[name] = 0.5
+            sources[name] = "default"
+        else:
+            thresholds[name] = round(best_t, 4)
+            sources[name] = "optimized"
+    return thresholds, sources
+
+
+def _json_safe(obj):
+    """Convert objects to JSON-serializable forms, stringifying as needed."""
+    import collections.abc
+    if obj is None or isinstance(obj, (bool, int, float, str)):
+        return obj
+    if isinstance(obj, collections.abc.Mapping):
+        return {str(k): _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple, set)):
+        return [_json_safe(v) for v in list(obj)]
+    return str(obj)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Create experimental disaster response classification model with clean results structure.'
@@ -176,13 +255,13 @@ def main():
 
     setup_logging()
 
-    print(f"\n🧪 Creating Experimental Disaster Response Model")
+    print(f"\nCreating Experimental Disaster Response Model")
     print(f"{'='*60}")
-    print(f"📁 Database: {args.database_filepath}")
-    print(f"⚙️  Hyperparameters: {args.params_path}")
-    print(f"⚖️  Class weights: {args.class_weights_path}")
-    print(f"💾 Output: {args.model_out}")
-    print(f"🎯 Results will be saved to experiments/results/ directory for clarity")
+    print(f"Database: {args.database_filepath}")
+    print(f"Hyperparameters: {args.params_path}")
+    print(f"Class weights: {args.class_weights_path}")
+    print(f"Output: {args.model_out}")
+    print(f"Results will be saved to experiments/results/ directory for clarity")
     print(f"{'='*60}")
 
     # Load data
@@ -290,6 +369,26 @@ def main():
     train_time = time() - train_start
     logging.info(f'Model training completed in {train_time:.2f} seconds')
 
+    # Guardrail: if artifact would be >200MB, refit with max_leaf_nodes=10000
+    try:
+        tmp_path = os.path.join('experiments', 'results', '_tmp_size_check.pkl')
+        os.makedirs(os.path.dirname(tmp_path), exist_ok=True)
+        save_model(model, tmp_path)
+        size_mb = os.path.getsize(tmp_path) / (1024 * 1024)
+        os.remove(tmp_path)
+        if size_mb > 200:
+            logging.info('Model size %.1f MB exceeds 200MB; refitting with max_leaf_nodes=10000', size_mb)
+            try:
+                model.set_params(clf__estimator__max_leaf_nodes=10000)
+                train_start = time()
+                model.fit(X_train, Y_train)
+                train_time = time() - train_start
+                logging.info('Refit completed in %.2f seconds', train_time)
+            except Exception as refit_exc:
+                logging.warning('Refit with max_leaf_nodes failed: %s', refit_exc)
+    except Exception as size_exc:
+        logging.warning('Size guardrail check failed: %s', size_exc)
+
     # Evaluate model and save to experiments results directory
     logging.info('Evaluating model and saving results to experiments/results directory...')
     results_dir = os.path.dirname(args.model_out) or "experiments/results"
@@ -308,6 +407,46 @@ def main():
     os.makedirs(results_dir, exist_ok=True)
     logging.info(f'Saving model to {args.model_out}')
     save_model(model, args.model_out)
+
+    # Compute cold-load time and model size for summary
+    model_size_mb = 0.0
+    cold_load_s = None
+    try:
+        model_size_mb = os.path.getsize(args.model_out) / (1024 * 1024)
+    except Exception:
+        pass
+    try:
+        t0 = time()
+        _ = joblib.load(args.model_out)
+        cold_load_s = time() - t0
+    except Exception:
+        pass
+
+    # Compute thresholds for selected labels and save artifacts
+    selected_labels = ['medical_help', 'search_and_rescue', 'water', 'food', 'shelter', 'hospitals', 'security', 'weather_related']
+    thresholds_map, threshold_sources = _compute_f2_thresholds_for_labels(model, X_test, Y_test, selected_labels, TARGET_COLUMNS)
+    label_order = list(TARGET_COLUMNS)
+    model_dir = os.path.dirname(args.model_out)
+    try:
+        with open(os.path.join(model_dir, 'thresholds.json'), 'w', encoding='utf-8') as f:
+            json.dump(thresholds_map, f, indent=2)
+        with open(os.path.join(model_dir, 'label_order.json'), 'w', encoding='utf-8') as f:
+            json.dump(label_order, f, indent=2)
+        # MODEL_INFO.json for artifact hygiene
+        info = {
+            'sha256': hashlib.sha256(open(args.model_out, 'rb').read()).hexdigest() if os.path.isfile(args.model_out) else None,
+            'rf_params': _json_safe(getattr(model.named_steps.get('clf').estimator, 'get_params', lambda: {})()),
+            'vectorizer_params': _json_safe(getattr(model.named_steps.get('vect'), 'get_params', lambda: {})()),
+            'label_order_hash': hashlib.sha1(json.dumps(label_order).encode('utf-8')).hexdigest(),
+            'fit_time_seconds': float(train_time) if train_time is not None else None,
+            'model_size_mb': float(model_size_mb) if model_size_mb is not None else None,
+            'cold_load_seconds': float(cold_load_s) if cold_load_s is not None else None,
+            'threshold_sources': _json_safe(threshold_sources),
+        }
+        with open(os.path.join(model_dir, 'MODEL_INFO.json'), 'w', encoding='utf-8') as f:
+            json.dump(info, f, indent=2)
+    except Exception as e:
+        logging.warning(f"Failed to write model artifacts (thresholds/label_order/MODEL_INFO): {e}")
 
     # Create comprehensive config for logging
     comprehensive_config = {
@@ -334,30 +473,30 @@ def main():
     )
 
     # Success summary
-    print(f'\n✅ Experimental Model Created Successfully!')
+    print(f'\nExperimental Model Created Successfully!')
     print(f"{'='*60}")
-    print(f'📁 Model: {args.model_out}')
-    print(f'📊 Performance: {results_dir}/performance_metrics.csv')
-    print(f'📝 Training Log: {training_log_path}')
-    print(f'⏱️  Training Time: {train_time:.2f} seconds')
+    print(f'Model: {args.model_out}')
+    print(f'Performance: {results_dir}/performance_metrics.csv')
+    print(f'Training Log: {training_log_path}')
+    print(f'Training Time: {train_time:.2f} seconds')
     print(f"{'='*60}")
 
-    print(f'\n📈 Performance Summary:')
+    print(f'\nPerformance Summary:')
     print(f'   Overall F1-Score: {performance_summary.get("overall_f1", 0):.4f}')
     print(f'   Overall Recall: {performance_summary.get("overall_recall", 0):.4f}')
     print(f'   Overall Precision: {performance_summary.get("overall_precision", 0):.4f}')
     print(f'   Positive Class F1: {performance_summary.get("positive_class_f1", 0):.4f}')
 
     class_weighting_status = "enabled" if class_weights_enabled else "disabled"
-    print(f'\n⚖️  Class Weighting: {class_weighting_status}')
+    print(f'\nClass Weighting: {class_weighting_status}')
     if class_weights_enabled:
-        print('   🧪 Model uses balanced class weights for experimental evaluation')
+        print('   Model uses balanced class weights for experimental evaluation')
 
-    print(f'\n📁 Clean Results Structure:')
+    print(f'\nResults Structure:')
     print(f'   experiments/results/experimental_classifier.pkl <- Experimental model artifact')
     print(f'   experiments/results/performance_metrics.csv     <- Experimental performance')
     print(f'   experiments/results/training_log.json           <- Training metadata & config')
-    print(f'\n💡 Use this clean structure to organize experimental runs!')
+    print(f'\nUse this structure to organize experimental runs!')
 
 
 if __name__ == '__main__':

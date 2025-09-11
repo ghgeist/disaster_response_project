@@ -1,0 +1,41 @@
+{
+  "timestamp": "2025-09-04T18:03:37.166706",
+  "model_path": "experiments/results/experimental_classifier.pkl",
+  "training_time_seconds": 16.849010467529297,
+  "configuration": {
+    "hyperparameters": {
+      "vect__ngram_range": [
+        1,
+        1
+      ],
+      "clf__estimator__n_estimators": 100,
+      "clf__estimator__min_samples_split": 2
+    },
+    "class_weighting": {
+      "enabled": false,
+      "strategy": null
+    },
+    "data_split": {
+      "test_size": 0.2,
+      "random_seed": 42,
+      "train_samples": 20821,
+      "test_samples": 5206,
+      "mode": "frozen_eval",
+      "eval_ids_file": "data\\04_fct\\eval_ids.csv",
+      "eval_uid_count": 5206
+    },
+    "target_labels": 36
+  },
+  "performance": {
+    "overall_precision": 0.9107583164766684,
+    "overall_recall": 0.9297445255474452,
+    "overall_f1": 0.9006784722477155,
+    "positive_class_precision": 0.24347774001294945,
+    "positive_class_recall": 0.04160491468554891,
+    "positive_class_f1": 0.04604195682348469,
+    "total_categories": 36,
+    "test_samples": 5206
+  },
+  "version": "0.1-exp",
+  "status": "experimental"
+}
