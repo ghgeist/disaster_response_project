@@ -24,14 +24,14 @@ import shutil
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from disaster_classifier.utils.config import setup_logging, TARGET_COLUMNS
-from disaster_classifier.utils.io import load_model_parameters
-from disaster_classifier.data.loader import load_data
-from disaster_classifier.models.pipeline import (
+from disasterproject.utils.config import setup_logging, TARGET_COLUMNS
+from disasterproject.utils.json_io import load_model_parameters
+from disasterproject.data.loader import load_data
+from disasterproject.models.pipeline import (
     create_logistic_regression_pipeline,
     build_logistic_model
 )
-from disaster_classifier.evaluation.metrics import evaluate_model, save_model
+from disasterproject.evaluation.metrics import evaluate_model, save_model
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 import pandas as pd

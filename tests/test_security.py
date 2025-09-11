@@ -14,7 +14,7 @@ from unittest.mock import patch, MagicMock
 # Add the project root to the path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils.secure_subprocess import (
+from disasterproject.utils.secure_subprocess import (
     SecureSubprocessError,
     validate_file_path,
     validate_command_args,

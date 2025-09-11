@@ -14,7 +14,7 @@ import os
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from disaster_classifier.data.loader import prepare_data
+from disasterproject.data.loader import prepare_data
 
 
 def setup_logging(level=logging.INFO):

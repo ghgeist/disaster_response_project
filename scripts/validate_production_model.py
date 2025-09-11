@@ -15,7 +15,7 @@ import json
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'app'))
 
-from disaster_classifier.utils.config import TARGET_COLUMNS
+from disasterproject.utils.config import TARGET_COLUMNS
 from services import ModelService
 
 def test_model_loading():

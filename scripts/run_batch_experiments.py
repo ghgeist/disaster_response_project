@@ -27,8 +27,8 @@ from datetime import datetime
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from scripts.run_experiment import train_experiment
-from disaster_classifier.utils.experiment_tracker import create_experiment_name
-from disaster_classifier.utils.config import setup_logging
+from disasterproject.utils.experiment_tracker import create_experiment_name
+from disasterproject.utils.config import setup_logging
 
 
 DB_PATH = 'data/02_stg/stg_disaster_response.db'

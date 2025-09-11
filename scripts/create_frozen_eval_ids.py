@@ -27,8 +27,8 @@ from sklearn.model_selection import train_test_split
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from disaster_classifier.utils.config import setup_logging
-from disaster_classifier.data.loader import load_data
+from disasterproject.utils.config import setup_logging
+from disasterproject.data.loader import load_data
 
 
 def compute_uids(messages):

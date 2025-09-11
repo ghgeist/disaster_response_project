@@ -33,7 +33,7 @@ The project includes:
 The project follows a modern, modular architecture that demonstrates professional ML engineering practices:
 
 ```
-src/disaster_classifier/          # Core ML package
+src/disasterproject/          # Core ML package
 ├── data/                         # Data processing modules
 │   ├── loader.py                # Database loading and ETL
 │   ├── preprocessor.py          # Text tokenization and cleaning
@@ -292,7 +292,7 @@ python scripts/validate_multilabel_sampling.py
 
 ```
 disaster_response_project/
-├── src/disaster_classifier/     # Core ML package
+├── src/disasterproject/     # Core ML package
 ├── scripts/                     # Training and utility scripts
 ├── experiments/                 # Experiment results
 ├── app/                         # Web application

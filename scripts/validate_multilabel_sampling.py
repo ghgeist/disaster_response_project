@@ -14,18 +14,18 @@ from time import time
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from disaster_classifier.data.loader import load_data
-from disaster_classifier.models.samplers import (
+from disasterproject.data.loader import load_data
+from disasterproject.models.samplers import (
     apply_proper_multilabel_sampling,
     get_multilabel_class_weights
 )
-from disaster_classifier.models.pipeline import (
+from disasterproject.models.pipeline import (
     create_pipeline,
     create_pipeline_with_custom_weights,
     build_model
 )
-from disaster_classifier.evaluation.metrics import evaluate_model
-from disaster_classifier.utils.config import setup_logging, TARGET_COLUMNS
+from disasterproject.evaluation.metrics import evaluate_model
+from disasterproject.utils.config import setup_logging, TARGET_COLUMNS
 from sklearn.model_selection import train_test_split
 import numpy as np
 

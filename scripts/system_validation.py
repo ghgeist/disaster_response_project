@@ -17,10 +17,10 @@ import tempfile
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from disaster_classifier.utils.config import setup_logging, TARGET_COLUMNS
-from disaster_classifier.data.loader import load_data
-from disaster_classifier.models.pipeline import create_pipeline, build_model
-from disaster_classifier.data.preprocessor import tokenize
+from disasterproject.utils.config import setup_logging, TARGET_COLUMNS
+from disasterproject.data.loader import load_data
+from disasterproject.models.pipeline import create_pipeline, build_model
+from disasterproject.data.preprocessor import tokenize
 from sklearn.model_selection import train_test_split
 
 

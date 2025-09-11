@@ -21,11 +21,11 @@ import hashlib
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from disaster_classifier.utils.config import setup_logging, TARGET_COLUMNS
-from disaster_classifier.utils.io import load_model_parameters
-from disaster_classifier.data.loader import load_data
-from disaster_classifier.data.preprocessor import tokenize
-from disaster_classifier.evaluation.metrics import evaluate_model, save_model
+from disasterproject.utils.config import setup_logging, TARGET_COLUMNS
+from disasterproject.utils.json_io import load_model_parameters
+from disasterproject.data.loader import load_data
+from disasterproject.data.preprocessor import tokenize
+from disasterproject.evaluation.metrics import evaluate_model, save_model
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.linear_model import LogisticRegression
