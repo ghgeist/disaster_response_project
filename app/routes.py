@@ -5,13 +5,94 @@ import json
 import logging
 from flask import render_template, request, current_app, send_from_directory, abort, flash, redirect, url_for
 import plotly
+import sqlalchemy.exc
+import pandas as pd
 
-from .services import DataService, ModelService, load_metric_frames, extract_perf_triplet
+from .services import load_metric_frames, extract_perf_triplet
 from .visualizations import ChartGenerator
 from .utils import validate_message_input, sanitize_input
 from .forms import MessageForm
 
 logger = logging.getLogger(__name__)
+
+
+def _create_basic_visualizations(data_service, chart_generator):
+    """
+    Create basic genre and message type visualizations.
+    
+    Args:
+        data_service: DataService instance
+        chart_generator: ChartGenerator instance
+        
+    Returns:
+        tuple: (graphs_list, descriptions_list)
+    """
+    df = data_service.get_data()
+    
+    # Create genre visualization
+    genre_names, genre_related_counts = chart_generator.prepare_genre_data(df)
+    genre_graph = chart_generator.create_genre_visual(genre_names, genre_related_counts)
+    
+    # Create message types visualization
+    message_types_df = chart_generator.classify_message_types(df)
+    message_type_graph = chart_generator.plot_message_types(message_types_df)
+    
+    graphs = [genre_graph, message_type_graph]
+    descriptions = [
+        "Direct messages dominate disaster communications. Bars show counts by source, stacked by disaster-related vs not. The predominance of direct messages underscores the need to triage individual cries for help.",
+        "Among disaster-related direct messages, requests for aid are far more common than offers; direct reports are frequent. The model must reliably identify these requests."
+    ]
+    
+    return graphs, descriptions
+
+
+def _add_performance_visualization(graphs, descriptions):
+    """
+    Add performance visualization if data is available.
+    
+    Args:
+        graphs: List of existing graphs
+        descriptions: List of existing descriptions
+        
+    Returns:
+        tuple: (updated_graphs, updated_descriptions)
+    """
+    try:
+        base_df, opt_df = load_metric_frames()
+        if base_df is not None and opt_df is not None:
+            metrics, labels = extract_perf_triplet(base_df, opt_df)
+            perf_graph = ChartGenerator.create_performance_visual(metrics, labels)
+            graphs.append(perf_graph)
+            descriptions.append(
+                "Baseline (blue) vs Optimized (orange). Precision improves slightly; recall drops significantly. In disasters, missing real help messages is costly."
+            )
+        else:
+            logger.warning("Performance CSVs missing; skipping performance chart.")
+    except (FileNotFoundError, pd.errors.EmptyDataError, KeyError) as perf_exc:
+        logger.warning("Skipping performance chart due to data issue: %s", perf_exc)
+    except Exception as perf_exc:
+        logger.warning("Skipping performance chart due to unexpected error: %s", perf_exc)
+    
+    return graphs, descriptions
+
+
+def _encode_graphs_to_json(graphs):
+    """
+    Encode plotly graphs to JSON format.
+    
+    Args:
+        graphs: List of plotly graph objects
+        
+    Returns:
+        tuple: (graph_json_string, ids_list)
+    """
+    ids = ["graph-{}".format(i) for i, _ in enumerate(graphs)]
+    try:
+        graph_json = json.dumps(graphs, cls=plotly.utils.PlotlyJSONEncoder)
+        return graph_json, ids
+    except (TypeError, ValueError) as json_error:
+        logger.error("Error encoding graphs to JSON: %s", json_error)
+        return "[]", []
 
 
 def register_routes(app):
@@ -35,8 +116,11 @@ def register_routes(app):
 
             abort(404)
             
+        except (OSError, FileNotFoundError) as e:
+            logger.error("Error serving favicon - file system issue: %s", e)
+            abort(404)
         except Exception as e:
-            logger.error(f"Error serving favicon: {e}")
+            logger.error("Unexpected error serving favicon: %s", e)
             abort(404)
 
     @app.route('/')
@@ -53,52 +137,26 @@ def register_routes(app):
             data_service = current_app.data_service
             chart_generator = ChartGenerator()
             
-            # Load data
-            df = data_service.get_data()
+            # Create basic visualizations
+            graphs, descriptions = _create_basic_visualizations(data_service, chart_generator)
             
-            # Create visualizations
-            genre_names, genre_related_counts = chart_generator.prepare_genre_data(df)
-            genre_graph = chart_generator.create_genre_visual(genre_names, genre_related_counts)
-
-            message_types_df = chart_generator.classify_message_types(df)
-            message_type_graph = chart_generator.plot_message_types(message_types_df)
-
-            graphs = [genre_graph, message_type_graph]
-
-            # Performance Deep Dive chart (best-effort; do not crash if missing)
-            descriptions = []
-            try:
-                base_df, opt_df = load_metric_frames()
-                if base_df is not None and opt_df is not None:
-                    metrics, labels = extract_perf_triplet(base_df, opt_df)
-                    perf_graph = ChartGenerator.create_performance_visual(metrics, labels)
-                    graphs.append(perf_graph)
-                    # Descriptions aligned to graphs (index-based)
-                    descriptions = [
-                        "Direct messages dominate disaster communications. Bars show counts by source, stacked by disaster-related vs not. The predominance of direct messages underscores the need to triage individual cries for help.",
-                        "Among disaster-related direct messages, requests for aid are far more common than offers; direct reports are frequent. The model must reliably identify these requests.",
-                        "Baseline (blue) vs Optimized (orange). Precision improves slightly; recall drops significantly. In disasters, missing real help messages is costly.",
-                    ]
-                else:
-                    logger.warning("Performance CSVs missing; skipping performance chart.")
-            except Exception as perf_exc:
-                logger.warning(f"Skipping performance chart due to error: {perf_exc}")
-
-            # Encode plotly graphs in JSON
-            ids = ["graph-{}".format(i) for i, _ in enumerate(graphs)]
-            try:
-                graph_json = json.dumps(graphs, cls=plotly.utils.PlotlyJSONEncoder)
-            except (TypeError, ValueError) as json_error:
-                logger.error(f"Error encoding graphs to JSON: {json_error}")
-                # Fallback: create empty graphs array
-                graph_json = "[]"
-                ids = []
+            # Add performance visualization if available
+            graphs, descriptions = _add_performance_visualization(graphs, descriptions)
+            
+            # Encode graphs to JSON
+            graph_json, ids = _encode_graphs_to_json(graphs)
 
             return render_template('master.html', form=form, ids=ids, graphJSON=graph_json, descriptions=descriptions)
 
+        except (sqlalchemy.exc.SQLAlchemyError, pd.errors.DatabaseError) as e:
+            logger.error("Database error in index route: %s", e)
+            abort(500, description="Database connection error. Please try again later.")
+        except (OSError, FileNotFoundError) as e:
+            logger.error("File system error in index route: %s", e)
+            abort(500, description="Required data files not found. Please contact administrator.")
         except Exception as e:
-            logger.error(f"Error in index route: {e}")
-            abort(500, description=f"Error preparing data for visualization: {e}")
+            logger.error("Unexpected error in index route: %s", e)
+            abort(500, description="An unexpected error occurred. Please try again later.")
 
     @app.route('/go', methods=['GET', 'POST'])
     def go():
@@ -147,9 +205,13 @@ def register_routes(app):
                     ids=[]           # Empty ids array for go.html
                 )
 
+            except (ValueError, RuntimeError) as e:
+                logger.error("Model prediction error in go route: %s", e)
+                flash("Error processing message. Please try again.", 'error')
+                return render_template('master.html', form=form, ids=[], graphJSON="[]", descriptions=[])
             except Exception as e:
-                logger.error(f"Error in go route: {e}")
-                flash(f"Error processing message: {e}", 'error')
+                logger.error("Unexpected error in go route: %s", e)
+                flash("An unexpected error occurred. Please try again.", 'error')
                 return render_template('master.html', form=form, ids=[], graphJSON="[]", descriptions=[])
         else:
             # Form validation failed - show errors
@@ -192,19 +254,35 @@ def register_routes(app):
                     'model_service': 'ok' if model_healthy else 'error'
                 }, 503
                 
-        except Exception as e:
-            logger.error(f"Health check failed: {e}")
+        except (sqlalchemy.exc.SQLAlchemyError, pd.errors.DatabaseError) as e:
+            logger.error("Database error in health check: %s", e)
             return {
                 'status': 'unhealthy',
-                'error': str(e)
+                'data_service': 'error',
+                'model_service': 'unknown',
+                'error': 'Database connection failed'
+            }, 503
+        except (OSError, FileNotFoundError, RuntimeError) as e:
+            logger.error("Service error in health check: %s", e)
+            return {
+                'status': 'unhealthy',
+                'data_service': 'unknown',
+                'model_service': 'error',
+                'error': 'Service initialization failed'
+            }, 503
+        except Exception as e:
+            logger.error("Unexpected error in health check: %s", e)
+            return {
+                'status': 'unhealthy',
+                'error': 'Unexpected system error'
             }, 503
 
     @app.errorhandler(404)
-    def not_found(error):
+    def not_found(_error):
         """Handle 404 errors."""
         return render_template('error.html', message="Page not found", graphJSON="[]", ids=[]), 404
 
     @app.errorhandler(500)
-    def internal_error(error):
+    def internal_error(_error):
         """Handle 500 errors."""
         return render_template('error.html', message="Internal server error", graphJSON="[]", ids=[]), 500
