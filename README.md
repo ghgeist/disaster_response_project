@@ -2,6 +2,22 @@
 
 # Signal Storm: Leveraging Machine Learning to Identify Requests for Help During Natural Disasters
 
+## Table of Contents
+- [Project Overview](#project-overview)
+- [Architecture](#️-architecture)
+- [Quick Start](#-quick-start)
+- [Data](#-data)
+- [Model Design](#-model-design)
+- [Experimentation](#-experimentation)
+- [Web Application](#-web-application)
+- [Model Performance](#-model-performance)
+- [Development](#-development)
+- [Project Structure](#-project-structure)
+- [Dependencies](#️-dependencies)
+- [License](#-license)
+- [Support](#-support)
+- [Troubleshooting](#-troubleshooting)
+
 ## Project Overview
 
 Signal Storm is a machine learning pipeline designed to classify emergency messages into 36 disaster-related categories, enabling rapid response coordination during natural disasters. The system processes text messages (primarily from social media and direct reports) and automatically categorizes them to help emergency response agencies prioritize and route assistance effectively.
@@ -35,10 +51,11 @@ src/disaster_classifier/          # Core ML package
     └── experiment_tracker.py    # Experiment management
 
 scripts/                          # Professional training and testing interface
-├── create_baseline_model.py     # Baseline model creation
-├── create_weighted_model.py     # Class-weighted model creation
-├── test_sampling_strategies.py  # Sampling strategy testing
-├── test_hyperparameters.py      # Hyperparameter optimization
+├── 01_test_sampling_strategies.py  # Sampling strategy testing
+├── 02_test_hyperparameters.py     # Hyperparameter optimization
+├── 03_create_experimental_model.py # Experimental model creation
+├── 04_create_production_model.py  # Production model creation
+├── 06_create_lightweight_model.py # Lightweight model creation
 ├── compare_models.py            # Model comparison tool
 └── run_batch_experiments.py     # Batch experiment runner
 
@@ -49,8 +66,8 @@ experiments/                      # Organized experiment results
 └── conservative_sampling_v1/
 
 app/                              # Web application
-├── run.py                       # Flask application
-├── graph_generator.py           # Visualization components
+├── app.py                       # Flask application
+├── visualizations.py            # Visualization components
 └── templates/                   # HTML templates
 ```
 
@@ -61,12 +78,25 @@ app/                              # Web application
 - **Python**: 3.12.0 or higher
 - **Virtual Environment**: Recommended (activate before proceeding)
 
+### Virtual Environment Setup
+
+```bash
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# On Windows:
+venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
+```
+
 ### Installation
 
 1. **Clone the repository**:
    ```bash
-   git clone <repository-url>
-   cd disaster_response_project
+   git clone https://github.com/your-username/disaster-response-project.git
+   cd disaster-response-project
    ```
 
 2. **Install dependencies**:
@@ -88,19 +118,18 @@ app/                              # Web application
 
 2. **Train a model**:
    ```bash
-   # Create baseline model
-   python scripts/create_baseline_model.py --out models/baseline.pkl
+   # Create production model
+   python scripts/04_create_production_model.py
    
-   # Create weighted model (recommended)
-   python scripts/create_weighted_model.py --out models/weighted.pkl
+   # Create lightweight model (recommended for deployment)
+   python scripts/06_create_lightweight_model.py
    ```
 
 3. **Run the web application**:
    ```bash
-   cd app
    python run.py
    ```
-   Open your browser to `http://127.0.0.1:3000`
+   Open your browser to `http://localhost:3000`
 
 ### Replit Deployment
 
@@ -162,13 +191,13 @@ The system supports organized experimentation with different sampling strategies
 ### Running Experiments
 ```bash
 # Test sampling strategies
-python scripts/test_sampling_strategies.py data/02_stg/stg_disaster_response.db
+python scripts/01_test_sampling_strategies.py data/02_stg/stg_disaster_response.db
 
 # Test hyperparameters
-python scripts/test_hyperparameters.py data/02_stg/stg_disaster_response.db models/optimized.pkl
+python scripts/02_test_hyperparameters.py data/02_stg/stg_disaster_response.db
 
 # Compare experiment results
-python scripts/compare_models.py models/baseline.pkl models/weighted.pkl
+python scripts/compare_models.py
 ```
 
 ### Experiment Tracking
@@ -199,7 +228,6 @@ The Flask web application provides:
 
 #### Local Development
 ```bash
-cd app
 python run.py
 ```
 
@@ -288,12 +316,40 @@ disaster_response_project/
 
 ## 📄 License
 
-[MIT License](https://opensource.org/license/mit/)
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🤝 Support
 
-For questions, issues, or contributions, please refer to the project documentation or create an issue in the repository.
+For questions, issues, or contributions:
+- Create an issue in the repository
+- Check the project documentation in the `docs/` directory
+- Review the troubleshooting section below
 
----
+## 🔧 Troubleshooting
 
-\\\
+### Common Issues
+
+**Model not found error:**
+```bash
+# Ensure you've trained a model first
+python scripts/04_create_production_model.py
+```
+
+**Database connection issues:**
+```bash
+# Verify database exists and is accessible
+python data/process_data.py data/01_raw/disaster_messages.csv data/01_raw/disaster_categories.csv data/02_stg/stg_disaster_response.db
+```
+
+**Port already in use:**
+```bash
+# Use a different port
+export PORT=3001
+python run.py
+```
+
+**Missing dependencies:**
+```bash
+# Reinstall requirements
+pip install -r requirements.txt
+```
