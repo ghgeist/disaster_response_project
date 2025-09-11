@@ -157,8 +157,8 @@ def register_routes(app):
                 for error in errors:
                     flash(f"{form[field].label.text}: {error}", 'error')
             
-            # Return to index with form errors
-            return redirect(url_for('index'))
+            # Re-render form with errors and preserve user input
+            return render_template('master.html', form=form, ids=[], graphJSON="[]", descriptions=[])
 
     @app.route('/health')
     def health_check():
