@@ -3,12 +3,13 @@ Routes for the Disaster Response application.
 """
 import json
 import logging
-from flask import render_template, request, current_app, send_from_directory, abort
+from flask import render_template, request, current_app, send_from_directory, abort, flash, redirect, url_for
 import plotly
 
 from .services import DataService, ModelService, load_metric_frames, extract_perf_triplet
 from .visualizations import ChartGenerator
 from .utils import validate_message_input, sanitize_input
+from .forms import MessageForm
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,9 @@ def register_routes(app):
         Main page displaying visualizations and message classification form.
         """
         try:
+            # Create form instance
+            form = MessageForm()
+            
             # Get services from app context
             data_service = current_app.data_service
             chart_generator = ChartGenerator()
@@ -90,45 +94,71 @@ def register_routes(app):
                 graph_json = "[]"
                 ids = []
 
-            return render_template('master.html', ids=ids, graphJSON=graph_json, descriptions=descriptions)
+            return render_template('master.html', form=form, ids=ids, graphJSON=graph_json, descriptions=descriptions)
 
         except Exception as e:
             logger.error(f"Error in index route: {e}")
             abort(500, description=f"Error preparing data for visualization: {e}")
 
-    @app.route('/go')
+    @app.route('/go', methods=['GET', 'POST'])
     def go():
         """
         Handle user query and display model classification results.
         """
-        try:
-            # Get services from app context
-            model_service = current_app.model_service
-            
-            # Get and validate user input
+        form = MessageForm()
+        
+        # Handle GET requests (backward compatibility)
+        if request.method == 'GET':
             query = request.args.get('query', '')
-            query = sanitize_input(query)
+            if query:
+                # Redirect to POST with flash message for better UX
+                flash('Please use the form below to analyze messages.', 'info')
+                return redirect(url_for('index'))
+            else:
+                return redirect(url_for('index'))
+        
+        # Handle POST requests with form validation
+        if form.validate_on_submit():
+            try:
+                # Get services from app context
+                model_service = current_app.model_service
+                
+                # Get and sanitize user input
+                query = sanitize_input(form.query.data)
+                
+                # Additional validation (redundant but safe)
+                is_valid, error_message = validate_message_input(query)
+                if not is_valid:
+                    flash(error_message, 'error')
+                    return render_template('master.html', form=form, ids=[], graphJSON="[]", descriptions=[])
+
+                # Use model to predict classification for query
+                classification_results = model_service.predict(query)
+                
+                # Flash success message
+                flash('Message analyzed successfully!', 'success')
+
+                # Render results
+                return render_template(
+                    'go.html',
+                    query=query,
+                    classification_result=classification_results,
+                    graphJSON="[]",  # Empty graphs array for go.html
+                    ids=[]           # Empty ids array for go.html
+                )
+
+            except Exception as e:
+                logger.error(f"Error in go route: {e}")
+                flash(f"Error processing message: {e}", 'error')
+                return render_template('master.html', form=form, ids=[], graphJSON="[]", descriptions=[])
+        else:
+            # Form validation failed - show errors
+            for field, errors in form.errors.items():
+                for error in errors:
+                    flash(f"{form[field].label.text}: {error}", 'error')
             
-            # Validate input
-            is_valid, error_message = validate_message_input(query)
-            if not is_valid:
-                return render_template('error.html', message=error_message, graphJSON="[]", ids=[])
-
-            # Use model to predict classification for query
-            classification_results = model_service.predict(query)
-
-            # Render results
-            return render_template(
-                'go.html',
-                query=query,
-                classification_result=classification_results,
-                graphJSON="[]",  # Empty graphs array for go.html
-                ids=[]           # Empty ids array for go.html
-            )
-
-        except Exception as e:
-            logger.error(f"Error in go route: {e}")
-            return render_template('error.html', message=f"Error processing query: {e}", graphJSON="[]", ids=[])
+            # Return to index with form errors
+            return redirect(url_for('index'))
 
     @app.route('/health')
     def health_check():

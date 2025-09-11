@@ -2,10 +2,8 @@
 Flask application for Disaster Response message classification.
 A clean, scalable portfolio project.
 """
-import os
-import logging
 from flask import Flask
-from pathlib import Path
+from flask_wtf.csrf import CSRFProtect
 
 from .config import Config
 from .routes import register_routes
@@ -46,6 +44,9 @@ def create_app(config_class=Config):
         error_summary = "; ".join(validation_results['errors'])
         app.logger.critical(f"Configuration validation failed: {error_summary}")
         raise RuntimeError(f"Application configuration is invalid: {error_summary}")
+    
+    # Initialize Flask-WTF CSRF protection
+    CSRFProtect(app)
     
     # Initialize services
     init_services(app)
