@@ -109,7 +109,7 @@ python scripts/compare_csv_models.py results1.csv results2.csv
 - **Parameters**: `model/parameters.json`
 - **Class Weights**: `model/class_weights.json`
 - **Hyperparameters**: `experiments/configs/hyperparameter_optimization.json`
-- **Source Code**: `src/disaster_classifier/`
+- **Source Code**: `src/disasterproject/`
 
 ## Output Locations
 

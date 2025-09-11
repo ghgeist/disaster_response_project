@@ -32,13 +32,13 @@ from datetime import datetime
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from disaster_classifier.utils.config import setup_logging, TARGET_COLUMNS
-from disaster_classifier.data.loader import load_data
-from disaster_classifier.models.pipeline import create_pipeline, build_model
-from disaster_classifier.models.samplers import apply_multi_label_aware_sampling
-from disaster_classifier.evaluation.metrics import evaluate_model, save_model
-from disaster_classifier.utils.io import load_model_parameters
-from disaster_classifier.utils.experiment_tracker import create_experiment_name, build_slug
+from disasterproject.utils.config import setup_logging, TARGET_COLUMNS
+from disasterproject.data.loader import load_data
+from disasterproject.models.pipeline import create_pipeline, build_model
+from disasterproject.models.samplers import apply_multi_label_aware_sampling
+from disasterproject.evaluation.metrics import evaluate_model, save_model
+from disasterproject.utils.json_io import load_model_parameters
+from disasterproject.utils.experiment_tracker import create_experiment_name, build_slug
 from sklearn.model_selection import train_test_split
 import pandas as pd
 import numpy as np

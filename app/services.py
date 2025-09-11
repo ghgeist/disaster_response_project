@@ -173,7 +173,7 @@ class ModelService:
             
             # Add src to path and import tokenize
             sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
-            from disaster_classifier.data.preprocessor import tokenize
+            from disasterproject.data.preprocessor import tokenize
             
             # Make tokenize available in the main module for unpickling
             import __main__

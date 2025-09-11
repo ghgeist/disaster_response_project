@@ -15,7 +15,7 @@ from typing import Dict, List, Any
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from disaster_classifier.utils.experiment_tracker import ExperimentTracker
+from disasterproject.utils.experiment_tracker import ExperimentTracker
 
 
 def load_experiment_results(experiment_name: str) -> Dict[str, Any]:

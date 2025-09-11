@@ -43,15 +43,15 @@ def validate_import_structure():
     
     # Check that we can import the modules (without executing them)
     modules_to_check = [
-        ("src.disaster_classifier.utils.config", "Config module"),
-        ("src.disaster_classifier.data.preprocessor", "Preprocessor module"),
-        ("src.disaster_classifier.data.loader", "Data loader module"),
-        ("src.disaster_classifier.models.samplers", "Samplers module"),
-        ("src.disaster_classifier.models.pipeline", "Pipeline module"),
-        ("src.disaster_classifier.evaluation.metrics", "Metrics module"),
-        ("src.disaster_classifier.utils.io", "IO utilities module"),
-        ("src.disaster_classifier.utils.interaction", "Interaction module"),
-        ("src.disaster_classifier.utils.experiment_tracker", "Experiment tracker module"),
+        ("src.disasterproject.utils.config", "Config module"),
+        ("src.disasterproject.data.preprocessor", "Preprocessor module"),
+        ("src.disasterproject.data.loader", "Data loader module"),
+        ("src.disasterproject.models.samplers", "Samplers module"),
+        ("src.disasterproject.models.pipeline", "Pipeline module"),
+        ("src.disasterproject.evaluation.metrics", "Metrics module"),
+        ("src.disasterproject.utils.json_io", "IO utilities module"),
+        ("src.disasterproject.utils.interaction", "Interaction module"),
+        ("src.disasterproject.utils.experiment_tracker", "Experiment tracker module"),
     ]
     
     all_good = True
@@ -81,11 +81,11 @@ def main():
     # Check main directory structure
     print("\n📁 Checking main directory structure...")
     main_structure = [
-        ("src/disaster_classifier/__init__.py", "Main package init"),
-        ("src/disaster_classifier/data/__init__.py", "Data package init"),
-        ("src/disaster_classifier/models/__init__.py", "Models package init"),
-        ("src/disaster_classifier/evaluation/__init__.py", "Evaluation package init"),
-        ("src/disaster_classifier/utils/__init__.py", "Utils package init"),
+        ("src/disasterproject/__init__.py", "Main package init"),
+        ("src/disasterproject/data/__init__.py", "Data package init"),
+        ("src/disasterproject/models/__init__.py", "Models package init"),
+        ("src/disasterproject/evaluation/__init__.py", "Evaluation package init"),
+        ("src/disasterproject/utils/__init__.py", "Utils package init"),
         ("scripts/train_model.py", "New training script"),
         ("scripts/compare_models.py", "Comparison tool"),
         ("experiments/", "Experiments directory"),
@@ -101,10 +101,10 @@ def main():
     # Check module structure
     print("\n📁 Checking module structure...")
     modules_structure = [
-        ("src/disaster_classifier/data", ["__init__.py", "loader.py", "preprocessor.py"]),
-        ("src/disaster_classifier/models", ["__init__.py", "pipeline.py", "samplers.py"]),
-        ("src/disaster_classifier/evaluation", ["__init__.py", "metrics.py"]),
-        ("src/disaster_classifier/utils", ["__init__.py", "config.py", "io.py", "interaction.py", "experiment_tracker.py"]),
+        ("src/disasterproject/data", ["__init__.py", "loader.py", "preprocessor.py"]),
+        ("src/disasterproject/models", ["__init__.py", "pipeline.py", "samplers.py"]),
+        ("src/disasterproject/evaluation", ["__init__.py", "metrics.py"]),
+        ("src/disasterproject/utils", ["__init__.py", "config.py", "json_io.py", "interaction.py", "experiment_tracker.py"]),
     ]
     
     modules_good = True
@@ -121,7 +121,7 @@ def main():
     if os.path.exists(flask_app_path):
         with open(flask_app_path, 'r') as f:
             content = f.read()
-            if "disaster_classifier.data.preprocessor import tokenize" in content:
+            if "disasterproject.data.preprocessor import tokenize" in content:
                 print("✅ Flask app updated with new import path")
                 flask_good = True
             else:
