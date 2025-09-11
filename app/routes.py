@@ -316,9 +316,11 @@ def register_routes(app):
     @app.errorhandler(404)
     def not_found(_error):
         """Handle 404 errors."""
-        return render_template('error.html', message="Page not found", graphJSON="[]", ids=[]), 404
+        form = MessageForm()
+        return render_template('error.html', message="Page not found", graphJSON="[]", ids=[], form=form), 404
 
     @app.errorhandler(500)
     def internal_error(_error):
         """Handle 500 errors."""
-        return render_template('error.html', message="Internal server error", graphJSON="[]", ids=[]), 500
+        form = MessageForm()
+        return render_template('error.html', message="Internal server error", graphJSON="[]", ids=[], form=form), 500
