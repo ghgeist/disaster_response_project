@@ -5,7 +5,8 @@ Machine learning pipeline creation and model building functions.
 import logging
 import multiprocessing
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer, TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV
 from sklearn.multioutput import MultiOutputClassifier
 from sklearn.pipeline import Pipeline
@@ -175,3 +176,80 @@ def run_grid_search(pipeline, parameters, X_train, y_train, use_small_subset=Fal
     logging.info(f"Runtime: {formatted_runtime}")
 
     return cv
+
+
+def create_logistic_regression_pipeline(use_class_weights=True):
+    """
+    Create a TF-IDF + LogisticRegression pipeline for rollback scenarios.
+    
+    This pipeline is designed to be lightweight and fast-loading while maintaining
+    good performance. Used as a fallback when RandomForest models fail gates.
+    Uses a more robust solver that can handle single-class labels.
+    
+    Args:
+        use_class_weights (bool): Whether to use balanced class weights
+    
+    Returns:
+        pipeline (sklearn.pipeline.Pipeline): TF-IDF + LogisticRegression pipeline
+    """
+    try:
+        pipeline = Pipeline([
+            ('tfidf', TfidfVectorizer(
+                tokenizer=tokenize,
+                lowercase=True,
+                stop_words=None,
+                ngram_range=(1, 1),
+                max_features=None
+            )),
+            ('clf', MultiOutputClassifier(
+                LogisticRegression(
+                    class_weight='balanced' if use_class_weights else None,
+                    solver='lbfgs',  # More robust solver
+                    max_iter=1000,
+                    random_state=42,
+                    multi_class='ovr'  # One-vs-rest for binary classification
+                )
+            ))
+        ])
+        
+        logging.info("Created TF-IDF + LogisticRegression pipeline for rollback")
+        return pipeline
+        
+    except (TypeError, ValueError) as e:
+        logging.error("Error creating LogisticRegression pipeline: %s", e)
+        return None
+
+
+def build_logistic_model(pipeline, parameters):
+    """
+    Build a LogisticRegression model with given parameters.
+    
+    Args:
+        pipeline: The LogisticRegression pipeline
+        parameters: Parameters dictionary for LogisticRegression
+        
+    Returns:
+        Configured pipeline or None on error
+    """
+    try:
+        default_params = {
+            "clf__estimator__C": 1.0,
+            "clf__estimator__solver": "lbfgs", 
+            "clf__estimator__max_iter": 1000,
+            "clf__estimator__random_state": 42,
+            "clf__estimator__class_weight": "balanced",
+            "clf__estimator__multi_class": "ovr"
+        }
+        
+        if parameters is None:
+            pipeline.set_params(**default_params)
+        else:
+            merged = {**default_params, **parameters}
+            pipeline.set_params(**merged)
+            
+        logging.info("Configured LogisticRegression model with parameters")
+        return pipeline
+        
+    except (ValueError, TypeError) as e:
+        logging.error("Error building LogisticRegression model: %s", e)
+        return None

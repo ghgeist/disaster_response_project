@@ -1,7 +1,7 @@
 {
-  "timestamp": "2025-09-04T14:20:30.412079",
+  "timestamp": "2025-09-11T11:13:10.625559",
   "model_path": "model/classifier.pkl",
-  "training_time_seconds": 169.40513229370117,
+  "training_time_seconds": 25.38822889328003,
   "configuration": {
     "hyperparameters": {
       "vect__ngram_range": [
@@ -26,12 +26,12 @@
     "target_labels": 36
   },
   "performance": {
-    "overall_precision": 0.9374374211484044,
-    "overall_recall": 0.9476031928970846,
-    "overall_f1": 0.93567328019153,
-    "positive_class_precision": 0.5804031802400772,
-    "positive_class_recall": 0.20688026486534014,
-    "positive_class_f1": 0.2632195354115974,
+    "overall_precision": 0.9084662266267824,
+    "overall_recall": 0.9299045972595721,
+    "overall_f1": 0.9009650424045846,
+    "positive_class_precision": 0.2146513666492862,
+    "positive_class_recall": 0.04233740389620384,
+    "positive_class_f1": 0.04715679366787087,
     "total_categories": 36,
     "test_samples": 5206
   },
