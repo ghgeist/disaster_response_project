@@ -1,20 +1,19 @@
 """
 Services for data and model management.
 """
-import os
-import joblib
-import requests
-import pandas as pd
-import sqlalchemy.exc
-from pathlib import Path
-from typing import Optional, Any
-from sqlalchemy import create_engine
+import json
 import logging
+import os
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+import joblib
+import pandas as pd
+import requests
+import sqlalchemy.exc
+from sqlalchemy import create_engine
 
 logger = logging.getLogger(__name__)
-
-# --- Performance metrics helpers (UI deep dive) ---
-from typing import Tuple, List, Dict, Optional
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 FCT_DIR = BASE_DIR / "data" / "04_fct"
@@ -190,79 +189,101 @@ class ModelService:
     
     def _download_model(self) -> None:
         """Download model from Google Drive if not available locally."""
+        self._validate_gdrive_config()
+        logger.info("Model not found locally, downloading from Google Drive...")
+        
+        # Prepare for download
+        self.model_path.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = f"{self.model_path}.tmp"
+        
+        try:
+            self._perform_download(temp_path)
+            self._validate_downloaded_file(temp_path)
+            self._finalize_download(temp_path)
+            logger.info("Model downloaded and validated successfully!")
+            
+        except Exception as e:
+            self._cleanup_temp_file(temp_path)
+            self._handle_download_error(e)
+    
+    def _validate_gdrive_config(self) -> None:
+        """Validate Google Drive configuration before attempting download."""
         if not self.gdrive_model_id or self.gdrive_model_id.strip() in {'', 'YOUR_FILE_ID', 'YOUR_GOOGLE_DRIVE_FILE_ID'}:
+            if self.model_path.exists():
+                logger.info(f"Model found at {self.model_path}, skipping download")
+                return
             raise RuntimeError(
                 "GDRIVE_MODEL_ID is not set or is using a placeholder. "
                 f"Provide a valid Google Drive file ID via the GDRIVE_MODEL_ID env var, "
                 f"or place the model at: {self.model_path}"
             )
-        
-        logger.info("Model not found locally, downloading from Google Drive...")
-        
-        # Create directory if it doesn't exist
-        self.model_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Create temporary file for download
-        temp_path = f"{self.model_path}.tmp"
+    
+    def _perform_download(self, temp_path: str) -> None:
+        """Perform the actual download from Google Drive."""
+        url = f"https://drive.google.com/uc?export=download&id={self.gdrive_model_id}"
+        with requests.get(url, stream=True, timeout=30) as r:
+            r.raise_for_status()
+            self._validate_response_content_type(r)
+            self._write_download_to_file(r, temp_path)
+    
+    def _validate_response_content_type(self, response) -> None:
+        """Validate that the response contains the expected file content."""
+        content_type = response.headers.get('content-type', '')
+        if 'text/html' in content_type.lower():
+            raise RuntimeError(
+                "Google Drive returned HTML instead of the model file. "
+                "This usually means the file requires authentication or is too large. "
+                "Please check the GDRIVE_MODEL_ID or download manually."
+            )
+    
+    def _write_download_to_file(self, response, temp_path: str) -> None:
+        """Write the downloaded content to a temporary file."""
+        with open(temp_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=1024 * 1024):
+                if chunk:
+                    f.write(chunk)
+    
+    def _validate_downloaded_file(self, temp_path: str) -> None:
+        """Validate the downloaded file size and integrity."""
+        if os.path.getsize(temp_path) < 1000:  # Model files should be at least 1KB
+            raise RuntimeError("Downloaded file is too small, likely corrupted")
         
         try:
-            url = f"https://drive.google.com/uc?export=download&id={self.gdrive_model_id}"
-            with requests.get(url, stream=True, timeout=30) as r:
-                r.raise_for_status()
-                
-                # Check if response is HTML (Google Drive warning page)
-                content_type = r.headers.get('content-type', '')
-                if 'text/html' in content_type.lower():
-                    raise RuntimeError(
-                        "Google Drive returned HTML instead of the model file. "
-                        "This usually means the file requires authentication or is too large. "
-                        "Please check the GDRIVE_MODEL_ID or download manually."
-                    )
-                
-                # Download to temporary file first
-                with open(temp_path, 'wb') as f:
-                    for chunk in r.iter_content(chunk_size=1024 * 1024):
-                        if chunk:
-                            f.write(chunk)
-            
-            # Validate the downloaded file
-            if os.path.getsize(temp_path) < 1000:  # Model files should be at least 1KB
-                raise RuntimeError("Downloaded file is too small, likely corrupted")
-            
-            # Try to load the model to validate it's not corrupted
-            try:
-                test_model = joblib.load(temp_path)
-                del test_model  # Clean up test load
-            except Exception as e:
-                raise RuntimeError(f"Downloaded model file is corrupted: {e}") from e
-            
-            # If validation passes, move temp file to final location
-            os.replace(temp_path, self.model_path)
-            logger.info("Model downloaded and validated successfully!")
-            
+            test_model = joblib.load(temp_path)
+            del test_model  # Clean up test load
         except Exception as e:
-            # Clean up temporary file on any error
-            if os.path.exists(temp_path):
-                try:
-                    os.remove(temp_path)
-                except OSError:
-                    pass  # Ignore cleanup errors
-            
-            # Provide helpful error message
-            if "timeout" in str(e).lower():
-                raise RuntimeError(
-                    f"Download timed out. Please check your internet connection and try again. "
-                    f"Error: {e}"
-                ) from e
-            if "corrupted" in str(e).lower():
-                raise RuntimeError(
-                    f"Download failed due to corruption. Please try again. "
-                    f"Error: {e}"
-                ) from e
+            raise RuntimeError(f"Downloaded model file is corrupted: {e}") from e
+    
+    def _finalize_download(self, temp_path: str) -> None:
+        """Move the temporary file to the final location."""
+        os.replace(temp_path, self.model_path)
+    
+    def _cleanup_temp_file(self, temp_path: str) -> None:
+        """Clean up temporary file on error."""
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass  # Ignore cleanup errors
+    
+    def _handle_download_error(self, error: Exception) -> None:
+        """Handle download errors with appropriate error messages."""
+        error_str = str(error).lower()
+        
+        if "timeout" in error_str:
             raise RuntimeError(
-                f"Failed to download model: {e}. "
-                f"Please check the GDRIVE_MODEL_ID or download manually to: {self.model_path}"
-            ) from e
+                f"Download timed out. Please check your internet connection and try again. "
+                f"Error: {error}"
+            ) from error
+        if "corrupted" in error_str:
+            raise RuntimeError(
+                f"Download failed due to corruption. Please try again. "
+                f"Error: {error}"
+            ) from error
+        raise RuntimeError(
+            f"Failed to download model: {error}. "
+            f"Please check the GDRIVE_MODEL_ID or download manually to: {self.model_path}"
+        ) from error
     
     def predict(self, text: str) -> dict:
         """Make a prediction on the given text using per-label thresholds when available."""
@@ -319,12 +340,13 @@ class ModelService:
             model_dir = self.model_path.parent
             thresholds_path = model_dir / "thresholds.json"
             label_order_path = model_dir / "label_order.json"
-            import json
+            
             if thresholds_path.exists():
                 with open(thresholds_path, "r", encoding="utf-8") as f:
                     self._thresholds = json.load(f)
             else:
                 self._thresholds = None
+                
             if label_order_path.exists():
                 with open(label_order_path, "r", encoding="utf-8") as f:
                     self._label_order = json.load(f)

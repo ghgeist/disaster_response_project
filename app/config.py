@@ -19,7 +19,7 @@ class Config:
     # Paths
     BASE_DIR = Path(__file__).parent.parent
     DATA_DIR = BASE_DIR / 'data' / '02_stg'
-    MODELS_DIR = BASE_DIR / 'models'
+    MODELS_DIR = BASE_DIR / 'model'  # Fixed: use 'model' not 'models'
     IMAGES_DIR = BASE_DIR / 'images'
     
     # Database settings
