@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "time": {
+      "command": "npx",
+      "args": [
+        "@modelcontextprotocol/server-time"
+      ],
+      "env": {}
+    }
+  },
+  "client": {
+    "name": "cursor-ai-agent",
+    "version": "1.0.0"
+  }
+}
