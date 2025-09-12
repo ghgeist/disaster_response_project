@@ -83,12 +83,24 @@ def create_app(config_class=Config):
         try:
             if request.method == 'GET' and request.path in {'/', '/index'}:
                 set_cookie_headers = response.headers.getlist('Set-Cookie')
-                has_session_set = any(h.startswith('session=') for h in set_cookie_headers)
+                # Determine if a session cookie is being set, without logging the raw value
+                has_session_set = any(h.lower().startswith('session=') for h in set_cookie_headers)
+                # Redact any session cookie value from logs while keeping attributes
+                def _redact_session_cookie(header_value: str) -> str:
+                    lower = header_value.lower()
+                    if lower.startswith('session='):
+                        parts = header_value.split(';', 1)
+                        # Replace the cookie value with a placeholder but preserve attributes
+                        redacted_prefix = 'session=<redacted>'
+                        return redacted_prefix + (';' + parts[1] if len(parts) > 1 else '')
+                    return header_value
+
+                sanitized_headers = [_redact_session_cookie(h) for h in set_cookie_headers]
                 app.logger.debug(
                     "Session Set-Cookie on GET %s: %s | headers=%s",
                     request.path,
                     has_session_set,
-                    [h for h in set_cookie_headers if h.lower().startswith('session=')]
+                    [h for h in sanitized_headers if h.lower().startswith('session=')]
                 )
         except Exception:
             # Non-fatal logging aid

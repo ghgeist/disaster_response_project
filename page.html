@@ -82,7 +82,8 @@
     <div class="max-w-3xl mx-auto mb-12">
         
         <form action="/go" method="post" class="w-full">
-            <input id="csrf_token" name="csrf_token" type="hidden" value="ImFiMmVkM2RhNzA2OGZhMTI1YWU4YWJkYjRiM2MwZjk3MGM1OGY0NDEi.aMQ1jg.kav4C56Y-UVhQmc9sQubWItSbUE">
+            <!-- CSRF token will be injected by Flask-WTF in Jinja templates; avoid hardcoding here -->
+            <input id="csrf_token" name="csrf_token" type="hidden" value="">
             <div class="bg-brand-slate p-6 rounded-lg shadow-lg">
                 
     <div class="form-group mb-4 ">
