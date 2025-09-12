@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Classification Results - Signal Storm{% endblock %}
+
+{% block content %}
+    <!-- Hero Section -->
+    <div class="text-center mb-12">
+        <h1 class="text-4xl md:text-5xl font-extrabold text-white mb-3">
+            Classification Results
+        </h1>
+        <p class="text-lg text-gray-400 max-w-3xl mx-auto">
+            AI analysis complete. Here's what the model detected in your message.
+        </p>
+    </div>
+
+    <!-- Results container -->
+    <div class="max-w-4xl mx-auto bg-brand-slate p-8 rounded-lg shadow-2xl mb-8">
+        <!-- Display the original query -->
+        <div class="mb-6">
+            <h4 class="text-lg font-semibold text-gray-400 uppercase tracking-wider mb-2">Message</h4>
+            <p class="text-xl text-white bg-gray-700 p-4 rounded-md">"{{query}}"</p>
+        </div>
+
+        <!-- Display the classification results -->
+        <div>
+            <h4 class="text-lg font-semibold text-gray-400 uppercase tracking-wider mb-3">Predicted Categories</h4>
+            <div class="flex flex-wrap gap-3">
+                {% set has_categories = false %}
+                {% for category, value in classification_result.items() %}
+                    {% if value == 1 %}
+                        {% set has_categories = true %}
+                        <span class="bg-brand-accent-amber text-gray-900 text-sm font-bold px-4 py-2 rounded-full shadow-md">
+                            {{ category.replace('_', ' ')|title }}
+                        </span>
+                    {% endif %}
+                {% endfor %}
+                {% if not has_categories %}
+                    <p class="text-gray-400">This message does not appear to be related to a disaster.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Call to action -->
+    <div class="text-center mt-4 mb-8">
+        <a href="/" class="bg-brand-accent-blue hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue">
+            Classify Another Message
+        </a>
+    </div>
+
+{% endblock %}

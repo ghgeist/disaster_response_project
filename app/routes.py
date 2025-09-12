@@ -133,6 +133,7 @@ def register_routes(app):
             # Create form instance
             form = MessageForm()
             
+            
             # Get services from app context
             data_service = current_app.data_service
             chart_generator = ChartGenerator()
@@ -146,7 +147,7 @@ def register_routes(app):
             # Encode graphs to JSON
             graph_json, ids = _encode_graphs_to_json(graphs)
 
-            return render_template('master.html', form=form, ids=ids, graphJSON=graph_json, descriptions=descriptions)
+            return render_template('home.html', form=form, ids=ids, graphJSON=graph_json, descriptions=descriptions)
 
         except (sqlalchemy.exc.SQLAlchemyError, pd.errors.DatabaseError) as e:
             logger.error("Database error in index route: %s", e)
@@ -187,8 +188,7 @@ def register_routes(app):
                 flash('Message analyzed successfully!', 'success')
 
                 return render_template(
-                    'go.html',
-                    form=form,
+                    'results.html',
                     query=query,
                     classification_result=classification_results
                 )
@@ -212,8 +212,7 @@ def register_routes(app):
                     flash('Message analyzed successfully!', 'success')
 
                     return render_template(
-                        'go.html',
-                        form=form,
+                        'results.html',
                         query=query,
                         classification_result=classification_results
                     )
@@ -245,11 +244,11 @@ def register_routes(app):
             graphs, descriptions = _add_performance_visualization(graphs, descriptions)
             graph_json, ids = _encode_graphs_to_json(graphs)
 
-            return render_template('master.html', form=form, ids=ids, graphJSON=graph_json, descriptions=descriptions)
+            return render_template('home.html', form=form, ids=ids, graphJSON=graph_json, descriptions=descriptions)
         except Exception as e:
             logger.error("Error re-rendering index page on form validation failure: %s", e)
             flash("An error occurred while processing your request.", 'error')
-            return render_template('master.html', form=form, ids=[], graphJSON="[]", descriptions=[])
+            return render_template('home.html', form=form, ids=[], graphJSON="[]", descriptions=[])
 
     @app.route('/health')
     def health_check():
@@ -332,10 +331,7 @@ def register_routes(app):
             logger.error(f"Error in model health dashboard: {e}")
             return render_template(
                 'error.html', 
-                message="Model health dashboard unavailable", 
-                graphJSON="[]", 
-                ids=[], 
-                form=MessageForm()
+                message="Model health dashboard unavailable"
             ), 503
 
     @app.route('/api/model-health')
@@ -365,11 +361,9 @@ def register_routes(app):
     @app.errorhandler(404)
     def not_found(_error):
         """Handle 404 errors."""
-        form = MessageForm()
-        return render_template('error.html', message="Page not found", graphJSON="[]", ids=[], form=form), 404
+        return render_template('error.html', message="Page not found"), 404
 
     @app.errorhandler(500)
     def internal_error(_error):
         """Handle 500 errors."""
-        form = MessageForm()
-        return render_template('error.html', message="Internal server error", graphJSON="[]", ids=[], form=form), 500
+        return render_template('error.html', message="Internal server error"), 500
