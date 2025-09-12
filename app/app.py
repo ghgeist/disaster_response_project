@@ -79,6 +79,20 @@ def create_app(config_class=Config):
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-Frame-Options'] = 'DENY'
         response.headers['X-XSS-Protection'] = '1; mode=block'
+        # Log if session cookie is being set for GET '/' to aid CSRF debugging
+        try:
+            if request.method == 'GET' and request.path in {'/', '/index'}:
+                set_cookie_headers = response.headers.getlist('Set-Cookie')
+                has_session_set = any(h.startswith('session=') for h in set_cookie_headers)
+                app.logger.debug(
+                    "Session Set-Cookie on GET %s: %s | headers=%s",
+                    request.path,
+                    has_session_set,
+                    [h for h in set_cookie_headers if h.lower().startswith('session=')]
+                )
+        except Exception:
+            # Non-fatal logging aid
+            pass
         return response
     
     app.logger.info('Disaster Response application started')

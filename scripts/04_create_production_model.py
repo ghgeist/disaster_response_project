@@ -3,7 +3,7 @@
 Create a production disaster response classification model.
 
 This script creates a production model and saves results in a clean, obvious structure:
-- model/classifier.pkl (the current production model)
+- model/disaster_rf_v1-2-0_prod_2025-09-11.pkl (the current production model)
 - model/performance_metrics.csv (current model performance)
 - model/training_log.json (training metadata)
 
@@ -229,8 +229,8 @@ def main():
                        default='model/class_weights.json', 
                        help='Path to class weights JSON (default: model/class_weights.json)')
     parser.add_argument('--output', dest='model_out', 
-                       default='model/classifier.pkl',
-                       help='Output model path (default: model/classifier.pkl)')
+                       default='model/disaster_rf_v1-2-0_prod_2025-09-11.pkl',
+                       help='Output model path (default: model/disaster_rf_v1-2-0_prod_2025-09-11.pkl)')
     parser.add_argument('--test-size', dest='test_size', type=float, default=0.2,
                        help='Test size fraction (default: 0.2)')
     parser.add_argument('--seed', dest='seed', type=int, default=42,
@@ -472,7 +472,7 @@ def main():
         print('   Model uses balanced class weights for improved minority class detection')
     
     print(f'\nResults Structure:')
-    print(f'   model/classifier.pkl          <- Current production model')
+    print(f'   model/disaster_rf_v1-2-0_prod_2025-09-11.pkl          <- Current production model')
     print(f'   model/performance_metrics.csv <- Current model performance')  
     print(f'   model/training_log.json       <- Training metadata & config')
     print(f'\nThis clear structure makes it easy to find current model results!')

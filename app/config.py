@@ -15,6 +15,9 @@ class Config:
     # Flask-WTF settings
     WTF_CSRF_ENABLED = True
     WTF_CSRF_TIME_LIMIT = 3600  # 1 hour
+    # Optional: disable CSRF expiry for long demos (dev only)
+    if os.environ.get('CSRF_TIME_LIMIT_NONE') == '1':
+        WTF_CSRF_TIME_LIMIT = None
     
     # Application settings
     HOST = os.environ.get('HOST', '0.0.0.0')
@@ -42,3 +45,16 @@ class Config:
     # Logging settings
     LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO' if not DEBUG else 'DEBUG')
     LOG_FILE = BASE_DIR / 'app.log'
+
+    # Session / cookie settings
+    # Allow third-party/embedded contexts (e.g., preview iframes) to receive cookies
+    # Controlled via ALLOW_THIRD_PARTY_COOKIES env (default on for dev/demos)
+    ALLOW_THIRD_PARTY_COOKIES = os.environ.get('ALLOW_THIRD_PARTY_COOKIES', '1') == '1'
+    if ALLOW_THIRD_PARTY_COOKIES:
+        SESSION_COOKIE_SAMESITE = 'None'
+        SESSION_COOKIE_SECURE = True
+    else:
+        SESSION_COOKIE_SAMESITE = os.environ.get('SESSION_COOKIE_SAMESITE', 'Lax')
+        SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'False').lower() == 'true'
+    SESSION_COOKIE_HTTPONLY = True
+    PREFERRED_URL_SCHEME = 'https'

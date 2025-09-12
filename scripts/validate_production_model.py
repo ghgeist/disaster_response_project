@@ -22,7 +22,7 @@ def test_model_loading():
     """Test model loading performance and memory usage."""
     print("🔍 Testing Model Loading...")
     
-    model_path = Path('model/classifier.pkl')
+    model_path = Path('model/disaster_rf_v1-2-0_prod_2025-09-11.pkl')
     if not model_path.exists():
         print("❌ Model file not found!")
         return False
@@ -47,7 +47,7 @@ def test_model_size():
     """Test model file size."""
     print("\n📏 Testing Model Size...")
     
-    model_path = Path('model/classifier.pkl')
+    model_path = Path('model/disaster_rf_v1-2-0_prod_2025-09-11.pkl')
     size_mb = model_path.stat().st_size / (1024 * 1024)
     print(f"✅ Model size: {size_mb:.1f} MB")
     
@@ -62,7 +62,7 @@ def test_prediction_functionality():
     print("\n🧪 Testing Prediction Functionality...")
     
     try:
-        model_service = ModelService(Path('model/classifier.pkl'))
+        model_service = ModelService(Path('model/disaster_rf_v1-2-0_prod_2025-09-11.pkl'))
         
         # Test cases
         test_cases = [
@@ -104,7 +104,7 @@ def test_critical_labels():
     ]
     
     try:
-        model_service = ModelService(Path('model/classifier.pkl'))
+        model_service = ModelService(Path('model/disaster_rf_v1-2-0_prod_2025-09-11.pkl'))
         
         # Test messages designed to trigger each critical label
         test_messages = {
@@ -139,10 +139,10 @@ def test_required_files():
     print("\n📁 Testing Required Files...")
     
     required_files = [
-        'model/classifier.pkl',
-        'model/thresholds.json',
-        'model/label_order.json',
-        'model/training_log.json'
+        'model/disaster_rf_v1-2-0_prod_2025-09-11.pkl',
+        'model/disaster_rf_v1-2-0_prod_2025-09-11_thresholds.json',
+        'model/disaster_rf_v1-2-0_prod_2025-09-11_labels.json',
+        'model/disaster_rf_v1-2-0_prod_2025-09-11_training.json'
     ]
     
     all_exist = True
@@ -165,7 +165,7 @@ def test_memory_usage():
     
     try:
         # Load model and measure memory
-        model = joblib.load('model/classifier.pkl')
+        model = joblib.load('model/disaster_rf_v1-2-0_prod_2025-09-11.pkl')
         peak_memory = process.memory_info().rss / (1024 * 1024)  # MB
         memory_increase = peak_memory - initial_memory
         

@@ -42,6 +42,11 @@ We have implemented a **Hybrid Model Deployment Strategy** with the following co
 - **Artifact consistency**: All supporting files follow same naming pattern
 - **Semantic versioning**: Clear version progression with environment indicators
 
+#### Legacy Artifact Handling
+- Renamed `classifier.pkl` to `legacy_classifier.pkl` and moved it to `model/legacy/`
+- Updated internal scripts to reference the versioned production artifact `model/disaster_rf_v1-2-0_prod_2025-09-11.pkl`
+- Historical documentation may still reference `model/classifier.pkl` for archival context
+
 ### 3. Hybrid Deployment Architecture
 - **Production Environment**: Google Drive model storage (required)
   - Lightweight deployments without 32MB model files in repository
@@ -160,6 +165,7 @@ We have implemented a **Hybrid Model Deployment Strategy** with the following co
 - ✅ **Development tooling**: Created and documented
 - ✅ **Testing framework**: All deployment scenarios validated
 - ✅ **Documentation**: Complete team guidelines established
+- ✅ **Legacy artifact archived**: `model/legacy/legacy_classifier.pkl` with scripts updated to use versioned artifact
 
 ## Migration Path
 

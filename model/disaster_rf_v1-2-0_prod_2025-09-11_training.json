@@ -1,6 +1,6 @@
 {
   "timestamp": "2025-09-11T11:13:10.625559",
-  "model_path": "model/classifier.pkl",
+  "model_path": "model/disaster_rf_v1-2-0_prod_2025-09-11.pkl",
   "training_time_seconds": 25.38822889328003,
   "configuration": {
     "hyperparameters": {

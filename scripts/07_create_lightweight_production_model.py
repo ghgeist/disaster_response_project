@@ -122,7 +122,7 @@ def main():
                        default='model/lightweight_parameters.json',
                        help='Path to parameters JSON')
     parser.add_argument('--output', dest='model_out',
-                       default='model/classifier.pkl',
+                       default='model/disaster_rf_v1-2-0_prod_2025-09-11.pkl',
                        help='Output model path')
     parser.add_argument('--test-size', dest='test_size', type=float, default=0.2,
                        help='Test size fraction')
