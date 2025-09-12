@@ -1,0 +1,17 @@
+---
+description: when creating, adding or modify dates in documents
+alwaysApply: false
+---
+## Date and Time Generation
+- Use terminal `date` command for generating current dates (MCP time server not available)
+- Use format: YYYY-MM-DD for all document filenames
+- Current date context: Use `date` command to get accurate timestamps
+- For session notes, use format: YYYY-MM-DD-session-description.md
+- For code improvement logs, use format: YYYY-MM-DD-improvement-description.md
+
+
+## Time Server Usage
+- Query the terminal `date` command for current date/time when generating filenames
+- Use UTC timestamps for consistency (`date -u` for UTC, `date` for local time)
+- Format dates as YYYY-MM-DD for file naming
+s
