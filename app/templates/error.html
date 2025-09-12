@@ -1,11 +1,17 @@
-{% extends "master.html" %}
+{% extends "base.html" %}
 
-{% block title %}Error{% endblock %}
+{% block title %}Error - Signal Storm{% endblock %}
 
 {% block content %}
-    <!-- Flash Messages -->
-    {% from 'macros/forms.html' import render_flash_messages %}
-    {{ render_flash_messages() }}
+    <!-- Hero Section -->
+    <div class="text-center mb-12">
+        <h1 class="text-4xl md:text-5xl font-extrabold text-white mb-3">
+            Oops! Something Went Wrong
+        </h1>
+        <p class="text-lg text-gray-400 max-w-3xl mx-auto">
+            We encountered an issue while processing your request.
+        </p>
+    </div>
     
     <div class="max-w-2xl mx-auto my-12 bg-brand-slate p-8 rounded-lg shadow-2xl text-center">
         <div class="border-2 border-red-500 rounded-lg p-6">

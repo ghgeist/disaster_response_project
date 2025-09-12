@@ -7,7 +7,7 @@ This directory contains scripts for training, testing, and analyzing disaster re
 ### `create_production_model.py`
 Creates a production disaster response classification model with class weighting.
 - **Use when**: Creating the main production model for deployment
-- **Output**: Production model (`model/classifier.pkl`), performance metrics, and training logs
+- **Output**: Production model (`model/disaster_rf_v1-2-0_prod_2025-09-11.pkl`), performance metrics, and training logs
 - **Dependencies**: `model/parameters.json`, `model/class_weights.json`
 
 ## Experimental Scripts

@@ -13,9 +13,11 @@ app/
 ├── visualizations.py   # Chart generation
 ├── config.py           # Configuration
 └── templates/          # Jinja2 templates
-    ├── master.html     # Base template
-    ├── go.html         # Results page
-    └── error.html      # Error page
+    ├── base.html       # Base template with common layout
+    ├── home.html       # Main page with form and visualizations
+    ├── results.html    # Classification results page
+    ├── error.html      # Error page
+    └── model_health.html # Model health dashboard
 ```
 
 ## Features

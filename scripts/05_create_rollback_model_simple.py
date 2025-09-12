@@ -43,7 +43,7 @@ def main():
     print("\nExecuting rollback: Keep baseline model as production model")
     
     # Check baseline model exists and meets criteria
-    baseline_model = "model/classifier.pkl"
+    baseline_model = "model/disaster_rf_v1-2-0_prod_2025-09-11.pkl"
     if not os.path.exists(baseline_model):
         print("❌ Baseline model not found!")
         sys.exit(1)
@@ -76,7 +76,7 @@ def main():
     print("⚠️  hospitals: 0.0 (but this is also zero in baseline)")
     
     print("\n✅ ROLLBACK COMPLETE")
-    print("Production model: model/classifier.pkl (unchanged)")
+    print("Production model: model/disaster_rf_v1-2-0_prod_2025-09-11.pkl (unchanged)")
     print("Status: All gates passed for baseline model")
     print("Next: Proceed with app smoke tests using baseline model")
 

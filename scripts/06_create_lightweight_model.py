@@ -181,7 +181,7 @@ def main():
                        default='data/02_stg/stg_disaster_response.db',
                        help='Path to SQLite database')
     parser.add_argument('--output', dest='model_out',
-                       default='model/classifier.pkl',
+                       default='model/disaster_rf_v1-2-0_prod_2025-09-11.pkl',
                        help='Output model path')
     parser.add_argument('--max-features', dest='max_features', type=int, default=10000,
                        help='Maximum number of TF-IDF features')

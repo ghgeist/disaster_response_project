@@ -12,3 +12,10 @@ __pycache__
 
 #VSCode
 .vscode/
+
+# Security: never commit local session/cookie/token artifacts
+token.txt
+cookies.txt
+*.cookies
+*.session
+*.sess
