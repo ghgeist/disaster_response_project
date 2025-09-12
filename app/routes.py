@@ -188,6 +188,7 @@ def register_routes(app):
 
                 return render_template(
                     'go.html',
+                    form=form,
                     query=query,
                     classification_result=classification_results
                 )
@@ -212,6 +213,7 @@ def register_routes(app):
 
                     return render_template(
                         'go.html',
+                        form=form,
                         query=query,
                         classification_result=classification_results
                     )
