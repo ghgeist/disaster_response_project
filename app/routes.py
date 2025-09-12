@@ -310,11 +310,11 @@ def register_routes(app):
         Model performance monitoring dashboard for admin users.
         """
         try:
-            # Initialize model health monitor
-            health_monitor = ModelHealthMonitor()
-            
             # Get services from app context
             model_service = getattr(current_app, 'model_service', None)
+            
+            # Initialize model health monitor with model service
+            health_monitor = ModelHealthMonitor(model_service=model_service)
             
             # Get comprehensive health report
             health_report = health_monitor.get_comprehensive_health_report(model_service)
@@ -342,11 +342,11 @@ def register_routes(app):
         API endpoint for model health data (for real-time updates).
         """
         try:
-            # Initialize model health monitor
-            health_monitor = ModelHealthMonitor()
-            
             # Get services from app context
             model_service = getattr(current_app, 'model_service', None)
+            
+            # Initialize model health monitor with model service
+            health_monitor = ModelHealthMonitor(model_service=model_service)
             
             # Get comprehensive health report
             health_report = health_monitor.get_comprehensive_health_report(model_service)

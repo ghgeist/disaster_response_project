@@ -463,12 +463,13 @@ class ModelService:
 class ModelHealthMonitor:
     """Monitor model health, performance, and system metrics."""
     
-    def __init__(self, base_dir: Path = None):
-        """Initialize monitor with base directory."""
+    def __init__(self, base_dir: Path = None, model_service: ModelService = None):
+        """Initialize monitor with base directory and optional model service."""
         self.base_dir = base_dir or Path(__file__).resolve().parent.parent
         self.model_dir = self.base_dir / "model"
         self.experiments_dir = self.base_dir / "experiments"
         self.data_dir = self.base_dir / "data" / "04_fct"
+        self.model_service = model_service
         
     def get_model_files(self) -> List[Dict[str, Any]]:
         """Get information about all model files in the system."""
@@ -527,8 +528,17 @@ class ModelHealthMonitor:
     
     def get_current_model_status(self) -> Dict[str, Any]:
         """Get status of the currently active production model."""
-        # Use the configured model path instead of hardcoded classifier.pkl
-        main_model_path = self.model_path
+        # Find the most recent model file in the model directory
+        model_files = list(self.model_dir.glob("*.pkl"))
+        if not model_files:
+            return {
+                'status': 'missing',
+                'error': 'No model files found in model directory',
+                'path': str(self.model_dir)
+            }
+        
+        # Get the most recent model file
+        main_model_path = max(model_files, key=lambda p: p.stat().st_mtime)
         
         if not main_model_path.exists():
             return {
@@ -538,11 +548,17 @@ class ModelHealthMonitor:
             }
         
         try:
-            # Use ModelService's load_model method to ensure compatibility
-            # This includes the module compatibility layer and proper error handling
-            start_time = time.time()
-            model = self.load_model()
-            load_time = time.time() - start_time
+            # Use ModelService if available, otherwise load directly
+            if self.model_service and self.model_service.model_path == main_model_path:
+                start_time = time.time()
+                model = self.model_service.load_model()
+                load_time = time.time() - start_time
+            else:
+                # Create a temporary ModelService for loading
+                temp_service = ModelService(main_model_path)
+                start_time = time.time()
+                model = temp_service.load_model()
+                load_time = time.time() - start_time
             
             return {
                 'status': 'healthy',
