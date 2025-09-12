@@ -33,6 +33,10 @@ class Config:
     # Model settings
     MODEL_FILENAME = 'disaster_rf_v1-2-0_prod_2025-09-11.pkl'
     MODEL_PATH = MODELS_DIR / MODEL_FILENAME
+    
+    # Google Drive model configuration
+    # Production: REQUIRED - Model downloaded from Google Drive
+    # Development: OPTIONAL - Falls back to local model if not set
     GDRIVE_MODEL_ID = os.environ.get('GDRIVE_MODEL_ID')
     
     # Logging settings
