@@ -2,8 +2,8 @@
 Flask application for Disaster Response message classification.
 A clean, scalable portfolio project.
 """
-from flask import Flask
-from flask_wtf.csrf import CSRFProtect
+from flask import Flask, render_template, request
+from flask_wtf.csrf import CSRFProtect, CSRFError
 
 from .config import Config
 from .routes import register_routes
@@ -47,6 +47,25 @@ def create_app(config_class=Config):
     
     # Initialize Flask-WTF CSRF protection
     CSRFProtect(app)
+
+    # CSRF error handler for better diagnostics and UX
+    @app.errorhandler(CSRFError)
+    def handle_csrf_error(e):
+        # Log detailed CSRF failure context
+        reason = getattr(e, 'reason', 'unknown')
+        description = getattr(e, 'description', str(e))
+        has_session_cookie = 'session' in request.cookies
+        app.logger.warning(
+            "CSRF error: %s; reason=%s; method=%s; path=%s; referrer=%s; origin=%s; has_session_cookie=%s",
+            description,
+            reason,
+            request.method,
+            request.path,
+            request.referrer,
+            request.headers.get('Origin'),
+            has_session_cookie,
+        )
+        return render_template('error.html', message="Your session expired or the form is invalid. Please refresh and try again."), 400
     
     # Initialize services
     init_services(app)

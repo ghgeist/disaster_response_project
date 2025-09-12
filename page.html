@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en" class="dark"> <!-- Set dark mode as default -->
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Signal Storm - Disaster Message Classification</title>
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+
+    <!-- Tailwind CSS - Static build for production -->
+    <link rel="stylesheet" href="/static/css/tailwind.css">
+
+    <!-- Custom styles for accessibility utilities -->
+    <style>
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+    </style>
+
+    <!-- jQuery and Plotly.js for charts -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
+</head>
+
+<body class="bg-brand-charcoal text-gray-200 font-sans">
+
+<!-- Navigation Bar -->
+<nav class="bg-brand-slate shadow-md">
+    <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+        <a class="text-2xl font-bold text-white hover:text-brand-accent-blue" href="/">
+            Signal Storm <span role="img" aria-label="Tornado">🌪️</span>
+        </a>
+        <!-- Mobile Menu Button -->
+        <div class="md:hidden">
+            <button id="mobile-menu-button" class="text-white rounded-md p-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+            </button>
+        </div>
+        <!-- Desktop Menu -->
+        <div class="hidden md:flex space-x-4">
+            <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="https://www.linkedin.com/in/grantgeist/" target="_blank" rel="noopener noreferrer">Contact</a>
+            <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="https://github.com/geista" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </div>
+    </div>
+    <!-- Mobile Menu intentionally removed to avoid duplicate links -->
+</nav>
+
+<!-- Main Content Area -->
+<main class="container mx-auto px-6 py-8">
+
+    <!-- Flash Messages -->
+    
+    
+    
+        
+    
+
+
+    <!-- Page-specific content goes here -->
+    
+    <!-- Hero Section -->
+    <div class="text-center mb-12">
+        <h1 class="text-4xl md:text-5xl font-extrabold text-white mb-3">
+            Signal Storm: Cutting Through Chaos for Cries of Help
+        </h1>
+        <p class="text-lg text-gray-400 max-w-3xl mx-auto">
+            An AI-powered tool that triages disaster messages in real time, so first responders can focus on what matters most.
+        </p>
+    </div>
+
+    <!-- Classifier Input Form -->
+    <div class="max-w-3xl mx-auto mb-12">
+        
+        <form action="/go" method="post" class="w-full">
+            <input id="csrf_token" name="csrf_token" type="hidden" value="ImFiMmVkM2RhNzA2OGZhMTI1YWU4YWJkYjRiM2MwZjk3MGM1OGY0NDEi.aMQ1jg.kav4C56Y-UVhQmc9sQubWItSbUE">
+            <div class="bg-brand-slate p-6 rounded-lg shadow-lg">
+                
+    <div class="form-group mb-4 ">
+        <label class="block text-sm font-medium text-gray-300 mb-2" for="query">Emergency Message</label>
+        <textarea aria-describedby="query-help" class="w-full bg-gray-700 text-white placeholder-gray-400 border border-gray-600 rounded-md py-3 px-4 focus:outline-none focus:ring-2 focus:ring-brand-accent-blue focus:border-transparent " id="query" maxlength="1000" minlength="3" name="query" placeholder="Enter an emergency message..." required rows="3">
+</textarea>
+        
+        
+            <p class="text-xs text-gray-400 mt-1" id="query-help">Enter a message about a disaster or emergency situation. The AI will analyze and categorize it for first responders.</p>
+        
+        
+        
+    </div>
+
+                <div class="flex justify-end">
+                    
+    <div class="form-group">
+        <input class="w-full sm:w-auto bg-brand-accent-blue hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue " id="submit" name="submit" type="submit" value="Analyze Message">
+    </div>
+
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="container mx-auto">
+        <!-- Main content block for visualizations -->
+        <div class="text-center my-8 border-t border-gray-700 pt-8">
+            <h2 class="text-3xl font-bold text-white">Understanding the Data Landscape</h2>
+        </div>
+
+        <!-- Container for Plotly charts (first two charts only) -->
+        
+        <div class="grid grid-cols-1 gap-8">
+            
+                <div id="graph-0" class="bg-brand-slate p-4 rounded-lg shadow-lg" style="width: 100%; height: 500px;"></div>
+                
+                <p class="text-sm text-gray-400 text-center max-w-2xl mx-auto -mt-2">
+                    Direct messages dominate disaster communications. Bars show counts by source, stacked by disaster-related vs not. The predominance of direct messages underscores the need to triage individual cries for help.
+                </p>
+                
+            
+                <div id="graph-1" class="bg-brand-slate p-4 rounded-lg shadow-lg" style="width: 100%; height: 500px;"></div>
+                
+                <p class="text-sm text-gray-400 text-center max-w-2xl mx-auto -mt-2">
+                    Among disaster-related direct messages, requests for aid are far more common than offers; direct reports are frequent. The model must reliably identify these requests.
+                </p>
+                
+            
+        </div>
+        
+    </div>
+
+    <!-- How It Works Section -->
+    <section class="bg-brand-slate mt-16 py-12 rounded-lg">
+        <div class="container mx-auto px-6 text-center">
+            <h2 class="text-3xl font-bold text-white mb-8">How It Works</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="bg-brand-charcoal p-8 rounded-lg shadow-lg border border-gray-700 hover:border-brand-accent-blue transition-all duration-300">
+                    <h3 class="text-xl font-bold mb-4 text-brand-accent-blue">Data Cleaning</h3>
+                    <p class="text-gray-300 leading-relaxed">Merge messages and categories, remove ambiguities and duplicates, and load into a database for a solid training set.</p>
+                </div>
+                <div class="bg-brand-charcoal p-8 rounded-lg shadow-lg border border-gray-700 hover:border-brand-accent-blue transition-all duration-300">
+                    <h3 class="text-xl font-bold mb-4 text-brand-accent-blue">Feature Extraction (TF-IDF)</h3>
+                    <p class="text-gray-300 leading-relaxed">Custom tokenizer normalizes text and TF-IDF emphasizes critical words while downweighting common terms.</p>
+                </div>
+                <div class="bg-brand-charcoal p-8 rounded-lg shadow-lg border border-gray-700 hover:border-brand-accent-blue transition-all duration-300">
+                    <h3 class="text-xl font-bold mb-4 text-brand-accent-blue">Multi-Label Model</h3>
+                    <p class="text-gray-300 leading-relaxed">A MultiOutput Random Forest tags each message with all relevant categories across 36 disaster needs.</p>
+                </div>
+            </div>
+        </div>
+        <!-- Performance Deep Dive with embedded chart -->
+        <div class="container mx-auto px-6 text-center mt-12">
+            <h2 class="text-2xl font-bold text-white mb-4">Model Performance Deep Dive</h2>
+            <p class="text-sm text-gray-300 max-w-xl mx-auto mb-6">
+                Baseline vs Optimized: precision improves slightly, but recall drops. In disasters, missing real help messages is costly.
+            </p>
+            
+            <!-- Performance chart container -->
+            
+            <div class="max-w-4xl mx-auto">
+                <div id="graph-2" class="bg-brand-charcoal p-4 rounded-lg shadow-lg mx-auto" style="width: 100%; height: 500px;"></div>
+            </div>
+            
+            
+            <p class="text-xs text-gray-500 text-center mt-4 italic">
+                Blue = Baseline. Orange = Optimized. Notice the precision vs recall trade-off.
+            </p>
+        </div>
+    </section>
+
+
+</main>
+
+<!-- Footer -->
+<footer class="bg-brand-slate mt-4 py-6">
+    <div class="container mx-auto px-6 text-center text-gray-400">
+        <p>&copy; 2024 Signal Storm Project. A portfolio piece by Grant Geist.</p>
+    </div>
+</footer>
+
+<!-- Page-specific scripts -->
+
+
+<script type="text/javascript">
+    // Simple script to toggle mobile menu
+    document.addEventListener('DOMContentLoaded', function() {
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        if (mobileMenuButton) {
+            mobileMenuButton.addEventListener('click', function() {
+                var menu = document.getElementById('mobile-menu');
+                menu.classList.toggle('hidden');
+            });
+        }
+    });
+    </script>
+
+<!-- Script for Plotly graphs -->
+<script type="text/javascript">
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof Plotly === 'undefined') {
+            console.error('Plotly.js is not loaded. Please check the CDN link.');
+            return;
+        }
+
+        try {
+            const graphs = [{"data": [{"marker": {"color": "#118ab2"}, "name": "Not Related", "orientation": "h", "x": [305, 3452, 2364], "y": ["social", "direct", "news"], "type": "bar"}, {"marker": {"color": "#06d6a0"}, "name": "Related", "orientation": "h", "x": [2053, 7182, 10671], "y": ["social", "direct", "news"], "type": "bar"}], "layout": {"legend": {"font": {"color": "#E2E8F0"}, "orientation": "h", "yanchor": "top", "y": -0.2, "xanchor": "center", "x": 0.5}, "margin": {"b": 50, "l": 80, "r": 50, "t": 80}, "paper_bgcolor": "#1A202C", "plot_bgcolor": "#1A202C", "title": {"font": {"color": "#E2E8F0"}, "text": "Message Genre Distribution"}, "xaxis": {"color": "#A0AEC0", "gridcolor": "#2D3748", "title": {"text": "Message Count"}}, "yaxis": {"color": "#A0AEC0", "gridcolor": "#2D3748", "title": {"text": "Genre"}}, "barmode": "stack"}}, {"data": [{"marker": {"color": "#06d6a0"}, "name": "Count", "orientation": "h", "x": [46, 504, 2935, 3689], "y": ["offer", "direct_report", "other", "request"], "type": "bar"}], "layout": {"legend": {"font": {"color": "#E2E8F0"}}, "margin": {"b": 50, "l": 100, "r": 50, "t": 80, "pad": 4}, "paper_bgcolor": "#1A202C", "plot_bgcolor": "#1A202C", "title": {"font": {"color": "#E2E8F0"}, "text": "Direct Message Types"}, "xaxis": {"color": "#A0AEC0", "gridcolor": "#2D3748", "title": {"text": "Number of Messages"}}, "yaxis": {"color": "#A0AEC0", "gridcolor": "#2D3748", "title": {"text": "Message Type"}, "automargin": true}}}, {"data": [{"marker": {"color": "#118ab2"}, "name": "Baseline Model", "orientation": "v", "x": ["Precision", "Recall", "F1"], "y": [75.0, 8.0, 14.0], "type": "bar"}, {"marker": {"color": "#06d6a0"}, "name": "Optimized Model", "orientation": "v", "x": ["Precision", "Recall", "F1"], "y": [78.0, 4.0, 7.0], "type": "bar"}], "layout": {"legend": {"font": {"color": "#E2E8F0"}, "orientation": "h", "x": 0.5, "xanchor": "center"}, "margin": {"b": 60, "l": 60, "r": 40, "t": 60}, "paper_bgcolor": "#1A202C", "plot_bgcolor": "#1A202C", "title": {"font": {"color": "#E2E8F0"}, "text": "Baseline vs Optimized Model Performance"}, "xaxis": {"color": "#A0AEC0", "gridcolor": "#2D3748", "title": {"text": ""}}, "yaxis": {"color": "#A0AEC0", "gridcolor": "#2D3748", "title": {"text": "Score (%)"}, "rangemode": "tozero"}, "barmode": "group"}}];
+            const ids = ["graph-0", "graph-1", "graph-2"];
+            
+            // Validate that we have valid data
+            if (!graphs || !Array.isArray(graphs)) {
+                console.error('Invalid graphs data:', graphs);
+                return;
+            }
+            if (!ids || !Array.isArray(ids)) {
+                console.error('Invalid ids data:', ids);
+                return;
+            }
+            
+            console.log('Graphs data:', graphs);
+            console.log('Graph IDs:', ids);
+
+            for (let i in graphs) {
+                if (graphs[i] && ids[i]) {
+                    console.log(`Creating plot for ${ids[i]}`);
+                    const element = document.getElementById(ids[i]);
+                    if (element) {
+                        Plotly.newPlot(element, graphs[i].data, graphs[i].layout, {
+                            responsive: true,
+                            displayModeBar: true,
+                            displaylogo: false
+                        });
+                        
+                        // Make plots responsive to window resize
+                        window.addEventListener('resize', function() {
+                            Plotly.Plots.resize(element);
+                        });
+                    } else {
+                        console.error(`Element with id ${ids[i]} not found`);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error parsing or plotting graph JSON:', error);
+        }
+    });
+</script>
+
+
+</body>
+</html>
