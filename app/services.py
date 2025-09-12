@@ -527,7 +527,8 @@ class ModelHealthMonitor:
     
     def get_current_model_status(self) -> Dict[str, Any]:
         """Get status of the currently active production model."""
-        main_model_path = self.model_dir / "classifier.pkl"
+        # Use the configured model path instead of hardcoded classifier.pkl
+        main_model_path = self.model_path
         
         if not main_model_path.exists():
             return {
@@ -537,9 +538,10 @@ class ModelHealthMonitor:
             }
         
         try:
-            # Load model and get basic info
+            # Use ModelService's load_model method to ensure compatibility
+            # This includes the module compatibility layer and proper error handling
             start_time = time.time()
-            model = joblib.load(main_model_path)
+            model = self.load_model()
             load_time = time.time() - start_time
             
             return {
