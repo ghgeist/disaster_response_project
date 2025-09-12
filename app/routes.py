@@ -158,135 +158,95 @@ def register_routes(app):
             logger.error("Unexpected error in index route: %s", e)
             abort(500, description="An unexpected error occurred. Please try again later.")
 
-
-def _process_message_query(query: str):
-    """
-    Sanitizes, validates, and predicts the classification for a given query.
-    
-    Args:
-        query (str): The user's message.
-        
-    Returns:
-        dict or None: A dictionary of classification results, or None if validation fails.
-    """
-    # Sanitize and validate user input
-    sanitized_query = sanitize_input(query)
-    is_valid, error_message = validate_message_input(sanitized_query)
-    
-    if not is_valid:
-        flash(error_message, 'error')
-        return None
-
-    # Get model service and predict
-    model_service = current_app.model_service
-    classification_results = model_service.predict(sanitized_query)
-    
-    # Flash success message
-    flash('Message analyzed successfully!', 'success')
-    
-    return classification_results
-
-
-    @app.route('/go', methods=['GET', 'POST'])
+    @app.route('/go', methods=['GET', 'POST'], strict_slashes=False)
     def go():
         """
         Handle user query and display model classification results.
-        Supports both GET requests with query parameters (backward compatibility) 
-        and POST requests with form validation.
+        - POST: Validates form data and shows classification. On failure, re-renders
+          the main page with errors and existing visualizations.
+        - GET: Supports legacy requests with a 'query' parameter for backward compatibility.
         """
         form = MessageForm()
         
-        # Handle GET requests (backward compatibility)
+        # Handle legacy GET requests for backward compatibility
         if request.method == 'GET':
             query = request.args.get('query', '')
             if not query:
-                # No query parameter, redirect to index
                 return redirect(url_for('index'))
             
-            # Process query parameter directly
             try:
-                # Get services from app context
                 model_service = current_app.model_service
-                
-                # Sanitize and validate user input
                 query = sanitize_input(query)
                 is_valid, error_message = validate_message_input(query)
                 
                 if not is_valid:
                     flash(error_message, 'error')
-                classification_results = _process_message_query(query)
-                if classification_results is None:
                     return redirect(url_for('index'))
 
-                # Use model to predict classification for query
                 classification_results = model_service.predict(query)
-                
-                # Flash success message
                 flash('Message analyzed successfully!', 'success')
 
-                # Render results
-                return render_template(
-                    'go.html',
-                    query=sanitize_input(query),
-                    classification_result=classification_results,
-                    graphJSON="[]",  # Empty graphs array for go.html
-                    ids=[]           # Empty ids array for go.html
-                )
-
-            except (ValueError, RuntimeError) as e:
-                logger.error("Model prediction error in go route (GET): %s", e)
-                flash("Error processing message. Please try again.", 'error')
-                return redirect(url_for('index'))
-            except Exception as e:
-                logger.error("Unexpected error in go route (GET): %s", e)
-                flash("An unexpected error occurred. Please try again.", 'error')
-                return redirect(url_for('index'))
-        
-        # Handle POST requests with form validation
-        if form.validate_on_submit():
-            try:
-                # Get services from app context
-                model_service = current_app.model_service
-                
-                # Get and sanitize user input
-                query = sanitize_input(form.query.data)
-                
-                # Additional validation (redundant but safe)
-                is_valid, error_message = validate_message_input(query)
-                if not is_valid:
-                    flash(error_message, 'error')
-                    return render_template('master.html', form=form, ids=[], graphJSON="[]", descriptions=[])
-
-                # Use model to predict classification for query
-                classification_results = model_service.predict(query)
-                
-                # Flash success message
-                flash('Message analyzed successfully!', 'success')
-
-                # Render results
                 return render_template(
                     'go.html',
                     query=query,
-                    classification_result=classification_results,
-                    graphJSON="[]",  # Empty graphs array for go.html
-                    ids=[]           # Empty ids array for go.html
+                    classification_result=classification_results
                 )
-
             except (ValueError, RuntimeError) as e:
-                logger.error("Model prediction error in go route (POST): %s", e)
+                logger.error("Model prediction error in go route (GET): %s", e)
                 flash("Error processing message. Please try again.", 'error')
-                return render_template('master.html', form=form, ids=[], graphJSON="[]", descriptions=[])
             except Exception as e:
-                logger.error("Unexpected error in go route (POST): %s", e)
+                logger.error("Unexpected error in go route (GET): %s", e)
                 flash("An unexpected error occurred. Please try again.", 'error')
-                return render_template('master.html', form=form, ids=[], graphJSON="[]", descriptions=[])
-        else:
-            # Form validation failed - show errors
+            return redirect(url_for('index'))
+        
+        # This point is only reached for POST requests.
+        if form.validate_on_submit():
+            query = sanitize_input(form.query.data)
+            is_valid, error_message = validate_message_input(query)
+
+            if is_valid:
+                try:
+                    model_service = current_app.model_service
+                    classification_results = model_service.predict(query)
+                    flash('Message analyzed successfully!', 'success')
+
+                    return render_template(
+                        'go.html',
+                        query=query,
+                        classification_result=classification_results
+                    )
+                except (ValueError, RuntimeError) as e:
+                    logger.exception("Model prediction failed in /go route (POST). See traceback:")
+                    flash("Error processing message. Please try again.", 'error')
+                    return redirect(url_for('index'))
+                except Exception as e:
+                    logger.exception("An unexpected error occurred in /go route (POST). See traceback:")
+                    flash("An unexpected error occurred. Please try again.", 'error')
+                    return redirect(url_for('index'))
+            else:
+                # Custom validation failed. Add the error to the form's error list
+                # so it can be displayed to the user on the re-rendered main page.
+                form.query.errors = (error_message,)
+
+        # Fall-through for POST requests with validation errors (either from WTForms
+        # or our custom validation). Re-render the main page with errors.
+        # We re-render the main page with the form to show errors and preserve input.
+        try:
             for field, errors in form.errors.items():
                 for error in errors:
                     flash(f"{form[field].label.text}: {error}", 'error')
             
-            # Re-render form with errors and preserve user input
+            # To re-render the main page, we need to regenerate the visualizations.
+            data_service = current_app.data_service
+            chart_generator = ChartGenerator()
+            graphs, descriptions = _create_basic_visualizations(data_service, chart_generator)
+            graphs, descriptions = _add_performance_visualization(graphs, descriptions)
+            graph_json, ids = _encode_graphs_to_json(graphs)
+
+            return render_template('master.html', form=form, ids=ids, graphJSON=graph_json, descriptions=descriptions)
+        except Exception as e:
+            logger.error("Error re-rendering index page on form validation failure: %s", e)
+            flash("An error occurred while processing your request.", 'error')
             return render_template('master.html', form=form, ids=[], graphJSON="[]", descriptions=[])
 
     @app.route('/health')

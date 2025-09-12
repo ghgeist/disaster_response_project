@@ -31,7 +31,7 @@ class Config:
     DATABASE_URL = f'sqlite:///{DATABASE_PATH}'
     
     # Model settings
-    MODEL_FILENAME = 'classifier.pkl'
+    MODEL_FILENAME = 'disaster_rf_v1-2-0_prod_2025-09-11.pkl'
     MODEL_PATH = MODELS_DIR / MODEL_FILENAME
     GDRIVE_MODEL_ID = os.environ.get('GDRIVE_MODEL_ID')
     

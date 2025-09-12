@@ -153,8 +153,9 @@ def validate_environment() -> dict:
     else:
         validation_results['info'].append(f"Database file found: {db_file}")
     
-    # Check model file
-    model_file = models_dir / 'classifier.pkl'
+    # Check model file - use the configured model filename
+    from .config import Config
+    model_file = Config.MODEL_PATH
     if not model_file.exists():
         validation_results['warnings'].append(f"Model file not found: {model_file}")
         # Check if Google Drive ID is configured for download

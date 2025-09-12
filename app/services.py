@@ -171,20 +171,49 @@ class ModelService:
             # function. When 'joblib.load' (which uses pickle) unpickles the
             # model, it needs to find this function in the same namespace it was
             # in during saving. The following lines ensure the function is
-            # available in the '__main__' scope, which is where pickle often
-            # looks for it.
+            # available.
             import sys
             import os
             import pickle
+            import types  # Required for creating fake modules
             
             # 1. Add the project's 'src' directory to the Python path to make
             #    the 'disasterproject' module importable.
             sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
-            from disasterproject.data.preprocessor import tokenize
             
-            # 2. Inject the imported 'tokenize' function into the '__main__' module.
-            import __main__
-            __main__.tokenize = tokenize
+            # 2. Import the tokenize function from its *actual* current location.
+            from disasterproject.data.preprocessor import tokenize
+
+            # 3. Create a fake module structure in sys.modules to trick the unpickler.
+            #    This is necessary because the model was pickled with a reference to
+            #    'disaster_classifier' but the code has been refactored to 'disasterproject'.
+            #    We create a fake 'disaster_classifier.data.preprocessor' module in memory,
+            #    establish proper parent-child relationships, and point the tokenize 
+            #    attribute to our imported function. This allows the unpickler to resolve the old path.
+            if 'disaster_classifier.data.preprocessor' not in sys.modules:
+                logger.info("Creating fake module structure for disaster_classifier compatibility")
+                
+                # Create fake parent module 'disaster_classifier'
+                disaster_classifier_mod = types.ModuleType('disaster_classifier')
+                sys.modules['disaster_classifier'] = disaster_classifier_mod
+                
+                # Create fake child module 'disaster_classifier.data' and link it
+                data_mod = types.ModuleType('disaster_classifier.data')
+                sys.modules['disaster_classifier.data'] = data_mod
+                disaster_classifier_mod.data = data_mod
+                
+                # Create the target module, attach the real function, and link it
+                preprocessor_module = types.ModuleType('disaster_classifier.data.preprocessor')
+                preprocessor_module.tokenize = tokenize
+                sys.modules['disaster_classifier.data.preprocessor'] = preprocessor_module
+                data_mod.preprocessor = preprocessor_module
+                
+                # Also inject tokenize into __main__ as additional fallback
+                import __main__
+                if not hasattr(__main__, 'tokenize'):
+                    __main__.tokenize = tokenize
+                
+                logger.info("Successfully created fake module structure for model compatibility")
             
             # Ensure model exists locally
             if not self.model_path.exists():
@@ -361,23 +390,39 @@ class ModelService:
             raise RuntimeError(f"Prediction failed: {e}") from e
 
     def _load_artifacts(self) -> None:
-        """Load thresholds.json and label_order.json from the model directory if present."""
+        """Load thresholds and label_order artifacts from the model directory if present."""
         try:
             model_dir = self.model_path.parent
-            thresholds_path = model_dir / "thresholds.json"
-            label_order_path = model_dir / "label_order.json"
+            model_stem = self.model_path.stem  # Get filename without .pkl extension
             
-            if thresholds_path.exists():
-                with open(thresholds_path, "r", encoding="utf-8") as f:
-                    self._thresholds = json.load(f)
-            else:
-                self._thresholds = None
-                
-            if label_order_path.exists():
-                with open(label_order_path, "r", encoding="utf-8") as f:
-                    self._label_order = json.load(f)
-            else:
-                self._label_order = None
+            # Try standardized naming first, then fall back to legacy naming
+            thresholds_candidates = [
+                model_dir / f"{model_stem}_thresholds.json",  # Standardized
+                model_dir / "thresholds.json"                 # Legacy
+            ]
+            
+            label_order_candidates = [
+                model_dir / f"{model_stem}_labels.json",      # Standardized  
+                model_dir / "label_order.json"                # Legacy
+            ]
+            
+            # Load thresholds
+            self._thresholds = None
+            for thresholds_path in thresholds_candidates:
+                if thresholds_path.exists():
+                    with open(thresholds_path, "r", encoding="utf-8") as f:
+                        self._thresholds = json.load(f)
+                    logger.info(f"Loaded thresholds from {thresholds_path.name}")
+                    break
+                    
+            # Load label order
+            self._label_order = None
+            for label_order_path in label_order_candidates:
+                if label_order_path.exists():
+                    with open(label_order_path, "r", encoding="utf-8") as f:
+                        self._label_order = json.load(f)
+                    logger.info(f"Loaded label order from {label_order_path.name}")
+                    break
         except Exception as exc:
             logger.warning(f"Failed loading model artifacts (thresholds/label_order): {exc}")
             self._thresholds = None
