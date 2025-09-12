@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Model Health Dashboard - Signal Storm</title>
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+
+    <!-- Tailwind CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
+    
+    <!-- Chart.js for visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Custom styles -->
+    <style>
+        .status-healthy { @apply bg-green-600 text-white; }
+        .status-unhealthy { @apply bg-red-600 text-white; }
+        .status-warning { @apply bg-yellow-600 text-black; }
+        .status-missing { @apply bg-gray-600 text-white; }
+        .metric-card { @apply bg-brand-slate rounded-lg p-4 shadow-lg; }
+        .chart-container { @apply bg-brand-slate rounded-lg p-4 h-64; }
+    </style>
+</head>
+
+<body class="bg-brand-charcoal text-gray-200 font-sans">
+
+<!-- Navigation Bar -->
+<nav class="bg-brand-slate shadow-md">
+    <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+        <a class="text-2xl font-bold text-white hover:text-brand-accent-blue" href="/">
+            Signal Storm <span role="img" aria-label="Tornado">🌪️</span>
+        </a>
+        <div class="flex space-x-4">
+            <a href="/" class="text-white hover:text-brand-accent-blue px-3 py-2 rounded-md">Home</a>
+            <a href="/admin/model-health" class="text-brand-accent-blue px-3 py-2 rounded-md bg-brand-charcoal">Model Health</a>
+        </div>
+    </div>
+</nav>
+
+<!-- Main Content -->
+<div class="container mx-auto px-6 py-8">
+    
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-white mb-2">Model Performance Dashboard</h1>
+        <p class="text-gray-300">Real-time monitoring of disaster response ML models</p>
+        <div class="mt-4 text-sm text-gray-400">
+            Last updated: <span id="last-updated">{{ health_report.timestamp[:19] if health_report.timestamp else 'Unknown' }}</span>
+            <button id="refresh-btn" class="ml-4 px-3 py-1 bg-brand-accent-blue text-white rounded hover:bg-blue-600">
+                🔄 Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Status Overview -->
+    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-8">
+        
+        <!-- Current Model Status -->
+        <div class="metric-card">
+            <h3 class="text-lg font-semibold mb-2">Production Model</h3>
+            <div class="flex items-center">
+                <span id="model-status" class="px-3 py-1 rounded-full text-sm font-medium 
+                    {% if health_report.current_model.status == 'healthy' %}status-healthy
+                    {% elif health_report.current_model.status == 'missing' %}status-missing
+                    {% else %}status-unhealthy{% endif %}">
+                    {{ health_report.current_model.status|title }}
+                </span>
+                {% if health_report.current_model.load_time_ms %}
+                <span class="ml-2 text-sm text-gray-400">{{ health_report.current_model.load_time_ms }}ms</span>
+                {% endif %}
+            </div>
+            <div class="mt-2 text-sm text-gray-400">
+                {% if health_report.current_model.model_type %}
+                Type: {{ health_report.current_model.model_type }}
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Model Files Count -->
+        <div class="metric-card">
+            <h3 class="text-lg font-semibold mb-2">Model Files</h3>
+            <div class="text-2xl font-bold text-brand-accent-blue">
+                {{ health_report.model_files|length }}
+            </div>
+            <div class="text-sm text-gray-400">Total models found</div>
+        </div>
+
+        <!-- Performance Metrics -->
+        <div class="metric-card">
+            <h3 class="text-lg font-semibold mb-2">Performance Data</h3>
+            <div class="text-2xl font-bold {% if health_report.performance_metrics.available %}text-green-400{% else %}text-gray-400{% endif %}">
+                {% if health_report.performance_metrics.available %}✓{% else %}✗{% endif %}
+            </div>
+            <div class="text-sm text-gray-400">
+                {% if health_report.performance_metrics.available %}Available{% else %}Not Available{% endif %}
+            </div>
+        </div>
+
+        <!-- Prediction Samples -->
+        <div class="metric-card">
+            <h3 class="text-lg font-semibold mb-2">Test Predictions</h3>
+            <div class="text-2xl font-bold text-brand-accent-blue">
+                {{ health_report.prediction_samples.samples|length if health_report.prediction_samples.samples else 0 }}
+            </div>
+            <div class="text-sm text-gray-400">Sample tests run</div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    {% if health_report.performance_metrics.available and health_report.performance_metrics.comparison %}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        
+        <!-- Performance Comparison Chart -->
+        <div class="chart-container">
+            <h3 class="text-lg font-semibold mb-4 text-white">Model Performance Comparison</h3>
+            <canvas id="performance-chart"></canvas>
+        </div>
+
+        <!-- F1 Score Trend -->
+        <div class="chart-container">
+            <h3 class="text-lg font-semibold mb-4 text-white">F1 Score by Model</h3>
+            <canvas id="f1-chart"></canvas>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Model Files Table -->
+    <div class="bg-brand-slate rounded-lg p-6 mb-8">
+        <h2 class="text-xl font-bold text-white mb-4">Model Files</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-600">
+                        <th class="text-left py-2 text-gray-300">Name</th>
+                        <th class="text-left py-2 text-gray-300">Type</th>
+                        <th class="text-left py-2 text-gray-300">Size</th>
+                        <th class="text-left py-2 text-gray-300">Modified</th>
+                        <th class="text-left py-2 text-gray-300">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for model in health_report.model_files %}
+                    <tr class="border-b border-gray-700 hover:bg-gray-700">
+                        <td class="py-2 font-mono">{{ model.name }}</td>
+                        <td class="py-2">
+                            <span class="px-2 py-1 rounded text-xs 
+                                {% if model.type == 'production' %}bg-blue-600 text-white{% else %}bg-gray-600 text-white{% endif %}">
+                                {{ model.type }}
+                            </span>
+                        </td>
+                        <td class="py-2">{{ model.size_mb }} MB</td>
+                        <td class="py-2 text-gray-400">{{ model.last_modified_str }}</td>
+                        <td class="py-2">
+                            {% if model.loadable %}
+                                <span class="text-green-400">✓ OK</span>
+                            {% else %}
+                                <span class="text-red-400">✗ Error</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not health_report.model_files %}
+                    <tr>
+                        <td colspan="5" class="py-4 text-center text-gray-400">No model files found</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Prediction Samples -->
+    {% if health_report.prediction_samples.samples %}
+    <div class="bg-brand-slate rounded-lg p-6 mb-8">
+        <h2 class="text-xl font-bold text-white mb-4">Recent Predictions</h2>
+        <div class="space-y-4">
+            {% for sample in health_report.prediction_samples.samples %}
+            <div class="border border-gray-600 rounded p-4">
+                <div class="font-medium text-gray-200 mb-2">{{ sample.message }}</div>
+                {% if sample.error %}
+                <div class="text-red-400 text-sm">Error: {{ sample.error }}</div>
+                {% else %}
+                <div class="flex justify-between text-sm text-gray-400">
+                    <span>{{ sample.positive_predictions }}/{{ sample.total_categories }} categories predicted</span>
+                    <span>{{ sample.prediction_time_ms }}ms response time</span>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Performance Metrics Details -->
+    {% if health_report.performance_metrics.available %}
+    <div class="bg-brand-slate rounded-lg p-6">
+        <h2 class="text-xl font-bold text-white mb-4">Performance Metrics</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <!-- Baseline Metrics -->
+            {% if health_report.performance_metrics.baseline_metrics %}
+            <div class="border border-gray-600 rounded p-4">
+                <h3 class="font-semibold text-gray-200 mb-2">Baseline Model</h3>
+                <div class="space-y-2 text-sm">
+                    {% for metric, values in health_report.performance_metrics.baseline_metrics.metrics.items() %}
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">{{ metric|title }}:</span>
+                        <span class="text-white">{{ "%.3f"|format(values.mean) }} ± {{ "%.3f"|format(values.std) }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Optimized Metrics -->
+            {% if health_report.performance_metrics.optimized_metrics %}
+            <div class="border border-gray-600 rounded p-4">
+                <h3 class="font-semibold text-gray-200 mb-2">Optimized Model</h3>
+                <div class="space-y-2 text-sm">
+                    {% for metric, values in health_report.performance_metrics.optimized_metrics.metrics.items() %}
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">{{ metric|title }}:</span>
+                        <span class="text-white">{{ "%.3f"|format(values.mean) }} ± {{ "%.3f"|format(values.std) }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<script>
+// Chart.js configuration for dark theme
+Chart.defaults.color = '#d1d5db';
+Chart.defaults.borderColor = '#374151';
+Chart.defaults.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+
+{% if health_report.performance_metrics.available and health_report.performance_metrics.comparison %}
+// Performance Comparison Chart
+const performanceCtx = document.getElementById('performance-chart').getContext('2d');
+new Chart(performanceCtx, {
+    type: 'bar',
+    data: {
+        labels: {{ health_report.performance_metrics.comparison.labels|safe }},
+        datasets: [{
+            label: 'Precision',
+            data: {{ health_report.performance_metrics.comparison.precision|safe }},
+            backgroundColor: 'rgba(34, 197, 94, 0.7)',
+            borderColor: 'rgba(34, 197, 94, 1)',
+            borderWidth: 1
+        }, {
+            label: 'Recall',
+            data: {{ health_report.performance_metrics.comparison.recall|safe }},
+            backgroundColor: 'rgba(59, 130, 246, 0.7)',
+            borderColor: 'rgba(59, 130, 246, 1)',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 100,
+                ticks: {
+                    callback: function(value) {
+                        return value + '%';
+                    }
+                }
+            }
+        },
+        plugins: {
+            legend: {
+                position: 'top',
+            }
+        }
+    }
+});
+
+// F1 Score Chart
+const f1Ctx = document.getElementById('f1-chart').getContext('2d');
+new Chart(f1Ctx, {
+    type: 'line',
+    data: {
+        labels: {{ health_report.performance_metrics.comparison.labels|safe }},
+        datasets: [{
+            label: 'F1 Score',
+            data: {{ health_report.performance_metrics.comparison.f1|safe }},
+            borderColor: 'rgba(168, 85, 247, 1)',
+            backgroundColor: 'rgba(168, 85, 247, 0.1)',
+            fill: true,
+            tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 100,
+                ticks: {
+                    callback: function(value) {
+                        return value + '%';
+                    }
+                }
+            }
+        },
+        plugins: {
+            legend: {
+                display: false
+            }
+        }
+    }
+});
+{% endif %}
+
+// Auto-refresh functionality
+let refreshInterval;
+
+function updateDashboard() {
+    fetch('/api/model-health')
+        .then(response => response.json())
+        .then(data => {
+            // Update timestamp
+            const timestamp = new Date(data.timestamp).toLocaleString();
+            document.getElementById('last-updated').textContent = timestamp;
+            
+            // Update model status
+            const statusElement = document.getElementById('model-status');
+            statusElement.textContent = data.current_model.status.charAt(0).toUpperCase() + data.current_model.status.slice(1);
+            statusElement.className = 'px-3 py-1 rounded-full text-sm font-medium ' + 
+                (data.current_model.status === 'healthy' ? 'status-healthy' :
+                 data.current_model.status === 'missing' ? 'status-missing' : 'status-unhealthy');
+            
+            console.log('Dashboard updated:', timestamp);
+        })
+        .catch(error => {
+            console.error('Error updating dashboard:', error);
+        });
+}
+
+// Refresh button
+document.getElementById('refresh-btn').addEventListener('click', function() {
+    this.innerHTML = '🔄 Refreshing...';
+    updateDashboard();
+    setTimeout(() => {
+        this.innerHTML = '🔄 Refresh';
+    }, 1000);
+});
+
+// Auto-refresh every 30 seconds
+refreshInterval = setInterval(updateDashboard, 30000);
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+    }
+});
+</script>
+
+</body>
+</html>

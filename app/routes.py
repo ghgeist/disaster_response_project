@@ -8,7 +8,7 @@ import plotly
 import sqlalchemy.exc
 import pandas as pd
 
-from .services import load_metric_frames, extract_perf_triplet
+from .services import load_metric_frames, extract_perf_triplet, ModelHealthMonitor
 from .visualizations import ChartGenerator
 from .utils import validate_message_input, sanitize_input
 from .forms import MessageForm
@@ -158,6 +158,35 @@ def register_routes(app):
             logger.error("Unexpected error in index route: %s", e)
             abort(500, description="An unexpected error occurred. Please try again later.")
 
+
+def _process_message_query(query: str):
+    """
+    Sanitizes, validates, and predicts the classification for a given query.
+    
+    Args:
+        query (str): The user's message.
+        
+    Returns:
+        dict or None: A dictionary of classification results, or None if validation fails.
+    """
+    # Sanitize and validate user input
+    sanitized_query = sanitize_input(query)
+    is_valid, error_message = validate_message_input(sanitized_query)
+    
+    if not is_valid:
+        flash(error_message, 'error')
+        return None
+
+    # Get model service and predict
+    model_service = current_app.model_service
+    classification_results = model_service.predict(sanitized_query)
+    
+    # Flash success message
+    flash('Message analyzed successfully!', 'success')
+    
+    return classification_results
+
+
     @app.route('/go', methods=['GET', 'POST'])
     def go():
         """
@@ -185,6 +214,8 @@ def register_routes(app):
                 
                 if not is_valid:
                     flash(error_message, 'error')
+                classification_results = _process_message_query(query)
+                if classification_results is None:
                     return redirect(url_for('index'))
 
                 # Use model to predict classification for query
@@ -196,7 +227,7 @@ def register_routes(app):
                 # Render results
                 return render_template(
                     'go.html',
-                    query=query,
+                    query=sanitize_input(query),
                     classification_result=classification_results,
                     graphJSON="[]",  # Empty graphs array for go.html
                     ids=[]           # Empty ids array for go.html
@@ -224,6 +255,8 @@ def register_routes(app):
                 is_valid, error_message = validate_message_input(query)
                 if not is_valid:
                     flash(error_message, 'error')
+                classification_results = _process_message_query(query)
+                if classification_results is None:
                     return render_template('master.html', form=form, ids=[], graphJSON="[]", descriptions=[])
 
                 # Use model to predict classification for query
@@ -312,6 +345,62 @@ def register_routes(app):
                 'status': 'unhealthy',
                 'error': 'Unexpected system error'
             }, 503
+
+    @app.route('/admin/model-health')
+    def model_health_dashboard():
+        """
+        Model performance monitoring dashboard for admin users.
+        """
+        try:
+            # Initialize model health monitor
+            health_monitor = ModelHealthMonitor()
+            
+            # Get services from app context
+            model_service = getattr(current_app, 'model_service', None)
+            
+            # Get comprehensive health report
+            health_report = health_monitor.get_comprehensive_health_report(model_service)
+            
+            return render_template(
+                'model_health.html', 
+                health_report=health_report,
+                graphJSON="[]",  # Will be populated by JavaScript
+                ids=[]
+            )
+            
+        except Exception as e:
+            logger.error(f"Error in model health dashboard: {e}")
+            return render_template(
+                'error.html', 
+                message="Model health dashboard unavailable", 
+                graphJSON="[]", 
+                ids=[], 
+                form=MessageForm()
+            ), 503
+
+    @app.route('/api/model-health')
+    def model_health_api():
+        """
+        API endpoint for model health data (for real-time updates).
+        """
+        try:
+            # Initialize model health monitor
+            health_monitor = ModelHealthMonitor()
+            
+            # Get services from app context
+            model_service = getattr(current_app, 'model_service', None)
+            
+            # Get comprehensive health report
+            health_report = health_monitor.get_comprehensive_health_report(model_service)
+            
+            return health_report
+            
+        except Exception as e:
+            logger.error(f"Error in model health API: {e}")
+            return {
+                'error': str(e),
+                'timestamp': pd.Timestamp.now().isoformat()
+            }, 500
 
     @app.errorhandler(404)
     def not_found(_error):
