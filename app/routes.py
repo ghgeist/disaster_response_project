@@ -255,8 +255,6 @@ def _process_message_query(query: str):
                 is_valid, error_message = validate_message_input(query)
                 if not is_valid:
                     flash(error_message, 'error')
-                classification_results = _process_message_query(query)
-                if classification_results is None:
                     return render_template('master.html', form=form, ids=[], graphJSON="[]", descriptions=[])
 
                 # Use model to predict classification for query
