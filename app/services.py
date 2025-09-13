@@ -300,27 +300,33 @@ class ModelService:
         
         try:
             category_names = self._get_label_order()
+            probs: List[float] = []
             # Try probability-based thresholding
             try:
                 proba = self._model.predict_proba([text])
                 # predict_proba for MultiOutput returns a list of arrays, one per label
                 # Each array shape: (n_samples, n_classes); we want probability of positive class
                 if isinstance(proba, list) and len(proba) == len(category_names):
-                    probs = []
                     for idx, p in enumerate(proba):
                         if p.shape[1] == 1:
                             # Single column: assume it's the positive class probability
                             prob_val = p[:, 0][0]
                             probs.append(prob_val)
-                            logger.debug(f"Label {idx} ({category_names[idx]}): single column prob={prob_val:.4f}")
+                            logger.debug(
+                                f"Label {idx} ({category_names[idx]}): single column prob={prob_val:.4f}"
+                            )
                         elif p.shape[1] == 2:
                             # Two columns: assume class 1 is positive (standard binary classification)
                             prob_val = p[:, 1][0]
                             probs.append(prob_val)
-                            logger.debug(f"Label {idx} ({category_names[idx]}): two columns prob={prob_val:.4f} (class 1)")
+                            logger.debug(
+                                f"Label {idx} ({category_names[idx]}): two columns prob={prob_val:.4f} (class 1)"
+                            )
                         else:
                             # Unexpected number of columns
-                            logger.warning(f"Unexpected predict_proba shape {p.shape} for label {idx}, falling back to predict")
+                            logger.warning(
+                                f"Unexpected predict_proba shape {p.shape} for label {idx}, falling back to predict"
+                            )
                             raise TypeError(f"Unexpected predict_proba shape {p.shape}")
                 else:
                     # Some wrappers may return ndarray; fallback to simple predict
@@ -332,11 +338,15 @@ class ModelService:
                     labels.append(1 if probs[idx] >= threshold else 0)
                 classification_labels = labels
             except Exception as prob_exc:
-                logger.warning(f"Probability path failed ({prob_exc}); falling back to default predict")
+                logger.warning(
+                    f"Probability path failed ({prob_exc}); falling back to default predict"
+                )
                 classification_labels = self._model.predict([text])[0]
-            
+                probs = []
+
             results = dict(zip(category_names, classification_labels))
-            return results
+            prob_dict = dict(zip(category_names, probs)) if probs else {}
+            return {"labels": results, "probabilities": prob_dict}
             
         except (ValueError, AttributeError) as e:
             logger.error(f"Model prediction input error: {e}")

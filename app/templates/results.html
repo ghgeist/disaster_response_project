@@ -29,8 +29,8 @@
                 {% for category, value in classification_result.items() %}
                     {% if value == 1 %}
                         {% set has_categories = true %}
-                        <span class="bg-brand-accent-amber text-gray-900 text-sm font-bold px-4 py-2 rounded-full shadow-md">
-                            {{ category.replace('_', ' ')|title }}
+                        <span class="bg-brand-accent-amber text-gray-900 text-sm font-bold px-4 py-2 rounded-full shadow-md" title="Confidence: {{ (probabilities.get(category, 0) * 100)|round(1) }}%">
+                            {{ category.replace('_', ' ')|title }} ({{ (probabilities.get(category, 0) * 100)|round(0) }}%)
                         </span>
                     {% endif %}
                 {% endfor %}
@@ -39,6 +39,24 @@
                 {% endif %}
             </div>
         </div>
+
+        {% if top_category %}
+        <div class="mt-6">
+            <p class="text-gray-300">
+                Most confident prediction:
+                <span class="font-bold text-brand-accent-amber">{{ top_category.replace('_', ' ')|title }}</span>
+                ({{ (top_confidence * 100)|round(1) }}% confidence)
+            </p>
+        </div>
+        {% endif %}
+
+        {% if probabilities %}
+        <div class="mt-10">
+            <h4 class="text-lg font-semibold text-gray-400 uppercase tracking-wider mb-3">Confidence by Category</h4>
+            <div id="confidence-chart" class="bg-brand-charcoal p-4 rounded-lg shadow-lg" style="width: 100%; height: 400px;"></div>
+            <p class="text-sm text-gray-400 text-center mt-2">Higher bars indicate model confidence for each category.</p>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Call to action -->
@@ -48,4 +66,33 @@
         </a>
     </div>
 
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{% if probabilities %}
+<script type="text/javascript">
+    document.addEventListener('DOMContentLoaded', function() {
+        const probs = {{ probabilities | tojson | safe }};
+        const entries = Object.entries(probs).sort((a, b) => b[1] - a[1]).slice(0, 5);
+        const categories = entries.map(e => e[0].replace('_', ' '));
+        const values = entries.map(e => Math.round(e[1] * 100));
+        const data = [{
+            x: categories,
+            y: values,
+            type: 'bar',
+            marker: {color: '#FBBF24'}
+        }];
+        const layout = {
+            yaxis: {title: 'Confidence (%)', range: [0, 100]},
+            xaxis: {automargin: true},
+            margin: {t: 30},
+            paper_bgcolor: '#111827',
+            plot_bgcolor: '#111827',
+            font: {color: '#E5E7EB'}
+        };
+        Plotly.newPlot('confidence-chart', data, layout, {responsive: true, displaylogo: false});
+    });
+</script>
+{% endif %}
 {% endblock %}
