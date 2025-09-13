@@ -191,7 +191,6 @@ def register_routes(app):
                 top_confidence = None
                 if probabilities:
                     top_category, top_confidence = max(probabilities.items(), key=lambda x: x[1])
-                flash('Message analyzed successfully!', 'success')
 
                 return render_template(
                     'results.html',
@@ -224,7 +223,6 @@ def register_routes(app):
                     top_confidence = None
                     if probabilities:
                         top_category, top_confidence = max(probabilities.items(), key=lambda x: x[1])
-                    flash('Message analyzed successfully!', 'success')
 
                     return render_template(
                         'results.html',
