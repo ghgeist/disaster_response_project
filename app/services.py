@@ -635,13 +635,14 @@ class ModelHealthMonitor:
                     prediction = model_service.predict(msg)
                     prediction_time = time.time() - start_time
                     
-                    # Count positive predictions
-                    positive_count = sum(1 for v in prediction.values() if v == 1)
+                    # Count positive predictions from the labels dictionary
+                    labels = prediction.get('labels', {})
+                    positive_count = sum(1 for v in labels.values() if v == 1)
                     
                     results.append({
                         'message': msg[:50] + "..." if len(msg) > 50 else msg,
                         'positive_predictions': positive_count,
-                        'total_categories': len(prediction),
+                        'total_categories': len(labels),
                         'prediction_time_ms': round(prediction_time * 1000, 2)
                     })
                 except Exception as e:
