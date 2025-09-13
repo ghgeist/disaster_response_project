@@ -17,17 +17,21 @@ python data/process_data.py data/01_raw/disaster_messages.csv data/01_raw/disast
 
 ### Model Training
 ```bash
+# Note: Scripts now use package imports. Run with PYTHONPATH or install package:
+# Option 1: pip install -e . (installs disasterproject package)
+# Option 2: PYTHONPATH=src python <script>
+
 # Production model (recommended)
-python scripts/04_create_production_model.py
+PYTHONPATH=src python scripts/04_create_production_model.py
 
 # Lightweight model (faster inference)
-python scripts/06_create_lightweight_model.py
+PYTHONPATH=src python scripts/06_create_lightweight_model.py
 
 # Test sampling strategies
-python scripts/01_test_sampling_strategies.py data/02_stg/stg_disaster_response.db
+PYTHONPATH=src python scripts/01_test_sampling_strategies.py data/02_stg/stg_disaster_response.db
 
 # Compare models
-python scripts/compare_models.py
+PYTHONPATH=src python scripts/compare_models.py
 ```
 
 ### Web Application

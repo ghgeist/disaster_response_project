@@ -130,7 +130,7 @@ def join_messages_and_categories(messages_df, categories_df):
 
     return categorized_messages_df
 
-def drop_ambigious_messages(df):
+def drop_ambiguous_messages(df):
     """
     Drop rows from the dataframe where the 'related' column is 2, indicating an ambiguous message.
 
@@ -203,7 +203,7 @@ def clean_data(messages_df, categories_df):
         logging.info('Processing category data..')
         categorized_messages_df = join_messages_and_categories(messages_df, categories_df)
         logging.info('Joining categories and messages...')
-        categorized_messages_df = drop_ambigious_messages(categorized_messages_df)
+        categorized_messages_df = drop_ambiguous_messages(categorized_messages_df)
         cleaned_df = drop_duplicates(categorized_messages_df)
     except Exception as e:
         logging.error("Error cleaning data: %s", e)

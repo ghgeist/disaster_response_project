@@ -167,61 +167,20 @@ class ModelService:
             return self._model
             
         try:
-            # The scikit-learn pipeline was trained with a custom 'tokenize'
-            # function. When 'joblib.load' (which uses pickle) unpickles the
-            # model, it needs to find this function in the same namespace it was
-            # in during saving. The following lines ensure the function is
-            # available.
-            import sys
-            import os
-            import pickle
-            import types  # Required for creating fake modules
-            
-            # 1. Add the project's 'src' directory to the Python path to make
-            #    the 'disasterproject' module importable.
-            sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
-            
-            # 2. Import the tokenize function from its *actual* current location.
-            from disasterproject.data.preprocessor import tokenize
-
-            # 3. Create a fake module structure in sys.modules to trick the unpickler.
-            #    This is necessary because the model was pickled with a reference to
-            #    'disaster_classifier' but the code has been refactored to 'disasterproject'.
-            #    We create a fake 'disaster_classifier.data.preprocessor' module in memory,
-            #    establish proper parent-child relationships, and point the tokenize 
-            #    attribute to our imported function. This allows the unpickler to resolve the old path.
-            if 'disaster_classifier.data.preprocessor' not in sys.modules:
-                logger.info("Creating fake module structure for disaster_classifier compatibility")
-                
-                # Create fake parent module 'disaster_classifier'
-                disaster_classifier_mod = types.ModuleType('disaster_classifier')
-                sys.modules['disaster_classifier'] = disaster_classifier_mod
-                
-                # Create fake child module 'disaster_classifier.data' and link it
-                data_mod = types.ModuleType('disaster_classifier.data')
-                sys.modules['disaster_classifier.data'] = data_mod
-                disaster_classifier_mod.data = data_mod
-                
-                # Create the target module, attach the real function, and link it
-                preprocessor_module = types.ModuleType('disaster_classifier.data.preprocessor')
-                preprocessor_module.tokenize = tokenize
-                sys.modules['disaster_classifier.data.preprocessor'] = preprocessor_module
-                data_mod.preprocessor = preprocessor_module
-                
-                # Also inject tokenize into __main__ as additional fallback
-                import __main__
-                if not hasattr(__main__, 'tokenize'):
-                    __main__.tokenize = tokenize
-                
-                logger.info("Successfully created fake module structure for model compatibility")
-            
             # Ensure model exists locally
             if not self.model_path.exists():
                 self._download_model()
             
-            # Load the model
-            self._model = joblib.load(self.model_path)
-            logger.info(f"Model loaded successfully from {self.model_path}")
+            # Try standard loading first
+            try:
+                self._model = joblib.load(self.model_path)
+                logger.info(f"Model loaded successfully with standard loading from {self.model_path}")
+            except (ModuleNotFoundError, AttributeError) as module_err:
+                # Fallback to legacy compatibility loading for old models
+                logger.warning(f"Standard loading failed ({module_err}), falling back to legacy compatibility mode")
+                from .compat import load_with_legacy_paths
+                self._model = load_with_legacy_paths(self.model_path)
+            
             # Attempt to load thresholds and label order co-located with model
             self._load_artifacts()
             return self._model
