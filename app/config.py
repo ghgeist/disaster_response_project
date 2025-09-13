@@ -21,7 +21,7 @@ class Config:
     
     # Application settings
     HOST = os.environ.get('HOST', '0.0.0.0')
-    PORT = int(os.environ.get('PORT', 5000))
+    PORT = int(os.environ.get('PORT', 3000))
     
     # Paths
     BASE_DIR = Path(__file__).parent.parent

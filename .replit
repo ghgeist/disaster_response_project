@@ -2,7 +2,7 @@ modules = ["python-3.12", "web"]
 run = "python run.py"
 
 [nix]
-channel = "stable-25_05"       # your current channel is fine
+channel = "stable-25_05"                                                # your current channel is fine
 pkgs = ["file", "python312Packages.pylint", "stdenv.cc.cc.lib", "zlib"]
 
 [deployment]
@@ -14,14 +14,6 @@ expertMode = true
 [[ports]]
 localPort = 3000
 externalPort = 80
-
-[[ports]]
-localPort = 5000
-externalPort = 80
-
-[[ports]]
-localPort = 35025
-externalPort = 3000
 
 [workflows]
 runButton = "Project"
