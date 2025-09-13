@@ -4,7 +4,7 @@
 
 {% block content %}
     <!-- Hero Section -->
-    <div class="text-center mb-12">
+    <div id="hero" class="text-center mb-12">
         <h1 class="text-4xl md:text-5xl font-extrabold text-white mb-3">
             Signal Storm: Cutting Through Chaos for Cries of Help
         </h1>
@@ -14,7 +14,7 @@
     </div>
 
     <!-- Classifier Input Form -->
-    <div class="max-w-3xl mx-auto mb-12">
+    <div id="classifier" class="max-w-3xl mx-auto mb-12">
         {% from 'macros/forms.html' import render_field, render_submit_button %}
         <form action="/go" method="post" class="w-full">
             {{ form.hidden_tag() }}
@@ -27,7 +27,7 @@
         </form>
     </div>
 
-    <div class="container mx-auto">
+    <div id="data" class="container mx-auto">
         <!-- Main content block for visualizations -->
         <div class="text-center my-8 border-t border-gray-700 pt-8">
             <h2 class="text-3xl font-bold text-white">Understanding the Data Landscape</h2>
@@ -49,7 +49,7 @@
     </div>
 
     <!-- How It Works Section -->
-    <section class="bg-brand-slate mt-16 py-12 rounded-lg">
+    <section id="how-it-works" class="bg-brand-slate mt-16 py-12 rounded-lg">
         <div class="container mx-auto px-6 text-center">
             <h2 class="text-3xl font-bold text-white mb-8">How It Works</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -68,7 +68,7 @@
             </div>
         </div>
         <!-- Performance Deep Dive with embedded chart -->
-        <div class="container mx-auto px-6 text-center mt-12">
+        <div id="performance" class="container mx-auto px-6 text-center mt-12">
             <h2 class="text-2xl font-bold text-white mb-4">Model Performance Deep Dive</h2>
             <p class="text-sm text-gray-300 max-w-xl mx-auto mb-6">
                 Baseline vs Optimized: precision improves slightly, but recall drops. In disasters, missing real help messages is costly.
