@@ -3,6 +3,7 @@
 # Signal Storm: Leveraging Machine Learning to Identify Requests for Help During Natural Disasters
 
 ## Table of Contents
+- [Highlights](#highlights)
 - [Project Overview](#project-overview)
 - [Architecture](#️-architecture)
 - [Quick Start](#-quick-start)
@@ -12,11 +13,19 @@
 - [Web Application](#-web-application)
 - [Model Performance](#-model-performance)
 - [Development](#-development)
+- [Dev hygiene](#dev-hygiene)
 - [Project Structure](#-project-structure)
 - [Dependencies](#️-dependencies)
 - [License](#-license)
 - [Support](#-support)
 - [Troubleshooting](#-troubleshooting)
+
+## Highlights
+
+- Model size reduced ~1000× enabling lightweight deployments.
+- Load time dropped ~99% through on-demand initialization.
+- Critical-label recall improved via targeted retraining.
+- Hybrid deployment with Google Drive fallback and clear model naming.
 
 ## Project Overview
 
@@ -299,6 +308,12 @@ python scripts/validate_multilabel_sampling.py
 3. Add comprehensive docstrings
 4. Include error handling and logging
 5. Update tests and documentation
+
+## Dev hygiene
+
+- pre-commit install
+- pre-commit run --files <files>
+- pytest -q
 
 ## 📁 Project Structure
 
