@@ -209,7 +209,11 @@ class ModelService:
             self._validate_downloaded_file(temp_path)
             self._finalize_download(temp_path)
             logger.info("Model downloaded and validated successfully!")
-            
+
+        except requests.exceptions.RequestException as e:
+            self._cleanup_temp_file(temp_path)
+            logger.error("Network error downloading model: %s", e)
+            raise RuntimeError(f"Network error downloading model: {e}") from e
         except Exception as e:
             self._cleanup_temp_file(temp_path)
             self._handle_download_error(e)

@@ -5,12 +5,15 @@ from app.app import create_app
 from app.config import Config
 
 
+class CSRFTestConfig(Config):
+    TESTING = True
+    WTF_CSRF_ENABLED = True
+    SKIP_ENVIRONMENT_VALIDATION = True
+
+
 @pytest.fixture
 def app():
-    app = create_app(Config)
-    app.config.update({
-        'TESTING': True,
-    })
+    app = create_app(CSRFTestConfig)
     return app
 
 
@@ -38,7 +41,13 @@ def test_csrf_smoke_home_to_go(client):
         'csrf_token': token,
         'query': 'Need water and medical aid at 5th street'
     }
-    post_resp = client.post('/go', data=form_data, follow_redirects=False)
+    post_resp = client.post(
+        '/go',
+        data=form_data,
+        follow_redirects=False,
+        headers={'Referer': 'http://localhost/'},
+        base_url='http://localhost'
+    )
 
     # Accept either 200 (render results) or 302 redirect back to index on errors
     assert post_resp.status_code in (200, 302)
