@@ -184,13 +184,21 @@ def register_routes(app):
                     flash(error_message, 'error')
                     return redirect(url_for('index'))
 
-                classification_results = model_service.predict(query)
-                flash('Message analyzed successfully!', 'success')
+                prediction = model_service.predict(query)
+                classification_results = prediction.get('labels', {})
+                probabilities = prediction.get('probabilities', {})
+                top_category = None
+                top_confidence = None
+                if probabilities:
+                    top_category, top_confidence = max(probabilities.items(), key=lambda x: x[1])
 
                 return render_template(
                     'results.html',
                     query=query,
-                    classification_result=classification_results
+                    classification_result=classification_results,
+                    probabilities=probabilities,
+                    top_category=top_category,
+                    top_confidence=top_confidence
                 )
             except (ValueError, RuntimeError) as e:
                 logger.error("Model prediction error in go route (GET): %s", e)
@@ -208,13 +216,21 @@ def register_routes(app):
             if is_valid:
                 try:
                     model_service = current_app.model_service
-                    classification_results = model_service.predict(query)
-                    flash('Message analyzed successfully!', 'success')
+                    prediction = model_service.predict(query)
+                    classification_results = prediction.get('labels', {})
+                    probabilities = prediction.get('probabilities', {})
+                    top_category = None
+                    top_confidence = None
+                    if probabilities:
+                        top_category, top_confidence = max(probabilities.items(), key=lambda x: x[1])
 
                     return render_template(
                         'results.html',
                         query=query,
-                        classification_result=classification_results
+                        classification_result=classification_results,
+                        probabilities=probabilities,
+                        top_category=top_category,
+                        top_confidence=top_confidence
                     )
                 except (ValueError, RuntimeError) as e:
                     logger.exception("Model prediction failed in /go route (POST). See traceback:")

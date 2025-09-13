@@ -2,7 +2,7 @@ modules = ["python-3.12", "web"]
 run = "python run.py"
 
 [nix]
-channel = "stable-25_05"       # your current channel is fine
+channel = "stable-25_05"                                                # your current channel is fine
 pkgs = ["file", "python312Packages.pylint", "stdenv.cc.cc.lib", "zlib"]
 
 [deployment]
@@ -15,5 +15,30 @@ expertMode = true
 localPort = 3000
 externalPort = 80
 
+[[ports]]
+localPort = 5000
+externalPort = 5000
+
 [workflows]
-runButton = "Run"
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Flask Server"
+
+[[workflows.workflow]]
+name = "Flask Server"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python run.py"
+waitForPort = 5000
