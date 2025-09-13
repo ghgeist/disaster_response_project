@@ -21,8 +21,8 @@ from datetime import datetime
 from time import time
 import hashlib
 
-# Add src to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+# Import from installed package (requires: pip install -e .)
+# Alternative: set PYTHONPATH to include src directory
 
 from disasterproject.utils.config import setup_logging, TARGET_COLUMNS
 from disasterproject.data.loader import load_data

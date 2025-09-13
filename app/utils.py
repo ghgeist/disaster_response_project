@@ -113,7 +113,7 @@ def validate_environment() -> dict:
         Dictionary with validation results including errors, warnings, and status
     """
     import os
-    from pathlib import Path
+    from .config import Config
     
     validation_results = {
         'valid': True,
@@ -122,60 +122,48 @@ def validate_environment() -> dict:
         'info': []
     }
     
-    # Check file paths
-    base_dir = Path(__file__).parent.parent
-    data_dir = base_dir / 'data' / '02_stg'
-    models_dir = base_dir / 'model'  # Use correct directory name from config
-    images_dir = base_dir / 'images'
-    
-    # Check required directories
-    if not data_dir.exists():
-        validation_results['errors'].append(f"Data directory not found: {data_dir}")
+    # Check required directories using Config
+    if not Config.DATA_DIR.exists():
+        validation_results['errors'].append(f"Data directory not found: {Config.DATA_DIR}")
         validation_results['valid'] = False
     else:
-        validation_results['info'].append(f"Data directory found: {data_dir}")
+        validation_results['info'].append(f"Data directory found: {Config.DATA_DIR}")
     
-    if not models_dir.exists():
-        validation_results['warnings'].append(f"Models directory not found: {models_dir}")
+    if not Config.MODELS_DIR.exists():
+        validation_results['warnings'].append(f"Models directory not found: {Config.MODELS_DIR}")
     else:
-        validation_results['info'].append(f"Models directory found: {models_dir}")
+        validation_results['info'].append(f"Models directory found: {Config.MODELS_DIR}")
     
-    if not images_dir.exists():
-        validation_results['warnings'].append(f"Images directory not found: {images_dir}")
+    if not Config.IMAGES_DIR.exists():
+        validation_results['warnings'].append(f"Images directory not found: {Config.IMAGES_DIR}")
     else:
-        validation_results['info'].append(f"Images directory found: {images_dir}")
+        validation_results['info'].append(f"Images directory found: {Config.IMAGES_DIR}")
     
-    # Check database file
-    db_file = data_dir / 'stg_disaster_response.db'
-    if not db_file.exists():
-        validation_results['errors'].append(f"Database file not found: {db_file}")
+    # Check database file using Config
+    if not Config.DATABASE_PATH.exists():
+        validation_results['errors'].append(f"Database file not found: {Config.DATABASE_PATH}")
         validation_results['valid'] = False
     else:
-        validation_results['info'].append(f"Database file found: {db_file}")
+        validation_results['info'].append(f"Database file found: {Config.DATABASE_PATH}")
     
-    # Check model file - use the configured model filename
-    from .config import Config
-    model_file = Config.MODEL_PATH
-    if not model_file.exists():
-        validation_results['warnings'].append(f"Model file not found: {model_file}")
+    # Check model file using Config
+    if not Config.MODEL_PATH.exists():
+        validation_results['warnings'].append(f"Model file not found: {Config.MODEL_PATH}")
         # Check if Google Drive ID is configured for download
-        gdrive_id = os.environ.get('GDRIVE_MODEL_ID')
-        if not gdrive_id or gdrive_id.strip() in {'', 'YOUR_FILE_ID', 'YOUR_GOOGLE_DRIVE_FILE_ID'}:
+        if not Config.GDRIVE_MODEL_ID or Config.GDRIVE_MODEL_ID.strip() in {'', 'YOUR_FILE_ID', 'YOUR_GOOGLE_DRIVE_FILE_ID'}:
             validation_results['errors'].append("Model file not found and GDRIVE_MODEL_ID not configured")
             validation_results['valid'] = False
         else:
             validation_results['info'].append("Model file not found locally, but GDRIVE_MODEL_ID is configured for download")
     else:
-        validation_results['info'].append(f"Model file found: {model_file}")
+        validation_results['info'].append(f"Model file found: {Config.MODEL_PATH}")
     
-    # Check environment variables
-    secret_key = os.environ.get('SECRET_KEY')
-    if not secret_key or secret_key == 'dev-secret-key-change-in-production':
+    # Check environment variables using Config
+    if Config.SECRET_KEY == 'dev-secret-key-change-in-production':
         validation_results['warnings'].append("Using default SECRET_KEY - change in production")
     
-    # Check log file directory
-    log_file = base_dir / 'app.log'
-    log_dir = log_file.parent
+    # Check log file directory using Config
+    log_dir = Config.LOG_FILE.parent
     if not log_dir.exists():
         validation_results['warnings'].append(f"Log directory not found: {log_dir}")
     else:
