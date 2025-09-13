@@ -58,3 +58,21 @@ class Config:
         SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'False').lower() == 'true'
     SESSION_COOKIE_HTTPONLY = True
     PREFERRED_URL_SCHEME = 'https'
+
+
+class TestConfig(Config):
+    """Test-specific configuration that bypasses environment validation."""
+
+    # Enable testing mode
+    TESTING = True
+    WTF_CSRF_ENABLED = False
+
+    # Override environment validation to always pass
+    SKIP_ENVIRONMENT_VALIDATION = True
+
+    # Use in-memory database for testing
+    DATABASE_URL = 'sqlite:///:memory:'
+
+    # Mock model settings - these won't be validated
+    MODEL_FILENAME = 'test_model.pkl'
+    GDRIVE_MODEL_ID = None

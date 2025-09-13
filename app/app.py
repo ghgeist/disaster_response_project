@@ -27,7 +27,7 @@ def create_app(config_class=Config):
     setup_logging(app)
     
     # Validate environment configuration
-    validation_results = validate_environment()
+    validation_results = validate_environment(config_class)
     
     # Log validation results
     for info_msg in validation_results.get('info', []):

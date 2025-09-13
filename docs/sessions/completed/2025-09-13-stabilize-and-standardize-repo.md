@@ -272,3 +272,34 @@ All planned increments executed successfully. The repository is now:
 5. **🚀 Deployment-ready**: Environment configuration and artifact governance in place
 
 **Ready for production deployment and further development.**
+
+ ✅ Created TestConfig class (app/config.py:63-78)
+  - Inherits from main Config class
+  - Sets TESTING = True and WTF_CSRF_ENABLED = False
+  - Adds SKIP_ENVIRONMENT_VALIDATION = True flag
+  - Uses in-memory SQLite database
+  - Provides mock model settings
+
+  ✅ Enhanced environment validation (app/utils.py:108-131)
+  - Modified validate_environment() to accept config class parameter
+  - Added early return for test configurations with SKIP_ENVIRONMENT_VALIDATION =        
+  True
+  - Updated create_app() to pass config class to validation function
+
+  ✅ Added mock services for testing (app/utils.py:13-94)
+  - MockDataService: Provides comprehensive mock DataFrame with all 36 disaster
+  categories
+  - MockModelService: Returns keyword-based mock predictions
+  - Service initialization automatically uses mocks when TESTING = True
+
+  ✅ Updated smoke tests (tests/test_app_smoke.py:7,13)
+  - Changed from Config to TestConfig
+  - Simplified fixture by removing manual config overrides
+
+  ✅ Verified functionality
+  - All 3 smoke tests now pass without production dependencies
+  - Tests run in clean environments without model files or database
+  - App startup, index page loading, and predict endpoint all work correctly
+
+  The smoke tests now run successfully without requiring production artifacts, while     
+  maintaining test authenticity for HTTP routing and response logic.

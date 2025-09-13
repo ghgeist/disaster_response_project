@@ -46,7 +46,7 @@ src/disasterproject/          # Core ML package
 │   └── metrics.py               # Comprehensive metrics and reporting
 └── utils/                        # Configuration and utilities
     ├── config.py                # System configuration
-    ├── io.py                    # File I/O operations
+    ├── json_io.py               # JSON I/O utilities
     ├── interaction.py           # User interaction utilities
     └── experiment_tracker.py    # Experiment management
 
@@ -60,10 +60,7 @@ scripts/                          # Professional training and testing interface
 └── run_batch_experiments.py     # Batch experiment runner
 
 experiments/                      # Organized experiment results
-├── baseline_no_sampling_v1/
-├── smote_conservative_v1/
-├── adasyn_moderate_v1/
-└── conservative_sampling_v1/
+└── results/                      # Dated CSVs (e.g., 2025-09-13_lightweight_metrics.csv)
 
 app/                              # Web application
 ├── app.py                       # Flask application factory
@@ -106,6 +103,16 @@ source venv/bin/activate
    pip install -r requirements.txt
    ```
 
+3. **Install local package** (required for training scripts):
+   ```bash
+   # Recommended
+   pip install -e .
+   # Or set PYTHONPATH per call (macOS/Linux)
+   PYTHONPATH=src python scripts/04_create_production_model.py
+   # PowerShell
+   $env:PYTHONPATH = "src"; python scripts/04_create_production_model.py
+   ```
+
 3. **Download NLTK resources** (handled automatically):
    - punkt tokenizer
    - stopwords corpus
@@ -135,18 +142,23 @@ source venv/bin/activate
    
    **Note**: Use `run.py` as the entry point (not `app/app.py`) as it properly handles the Flask application factory and configuration.
 
+   Prerequisites for the app to start successfully:
+   - Database present at `data/02_stg/stg_disaster_response.db` (run Data Setup if missing)
+   - Model available at `model/disaster_rf_v1-2-0_prod_2025-09-11.pkl` or set `GDRIVE_MODEL_ID`
+
 ### Replit Deployment
 
 The Flask application is configured for deployment on Replit:
 
 1. **Import the project** into your Replit workspace
 2. **Install dependencies** (Replit will automatically run `pip install -r requirements.txt`)
-3. **Set environment variables** (if needed):
-   - `GDRIVE_MODEL_ID`: Google Drive file ID for model download (optional)
+3. **Set environment variables**:
+   - `GDRIVE_MODEL_ID`: Google Drive file ID for model download (required if the model is not already in `model/`)
+   - Ensure the SQLite DB exists at `data/02_stg/stg_disaster_response.db` (upload it or adjust config)
 4. **Run the application**: Click the "Run" button in Replit
 5. **Access the app**: Use the provided Replit URL
 
-**Note**: The app automatically downloads the model from Google Drive if not present locally, making it easy to deploy without large model files in the repository.
+**Note**: The app can automatically download the model from Google Drive if not present locally, but only when `GDRIVE_MODEL_ID` is set. The database file must also exist.
 
 ## 📊 Data
 
@@ -219,7 +231,7 @@ The Flask web application provides:
 - **Real-time Classification**: Input messages and get instant category predictions
 - **Data Visualization**: Interactive charts showing message distribution and categories
 - **Model Performance**: Visual representation of model metrics
-- **Responsive Design**: Bootstrap-based modern interface
+- **Responsive Design**: Tailwind CSS-based modern interface
 - **Cloud Deployment**: Optimized for Replit deployment with automatic model downloading
 
 ### Usage
@@ -258,7 +270,7 @@ The system evaluates models using comprehensive metrics:
 - **Multi-label Classification**: Handles overlapping categories
 - **Class Imbalance**: Addresses skewed category distributions
 - **Cross-validation**: Robust performance estimation
-- **Statistical Significance**: Confidence intervals for metrics
+
 
 ## 🔧 Development
 
@@ -297,7 +309,7 @@ disaster_response_project/
 ├── experiments/                 # Experiment results
 ├── app/                         # Web application
 ├── data/                        # Data storage (raw, processed, results)
-├── models/                      # Trained models and parameters
+├── model/                       # Trained models and parameters
 ├── notebooks/                   # Jupyter notebooks for analysis
 ├── docs/                        # Documentation and guides
 └── tests/                       # Unit tests
@@ -313,7 +325,7 @@ disaster_response_project/
 
 ### Web Application
 - **Flask**: Web framework
-- **Bootstrap**: Frontend styling
+- **Tailwind CSS**: Frontend styling
 - **Plotly**: Interactive visualizations
 
 ### Data Management
@@ -349,13 +361,26 @@ python data/process_data.py data/01_raw/disaster_messages.csv data/01_raw/disast
 
 **Port already in use:**
 ```bash
-# Use a different port
-export PORT=3001
-python run.py
+# macOS/Linux
+export PORT=3001 && python run.py
+
+# Windows (cmd)
+set PORT=3001 && python run.py
+
+# Windows (PowerShell)
+$env:PORT=3001; python run.py
 ```
 
 **Missing dependencies:**
 ```bash
 # Reinstall requirements
 pip install -r requirements.txt
+```
+
+**Package import errors (e.g., cannot import disasterproject):**
+```bash
+# Install local package
+pip install -e .
+# Or set PYTHONPATH
+PYTHONPATH=src python scripts/04_create_production_model.py
 ```

@@ -10,6 +10,119 @@ from flask import Flask
 from .services import DataService, ModelService
 
 
+class MockDataService:
+    """Mock data service for testing."""
+
+    def __init__(self, database_url: str = None):
+        self.database_url = database_url
+        self._df = None
+
+    def load_data(self, table_name: str = 'stg_disaster_response'):
+        """Mock data loading."""
+        import pandas as pd
+
+        # Create a comprehensive mock dataframe with all expected columns
+        self._df = pd.DataFrame({
+            'id': [1, 2, 3],
+            'message': ['Need help with water', 'Offering food supplies', 'Road blocked'],
+            'original': ['Need help with water', 'Offering food supplies', 'Road blocked'],
+            'genre': ['direct', 'direct', 'news'],
+            'related': [1, 1, 1],
+            'request': [1, 0, 0],
+            'offer': [0, 1, 0],
+            'aid_related': [1, 1, 0],
+            'medical_help': [0, 0, 0],
+            'medical_products': [0, 0, 0],
+            'search_and_rescue': [0, 0, 0],
+            'security': [0, 0, 0],
+            'military': [0, 0, 0],
+            'child_alone': [0, 0, 0],
+            'water': [1, 0, 0],
+            'food': [0, 1, 0],
+            'shelter': [0, 0, 0],
+            'clothing': [0, 0, 0],
+            'money': [0, 0, 0],
+            'missing_people': [0, 0, 0],
+            'refugees': [0, 0, 0],
+            'death': [0, 0, 0],
+            'other_aid': [0, 0, 0],
+            'infrastructure_related': [0, 0, 1],
+            'transport': [0, 0, 1],
+            'buildings': [0, 0, 0],
+            'electricity': [0, 0, 0],
+            'tools': [0, 0, 0],
+            'hospitals': [0, 0, 0],
+            'shops': [0, 0, 0],
+            'aid_centers': [0, 0, 0],
+            'other_infrastructure': [0, 0, 0],
+            'weather_related': [0, 0, 0],
+            'floods': [0, 0, 0],
+            'storm': [0, 0, 0],
+            'fire': [0, 0, 0],
+            'earthquake': [0, 0, 0],
+            'cold': [0, 0, 0],
+            'other_weather': [0, 0, 0],
+            'direct_report': [1, 0, 1]
+        })
+        return self._df
+
+    def get_data(self):
+        """Get the mock data."""
+        if self._df is None:
+            self.load_data()
+        return self._df
+
+    def get_category_columns(self):
+        """Get mock category columns."""
+        df = self.get_data()
+        return df.columns[4:].tolist()
+
+
+class MockModelService:
+    """Mock model service for testing."""
+
+    def __init__(self):
+        self._loaded = False
+
+    def load_model(self):
+        """Mock model loading."""
+        self._loaded = True
+        return self
+
+    def predict(self, text: str) -> dict:
+        """Mock prediction that returns sample data."""
+        # Return a sample prediction with some categories marked as positive
+        categories = [
+            'related', 'request', 'offer', 'aid_related', 'medical_help',
+            'medical_products', 'search_and_rescue', 'security', 'military',
+            'child_alone', 'water', 'food', 'shelter', 'clothing', 'money',
+            'missing_people', 'refugees', 'death', 'other_aid', 'infrastructure_related',
+            'transport', 'buildings', 'electricity', 'tools', 'hospitals',
+            'shops', 'aid_centers', 'other_infrastructure', 'weather_related',
+            'floods', 'storm', 'fire', 'earthquake', 'cold', 'other_weather',
+            'direct_report'
+        ]
+
+        # Mock some positive predictions based on keywords
+        predictions = {}
+        text_lower = text.lower()
+
+        for category in categories:
+            # Simple keyword-based mock predictions
+            if category == 'related':
+                predictions[category] = 1
+            elif category == 'water' and 'water' in text_lower:
+                predictions[category] = 1
+            elif category == 'food' and 'food' in text_lower:
+                predictions[category] = 1
+            elif category == 'medical_help' and ('medical' in text_lower or 'help' in text_lower):
+                predictions[category] = 1
+            else:
+                predictions[category] = 0
+
+        return predictions
+
+
 def setup_logging(app: Flask) -> None:
     """Setup application logging."""
     if not app.debug:
@@ -31,17 +144,19 @@ def setup_logging(app: Flask) -> None:
 def init_services(app: Flask) -> None:
     """Initialize application services."""
     try:
-        # Initialize data service
-        app.data_service = DataService(app.config['DATABASE_URL'])
-        
-        # Initialize model service
-        app.model_service = ModelService(
-            model_path=app.config['MODEL_PATH'],
-            gdrive_model_id=app.config['GDRIVE_MODEL_ID']
-        )
-        
+        # Initialize services (use mocks for testing)
+        if app.config.get('TESTING'):
+            app.data_service = MockDataService(app.config['DATABASE_URL'])
+            app.model_service = MockModelService()
+        else:
+            app.data_service = DataService(app.config['DATABASE_URL'])
+            app.model_service = ModelService(
+                model_path=app.config['MODEL_PATH'],
+                gdrive_model_id=app.config['GDRIVE_MODEL_ID']
+            )
+
         app.logger.info('Services initialized successfully')
-        
+
     except Exception as e:
         app.logger.error(f'Failed to initialize services: {e}')
         raise
@@ -105,16 +220,31 @@ def sanitize_input(text: str) -> str:
     return text
 
 
-def validate_environment() -> dict:
+def validate_environment(config_class=None) -> dict:
     """
     Validate environment configuration with comprehensive checks.
-    
+
+    Args:
+        config_class: Configuration class to use for validation
+
     Returns:
         Dictionary with validation results including errors, warnings, and status
     """
     import os
     from .config import Config
-    
+
+    # Use provided config class or default to Config
+    config = config_class or Config
+
+    # Skip validation if configured to do so
+    if hasattr(config, 'SKIP_ENVIRONMENT_VALIDATION') and config.SKIP_ENVIRONMENT_VALIDATION:
+        return {
+            'valid': True,
+            'errors': [],
+            'warnings': [],
+            'info': ['Environment validation skipped for testing']
+        }
+
     validation_results = {
         'valid': True,
         'errors': [],
@@ -122,48 +252,48 @@ def validate_environment() -> dict:
         'info': []
     }
     
-    # Check required directories using Config
-    if not Config.DATA_DIR.exists():
-        validation_results['errors'].append(f"Data directory not found: {Config.DATA_DIR}")
+    # Check required directories using config
+    if not config.DATA_DIR.exists():
+        validation_results['errors'].append(f"Data directory not found: {config.DATA_DIR}")
         validation_results['valid'] = False
     else:
-        validation_results['info'].append(f"Data directory found: {Config.DATA_DIR}")
-    
-    if not Config.MODELS_DIR.exists():
-        validation_results['warnings'].append(f"Models directory not found: {Config.MODELS_DIR}")
+        validation_results['info'].append(f"Data directory found: {config.DATA_DIR}")
+
+    if not config.MODELS_DIR.exists():
+        validation_results['warnings'].append(f"Models directory not found: {config.MODELS_DIR}")
     else:
-        validation_results['info'].append(f"Models directory found: {Config.MODELS_DIR}")
-    
-    if not Config.IMAGES_DIR.exists():
-        validation_results['warnings'].append(f"Images directory not found: {Config.IMAGES_DIR}")
+        validation_results['info'].append(f"Models directory found: {config.MODELS_DIR}")
+
+    if not config.IMAGES_DIR.exists():
+        validation_results['warnings'].append(f"Images directory not found: {config.IMAGES_DIR}")
     else:
-        validation_results['info'].append(f"Images directory found: {Config.IMAGES_DIR}")
-    
-    # Check database file using Config
-    if not Config.DATABASE_PATH.exists():
-        validation_results['errors'].append(f"Database file not found: {Config.DATABASE_PATH}")
+        validation_results['info'].append(f"Images directory found: {config.IMAGES_DIR}")
+
+    # Check database file using config
+    if hasattr(config, 'DATABASE_PATH') and not config.DATABASE_PATH.exists():
+        validation_results['errors'].append(f"Database file not found: {config.DATABASE_PATH}")
         validation_results['valid'] = False
-    else:
-        validation_results['info'].append(f"Database file found: {Config.DATABASE_PATH}")
-    
-    # Check model file using Config
-    if not Config.MODEL_PATH.exists():
-        validation_results['warnings'].append(f"Model file not found: {Config.MODEL_PATH}")
+    elif hasattr(config, 'DATABASE_PATH'):
+        validation_results['info'].append(f"Database file found: {config.DATABASE_PATH}")
+
+    # Check model file using config
+    if not config.MODEL_PATH.exists():
+        validation_results['warnings'].append(f"Model file not found: {config.MODEL_PATH}")
         # Check if Google Drive ID is configured for download
-        if not Config.GDRIVE_MODEL_ID or Config.GDRIVE_MODEL_ID.strip() in {'', 'YOUR_FILE_ID', 'YOUR_GOOGLE_DRIVE_FILE_ID'}:
+        if not config.GDRIVE_MODEL_ID or config.GDRIVE_MODEL_ID.strip() in {'', 'YOUR_FILE_ID', 'YOUR_GOOGLE_DRIVE_FILE_ID'}:
             validation_results['errors'].append("Model file not found and GDRIVE_MODEL_ID not configured")
             validation_results['valid'] = False
         else:
             validation_results['info'].append("Model file not found locally, but GDRIVE_MODEL_ID is configured for download")
     else:
-        validation_results['info'].append(f"Model file found: {Config.MODEL_PATH}")
-    
-    # Check environment variables using Config
-    if Config.SECRET_KEY == 'dev-secret-key-change-in-production':
+        validation_results['info'].append(f"Model file found: {config.MODEL_PATH}")
+
+    # Check environment variables using config
+    if config.SECRET_KEY == 'dev-secret-key-change-in-production':
         validation_results['warnings'].append("Using default SECRET_KEY - change in production")
-    
-    # Check log file directory using Config
-    log_dir = Config.LOG_FILE.parent
+
+    # Check log file directory using config
+    log_dir = config.LOG_FILE.parent
     if not log_dir.exists():
         validation_results['warnings'].append(f"Log directory not found: {log_dir}")
     else:

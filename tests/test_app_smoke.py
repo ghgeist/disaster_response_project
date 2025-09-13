@@ -4,17 +4,13 @@ Tests basic app functionality without complex dependencies.
 """
 import pytest
 from app.app import create_app
-from app.config import Config
+from app.config import TestConfig
 
 
 @pytest.fixture
 def app():
     """Create test Flask app."""
-    app = create_app(Config)
-    app.config.update({
-        'TESTING': True,
-        'WTF_CSRF_ENABLED': False,  # Disable CSRF for testing
-    })
+    app = create_app(TestConfig)
     return app
 
 
