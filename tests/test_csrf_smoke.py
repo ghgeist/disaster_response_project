@@ -13,12 +13,11 @@ class CSRFTestConfig(Config):
 
 @pytest.fixture
 def app():
-    if not Config.MODEL_PATH.exists() and not (
-        Config.GDRIVE_MODEL_ID and Config.GDRIVE_MODEL_ID.strip()
+    if not CSRFTestConfig.MODEL_PATH.exists() and not (
+        CSRFTestConfig.GDRIVE_MODEL_ID and CSRFTestConfig.GDRIVE_MODEL_ID.strip()
     ):
         pytest.skip("model missing")
-    app = create_app(Config)
-    app.config.update({"TESTING": True})
+    app = create_app(CSRFTestConfig)
     return app
 
 
