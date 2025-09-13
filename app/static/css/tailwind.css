@@ -216,6 +216,9 @@ body {
 
 /* Layout */
 .flex { display: flex; }
+/* Display utilities (needed for responsive nav) */
+.hidden { display: none; }
+.block { display: block; }
 
 .flex-col { flex-direction: column; }
 .flex-wrap { flex-wrap: wrap; }
@@ -226,6 +229,11 @@ body {
 @media (min-width: 640px) {
   .sm\:flex-row { flex-direction: row; }
   .sm\:w-auto { width: auto; }
+}
+
+@media (min-width: 768px) {
+  .md\:flex { display: flex; }
+  .md\:hidden { display: none; }
 }
 
 /* Spacing */

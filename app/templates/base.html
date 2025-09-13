@@ -49,6 +49,7 @@
 </head>
 
 <body class="bg-brand-charcoal text-gray-200 font-sans">
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 bg-brand-accent-blue text-white px-3 py-2 rounded">Skip to content</a>
 
 <!-- Navigation Bar -->
 <nav class="bg-brand-slate shadow-md sticky top-0 z-50">
@@ -88,7 +89,7 @@
 </nav>
 
 <!-- Main Content Area -->
-<main class="container mx-auto px-6 py-8">
+<main id="main-content" class="container mx-auto px-6 py-8">
 
     <!-- Flash Messages -->
     {% from 'macros/forms.html' import render_flash_messages %}
