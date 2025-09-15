@@ -1,5 +1,7 @@
 import os
 import re
+import subprocess
+import sys
 
 class SecureSubprocessError(Exception):
     """Custom exception for security-related errors in subprocesses."""
@@ -46,7 +48,8 @@ def validate_command_args(args):
     for arg in args:
         if not isinstance(arg, str):
             raise SecureSubprocessError("All arguments must be strings")
-        if re.search(r'[;&|`$()<>\n]', arg):
+        if re.search(r'[;&|`$()<>
+]', arg):
             raise SecureSubprocessError("Unsafe characters detected in arguments")
 
     return args
@@ -63,7 +66,6 @@ def secure_run(command, timeout=None, shell=False):
     Returns:
         subprocess.CompletedProcess: The result of the subprocess execution.
     """
-    import subprocess
     validated_command = validate_command_args(command)
     return subprocess.run(validated_command, timeout=timeout, shell=False, check=True, capture_output=True, text=True)
 
@@ -78,7 +80,6 @@ def secure_python_script(script_path, args=None):
     Returns:
         subprocess.CompletedProcess: The result of the script execution.
     """
-    import sys
     validate_file_path(script_path)
     if not script_path.endswith(".py"):
         raise SecureSubprocessError("Script must be a Python file")
@@ -102,9 +103,7 @@ def validate_model_filename(filename):
     Raises:
         SecureSubprocessError: If the filename contains invalid characters.
     """
-    if not re.match(r'^[a-zA-Z0-9_\-]+\.pkl
-, filename) and not re.match(r'^[a-zA-Z0-9_\-]+
-, filename):
+    if not re.match(r'^[a-zA-Z0-9_\-]+\.pkl$', filename) and not re.match(r'^[a-zA-Z0-9_\-]+$', filename):
         raise SecureSubprocessError("Invalid characters in filename")
 
     if not filename.endswith(".pkl"):
@@ -126,8 +125,7 @@ def validate_sampling_method(method):
         SecureSubprocessError: If the method is unknown or contains invalid characters.
     """
     allowed_methods = ["baseline", "smote", "adasyn", "conservative", "random", "borderline"]
-    if not isinstance(method, str) or not re.match(r'^[a-zA-Z_]+
-, method):
+    if not isinstance(method, str) or not re.match(r'^[a-zA-Z_]+$', method):
         raise SecureSubprocessError("Invalid characters in method name")
 
     if method.lower() not in allowed_methods:
