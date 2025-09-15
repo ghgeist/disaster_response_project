@@ -1,0 +1,12 @@
+#!/usr/bin/env python3
+"""
+WSGI entry point for Gunicorn deployment.
+This file provides a WSGI-compatible application instance for production deployment.
+"""
+from app.app import create_app
+
+# Create the Flask application instance
+application = create_app()
+
+if __name__ == "__main__":
+    application.run()

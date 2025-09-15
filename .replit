@@ -6,9 +6,9 @@ channel = "stable-25_05"                                                # your c
 pkgs = ["file", "python312Packages.pylint", "stdenv.cc.cc.lib", "zlib"]
 
 [deployment]
-run = ["python", "run.py"]
+run = ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "120", "wsgi:application"]
 deploymentTarget = "autoscale"
-build = ["pip", "install", "-e", "."]
+build = ["pip", "install", "-e", ".", "&&", "pip", "install", "gunicorn"]
 
 [agent]
 expertMode = true
@@ -19,7 +19,7 @@ externalPort = 80
 
 [[ports]]
 localPort = 5000
-externalPort = 5000
+externalPort = 80
 
 [workflows]
 runButton = "Project"
@@ -42,5 +42,5 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python run.py"
+args = "gunicorn --bind 0.0.0.0:5000 --workers 2 --timeout 120 wsgi:application"
 waitForPort = 5000
