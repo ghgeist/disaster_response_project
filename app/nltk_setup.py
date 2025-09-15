@@ -65,9 +65,15 @@ def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
             for resource in resources:
                 try:
                     resource_start = time.time()
-                    success = _setup_single_resource(resource_type, resource, force_download)
+                    success, download_attempted = _setup_single_resource(resource_type, resource, force_download)
                     resource_time = (time.time() - resource_start) * 1000
-                    
+
+                    # Update download counters
+                    if download_attempted:
+                        setup_results["downloads_attempted"] += 1
+                        if success:
+                            setup_results["downloads_successful"] += 1
+
                     if success:
                         setup_results["resources_loaded"].append({
                             "name": resource,
@@ -82,7 +88,7 @@ def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
                             "error": "Validation failed"
                         })
                         logger.warning(f"✗ {resource_type}/{resource} validation failed")
-                        
+
                 except Exception as e:
                     error_msg = f"Failed to setup {resource_type}/{resource}: {e}"
                     setup_results["resources_failed"].append({
@@ -133,18 +139,19 @@ def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
         raise NLTKSetupError(f"NLTK setup failed: {e}") from e
 
 
-def _setup_single_resource(resource_type: str, resource: str, force_download: bool) -> bool:
+def _setup_single_resource(resource_type: str, resource: str, force_download: bool) -> Tuple[bool, bool]:
     """
     Setup a single NLTK resource.
-    
+
     Args:
         resource_type: Type of resource (corpora, tokenizers)
         resource: Name of the resource
         force_download: If True, force download even if resource exists
-        
+
     Returns:
-        True if resource is successfully loaded and validated
+        Tuple of (success, download_attempted)
     """
+    download_attempted = False
     try:
         # Check if resource already exists
         resource_path = f"{resource_type}/{resource}"
@@ -153,25 +160,26 @@ def _setup_single_resource(resource_type: str, resource: str, force_download: bo
             resource_exists = True
         except LookupError:
             resource_exists = False
-        
+
         # Download if needed
         if not resource_exists or force_download:
+            download_attempted = True
             logger.info(f"Downloading NLTK resource: {resource}")
             nltk.download(resource, quiet=True)
             logger.info(f"Downloaded NLTK resource: {resource}")
-        
+
         # Validate resource
         if resource in RESOURCE_VALIDATORS:
             validation_result = RESOURCE_VALIDATORS[resource]()
             if not validation_result:
                 logger.warning(f"Resource validation failed for {resource}")
-                return False
-        
-        return True
-        
+                return False, download_attempted
+
+        return True, download_attempted
+
     except Exception as e:
         logger.error(f"Error setting up {resource_type}/{resource}: {e}")
-        return False
+        return False, download_attempted
 
 
 def validate_nltk_resources() -> Dict[str, any]:
