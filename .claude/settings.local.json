@@ -7,7 +7,8 @@
       "Bash(rm:*)",
       "Bash(PYTHONPATH=src python scripts/04_create_production_model.py)",
       "Bash(PYTHONPATH=src python scripts/06_create_lightweight_model.py)",
-      "Bash(set PYTHONIOENCODING=utf-8)"
+      "Bash(set PYTHONIOENCODING=utf-8)",
+      "Bash(pylint:*)"
     ],
     "deny": [],
     "ask": []
