@@ -9,9 +9,34 @@ import numpy as np
 import nltk
 from nltk.corpus import stopwords
 
-# NLTK resources are now managed by app/nltk_setup.py during application startup
-# This prevents per-request downloads and improves performance
-# The resources are validated and loaded once at startup instead of on every import
+# Download required NLTK resources
+nltk_resources = {
+    "corpora": ["stopwords", "wordnet"],
+    "tokenizers": ["punkt"]
+}
+
+for resource_type, resources in nltk_resources.items():
+    for resource in resources:
+        try:
+            if resource_type == "corpora":
+                nltk.data.find(f"corpora/{resource}")
+            elif resource_type == "tokenizers":
+                nltk.data.find(f"tokenizers/{resource}")
+        except LookupError:
+            try:
+                nltk.download(resource)
+                logging.info(f"Downloaded NLTK resource: {resource}")
+            except Exception as e:
+                logging.warning(f"Failed to download NLTK resource {resource}: {e}")
+
+# Ensure WordNet is fully loaded to prevent multiprocessing race conditions
+try:
+    from nltk.corpus import wordnet as wn
+    wn.ensure_loaded()  # This forces complete loading in the main thread
+    logging.info("WordNet corpus fully loaded and ready for multiprocessing")
+except Exception as e:
+    logging.warning(f"Failed to ensure WordNet is loaded: {e}")
+    # Continue execution but multiprocessing may have issues
 
 # Set up logging
 def setup_logging():
