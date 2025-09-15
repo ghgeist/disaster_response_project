@@ -53,7 +53,7 @@ Disaster response message classification system with modular ML pipeline targeti
 
 ### Core Package (`src/disasterproject/`)
 - **data/**: ETL pipeline (loader, preprocessor, column definitions)
-- **models/**: ML pipeline with sampling strategies (SMOTE, ADASYN) + RandomForest
+- **model/**: Trained models and artifacts with metadata
 - **evaluation/**: Multi-label classification metrics
 - **utils/**: Configuration, experiment tracking, I/O
 

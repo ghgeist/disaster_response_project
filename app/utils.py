@@ -110,7 +110,9 @@ class MockModelService:
         for category in categories:
             # Simple keyword-based mock predictions
             if category == 'related':
-                predictions[category] = 1
+                # Only mark as related if message contains disaster-related keywords
+                disaster_keywords = ['help', 'emergency', 'disaster', 'flood', 'fire', 'earthquake', 'storm', 'medical', 'water', 'food', 'shelter']
+                predictions[category] = 1 if any(keyword in text_lower for keyword in disaster_keywords) else 0
             elif category == 'water' and 'water' in text_lower:
                 predictions[category] = 1
             elif category == 'food' and 'food' in text_lower:
@@ -159,7 +161,7 @@ def init_services(app: Flask) -> None:
         app.logger.info('Services initialized successfully')
 
     except Exception as e:
-        app.logger.error(f'Failed to initialize services: {e}')
+        app.logger.error('Failed to initialize services: %s', e)
         raise
 
 
@@ -193,7 +195,9 @@ def validate_message_input(text: str) -> Tuple[bool, Optional[str]]:
     ]
     for pattern in sql_patterns:
         if re.search(pattern, text.lower()):
-            logging.getLogger(__name__).warning(f"Potential SQL injection attempt detected: {text[:50]}...")
+            logging.getLogger(__name__).warning(
+                "Potential SQL injection attempt detected: %s...", text[:50]
+            )
             return False, "Message contains potentially harmful content"
     
     return True, None
