@@ -203,7 +203,7 @@ def main():
     print("1. Run multi-label sampling validation:")
     print(f"   python scripts/validate_multilabel_sampling.py {database_filepath}")
     print("2. Create a validation model:")
-    print("   python scripts/create_model.py --out models/validation_test.pkl")
+    print("   python scripts/create_model.py --out model/validation_test.pkl")
     print("3. Test the web application:")
     print("   cd app && python app.py")
 
