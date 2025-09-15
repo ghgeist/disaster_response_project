@@ -6,9 +6,8 @@ channel = "stable-25_05"                                                # your c
 pkgs = ["file", "python312Packages.pylint", "stdenv.cc.cc.lib", "zlib"]
 
 [deployment]
-run = ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "120", "wsgi:application"]
-deploymentTarget = "autoscale"
-build = ["pip", "install", "-e", ".", "&&", "pip", "install", "gunicorn"]
+run = ["sh", "-c", "python run.py"]
+deploymentTarget = "gce"
 
 [agent]
 expertMode = true
