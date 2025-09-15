@@ -165,10 +165,13 @@ class ModelService:
         """Load the ML model, downloading if necessary."""
         if self._model is not None:
             return self._model
-            
+
         try:
-            # Ensure model exists locally
-            if not self.model_path.exists():
+            # Environment-aware model loading
+            # If in Replit, always download. Otherwise try local first.
+            if os.environ.get('REPLIT_DB_URL'):
+                self._download_model()
+            elif not self.model_path.exists():
                 self._download_model()
             
             # Try standard loading first
