@@ -3,7 +3,8 @@
     "allow": [
       "Bash(source:*)",
       "Bash(python -m pytest tests/test_app_smoke.py -v)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(rm:*)"
     ],
     "deny": [],
     "ask": []
