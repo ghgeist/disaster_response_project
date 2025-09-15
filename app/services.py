@@ -16,10 +16,6 @@ import requests
 import sqlalchemy.exc
 from sqlalchemy import create_engine
 
-# Import TARGET_COLUMNS for consistent schema handling
-import sys
-from pathlib import Path
-sys.path.append(str(Path(__file__).parent.parent / 'src'))
 from disasterproject.utils.config import TARGET_COLUMNS
 
 logger = logging.getLogger(__name__)
