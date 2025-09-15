@@ -172,14 +172,8 @@ class ModelService:
                 self._download_model()
             
             # Try standard loading first
-            try:
-                self._model = joblib.load(self.model_path)
-                logger.info(f"Model loaded successfully with standard loading from {self.model_path}")
-            except (ModuleNotFoundError, AttributeError) as module_err:
-                # Fallback to legacy compatibility loading for old models
-                logger.warning(f"Standard loading failed ({module_err}), falling back to legacy compatibility mode")
-                from .compat import load_with_legacy_paths
-                self._model = load_with_legacy_paths(self.model_path)
+            self._model = joblib.load(self.model_path)
+            logger.info(f"Model loaded successfully from {self.model_path}")
             
             # Attempt to load thresholds and label order co-located with model
             self._load_artifacts()

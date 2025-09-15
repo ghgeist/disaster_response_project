@@ -13,7 +13,6 @@ from .visualizations import ChartGenerator
 from .utils import validate_message_input, sanitize_input
 from .forms import MessageForm
 from .nltk_setup import get_nltk_status
-from .compat import get_compatibility_cache_status
 
 logger = logging.getLogger(__name__)
 
@@ -422,8 +421,6 @@ def register_routes(app):
             # Get NLTK status
             nltk_status = get_nltk_status()
             
-            # Get compatibility cache status
-            compat_status = get_compatibility_cache_status()
             
             # Get NLTK setup results from app config
             nltk_setup_results = current_app.config.get('NLTK_SETUP_RESULTS', {})
@@ -435,11 +432,9 @@ def register_routes(app):
                 'timestamp': pd.Timestamp.now().isoformat(),
                 'response_time_ms': round(response_time, 2),
                 'nltk_status': nltk_status,
-                'compatibility_cache': compat_status,
                 'nltk_setup_results': nltk_setup_results,
                 'performance_optimizations': {
                     'nltk_startup_optimization': 'enabled',
-                    'compatibility_caching': 'enabled',
                     'per_request_downloads': 'disabled'
                 }
             }
