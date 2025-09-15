@@ -39,7 +39,11 @@
                         </span>
                     {% endfor %}
                 {% else %}
-                    <p class="text-gray-400">This message does not appear to be related to a disaster.</p>
+                    {% if probabilities and probabilities.get('related', 0) > 0.5 %}
+                        <p class="text-gray-400">This message appears to be disaster-related but no specific categories were identified.</p>
+                    {% else %}
+                        <p class="text-gray-400">This message does not appear to be related to a disaster.</p>
+                    {% endif %}
                 {% endif %}
             </div>
         </div>
@@ -68,7 +72,11 @@
 <script type="text/javascript">
     document.addEventListener('DOMContentLoaded', function() {
         const probs = {{ probabilities | tojson | safe }};
-        const entries = Object.entries(probs).sort((a, b) => b[1] - a[1]).slice(0, 5);
+        // Filter out 'related' category from chart display as it's a meta-category
+        const filteredProbs = Object.fromEntries(
+            Object.entries(probs).filter(([key]) => key !== 'related')
+        );
+        const entries = Object.entries(filteredProbs).sort((a, b) => b[1] - a[1]).slice(0, 5);
         const categories = entries.map(e => e[0].replace('_', ' '));
         const values = entries.map(e => Math.round(e[1] * 100));
         const data = [{

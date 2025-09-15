@@ -110,7 +110,9 @@ class MockModelService:
         for category in categories:
             # Simple keyword-based mock predictions
             if category == 'related':
-                predictions[category] = 1
+                # Only mark as related if message contains disaster-related keywords
+                disaster_keywords = ['help', 'emergency', 'disaster', 'flood', 'fire', 'earthquake', 'storm', 'medical', 'water', 'food', 'shelter']
+                predictions[category] = 1 if any(keyword in text_lower for keyword in disaster_keywords) else 0
             elif category == 'water' and 'water' in text_lower:
                 predictions[category] = 1
             elif category == 'food' and 'food' in text_lower:

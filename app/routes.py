@@ -190,9 +190,10 @@ def register_routes(app):
                 probabilities = prediction.get('probabilities', {})
 
                 # Create a unified list of predictions with their confidence
+                # Exclude 'related' category from display as it's a meta-category indicating disaster relevance
                 predictions = []
                 for category, label in classification_results.items():
-                    if label == 1:
+                    if label == 1 and category != 'related':
                         predictions.append({
                             "category": category,
                             "confidence": probabilities.get(category, 0.0)  # Fallback to 0.0 if no probability
@@ -229,9 +230,10 @@ def register_routes(app):
                     probabilities = prediction.get('probabilities', {})
                     
                     # Create a unified list of predictions with their confidence
+                    # Exclude 'related' category from display as it's a meta-category indicating disaster relevance
                     predictions = []
                     for category, label in classification_results.items():
-                        if label == 1:
+                        if label == 1 and category != 'related':
                             predictions.append({
                                 "category": category,
                                 "confidence": probabilities.get(category, 0.0)  # Fallback to 0.0 if no probability
