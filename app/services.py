@@ -313,12 +313,15 @@ class ModelService:
                     if model_output_count != expected_count:
                         logger.warning(
                             f"Model output count ({model_output_count}) != expected count ({expected_count}). "
-                            f"Using first {model_output_count} categories from label order."
+                            f"Model may have been trained on a subset of categories."
                         )
-                        # Truncate category names to match model output
-                        active_categories = category_names[:model_output_count]
+                        # Create a mapping that ensures all expected categories are handled
+                        active_categories, category_mapping = self._create_category_mapping(
+                            category_names, model_output_count
+                        )
                     else:
                         active_categories = category_names
+                        category_mapping = {i: i for i in range(len(category_names))}
 
                     for idx, p in enumerate(proba):
                         if p.shape[1] == 1:
@@ -342,17 +345,22 @@ class ModelService:
                             )
                             raise TypeError(f"Unexpected predict_proba shape {p.shape}")
 
-                    # Update category_names to match what we actually processed
-                    category_names = active_categories
+                    # Create final results with all expected categories
+                    category_names, classification_labels, prob_dict = self._map_model_outputs_to_categories(
+                        category_names, active_categories, probs, category_mapping
+                    )
                 else:
                     # Some wrappers may return ndarray; fallback to simple predict
                     raise TypeError("Unexpected predict_proba output; using predict fallback")
-                thresholds = self._get_thresholds_map()
-                labels = []
-                for idx, label_name in enumerate(category_names):
-                    threshold = thresholds.get(label_name, 0.5)
-                    labels.append(1 if probs[idx] >= threshold else 0)
-                classification_labels = labels
+                
+                # Apply thresholds to get final classification labels
+                if not classification_labels:  # Only if not already set by mapping
+                    thresholds = self._get_thresholds_map()
+                    classification_labels = []
+                    for idx, label_name in enumerate(category_names):
+                        threshold = thresholds.get(label_name, 0.5)
+                        prob_val = probs[idx] if idx < len(probs) else 0.0
+                        classification_labels.append(1 if prob_val >= threshold else 0)
             except Exception as prob_exc:
                 logger.warning(
                     f"Probability path failed ({prob_exc}); falling back to default predict"
@@ -360,8 +368,13 @@ class ModelService:
                 classification_labels = self._model.predict([text])[0]
                 probs = []
 
-            results = dict(zip(category_names, classification_labels))
-            prob_dict = dict(zip(category_names, probs)) if probs else {}
+            # Create final results dictionary
+            if not prob_dict:  # Only if not already created by mapping
+                results = dict(zip(category_names, classification_labels))
+                prob_dict = dict(zip(category_names, probs)) if probs else {}
+            else:
+                results = dict(zip(category_names, classification_labels))
+            
             return {"labels": results, "probabilities": prob_dict}
             
         except (ValueError, AttributeError) as e:
@@ -443,6 +456,95 @@ class ModelService:
             merged = {**default, **self._thresholds}
             return merged
         return default
+
+    def _create_category_mapping(self, expected_categories: List[str], model_output_count: int) -> Tuple[List[str], Dict[int, int]]:
+        """
+        Create a mapping between model outputs and expected categories.
+        
+        This handles the case where the model was trained on a subset of categories.
+        It attempts to map model outputs to the most likely corresponding expected categories.
+        
+        Args:
+            expected_categories: List of all expected category names
+            model_output_count: Number of outputs the model actually produces
+            
+        Returns:
+            Tuple of (active_categories, category_mapping) where:
+            - active_categories: Categories that the model actually outputs
+            - category_mapping: Dict mapping model output index to expected category index
+        """
+        if model_output_count >= len(expected_categories):
+            # Model has more or equal outputs than expected - use first N expected categories
+            active_categories = expected_categories[:model_output_count]
+            category_mapping = {i: i for i in range(model_output_count)}
+            logger.info(f"Model has {model_output_count} outputs, using first {len(active_categories)} expected categories")
+        else:
+            # Model has fewer outputs - try to map to most relevant expected categories
+            # For now, use the first N expected categories as a conservative approach
+            # In a more sophisticated implementation, this could use feature importance
+            # or training metadata to determine which categories were actually used
+            active_categories = expected_categories[:model_output_count]
+            category_mapping = {i: i for i in range(model_output_count)}
+            
+            logger.warning(
+                f"Model has {model_output_count} outputs but {len(expected_categories)} expected categories. "
+                f"Using first {model_output_count} expected categories. "
+                f"Consider updating the model or expected categories to match."
+            )
+        
+        return active_categories, category_mapping
+
+    def _map_model_outputs_to_categories(
+        self, 
+        expected_categories: List[str], 
+        active_categories: List[str], 
+        model_probs: List[float], 
+        category_mapping: Dict[int, int]
+    ) -> Tuple[List[str], List[int], Dict[str, float]]:
+        """
+        Map model outputs back to all expected categories.
+        
+        Args:
+            expected_categories: All expected category names
+            active_categories: Categories that the model actually outputs
+            model_probs: Probabilities from model outputs
+            category_mapping: Mapping from model output index to expected category index
+            
+        Returns:
+            Tuple of (final_categories, final_labels, final_probs) where:
+            - final_categories: All expected categories
+            - final_labels: Classification labels for all expected categories
+            - final_probs: Probabilities for all expected categories
+        """
+        thresholds = self._get_thresholds_map()
+        final_labels = []
+        final_probs = {}
+        
+        # Initialize all expected categories
+        for i, category_name in enumerate(expected_categories):
+            # Check if this category was in the model output
+            model_idx = None
+            for model_output_idx, expected_idx in category_mapping.items():
+                if expected_idx == i and model_output_idx < len(model_probs):
+                    model_idx = model_output_idx
+                    break
+            
+            if model_idx is not None:
+                # Category was in model output - use actual probability
+                prob_val = model_probs[model_idx]
+                threshold = thresholds.get(category_name, 0.5)
+                label = 1 if prob_val >= threshold else 0
+                final_probs[category_name] = prob_val
+            else:
+                # Category was not in model output - set to 0 (no prediction)
+                prob_val = 0.0
+                label = 0
+                final_probs[category_name] = prob_val
+                logger.debug(f"Category '{category_name}' not in model output, setting to 0")
+            
+            final_labels.append(label)
+        
+        return expected_categories, final_labels, final_probs
 
 
 class ModelHealthMonitor:
