@@ -1,3 +1,4 @@
+LICENSE
 README.md
 pyproject.toml
 src/disasterproject/__init__.py
@@ -22,3 +23,6 @@ src/disasterproject/utils/interaction.py
 src/disasterproject/utils/json_io.py
 tests/test_app_smoke.py
 tests/test_csrf_smoke.py
+tests/test_perf.py
+tests/test_security.py
+tests/test_smoke.py

@@ -16,6 +16,12 @@ import requests
 import sqlalchemy.exc
 from sqlalchemy import create_engine
 
+# Import TARGET_COLUMNS for consistent schema handling
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent / 'src'))
+from disasterproject.utils.config import TARGET_COLUMNS
+
 logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -146,9 +152,12 @@ class DataService:
         return self._df
     
     def get_category_columns(self) -> list:
-        """Get the category column names (assuming they start from column 4)."""
+        """Get the category column names using TARGET_COLUMNS for consistency."""
+        # Use TARGET_COLUMNS from config instead of hardcoded assumption about column positions
         df = self.get_data()
-        return df.columns[4:].tolist()
+        # Return only columns that exist in both TARGET_COLUMNS and the dataframe
+        available_columns = set(df.columns)
+        return [col for col in TARGET_COLUMNS if col in available_columns]
 
 
 class ModelService:

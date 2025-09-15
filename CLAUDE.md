@@ -62,7 +62,7 @@ Disaster response message classification system with modular ML pipeline targeti
 2. ETL pipeline processes text + creates multi-label targets
 3. Sampling strategies handle severe class imbalance
 4. RandomForest with MultiOutputClassifier for 36 categories
-5. Models serialized with joblib in `models/` directory
+5. Models serialized with joblib in `model/` directory
 
 ### Experiment System
 - Structured experiments in `experiments/` with naming convention
