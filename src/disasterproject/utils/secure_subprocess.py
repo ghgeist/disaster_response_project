@@ -21,7 +21,8 @@ def validate_file_path(file_path, must_exist=True):
     Raises:
         SecureSubprocessError: If the path is invalid or doesn't exist when required.
     """
-    if ".." in file_path or os.path.isabs(file_path):
+    # Only block path traversal attempts, not all absolute paths
+    if ".." in file_path:
         raise SecureSubprocessError("Path traversal detected")
 
     if must_exist and not os.path.exists(file_path):
@@ -45,11 +46,16 @@ def validate_command_args(args):
     if not isinstance(args, list):
         raise SecureSubprocessError("Command arguments must be a list")
 
-    for arg in args:
+    for i, arg in enumerate(args):
         if not isinstance(arg, str):
             raise SecureSubprocessError("All arguments must be strings")
-        # Simplified character check
-        for char in "&|;$`()<>\n":
+
+        # Skip validation for sys.executable (first argument) to allow Windows paths with parentheses
+        if i == 0 and arg == sys.executable:
+            continue
+
+        # Simplified character check - allow parentheses in filesystem paths but block shell metacharacters
+        for char in "&|;$`<>\n":
             if char in arg:
                 raise SecureSubprocessError("Unsafe characters detected in arguments")
 
