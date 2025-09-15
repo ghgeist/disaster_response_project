@@ -45,8 +45,8 @@ class TestSecureSubprocess:
         """Test that path traversal attempts are rejected."""
         with pytest.raises(SecureSubprocessError, match="Path traversal detected"):
             validate_file_path("../../../etc/passwd")
-        
-        with pytest.raises(SecureSubprocessError, match="Path traversal detected"):
+
+        with pytest.raises(SecureSubprocessError, match="Absolute paths not allowed"):
             validate_file_path("/etc/passwd")
     
     def test_validate_file_path_nonexistent(self):

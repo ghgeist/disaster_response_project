@@ -7,13 +7,14 @@ class SecureSubprocessError(Exception):
     """Custom exception for security-related errors in subprocesses."""
     pass
 
-def validate_file_path(file_path, must_exist=True):
+def validate_file_path(file_path, must_exist=True, allow_absolute=False):
     """
     Validates a file path to prevent security risks like path traversal.
 
     Args:
         file_path (str): The file path to validate.
         must_exist (bool): If True, the file must exist.
+        allow_absolute (bool): If True, allow absolute paths (use with caution).
 
     Returns:
         str: The validated file path.
@@ -21,9 +22,13 @@ def validate_file_path(file_path, must_exist=True):
     Raises:
         SecureSubprocessError: If the path is invalid or doesn't exist when required.
     """
-    # Only block path traversal attempts, not all absolute paths
+    # Always block path traversal attempts
     if ".." in file_path:
         raise SecureSubprocessError("Path traversal detected")
+
+    # Block absolute paths unless explicitly allowed
+    if os.path.isabs(file_path) and not allow_absolute:
+        raise SecureSubprocessError("Absolute paths not allowed")
 
     if must_exist and not os.path.exists(file_path):
         raise SecureSubprocessError("File does not exist")
@@ -54,8 +59,8 @@ def validate_command_args(args):
         if i == 0 and arg == sys.executable:
             continue
 
-        # Simplified character check - allow parentheses in filesystem paths but block shell metacharacters
-        for char in "&|;$`<>\n":
+        # Simplified character check - block shell metacharacters including parentheses
+        for char in "&|;$`()<>\n":
             if char in arg:
                 raise SecureSubprocessError("Unsafe characters detected in arguments")
 
