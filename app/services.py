@@ -206,7 +206,7 @@ class ModelService:
         except (joblib.externals.loky.process_executor.TerminatedWorkerError, pickle.PickleError) as e:
             logger.error("Model file corrupted or incompatible: %s", e)
             raise RuntimeError(f"Model file is corrupted: {e}") from e
-        except Exception:
+        except Exception as e:
             logger.exception("Unexpected error loading model. See traceback:")
             raise RuntimeError(f"Failed to load model: {e}") from e
     
@@ -437,7 +437,7 @@ class ModelService:
         except (OSError, FileNotFoundError) as e:
             logger.error("Model file access error during prediction: %s", e)
             raise RuntimeError(f"Model file access failed: {e}") from e
-        except Exception:
+        except Exception as e:
             logger.exception("Unexpected error making prediction. See traceback:")
             raise RuntimeError(f"Prediction failed: {e}") from e
 

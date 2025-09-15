@@ -30,3 +30,31 @@ Replaced f-string and concatenated log messages with parameterized logging acros
 - Builds on 2025-09-11 improvements around error handling and import organization.
 - Complements 2025-09-15 defensive NLTK/idempotent logging setup.
 
+---
+
+## Additional Fix: Exception Handling Bug Correction
+
+**Files Modified:**
+- `app/services.py`
+
+**Change Type:** Bug Fix - Critical
+
+**Description:**
+Fixed exception handling bugs in ModelService methods where `except Exception:` clauses didn't capture the exception variable but still referenced it in error messages.
+
+**Specific Changes:**
+- Line 209: `load_model` method - Fixed `except Exception:` to `except Exception as e:`
+- Line 440: `predict` method - Fixed `except Exception:` to `except Exception as e:`
+
+**Impact:**
+- Prevents `NameError` exceptions that would mask original failures
+- Ensures proper error propagation and logging in critical model operations
+- Maintains exception chaining with `from e` for better debugging
+
+**Root Cause:**
+Exception handlers were modified to remove variable binding but error messages still attempted to reference the unbound variable `e`.
+
+**Validation:**
+- Verified all remaining `except Exception:` clauses don't reference exception variables
+- Confirmed proper exception handling throughout the ModelService class
+
