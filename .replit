@@ -6,7 +6,9 @@ channel = "stable-25_05"                                                # your c
 pkgs = ["file", "python312Packages.pylint", "stdenv.cc.cc.lib", "zlib"]
 
 [deployment]
-run = ["sh", "-c", "python run.py"]
+run = ["python", "run.py"]
+deploymentTarget = "autoscale"
+build = ["pip", "install", "-e", "."]
 
 [agent]
 expertMode = true
