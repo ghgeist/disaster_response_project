@@ -1,66 +1,53 @@
 """
 Configuration constants and settings for the disaster response classification system.
+
+Focus areas:
+- Centralized constants used across data, models, and evaluation
+- Lightweight imports and safe initialization (no heavy side effects at import)
+- Idempotent logging setup
 """
 
 import os
 import logging
 import sys
 import numpy as np
-import nltk
 from nltk.corpus import stopwords
 
-# Download required NLTK resources
-nltk_resources = {
-    "corpora": ["stopwords", "wordnet"],
-    "tokenizers": ["punkt"]
-}
+# NLTK resources are now managed by app/nltk_setup.py during application startup
+# This prevents per-request downloads and improves performance
+# The resources are validated and loaded once at startup instead of on every import
 
-for resource_type, resources in nltk_resources.items():
-    for resource in resources:
-        try:
-            if resource_type == "corpora":
-                nltk.data.find(f"corpora/{resource}")
-            elif resource_type == "tokenizers":
-                nltk.data.find(f"tokenizers/{resource}")
-        except LookupError:
-            try:
-                nltk.download(resource)
-                logging.info(f"Downloaded NLTK resource: {resource}")
-            except Exception as e:
-                logging.warning(f"Failed to download NLTK resource {resource}: {e}")
+logger = logging.getLogger(__name__)
 
-# Ensure WordNet is fully loaded to prevent multiprocessing race conditions
-try:
-    from nltk.corpus import wordnet as wn
-    wn.ensure_loaded()  # This forces complete loading in the main thread
-    logging.info("WordNet corpus fully loaded and ready for multiprocessing")
-except Exception as e:
-    logging.warning(f"Failed to ensure WordNet is loaded: {e}")
-    # Continue execution but multiprocessing may have issues
 
-# Set up logging
-def setup_logging():
-    """Set up logging configuration with file and console handlers."""
-    # File handler with detailed format
+def setup_logging() -> None:
+    """Configure logging with file and console handlers (idempotent).
+
+    Adds a detailed file handler and a clean console handler if not already present,
+    and sets the root logging level to INFO.
+    """
+    root_logger = logging.getLogger()
+
+    # Avoid duplicate handlers if setup_logging is called multiple times
+    if getattr(root_logger, "_disasterproject_logging_configured", False):
+        return
+
     file_formatter = logging.Formatter(
         "%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s"
     )
-    # Console handler with clean format (no timestamps/thread info)
     console_formatter = logging.Formatter("%(message)s")
 
-    root_logger = logging.getLogger()
-
-    # File handler for detailed logging
     file_handler = logging.FileHandler("app.log")
     file_handler.setFormatter(file_formatter)
     root_logger.addHandler(file_handler)
 
-    # Console handler for clean output
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(console_formatter)
     root_logger.addHandler(console_handler)
 
     root_logger.setLevel(logging.INFO)
+    # Mark as configured to prevent duplicates
+    setattr(root_logger, "_disasterproject_logging_configured", True)
 
 # Data configuration
 FEATURE_COLUMNS = ["message"]
@@ -104,7 +91,14 @@ TARGET_COLUMNS = [
 ]
 
 # Text processing configuration
-STOPWORDS_SET = set(stopwords.words("english"))
+# Load stopwords defensively to avoid hard crashes when NLTK resources
+# aren't available (e.g., fresh environments before `nltk_setup`).
+try:  # Prefer full set when resources are available
+    STOPWORDS_SET = set(stopwords.words("english"))
+except Exception as exc:  # LookupError, OSError, etc.
+    logger.warning("NLTK stopwords unavailable (%s); using empty fallback set", exc)
+    STOPWORDS_SET = set()
+
 URL_REGEX = (
     r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
 )
@@ -117,6 +111,5 @@ HYPERPARAMETER_OPTIMIZATION = os.path.join(SCRIPT_DIR, "model", "hyperparameter_
 GRID_SEARCH_RESULTS = os.path.join(SCRIPT_DIR, "model", "gs_results.json")
 OPTIMIZED_PARAMETERS = os.path.join(SCRIPT_DIR, "model", "optimized_parameters.json")
 
-# Set random seed for reproducibility
-logging.info("Setting random seed...")
+# Set random seed for reproducibility without noisy import-time logs
 np.random.seed(0)

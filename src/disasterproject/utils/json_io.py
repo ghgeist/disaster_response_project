@@ -65,8 +65,9 @@ def load_model_parameters(file_path: str) -> Optional[Dict[str, Any]]:
     # Handle nested structure with metadata - extract just the parameters
     if "parameters" in data and "metadata" in data:
         parameters = data["parameters"]
-        logging.info(f"Loaded parameters from {data['metadata'].get('model_name', 'unknown')} "
-                    f"version {data['metadata'].get('version', 'unknown')}")
+        model_name = data["metadata"].get("model_name", "unknown")
+        version = data["metadata"].get("version", "unknown")
+        logger.info("Loaded parameters from %s version %s", model_name, version)
     else:
         # Handle flat structure (backward compatibility)
         parameters = data

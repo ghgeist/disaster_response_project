@@ -194,7 +194,7 @@ def main():
 
     setup_logging()
 
-    print(f"\n🚀 Creating Lightweight Disaster Response Model")
+    print(f"\nCreating Lightweight Disaster Response Model")
     print(f"{'='*60}")
     print(f"Database: {args.database_filepath}")
     print(f"Max features: {args.max_features}")
@@ -299,9 +299,9 @@ def main():
     with open(os.path.join(model_dir, 'label_order.json'), 'w') as f:
         json.dump(TARGET_COLUMNS, f, indent=2)
 
-    print(f"\n✅ Lightweight Model Creation Complete!")
+    print(f"\nLightweight Model Creation Complete!")
     print(f"Model: {args.model_out}")
-    print(f"Size: {model_size_mb:.1f} MB ({'✅' if model_size_mb < 50 else '❌'} <50MB)")
+    print(f"Size: {model_size_mb:.1f} MB ({'PASS' if model_size_mb < 50 else 'FAIL'} <50MB)")
     print(f"Training time: {fit_time:.1f}s")
     print(f"Cold load time: {cold_load_time:.3f}s ({'✅' if cold_load_time < 5 else '❌'} <5s)")
     print(f"Single-class labels: {len(single_class_info)}")

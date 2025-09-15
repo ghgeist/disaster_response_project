@@ -12,6 +12,7 @@ from .services import load_metric_frames, extract_perf_triplet, ModelHealthMonit
 from .visualizations import ChartGenerator
 from .utils import validate_message_input, sanitize_input
 from .forms import MessageForm
+from .nltk_setup import get_nltk_status
 
 logger = logging.getLogger(__name__)
 
@@ -187,18 +188,30 @@ def register_routes(app):
                 prediction = model_service.predict(query)
                 classification_results = prediction.get('labels', {})
                 probabilities = prediction.get('probabilities', {})
-                top_category = None
-                top_confidence = None
-                if probabilities:
-                    top_category, top_confidence = max(probabilities.items(), key=lambda x: x[1])
+
+                # Synthesize probabilities from labels when predict_proba unavailable
+                if not probabilities and classification_results:
+                    probabilities = {k: 1.0 if v == 1 else 0.0 for k, v in classification_results.items()}
+
+                # Create a unified list of predictions with their confidence
+                # Exclude 'related' category from display as it's a meta-category indicating disaster relevance
+                predictions = []
+                for category, label in classification_results.items():
+                    if label == 1 and category != 'related':
+                        predictions.append({
+                            "category": category,
+                            "confidence": probabilities.get(category, 0.0)  # Fallback to 0.0 if no probability
+                        })
+                
+                # Sort predictions by confidence in descending order
+                sorted_predictions = sorted(predictions, key=lambda p: p['confidence'], reverse=True)
+
 
                 return render_template(
                     'results.html',
                     query=query,
-                    classification_result=classification_results,
-                    probabilities=probabilities,
-                    top_category=top_category,
-                    top_confidence=top_confidence
+                    sorted_predictions=sorted_predictions,
+                    probabilities=probabilities
                 )
             except (ValueError, RuntimeError) as e:
                 logger.error("Model prediction error in go route (GET): %s", e)
@@ -219,18 +232,30 @@ def register_routes(app):
                     prediction = model_service.predict(query)
                     classification_results = prediction.get('labels', {})
                     probabilities = prediction.get('probabilities', {})
-                    top_category = None
-                    top_confidence = None
-                    if probabilities:
-                        top_category, top_confidence = max(probabilities.items(), key=lambda x: x[1])
+
+                    # Synthesize probabilities from labels when predict_proba unavailable
+                    if not probabilities and classification_results:
+                        probabilities = {k: 1.0 if v == 1 else 0.0 for k, v in classification_results.items()}
+                    
+                    # Create a unified list of predictions with their confidence
+                    # Exclude 'related' category from display as it's a meta-category indicating disaster relevance
+                    predictions = []
+                    for category, label in classification_results.items():
+                        if label == 1 and category != 'related':
+                            predictions.append({
+                                "category": category,
+                                "confidence": probabilities.get(category, 0.0)  # Fallback to 0.0 if no probability
+                            })
+                    
+                    # Sort predictions by confidence in descending order
+                    sorted_predictions = sorted(predictions, key=lambda p: p['confidence'], reverse=True)
+
 
                     return render_template(
                         'results.html',
                         query=query,
-                        classification_result=classification_results,
-                        probabilities=probabilities,
-                        top_category=top_category,
-                        top_confidence=top_confidence
+                        sorted_predictions=sorted_predictions,
+                        probabilities=probabilities
                     )
                 except (ValueError, RuntimeError) as e:
                     logger.exception("Model prediction failed in /go route (POST). See traceback:")
@@ -269,33 +294,67 @@ def register_routes(app):
     @app.route('/health')
     def health_check():
         """
-        Health check endpoint for monitoring.
+        Health check endpoint for monitoring with performance timing.
         """
+        import time
+        start_time = time.time()
+        
         try:
             # Check if services are available
             data_service = current_app.data_service
             model_service = current_app.model_service
             
-            # Test data service
+            # Test data service with timing
+            data_start = time.time()
             df = data_service.get_data()
+            data_time = (time.time() - data_start) * 1000
             data_healthy = len(df) > 0
             
-            # Test model service
+            # Test model service with timing
+            model_start = time.time()
             model = model_service.load_model()
+            model_time = (time.time() - model_start) * 1000
             model_healthy = model is not None
             
+            # Get NLTK status if available
+            nltk_status = current_app.config.get('NLTK_SETUP_RESULTS', {})
+            
+            # Calculate total response time
+            total_time = (time.time() - start_time) * 1000
+            
             if data_healthy and model_healthy:
-                return {
+                response_data = {
                     'status': 'healthy',
                     'data_service': 'ok',
                     'model_service': 'ok',
-                    'message_count': len(df)
-                }, 200
+                    'message_count': len(df),
+                    'performance': {
+                        'total_response_time_ms': round(total_time, 2),
+                        'data_service_time_ms': round(data_time, 2),
+                        'model_service_time_ms': round(model_time, 2)
+                    }
+                }
+                
+                # Add NLTK status if available
+                if nltk_status:
+                    response_data['nltk_status'] = {
+                        'setup_success': nltk_status.get('success', False),
+                        'setup_time_ms': nltk_status.get('setup_time_ms', 0),
+                        'resources_loaded': len(nltk_status.get('resources_loaded', [])),
+                        'resources_failed': len(nltk_status.get('resources_failed', []))
+                    }
+                
+                return response_data, 200
             else:
                 return {
                     'status': 'unhealthy',
                     'data_service': 'ok' if data_healthy else 'error',
-                    'model_service': 'ok' if model_healthy else 'error'
+                    'model_service': 'ok' if model_healthy else 'error',
+                    'performance': {
+                        'total_response_time_ms': round(total_time, 2),
+                        'data_service_time_ms': round(data_time, 2),
+                        'model_service_time_ms': round(model_time, 2)
+                    }
                 }, 503
                 
         except (sqlalchemy.exc.SQLAlchemyError, pd.errors.DatabaseError) as e:
@@ -344,7 +403,7 @@ def register_routes(app):
             )
             
         except Exception as e:
-            logger.error(f"Error in model health dashboard: {e}")
+            logger.error("Error in model health dashboard: %s", e)
             return render_template(
                 'error.html', 
                 message="Model health dashboard unavailable"
@@ -368,7 +427,46 @@ def register_routes(app):
             return health_report
             
         except Exception as e:
-            logger.error(f"Error in model health API: {e}")
+            logger.error("Error in model health API: %s", e)
+            return {
+                'error': str(e),
+                'timestamp': pd.Timestamp.now().isoformat()
+            }, 500
+
+    @app.route('/api/performance-diagnostics')
+    def performance_diagnostics():
+        """
+        API endpoint for performance diagnostics including NLTK and compatibility status.
+        """
+        try:
+            import time
+            start_time = time.time()
+            
+            # Get NLTK status
+            nltk_status = get_nltk_status()
+            
+            
+            # Get NLTK setup results from app config
+            nltk_setup_results = current_app.config.get('NLTK_SETUP_RESULTS', {})
+            
+            # Calculate response time
+            response_time = (time.time() - start_time) * 1000
+            
+            diagnostics = {
+                'timestamp': pd.Timestamp.now().isoformat(),
+                'response_time_ms': round(response_time, 2),
+                'nltk_status': nltk_status,
+                'nltk_setup_results': nltk_setup_results,
+                'performance_optimizations': {
+                    'nltk_startup_optimization': 'enabled',
+                    'per_request_downloads': 'disabled'
+                }
+            }
+            
+            return diagnostics
+            
+        except Exception as e:
+            logger.error("Error in performance diagnostics API: %s", e)
             return {
                 'error': str(e),
                 'timestamp': pd.Timestamp.now().isoformat()
