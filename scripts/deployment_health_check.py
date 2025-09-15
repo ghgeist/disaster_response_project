@@ -9,7 +9,7 @@ import requests
 import json
 from pathlib import Path
 
-def test_model_endpoint(base_url="http://localhost:3000"):
+def test_model_endpoint(base_url="http://localhost:5000"):
     """Test the model prediction endpoint."""
     print("🌐 Testing Model Endpoint...")
     
@@ -37,15 +37,15 @@ def test_model_endpoint(base_url="http://localhost:3000"):
         try:
             # Make request
             start_time = time.time()
-            response = requests.post(
-                f"{base_url}/classify",
-                json={"message": test_case["message"]},
+            response = requests.get(
+                f"{base_url}/go",
+                params={"query": test_case["message"]},
+                headers={"Accept": "text/html,application/json"},
                 timeout=5
             )
             response_time = (time.time() - start_time) * 1000  # ms
             
             if response.status_code == 200:
-                result = response.json()
                 print(f"✅ Test {i} ({test_case['description']}): {response_time:.0f}ms")
                 
                 # Check response time
@@ -53,14 +53,13 @@ def test_model_endpoint(base_url="http://localhost:3000"):
                     print(f"⚠️ Response time {response_time:.0f}ms exceeds 500ms threshold")
                     all_passed = False
                 
-                # Check expected labels are present (basic validation)
-                if 'predictions' in result:
-                    predictions = result['predictions']
-                    for expected_label in test_case['expected_labels']:
-                        if expected_label in predictions:
-                            print(f"   {expected_label}: {predictions[expected_label]}")
-                        else:
-                            print(f"   ⚠️ Expected label {expected_label} not found")
+                # Validate HTML response contains classification results
+                html_content = response.text.lower()
+                if "<html" in html_content and ("classification" in html_content or "disaster" in html_content or "results" in html_content):
+                    print(f"   ✅ Response contains classification results")
+                else:
+                    print(f"   ⚠️ Response may not contain expected classification content")
+                    all_passed = False
                 
             else:
                 print(f"❌ Test {i}: HTTP {response.status_code}")
@@ -75,7 +74,9 @@ def test_model_endpoint(base_url="http://localhost:3000"):
     
     return all_passed
 
-def test_health_endpoint(base_url="http://localhost:3000"):
+
+
+def test_health_endpoint(base_url="http://localhost:5000"):
     """Test the health check endpoint."""
     print("\n💓 Testing Health Endpoint...")
     
@@ -93,7 +94,7 @@ def test_health_endpoint(base_url="http://localhost:3000"):
         print(f"❌ Health endpoint failed: {e}")
         return False
 
-def test_load_performance(base_url="http://localhost:3000", num_requests=10):
+def test_load_performance(base_url="http://localhost:5000", num_requests=10):
     """Test performance under load."""
     print(f"\n⚡ Testing Load Performance ({num_requests} requests)...")
     
@@ -104,9 +105,9 @@ def test_load_performance(base_url="http://localhost:3000", num_requests=10):
     for i in range(num_requests):
         try:
             start_time = time.time()
-            response = requests.post(
-                f"{base_url}/classify",
-                json={"message": test_message},
+            response = requests.get(
+                f"{base_url}/go",
+                params={"query": test_message},
                 timeout=10
             )
             response_time = (time.time() - start_time) * 1000
@@ -148,7 +149,7 @@ def main():
     print("=" * 50)
     
     # You can modify this URL based on your deployment
-    base_url = "http://localhost:3000"
+    base_url = "http://localhost:5000"
     
     print(f"Testing deployment at: {base_url}")
     

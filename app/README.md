@@ -43,7 +43,7 @@ app/
    python app.py
    ```
 
-3. **Visit**: http://localhost:3000
+3. **Visit**: http://localhost:5000
 
 ## Configuration
 
@@ -52,7 +52,7 @@ The app uses environment-based configuration:
 - `FLASK_ENV`: Set to 'development' for debug mode
 - `SECRET_KEY`: Flask secret key (auto-generated for development)
 - `HOST`: Server host (default: 0.0.0.0)
-- `PORT`: Server port (default: 3000)
+- `PORT`: Server port (default: 5000)
 - `GDRIVE_MODEL_ID`: Google Drive file ID for model download
 - `LOG_LEVEL`: Logging level (INFO/DEBUG/WARNING/ERROR)
 
