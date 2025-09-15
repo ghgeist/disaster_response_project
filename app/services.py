@@ -359,8 +359,29 @@ class ModelService:
                 logger.warning(
                     f"Probability path failed ({prob_exc}); falling back to default predict"
                 )
-                classification_labels = self._model.predict([text])[0]
+                raw_predictions = self._model.predict([text])[0]
                 probs = []
+
+                # Apply category padding logic for predict fallback
+                model_output_count = len(raw_predictions)
+                expected_count = len(category_names)
+
+                if model_output_count != expected_count:
+                    logger.warning(f"Predict fallback: Model output count ({model_output_count}) != expected count ({expected_count})")
+
+                    # Pad or truncate predictions to match expected categories
+                    if model_output_count < expected_count:
+                        # Model outputs fewer categories - pad with zeros
+                        classification_labels = list(raw_predictions) + [0] * (expected_count - model_output_count)
+                        logger.info(f"Padded {expected_count - model_output_count} missing categories with 0")
+                    else:
+                        # Model outputs more categories - truncate to expected count
+                        classification_labels = list(raw_predictions[:expected_count])
+                        logger.info(f"Truncated {model_output_count - expected_count} extra categories")
+                else:
+                    classification_labels = raw_predictions
+
+                prob_dict = {}
 
             # Create final results dictionary
             results = dict(zip(category_names, classification_labels))
