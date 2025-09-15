@@ -122,7 +122,8 @@ class MockModelService:
             else:
                 predictions[category] = 0
 
-        return predictions
+        # Return in same format as real ModelService for consistency
+        return {"labels": predictions, "probabilities": {}}
 
 
 def setup_logging(app: Flask) -> None:

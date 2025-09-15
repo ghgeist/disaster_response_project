@@ -101,6 +101,7 @@ rootLogger.addHandler(consoleHandler)
 
 rootLogger.setLevel(logging.INFO)
 
+# TODO: Import these from disasterproject.utils.config to avoid duplication
 FEATURE_COLUMNS = ["message"]
 TARGET_COLUMNS = [
     "related",
