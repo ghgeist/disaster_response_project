@@ -8,7 +8,6 @@ from flask_wtf.csrf import CSRFProtect, CSRFError
 from .config import Config
 from .routes import register_routes
 from .utils import setup_logging, init_services, validate_environment
-from .nltk_setup import setup_nltk_resources, NLTKSetupError
 
 
 def create_app(config_class=Config):
@@ -26,40 +25,6 @@ def create_app(config_class=Config):
     
     # Setup logging
     setup_logging(app)
-    
-    # Setup NLTK resources at startup for performance optimization
-    try:
-        app.logger.info("Setting up NLTK resources...")
-        nltk_setup_results = setup_nltk_resources()
-        
-        if nltk_setup_results["success"]:
-            app.logger.info(f"NLTK setup completed successfully in {nltk_setup_results['setup_time_ms']}ms")
-            app.logger.info(f"Loaded resources: {[r['name'] for r in nltk_setup_results['resources_loaded']]}")
-        else:
-            app.logger.warning(f"NLTK setup completed with warnings in {nltk_setup_results['setup_time_ms']}ms")
-            for error in nltk_setup_results["errors"]:
-                app.logger.warning(f"NLTK setup warning: {error}")
-        
-        # Store NLTK setup results in app config for monitoring
-        app.config['NLTK_SETUP_RESULTS'] = nltk_setup_results
-        
-    except NLTKSetupError as e:
-        app.logger.error(f"Critical NLTK setup failure: {e}")
-        app.logger.error("Application will continue but may experience performance issues")
-        # Don't fail startup, but log the error
-        app.config['NLTK_SETUP_RESULTS'] = {
-            "success": False,
-            "error": str(e),
-            "setup_time_ms": 0
-        }
-    except Exception as e:
-        app.logger.error(f"Unexpected error during NLTK setup: {e}")
-        app.logger.error("Application will continue but may experience performance issues")
-        app.config['NLTK_SETUP_RESULTS'] = {
-            "success": False,
-            "error": str(e),
-            "setup_time_ms": 0
-        }
     
     # Validate environment configuration
     validation_results = validate_environment(config_class)
