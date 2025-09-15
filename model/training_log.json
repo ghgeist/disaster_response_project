@@ -1,7 +1,7 @@
 {
-  "timestamp": "2025-09-15T11:25:25.802399",
+  "timestamp": "2025-09-15T13:32:27.130091",
   "model_path": "model/disaster_rf_v1-2-0_prod_2025-09-11.pkl",
-  "training_time_seconds": 39.80540347099304,
+  "training_time_seconds": 23.25752067565918,
   "configuration": {
     "hyperparameters": {
       "vect__ngram_range": [
