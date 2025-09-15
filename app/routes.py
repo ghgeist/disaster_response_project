@@ -188,18 +188,30 @@ def register_routes(app):
                 prediction = model_service.predict(query)
                 classification_results = prediction.get('labels', {})
                 probabilities = prediction.get('probabilities', {})
-                top_category = None
-                top_confidence = None
-                if probabilities:
-                    top_category, top_confidence = max(probabilities.items(), key=lambda x: x[1])
+
+                # Synthesize probabilities from labels when predict_proba unavailable
+                if not probabilities and classification_results:
+                    probabilities = {k: 1.0 if v == 1 else 0.0 for k, v in classification_results.items()}
+
+                # Create a unified list of predictions with their confidence
+                # Exclude 'related' category from display as it's a meta-category indicating disaster relevance
+                predictions = []
+                for category, label in classification_results.items():
+                    if label == 1 and category != 'related':
+                        predictions.append({
+                            "category": category,
+                            "confidence": probabilities.get(category, 0.0)  # Fallback to 0.0 if no probability
+                        })
+                
+                # Sort predictions by confidence in descending order
+                sorted_predictions = sorted(predictions, key=lambda p: p['confidence'], reverse=True)
+
 
                 return render_template(
                     'results.html',
                     query=query,
-                    classification_result=classification_results,
-                    probabilities=probabilities,
-                    top_category=top_category,
-                    top_confidence=top_confidence
+                    sorted_predictions=sorted_predictions,
+                    probabilities=probabilities
                 )
             except (ValueError, RuntimeError) as e:
                 logger.error("Model prediction error in go route (GET): %s", e)
@@ -220,18 +232,30 @@ def register_routes(app):
                     prediction = model_service.predict(query)
                     classification_results = prediction.get('labels', {})
                     probabilities = prediction.get('probabilities', {})
-                    top_category = None
-                    top_confidence = None
-                    if probabilities:
-                        top_category, top_confidence = max(probabilities.items(), key=lambda x: x[1])
+
+                    # Synthesize probabilities from labels when predict_proba unavailable
+                    if not probabilities and classification_results:
+                        probabilities = {k: 1.0 if v == 1 else 0.0 for k, v in classification_results.items()}
+                    
+                    # Create a unified list of predictions with their confidence
+                    # Exclude 'related' category from display as it's a meta-category indicating disaster relevance
+                    predictions = []
+                    for category, label in classification_results.items():
+                        if label == 1 and category != 'related':
+                            predictions.append({
+                                "category": category,
+                                "confidence": probabilities.get(category, 0.0)  # Fallback to 0.0 if no probability
+                            })
+                    
+                    # Sort predictions by confidence in descending order
+                    sorted_predictions = sorted(predictions, key=lambda p: p['confidence'], reverse=True)
+
 
                     return render_template(
                         'results.html',
                         query=query,
-                        classification_result=classification_results,
-                        probabilities=probabilities,
-                        top_category=top_category,
-                        top_confidence=top_confidence
+                        sorted_predictions=sorted_predictions,
+                        probabilities=probabilities
                     )
                 except (ValueError, RuntimeError) as e:
                     logger.exception("Model prediction failed in /go route (POST). See traceback:")

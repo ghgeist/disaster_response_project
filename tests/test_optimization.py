@@ -46,14 +46,12 @@ class TestNLTKSetupModule:
         assert 'stopwords' in REQUIRED_RESOURCES['corpora']
         assert 'wordnet' in REQUIRED_RESOURCES['corpora']
         assert 'punkt' in REQUIRED_RESOURCES['tokenizers']
-        assert 'punkt_tab' in REQUIRED_RESOURCES['tokenizers']
 
     def test_resource_validators_defined(self):
         """Test that resource validators are properly defined."""
         assert 'stopwords' in RESOURCE_VALIDATORS
         assert 'wordnet' in RESOURCE_VALIDATORS
         assert 'punkt' in RESOURCE_VALIDATORS
-        assert 'punkt_tab' in RESOURCE_VALIDATORS
         
         # Test that validators are callable
         for resource, validator in RESOURCE_VALIDATORS.items():

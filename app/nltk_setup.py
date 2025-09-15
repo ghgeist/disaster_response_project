@@ -16,15 +16,14 @@ logger = logging.getLogger(__name__)
 # NLTK resources required for the application
 REQUIRED_RESOURCES = {
     "corpora": ["stopwords", "wordnet"],
-    "tokenizers": ["punkt", "punkt_tab"]
+    "tokenizers": ["punkt"]
 }
 
 # Resource validation functions
 RESOURCE_VALIDATORS = {
     "stopwords": lambda: len(stopwords.words("english")) > 0,
     "wordnet": lambda: len(list(wordnet.synsets("test"))) > 0,
-    "punkt": lambda: nltk.data.find("tokenizers/punkt") is not None,
-    "punkt_tab": lambda: nltk.data.find("tokenizers/punkt_tab") is not None
+    "punkt": lambda: nltk.data.find("tokenizers/punkt") is not None
 }
 
 
