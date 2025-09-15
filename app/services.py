@@ -304,21 +304,36 @@ class ModelService:
                 proba = self._model.predict_proba([text])
                 # predict_proba for MultiOutput returns a list of arrays, one per label
                 # Each array shape: (n_samples, n_classes); we want probability of positive class
-                if isinstance(proba, list) and len(proba) == len(category_names):
+                if isinstance(proba, list):
+                    # Handle case where model was trained on fewer categories than expected
+                    # (e.g., some categories had no positive examples and were dropped)
+                    model_output_count = len(proba)
+                    expected_count = len(category_names)
+
+                    if model_output_count != expected_count:
+                        logger.warning(
+                            f"Model output count ({model_output_count}) != expected count ({expected_count}). "
+                            f"Using first {model_output_count} categories from label order."
+                        )
+                        # Truncate category names to match model output
+                        active_categories = category_names[:model_output_count]
+                    else:
+                        active_categories = category_names
+
                     for idx, p in enumerate(proba):
                         if p.shape[1] == 1:
                             # Single column: assume it's the positive class probability
                             prob_val = p[:, 0][0]
                             probs.append(prob_val)
                             logger.debug(
-                                f"Label {idx} ({category_names[idx]}): single column prob={prob_val:.4f}"
+                                f"Label {idx} ({active_categories[idx]}): single column prob={prob_val:.4f}"
                             )
                         elif p.shape[1] == 2:
                             # Two columns: assume class 1 is positive (standard binary classification)
                             prob_val = p[:, 1][0]
                             probs.append(prob_val)
                             logger.debug(
-                                f"Label {idx} ({category_names[idx]}): two columns prob={prob_val:.4f} (class 1)"
+                                f"Label {idx} ({active_categories[idx]}): two columns prob={prob_val:.4f} (class 1)"
                             )
                         else:
                             # Unexpected number of columns
@@ -326,6 +341,9 @@ class ModelService:
                                 f"Unexpected predict_proba shape {p.shape} for label {idx}, falling back to predict"
                             )
                             raise TypeError(f"Unexpected predict_proba shape {p.shape}")
+
+                    # Update category_names to match what we actually processed
+                    category_names = active_categories
                 else:
                     # Some wrappers may return ndarray; fallback to simple predict
                     raise TypeError("Unexpected predict_proba output; using predict fallback")

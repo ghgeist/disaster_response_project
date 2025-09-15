@@ -14,12 +14,8 @@ from app.nltk_setup import (
     REQUIRED_RESOURCES,
     RESOURCE_VALIDATORS
 )
-from app.compat import (
-    load_with_legacy_paths,
-    clear_compatibility_cache,
-    get_compatibility_cache_status,
-    _module_mapping_cache
-)
+# Note: app.compat module was removed as part of module structure cleanup
+# These compatibility functions are no longer needed as models now load directly with joblib
 
 
 class TestNLTKSetupModule:
@@ -135,68 +131,9 @@ class TestNLTKSetupModule:
                     assert result['status'] == 'healthy'
 
 
-class TestCompatibilityOptimization:
-    """Test the compatibility layer optimization."""
-
-    def test_compatibility_imports(self):
-        """Test that compatibility module imports successfully."""
-        from app.compat import (
-            load_with_legacy_paths,
-            clear_compatibility_cache,
-            get_compatibility_cache_status,
-            _module_mapping_cache
-        )
-        
-        assert callable(load_with_legacy_paths)
-        assert callable(clear_compatibility_cache)
-        assert callable(get_compatibility_cache_status)
-        assert isinstance(_module_mapping_cache, dict)
-
-    def test_compatibility_cache_initialization(self):
-        """Test that module mapping cache is properly initialized."""
-        assert len(_module_mapping_cache) >= 0
-        assert isinstance(_module_mapping_cache, dict)
-
-    def test_get_compatibility_cache_status(self):
-        """Test compatibility cache status function."""
-        status = get_compatibility_cache_status()
-        
-        assert 'cache_size' in status
-        assert 'cached_modules' in status
-        assert 'is_legacy_shim_active' in status
-        assert isinstance(status['cache_size'], int)
-        assert isinstance(status['cached_modules'], list)
-        assert isinstance(status['is_legacy_shim_active'], bool)
-
-    def test_clear_compatibility_cache(self):
-        """Test compatibility cache clearing."""
-        # Add something to cache first
-        _module_mapping_cache['test_key'] = 'test_value'
-        assert len(_module_mapping_cache) > 0
-        
-        clear_compatibility_cache()
-        assert len(_module_mapping_cache) == 0
-
-    @patch('joblib.load')
-    @patch('disasterproject.data.preprocessor.tokenize')
-    def test_load_with_legacy_paths_success(self, mock_tokenize, mock_joblib_load):
-        """Test successful legacy model loading."""
-        mock_model = MagicMock()
-        mock_joblib_load.return_value = mock_model
-        
-        with patch('sys.modules', {}):
-            result = load_with_legacy_paths(Path('test_model.pkl'))
-            
-            assert result == mock_model
-            mock_joblib_load.assert_called_once()
-
-    @patch('joblib.load')
-    def test_load_with_legacy_paths_failure(self, mock_joblib_load):
-        """Test legacy model loading failure."""
-        mock_joblib_load.side_effect = Exception("Load failed")
-        
-        with pytest.raises(RuntimeError, match="Legacy model loading failed"):
-            load_with_legacy_paths(Path('test_model.pkl'))
+# TestCompatibilityOptimization class removed since app.compat module was intentionally
+# removed as part of the module structure cleanup (see docs/dev_notes/2025-09-15.md)
+# The system now uses direct joblib.load() without compatibility layers
 
 
 class TestConfigOptimization:
@@ -295,9 +232,8 @@ class TestOptimizationIntegration:
         from app.nltk_setup import setup_nltk_resources
         assert callable(setup_nltk_resources)
         
-        # Test compatibility module
-        from app.compat import load_with_legacy_paths
-        assert callable(load_with_legacy_paths)
+        # Note: app.compat module was removed - models now load directly with joblib
+        # No longer needed after module structure cleanup
         
         # Test that config has been optimized
         config_path = Path("app/config.py")
@@ -328,9 +264,5 @@ class TestOptimizationIntegration:
             with pytest.raises(NLTKSetupError):
                 setup_nltk_resources()
         
-        # Test compatibility error handling
-        with patch('joblib.load') as mock_load:
-            mock_load.side_effect = Exception("Load error")
-            
-            with pytest.raises(RuntimeError, match="Legacy model loading failed"):
-                load_with_legacy_paths(Path('test.pkl'))
+        # Note: Compatibility error handling test removed since app.compat was removed
+        # Models now load directly with joblib without compatibility layers

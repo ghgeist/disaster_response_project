@@ -13,6 +13,7 @@ import os
 import logging
 import pickle
 import tempfile
+import numpy as np
 
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
