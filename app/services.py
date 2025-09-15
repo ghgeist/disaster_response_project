@@ -329,15 +329,17 @@ class ModelService:
                             # Single column: assume it's the positive class probability
                             prob_val = p[:, 0][0]
                             probs.append(prob_val)
+                            category_name = active_categories[idx] if idx < len(active_categories) else f"unknown_{idx}"
                             logger.debug(
-                                f"Label {idx} ({active_categories[idx]}): single column prob={prob_val:.4f}"
+                                f"Label {idx} ({category_name}): single column prob={prob_val:.4f}"
                             )
                         elif p.shape[1] == 2:
                             # Two columns: assume class 1 is positive (standard binary classification)
                             prob_val = p[:, 1][0]
                             probs.append(prob_val)
+                            category_name = active_categories[idx] if idx < len(active_categories) else f"unknown_{idx}"
                             logger.debug(
-                                f"Label {idx} ({active_categories[idx]}): two columns prob={prob_val:.4f} (class 1)"
+                                f"Label {idx} ({category_name}): two columns prob={prob_val:.4f} (class 1)"
                             )
                         else:
                             # Unexpected number of columns
