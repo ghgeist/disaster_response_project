@@ -37,12 +37,6 @@ def load_with_legacy_paths(pickle_path: Path) -> Any:
     try:
         logger.info("Loading model with legacy compatibility shim")
         
-        # Add the project's 'src' directory to the Python path to make
-        # the 'disasterproject' module importable
-        src_path = os.path.join(os.path.dirname(__file__), '..', 'src')
-        if src_path not in sys.path:
-            sys.path.append(src_path)
-        
         # Import the tokenize function from its actual current location
         from disasterproject.data.preprocessor import tokenize
         

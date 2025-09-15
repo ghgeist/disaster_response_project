@@ -2,13 +2,8 @@
 """
 Test Flask application with standardized model naming.
 """
-import sys
 import os
 from pathlib import Path
-
-# Add paths for imports
-sys.path.append('app')
-sys.path.append('src')
 
 def test_flask_standardized():
     """Test the Flask application with standardized model."""
@@ -50,4 +45,4 @@ if __name__ == "__main__":
     success = test_flask_standardized()
     if success:
         print("\nAll tests passed! Ready for Google Drive deployment.")
-    sys.exit(0 if success else 1)
+    exit(0 if success else 1)

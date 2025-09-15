@@ -8,12 +8,7 @@ Usage:
     python test_gdrive_deployment.py
 """
 import os
-import sys
 from pathlib import Path
-
-# Add paths for imports
-sys.path.append('app')
-sys.path.append('src')
 
 def test_gdrive_deployment():
     """Test complete Google Drive deployment flow."""
@@ -22,10 +17,8 @@ def test_gdrive_deployment():
     
     # Check environment variable
     gdrive_id = os.environ.get('GDRIVE_MODEL_ID')
-    if not gdrive_id or gdrive_id.strip() in {'', 'YOUR_FILE_ID', 'YOUR_GOOGLE_DRIVE_FILE_ID'}:
-        print("❌ GDRIVE_MODEL_ID not set properly")
-        print("Please run: export GDRIVE_MODEL_ID='your_actual_file_id'")
-        return False
+    assert gdrive_id and gdrive_id.strip() not in {'', 'YOUR_FILE_ID', 'YOUR_GOOGLE_DRIVE_FILE_ID'}, \
+        "GDRIVE_MODEL_ID not set properly. Please run: export GDRIVE_MODEL_ID='your_actual_file_id'"
     
     print(f"✅ GDRIVE_MODEL_ID set: {gdrive_id[:10]}...")
     
@@ -42,6 +35,7 @@ def test_gdrive_deployment():
         
         # This should trigger download from Google Drive
         model = model_service.load_model()
+        assert model is not None, "Model should be loaded successfully from Google Drive"
         print("✅ SUCCESS: Model downloaded and loaded from Google Drive")
         
         # Test prediction
@@ -54,7 +48,12 @@ def test_gdrive_deployment():
         
         for msg in test_messages:
             result = model_service.predict(msg)
-            positive_count = sum(1 for v in result.values() if v == 1)
+            assert isinstance(result, dict), f"Prediction result should be a dictionary for message: {msg}"
+            assert 'labels' in result, f"Prediction result should contain 'labels' key for message: {msg}"
+            
+            labels = result['labels']
+            positive_count = sum(1 for v in labels.values() if v == 1)
+            assert positive_count >= 0, f"Positive count should be non-negative for message: {msg}"
             print(f"✅ '{msg[:40]}...' -> {positive_count} categories activated")
         
         # Cleanup
@@ -80,4 +79,4 @@ def test_gdrive_deployment():
 
 if __name__ == "__main__":
     success = test_gdrive_deployment()
-    sys.exit(0 if success else 1)
+    exit(0 if success else 1)
