@@ -189,6 +189,10 @@ def register_routes(app):
                 classification_results = prediction.get('labels', {})
                 probabilities = prediction.get('probabilities', {})
 
+                # Synthesize probabilities from labels when predict_proba unavailable
+                if not probabilities and classification_results:
+                    probabilities = {k: 1.0 if v == 1 else 0.0 for k, v in classification_results.items()}
+
                 # Create a unified list of predictions with their confidence
                 # Exclude 'related' category from display as it's a meta-category indicating disaster relevance
                 predictions = []
@@ -228,6 +232,10 @@ def register_routes(app):
                     prediction = model_service.predict(query)
                     classification_results = prediction.get('labels', {})
                     probabilities = prediction.get('probabilities', {})
+
+                    # Synthesize probabilities from labels when predict_proba unavailable
+                    if not probabilities and classification_results:
+                        probabilities = {k: 1.0 if v == 1 else 0.0 for k, v in classification_results.items()}
                     
                     # Create a unified list of predictions with their confidence
                     # Exclude 'related' category from display as it's a meta-category indicating disaster relevance
