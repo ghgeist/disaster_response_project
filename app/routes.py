@@ -403,7 +403,7 @@ def register_routes(app):
             )
             
         except Exception as e:
-            logger.error(f"Error in model health dashboard: {e}")
+            logger.error("Error in model health dashboard: %s", e)
             return render_template(
                 'error.html', 
                 message="Model health dashboard unavailable"
@@ -427,7 +427,7 @@ def register_routes(app):
             return health_report
             
         except Exception as e:
-            logger.error(f"Error in model health API: {e}")
+            logger.error("Error in model health API: %s", e)
             return {
                 'error': str(e),
                 'timestamp': pd.Timestamp.now().isoformat()
@@ -466,7 +466,7 @@ def register_routes(app):
             return diagnostics
             
         except Exception as e:
-            logger.error(f"Error in performance diagnostics API: {e}")
+            logger.error("Error in performance diagnostics API: %s", e)
             return {
                 'error': str(e),
                 'timestamp': pd.Timestamp.now().isoformat()
