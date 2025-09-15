@@ -32,7 +32,7 @@ def _read_metrics_csv(path: Path) -> Optional[pd.DataFrame]:
     """Read a metrics CSV and normalize column names; return None if missing."""
     try:
         if not path.exists():
-            logger.warning(f"Metrics CSV not found: {path}")
+            logger.warning("Metrics CSV not found: %s", path)
             return None
         df = pd.read_csv(path)
         df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
@@ -40,13 +40,13 @@ def _read_metrics_csv(path: Path) -> Optional[pd.DataFrame]:
             df["output_class"] = df["output_class"].astype(str)
         return df
     except (FileNotFoundError, pd.errors.EmptyDataError) as exc:
-        logger.error(f"File not found or empty metrics CSV {path}: {exc}")
+        logger.error("File not found or empty metrics CSV %s: %s", path, exc)
         return None
     except (pd.errors.ParserError, UnicodeDecodeError) as exc:
-        logger.error(f"Parse error in metrics CSV {path}: {exc}")
+        logger.error("Parse error in metrics CSV %s: %s", path, exc)
         return None
-    except Exception as exc:
-        logger.exception(f"Unexpected error reading metrics CSV {path}. See traceback:")
+    except Exception:
+        logger.exception("Unexpected error reading metrics CSV %s. See traceback:", path)
         return None
 
 
@@ -136,11 +136,11 @@ class DataService:
             
         try:
             self._df = pd.read_sql_table(table_name, self.engine)
-            logger.info(f"Data loaded successfully from table '{table_name}'")
+            logger.info("Data loaded successfully from table '%s'", table_name)
             return self._df
             
         except (OSError, pd.errors.DatabaseError, sqlalchemy.exc.SQLAlchemyError) as e:
-            logger.error(f"Error loading data from database: {e}")
+            logger.error("Error loading data from database: %s", e)
             raise RuntimeError(f"Failed to load data: {e}") from e
     
     def get_data(self) -> pd.DataFrame:
@@ -187,27 +187,27 @@ class ModelService:
                 except RuntimeError as e:
                     # Download failed for other reasons
                     if self.model_path.exists():
-                        logger.warning(f"Download failed but using existing local model: {e}")
+                        logger.warning("Download failed but using existing local model: %s", e)
                     else:
                         # No local model and download failed - re-raise
                         raise
             
             # Try standard loading first
             self._model = joblib.load(self.model_path)
-            logger.info(f"Model loaded successfully from {self.model_path}")
+            logger.info("Model loaded successfully from %s", self.model_path)
             
             # Attempt to load thresholds and label order co-located with model
             self._load_artifacts()
             return self._model
             
         except (FileNotFoundError, OSError) as e:
-            logger.error(f"Model file not found or inaccessible: {e}")
+            logger.error("Model file not found or inaccessible: %s", e)
             raise RuntimeError(f"Model file not found: {e}") from e
         except (joblib.externals.loky.process_executor.TerminatedWorkerError, pickle.PickleError) as e:
-            logger.error(f"Model file corrupted or incompatible: {e}")
+            logger.error("Model file corrupted or incompatible: %s", e)
             raise RuntimeError(f"Model file is corrupted: {e}") from e
-        except Exception as e:
-            logger.exception(f"Unexpected error loading model. See traceback:")
+        except Exception:
+            logger.exception("Unexpected error loading model. See traceback:")
             raise RuntimeError(f"Failed to load model: {e}") from e
     
     def _download_model(self) -> None:
@@ -237,7 +237,7 @@ class ModelService:
         """Validate Google Drive configuration before attempting download."""
         if not self.gdrive_model_id or self.gdrive_model_id.strip() in {'', 'YOUR_FILE_ID', 'YOUR_GOOGLE_DRIVE_FILE_ID'}:
             if self.model_path.exists():
-                logger.info(f"Model found at {self.model_path}, skipping download")
+                logger.info("Model found at %s, skipping download", self.model_path)
                 raise ModelDownloadSkipped("Local model exists, skipping download")
             raise RuntimeError(
                 "GDRIVE_MODEL_ID is not set or is using a placeholder. "
@@ -334,8 +334,9 @@ class ModelService:
 
                     if model_output_count != expected_count:
                         logger.warning(
-                            f"Model output count ({model_output_count}) != expected count ({expected_count}). "
-                            f"Model may have been trained on a subset of categories."
+                            "Model output count (%d) != expected count (%d). Model may have been trained on a subset of categories.",
+                            model_output_count,
+                            expected_count,
                         )
                         # Create a mapping that ensures all expected categories are handled
                         active_categories, category_mapping = self._create_category_mapping(
@@ -352,7 +353,10 @@ class ModelService:
                             probs.append(prob_val)
                             category_name = active_categories[idx] if idx < len(active_categories) else f"unknown_{idx}"
                             logger.debug(
-                                f"Label {idx} ({category_name}): single column prob={prob_val:.4f}"
+                                "Label %d (%s): single column prob=%.4f",
+                                idx,
+                                category_name,
+                                prob_val,
                             )
                         elif p.shape[1] == 2:
                             # Two columns: assume class 1 is positive (standard binary classification)
@@ -360,12 +364,17 @@ class ModelService:
                             probs.append(prob_val)
                             category_name = active_categories[idx] if idx < len(active_categories) else f"unknown_{idx}"
                             logger.debug(
-                                f"Label {idx} ({category_name}): two columns prob={prob_val:.4f} (class 1)"
+                                "Label %d (%s): two columns prob=%.4f (class 1)",
+                                idx,
+                                category_name,
+                                prob_val,
                             )
                         else:
                             # Unexpected number of columns
                             logger.warning(
-                                f"Unexpected predict_proba shape {p.shape} for label {idx}, falling back to predict"
+                                "Unexpected predict_proba shape %s for label %d, falling back to predict",
+                                p.shape,
+                                idx,
                             )
                             raise TypeError(f"Unexpected predict_proba shape {p.shape}")
 
@@ -378,7 +387,8 @@ class ModelService:
                     raise TypeError("Unexpected predict_proba output; using predict fallback")
             except Exception as prob_exc:
                 logger.warning(
-                    f"Probability path failed ({prob_exc}); falling back to default predict"
+                    "Probability path failed (%s); falling back to default predict",
+                    prob_exc,
                 )
                 raw_predictions = self._model.predict([text])[0]
                 probs = []
@@ -388,17 +398,27 @@ class ModelService:
                 expected_count = len(category_names)
 
                 if model_output_count != expected_count:
-                    logger.warning(f"Predict fallback: Model output count ({model_output_count}) != expected count ({expected_count})")
+                    logger.warning(
+                        "Predict fallback: Model output count (%d) != expected count (%d)",
+                        model_output_count,
+                        expected_count,
+                    )
 
                     # Pad or truncate predictions to match expected categories
                     if model_output_count < expected_count:
                         # Model outputs fewer categories - pad with zeros
                         classification_labels = list(raw_predictions) + [0] * (expected_count - model_output_count)
-                        logger.info(f"Padded {expected_count - model_output_count} missing categories with 0")
+                        logger.info(
+                            "Padded %d missing categories with 0",
+                            expected_count - model_output_count,
+                        )
                     else:
                         # Model outputs more categories - truncate to expected count
                         classification_labels = list(raw_predictions[:expected_count])
-                        logger.info(f"Truncated {model_output_count - expected_count} extra categories")
+                        logger.info(
+                            "Truncated %d extra categories",
+                            model_output_count - expected_count,
+                        )
                 else:
                     classification_labels = raw_predictions
 
@@ -412,13 +432,13 @@ class ModelService:
             return {"labels": results, "probabilities": prob_dict}
             
         except (ValueError, AttributeError) as e:
-            logger.error(f"Model prediction input error: {e}")
+            logger.error("Model prediction input error: %s", e)
             raise RuntimeError(f"Invalid input for prediction: {e}") from e
         except (OSError, FileNotFoundError) as e:
-            logger.error(f"Model file access error during prediction: {e}")
+            logger.error("Model file access error during prediction: %s", e)
             raise RuntimeError(f"Model file access failed: {e}") from e
-        except Exception as e:
-            logger.exception(f"Unexpected error making prediction. See traceback:")
+        except Exception:
+            logger.exception("Unexpected error making prediction. See traceback:")
             raise RuntimeError(f"Prediction failed: {e}") from e
 
     def _load_artifacts(self) -> None:
@@ -444,7 +464,7 @@ class ModelService:
                 if thresholds_path.exists():
                     with open(thresholds_path, "r", encoding="utf-8") as f:
                         self._thresholds = json.load(f)
-                    logger.info(f"Loaded thresholds from {thresholds_path.name}")
+                    logger.info("Loaded thresholds from %s", thresholds_path.name)
                     break
                     
             # Load label order
@@ -453,10 +473,10 @@ class ModelService:
                 if label_order_path.exists():
                     with open(label_order_path, "r", encoding="utf-8") as f:
                         self._label_order = json.load(f)
-                    logger.info(f"Loaded label order from {label_order_path.name}")
+                    logger.info("Loaded label order from %s", label_order_path.name)
                     break
         except Exception as exc:
-            logger.warning(f"Failed loading model artifacts (thresholds/label_order): {exc}")
+            logger.warning("Failed loading model artifacts (thresholds/label_order): %s", exc)
             self._thresholds = None
             self._label_order = None
 

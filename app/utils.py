@@ -160,7 +160,7 @@ def init_services(app: Flask) -> None:
         app.logger.info('Services initialized successfully')
 
     except Exception as e:
-        app.logger.error(f'Failed to initialize services: {e}')
+        app.logger.error('Failed to initialize services: %s', e)
         raise
 
 
@@ -194,7 +194,9 @@ def validate_message_input(text: str) -> Tuple[bool, Optional[str]]:
     ]
     for pattern in sql_patterns:
         if re.search(pattern, text.lower()):
-            logging.getLogger(__name__).warning(f"Potential SQL injection attempt detected: {text[:50]}...")
+            logging.getLogger(__name__).warning(
+                "Potential SQL injection attempt detected: %s...", text[:50]
+            )
             return False, "Message contains potentially harmful content"
     
     return True, None
