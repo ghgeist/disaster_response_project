@@ -13,6 +13,7 @@ import os
 import logging
 import pickle
 import tempfile
+import numpy as np
 
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
@@ -203,7 +204,7 @@ def main():
     print("1. Run multi-label sampling validation:")
     print(f"   python scripts/validate_multilabel_sampling.py {database_filepath}")
     print("2. Create a validation model:")
-    print("   python scripts/create_model.py --out models/validation_test.pkl")
+    print("   python scripts/create_model.py --out model/validation_test.pkl")
     print("3. Test the web application:")
     print("   cd app && python app.py")
 

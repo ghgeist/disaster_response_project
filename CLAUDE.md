@@ -53,7 +53,7 @@ Disaster response message classification system with modular ML pipeline targeti
 
 ### Core Package (`src/disasterproject/`)
 - **data/**: ETL pipeline (loader, preprocessor, column definitions)
-- **models/**: ML pipeline with sampling strategies (SMOTE, ADASYN) + RandomForest
+- **model/**: Trained models and artifacts with metadata
 - **evaluation/**: Multi-label classification metrics
 - **utils/**: Configuration, experiment tracking, I/O
 
@@ -62,7 +62,7 @@ Disaster response message classification system with modular ML pipeline targeti
 2. ETL pipeline processes text + creates multi-label targets
 3. Sampling strategies handle severe class imbalance
 4. RandomForest with MultiOutputClassifier for 36 categories
-5. Models serialized with joblib in `models/` directory
+5. Models serialized with joblib in `model/` directory
 
 ### Experiment System
 - Structured experiments in `experiments/` with naming convention

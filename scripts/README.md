@@ -91,7 +91,7 @@ python scripts/create_production_model.py
 python scripts/test_sampling_strategies.py data/02_stg/stg_disaster_response.db
 
 # Test hyperparameters
-python scripts/test_hyperparameters.py data/02_stg/stg_disaster_response.db models/optimized.pkl
+python scripts/test_hyperparameters.py data/02_stg/stg_disaster_response.db model/optimized.pkl
 
 # Run batch experiments
 python scripts/run_batch_experiments.py

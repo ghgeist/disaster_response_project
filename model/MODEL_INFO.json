@@ -1,0 +1,61 @@
+{
+  "model_type": "TF-IDF + LogisticRegression",
+  "max_features": 10000,
+  "fit_time_seconds": 9.925837516784668,
+  "model_size_mb": 2.9978981018066406,
+  "cold_load_seconds": 0.11186480522155762,
+  "single_class_labels": {
+    "9": {
+      "label": "child_alone",
+      "class": 0
+    }
+  },
+  "valid_label_indices": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35
+  ],
+  "thresholds": {
+    "medical_help": 0.46,
+    "search_and_rescue": 0.59,
+    "security": 0.38,
+    "water": 0.48,
+    "food": 0.45,
+    "shelter": 0.48,
+    "hospitals": 0.53,
+    "weather_related": 0.37
+  },
+  "created_date": "2025-09-15T11:28:11.092603"
+}

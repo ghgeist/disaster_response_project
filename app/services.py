@@ -172,14 +172,8 @@ class ModelService:
                 self._download_model()
             
             # Try standard loading first
-            try:
-                self._model = joblib.load(self.model_path)
-                logger.info(f"Model loaded successfully with standard loading from {self.model_path}")
-            except (ModuleNotFoundError, AttributeError) as module_err:
-                # Fallback to legacy compatibility loading for old models
-                logger.warning(f"Standard loading failed ({module_err}), falling back to legacy compatibility mode")
-                from .compat import load_with_legacy_paths
-                self._model = load_with_legacy_paths(self.model_path)
+            self._model = joblib.load(self.model_path)
+            logger.info(f"Model loaded successfully from {self.model_path}")
             
             # Attempt to load thresholds and label order co-located with model
             self._load_artifacts()
@@ -305,26 +299,47 @@ class ModelService:
         try:
             category_names = self._get_label_order()
             probs: List[float] = []
+            prob_dict: Dict[str, float] = {}
             # Try probability-based thresholding
             try:
                 proba = self._model.predict_proba([text])
                 # predict_proba for MultiOutput returns a list of arrays, one per label
                 # Each array shape: (n_samples, n_classes); we want probability of positive class
-                if isinstance(proba, list) and len(proba) == len(category_names):
+                if isinstance(proba, list):
+                    # Handle case where model was trained on fewer categories than expected
+                    # (e.g., some categories had no positive examples and were dropped)
+                    model_output_count = len(proba)
+                    expected_count = len(category_names)
+
+                    if model_output_count != expected_count:
+                        logger.warning(
+                            f"Model output count ({model_output_count}) != expected count ({expected_count}). "
+                            f"Model may have been trained on a subset of categories."
+                        )
+                        # Create a mapping that ensures all expected categories are handled
+                        active_categories, category_mapping = self._create_category_mapping(
+                            category_names, model_output_count
+                        )
+                    else:
+                        active_categories = category_names
+                        category_mapping = {i: i for i in range(len(category_names))}
+
                     for idx, p in enumerate(proba):
                         if p.shape[1] == 1:
                             # Single column: assume it's the positive class probability
                             prob_val = p[:, 0][0]
                             probs.append(prob_val)
+                            category_name = active_categories[idx] if idx < len(active_categories) else f"unknown_{idx}"
                             logger.debug(
-                                f"Label {idx} ({category_names[idx]}): single column prob={prob_val:.4f}"
+                                f"Label {idx} ({category_name}): single column prob={prob_val:.4f}"
                             )
                         elif p.shape[1] == 2:
                             # Two columns: assume class 1 is positive (standard binary classification)
                             prob_val = p[:, 1][0]
                             probs.append(prob_val)
+                            category_name = active_categories[idx] if idx < len(active_categories) else f"unknown_{idx}"
                             logger.debug(
-                                f"Label {idx} ({category_names[idx]}): two columns prob={prob_val:.4f} (class 1)"
+                                f"Label {idx} ({category_name}): two columns prob={prob_val:.4f} (class 1)"
                             )
                         else:
                             # Unexpected number of columns
@@ -332,24 +347,47 @@ class ModelService:
                                 f"Unexpected predict_proba shape {p.shape} for label {idx}, falling back to predict"
                             )
                             raise TypeError(f"Unexpected predict_proba shape {p.shape}")
+
+                    # Create final results with all expected categories
+                    category_names, classification_labels, prob_dict = self._map_model_outputs_to_categories(
+                        category_names, active_categories, probs, category_mapping
+                    )
                 else:
                     # Some wrappers may return ndarray; fallback to simple predict
                     raise TypeError("Unexpected predict_proba output; using predict fallback")
-                thresholds = self._get_thresholds_map()
-                labels = []
-                for idx, label_name in enumerate(category_names):
-                    threshold = thresholds.get(label_name, 0.5)
-                    labels.append(1 if probs[idx] >= threshold else 0)
-                classification_labels = labels
             except Exception as prob_exc:
                 logger.warning(
                     f"Probability path failed ({prob_exc}); falling back to default predict"
                 )
-                classification_labels = self._model.predict([text])[0]
+                raw_predictions = self._model.predict([text])[0]
                 probs = []
 
+                # Apply category padding logic for predict fallback
+                model_output_count = len(raw_predictions)
+                expected_count = len(category_names)
+
+                if model_output_count != expected_count:
+                    logger.warning(f"Predict fallback: Model output count ({model_output_count}) != expected count ({expected_count})")
+
+                    # Pad or truncate predictions to match expected categories
+                    if model_output_count < expected_count:
+                        # Model outputs fewer categories - pad with zeros
+                        classification_labels = list(raw_predictions) + [0] * (expected_count - model_output_count)
+                        logger.info(f"Padded {expected_count - model_output_count} missing categories with 0")
+                    else:
+                        # Model outputs more categories - truncate to expected count
+                        classification_labels = list(raw_predictions[:expected_count])
+                        logger.info(f"Truncated {model_output_count - expected_count} extra categories")
+                else:
+                    classification_labels = raw_predictions
+
+                prob_dict = {}
+
+            # Create final results dictionary
             results = dict(zip(category_names, classification_labels))
-            prob_dict = dict(zip(category_names, probs)) if probs else {}
+            if not prob_dict:
+                prob_dict = dict(zip(category_names, probs)) if probs else {}
+            
             return {"labels": results, "probabilities": prob_dict}
             
         except (ValueError, AttributeError) as e:
@@ -431,6 +469,95 @@ class ModelService:
             merged = {**default, **self._thresholds}
             return merged
         return default
+
+    def _create_category_mapping(self, expected_categories: List[str], model_output_count: int) -> Tuple[List[str], Dict[int, int]]:
+        """
+        Create a mapping between model outputs and expected categories.
+        
+        This handles the case where the model was trained on a subset of categories.
+        It attempts to map model outputs to the most likely corresponding expected categories.
+        
+        Args:
+            expected_categories: List of all expected category names
+            model_output_count: Number of outputs the model actually produces
+            
+        Returns:
+            Tuple of (active_categories, category_mapping) where:
+            - active_categories: Categories that the model actually outputs
+            - category_mapping: Dict mapping model output index to expected category index
+        """
+        if model_output_count >= len(expected_categories):
+            # Model has more or equal outputs than expected - use first N expected categories
+            active_categories = expected_categories[:model_output_count]
+            category_mapping = {i: i for i in range(model_output_count)}
+            logger.info(f"Model has {model_output_count} outputs, using first {len(active_categories)} expected categories")
+        else:
+            # Model has fewer outputs - try to map to most relevant expected categories
+            # For now, use the first N expected categories as a conservative approach
+            # In a more sophisticated implementation, this could use feature importance
+            # or training metadata to determine which categories were actually used
+            active_categories = expected_categories[:model_output_count]
+            category_mapping = {i: i for i in range(model_output_count)}
+            
+            logger.warning(
+                f"Model has {model_output_count} outputs but {len(expected_categories)} expected categories. "
+                f"Using first {model_output_count} expected categories. "
+                f"Consider updating the model or expected categories to match."
+            )
+        
+        return active_categories, category_mapping
+
+    def _map_model_outputs_to_categories(
+        self, 
+        expected_categories: List[str], 
+        active_categories: List[str], 
+        model_probs: List[float], 
+        category_mapping: Dict[int, int]
+    ) -> Tuple[List[str], List[int], Dict[str, float]]:
+        """
+        Map model outputs back to all expected categories.
+        
+        Args:
+            expected_categories: All expected category names
+            active_categories: Categories that the model actually outputs
+            model_probs: Probabilities from model outputs
+            category_mapping: Mapping from model output index to expected category index
+            
+        Returns:
+            Tuple of (final_categories, final_labels, final_probs) where:
+            - final_categories: All expected categories
+            - final_labels: Classification labels for all expected categories
+            - final_probs: Probabilities for all expected categories
+        """
+        thresholds = self._get_thresholds_map()
+        final_labels = []
+        final_probs = {}
+        
+        # Initialize all expected categories
+        for i, category_name in enumerate(expected_categories):
+            # Check if this category was in the model output
+            model_idx = None
+            for model_output_idx, expected_idx in category_mapping.items():
+                if expected_idx == i and model_output_idx < len(model_probs):
+                    model_idx = model_output_idx
+                    break
+            
+            if model_idx is not None:
+                # Category was in model output - use actual probability
+                prob_val = model_probs[model_idx]
+                threshold = thresholds.get(category_name, 0.5)
+                label = 1 if prob_val >= threshold else 0
+                final_probs[category_name] = prob_val
+            else:
+                # Category was not in model output - set to 0 (no prediction)
+                prob_val = 0.0
+                label = 0
+                final_probs[category_name] = prob_val
+                logger.debug(f"Category '{category_name}' not in model output, setting to 0")
+            
+            final_labels.append(label)
+        
+        return expected_categories, final_labels, final_probs
 
 
 class ModelHealthMonitor:

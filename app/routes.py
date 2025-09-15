@@ -12,6 +12,7 @@ from .services import load_metric_frames, extract_perf_triplet, ModelHealthMonit
 from .visualizations import ChartGenerator
 from .utils import validate_message_input, sanitize_input
 from .forms import MessageForm
+from .nltk_setup import get_nltk_status
 
 logger = logging.getLogger(__name__)
 
@@ -269,33 +270,67 @@ def register_routes(app):
     @app.route('/health')
     def health_check():
         """
-        Health check endpoint for monitoring.
+        Health check endpoint for monitoring with performance timing.
         """
+        import time
+        start_time = time.time()
+        
         try:
             # Check if services are available
             data_service = current_app.data_service
             model_service = current_app.model_service
             
-            # Test data service
+            # Test data service with timing
+            data_start = time.time()
             df = data_service.get_data()
+            data_time = (time.time() - data_start) * 1000
             data_healthy = len(df) > 0
             
-            # Test model service
+            # Test model service with timing
+            model_start = time.time()
             model = model_service.load_model()
+            model_time = (time.time() - model_start) * 1000
             model_healthy = model is not None
             
+            # Get NLTK status if available
+            nltk_status = current_app.config.get('NLTK_SETUP_RESULTS', {})
+            
+            # Calculate total response time
+            total_time = (time.time() - start_time) * 1000
+            
             if data_healthy and model_healthy:
-                return {
+                response_data = {
                     'status': 'healthy',
                     'data_service': 'ok',
                     'model_service': 'ok',
-                    'message_count': len(df)
-                }, 200
+                    'message_count': len(df),
+                    'performance': {
+                        'total_response_time_ms': round(total_time, 2),
+                        'data_service_time_ms': round(data_time, 2),
+                        'model_service_time_ms': round(model_time, 2)
+                    }
+                }
+                
+                # Add NLTK status if available
+                if nltk_status:
+                    response_data['nltk_status'] = {
+                        'setup_success': nltk_status.get('success', False),
+                        'setup_time_ms': nltk_status.get('setup_time_ms', 0),
+                        'resources_loaded': len(nltk_status.get('resources_loaded', [])),
+                        'resources_failed': len(nltk_status.get('resources_failed', []))
+                    }
+                
+                return response_data, 200
             else:
                 return {
                     'status': 'unhealthy',
                     'data_service': 'ok' if data_healthy else 'error',
-                    'model_service': 'ok' if model_healthy else 'error'
+                    'model_service': 'ok' if model_healthy else 'error',
+                    'performance': {
+                        'total_response_time_ms': round(total_time, 2),
+                        'data_service_time_ms': round(data_time, 2),
+                        'model_service_time_ms': round(model_time, 2)
+                    }
                 }, 503
                 
         except (sqlalchemy.exc.SQLAlchemyError, pd.errors.DatabaseError) as e:
@@ -369,6 +404,45 @@ def register_routes(app):
             
         except Exception as e:
             logger.error(f"Error in model health API: {e}")
+            return {
+                'error': str(e),
+                'timestamp': pd.Timestamp.now().isoformat()
+            }, 500
+
+    @app.route('/api/performance-diagnostics')
+    def performance_diagnostics():
+        """
+        API endpoint for performance diagnostics including NLTK and compatibility status.
+        """
+        try:
+            import time
+            start_time = time.time()
+            
+            # Get NLTK status
+            nltk_status = get_nltk_status()
+            
+            
+            # Get NLTK setup results from app config
+            nltk_setup_results = current_app.config.get('NLTK_SETUP_RESULTS', {})
+            
+            # Calculate response time
+            response_time = (time.time() - start_time) * 1000
+            
+            diagnostics = {
+                'timestamp': pd.Timestamp.now().isoformat(),
+                'response_time_ms': round(response_time, 2),
+                'nltk_status': nltk_status,
+                'nltk_setup_results': nltk_setup_results,
+                'performance_optimizations': {
+                    'nltk_startup_optimization': 'enabled',
+                    'per_request_downloads': 'disabled'
+                }
+            }
+            
+            return diagnostics
+            
+        except Exception as e:
+            logger.error(f"Error in performance diagnostics API: {e}")
             return {
                 'error': str(e),
                 'timestamp': pd.Timestamp.now().isoformat()

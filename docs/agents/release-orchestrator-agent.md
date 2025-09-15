@@ -57,7 +57,7 @@ Execute quality gates using Cursor's integrated tools:
 - Find validation scripts: `scripts/*validation*.py`, `scripts/*health*.py`, `scripts/*test*.py`
 - Discover metrics files: `model/*.csv`, `experiments/results/*`, `data/*/`, `outputs/*`, `results/*`
 - Identify configuration: `requirements.txt`, `*.yml`, `*.json` config files
-- Find model directories: `model/`, `models/`, `artifacts/`, `experiments/models/`
+- Find model directories: `model/`, `artifacts/`, `experiments/models/`
 
 ### Baseline Metrics Discovery
 - Production model metrics: Look for `*metrics*.csv`, `*performance*.csv`, `*results*.csv`

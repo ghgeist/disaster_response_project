@@ -1,2 +1,1 @@
-disaster_classifier
 disasterproject
