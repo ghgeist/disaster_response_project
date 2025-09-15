@@ -167,8 +167,14 @@ class ModelService:
             return self._model
 
         try:
-            # Ensure model exists locally
-            if not self.model_path.exists():
+            # Environment-aware model loading
+            # Always download in Replit environments, otherwise check if model exists locally
+            should_download = (
+                os.getenv('REPLIT_DB_URL') is not None or  # Replit environment
+                not self.model_path.exists()               # Model doesn't exist locally
+            )
+
+            if should_download:
                 self._download_model()
             
             # Try standard loading first
