@@ -188,18 +188,20 @@ def register_routes(app):
                 prediction = model_service.predict(query)
                 classification_results = prediction.get('labels', {})
                 probabilities = prediction.get('probabilities', {})
-                top_category = None
-                top_confidence = None
-                if probabilities:
-                    top_category, top_confidence = max(probabilities.items(), key=lambda x: x[1])
+
+                positive_categories = {
+                    cat: probabilities.get(cat, 0)
+                    for cat, label in classification_results.items() if label == 1
+                }
+                sorted_predictions = sorted(
+                    positive_categories.items(), key=lambda item: item[1], reverse=True
+                )
 
                 return render_template(
                     'results.html',
                     query=query,
-                    classification_result=classification_results,
-                    probabilities=probabilities,
-                    top_category=top_category,
-                    top_confidence=top_confidence
+                    sorted_predictions=sorted_predictions,
+                    probabilities=probabilities
                 )
             except (ValueError, RuntimeError) as e:
                 logger.error("Model prediction error in go route (GET): %s", e)
@@ -220,18 +222,20 @@ def register_routes(app):
                     prediction = model_service.predict(query)
                     classification_results = prediction.get('labels', {})
                     probabilities = prediction.get('probabilities', {})
-                    top_category = None
-                    top_confidence = None
-                    if probabilities:
-                        top_category, top_confidence = max(probabilities.items(), key=lambda x: x[1])
+                    
+                    positive_categories = {
+                        cat: probabilities.get(cat, 0)
+                        for cat, label in classification_results.items() if label == 1
+                    }
+                    sorted_predictions = sorted(
+                        positive_categories.items(), key=lambda item: item[1], reverse=True
+                    )
 
                     return render_template(
                         'results.html',
                         query=query,
-                        classification_result=classification_results,
-                        probabilities=probabilities,
-                        top_category=top_category,
-                        top_confidence=top_confidence
+                        sorted_predictions=sorted_predictions,
+                        probabilities=probabilities
                     )
                 except (ValueError, RuntimeError) as e:
                     logger.exception("Model prediction failed in /go route (POST). See traceback:")

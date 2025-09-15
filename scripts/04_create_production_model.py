@@ -211,6 +211,8 @@ def _json_safe(obj):
         return {str(k): _json_safe(v) for k, v in obj.items()}
     if isinstance(obj, (list, tuple, set)):
         return [_json_safe(v) for v in list(obj)]
+    if callable(obj):
+        return f"<function:{obj.__name__}>" if hasattr(obj, '__name__') else "<function:unknown>"
     return str(obj)
 
 

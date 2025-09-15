@@ -32,30 +32,17 @@
         <div>
             <h4 class="text-lg font-semibold text-gray-400 uppercase tracking-wider mb-3">Predicted Categories</h4>
             <div class="flex flex-wrap gap-3">
-                {% set has_categories = false %}
-                {% for category, value in classification_result.items() %}
-                    {% if value == 1 %}
-                        {% set has_categories = true %}
-                        <span class="bg-brand-accent-amber text-gray-900 text-sm font-bold px-4 py-2 rounded-full shadow-md" title="Confidence: {{ (probabilities.get(category, 0) * 100)|round(1) }}%">
-                            {{ category.replace('_', ' ')|title }} ({{ (probabilities.get(category, 0) * 100)|round(0) }}%)
+                {% if sorted_predictions %}
+                    {% for category, confidence in sorted_predictions %}
+                        <span class="bg-brand-accent-amber text-gray-900 text-sm font-bold px-4 py-2 rounded-full shadow-md" title="Confidence: {{ (confidence * 100)|round(1) }}%">
+                            {{ category.replace('_', ' ')|title }}
                         </span>
-                    {% endif %}
-                {% endfor %}
-                {% if not has_categories %}
+                    {% endfor %}
+                {% else %}
                     <p class="text-gray-400">This message does not appear to be related to a disaster.</p>
                 {% endif %}
             </div>
         </div>
-
-        {% if top_category %}
-        <div class="mt-6">
-            <p class="text-gray-300">
-                Most confident prediction:
-                <span class="font-bold text-brand-accent-amber">{{ top_category.replace('_', ' ')|title }}</span>
-                ({{ (top_confidence * 100)|round(1) }}% confidence)
-            </p>
-        </div>
-        {% endif %}
 
         {% if probabilities %}
         <div class="mt-10">
