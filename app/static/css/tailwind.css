@@ -1,5 +1,31 @@
 /* Tailwind CSS - Custom build for Signal Storm Flask App */
 
+/* Custom theme tokens */
+:root {
+  --brand-accent: #3182CE;
+  --bg: #1A202C;
+  --card: #2D3748;
+  --text: rgb(229,231,235);
+  --muted: rgb(156,163,175);
+}
+
+@layer base {
+  body {@apply bg-[var(--bg)] text-[var(--text)];}
+  h1 {@apply text-4xl md:text-5xl font-extrabold;}
+  h2 {@apply text-3xl font-bold;}
+  h3 {@apply text-xl font-semibold;}
+  p,li {@apply text-base;}
+  a,button {@apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--brand-accent)];}
+}
+
+@layer components {
+  .container-page {@apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;}
+  .btn-primary {@apply inline-flex items-center rounded-xl px-4 py-2 font-semibold bg-[var(--brand-accent)] text-white hover:bg-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400;}
+  .card {@apply rounded-2xl bg-[var(--card)] ring-1 ring-black/10 p-6;}
+  .badge-accent {@apply rounded-full px-3 py-1 text-sm bg-[#3182CE]/20 text-blue-200 ring-1 ring-[#3182CE]/40;}
+  .caption {@apply text-sm text-[var(--muted)];}
+}
+
 /* Base styles */
 *, ::before, ::after {
   --tw-border-spacing-x: 0;

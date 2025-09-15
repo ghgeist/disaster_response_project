@@ -4,86 +4,81 @@
 
 {% block content %}
     <!-- Hero Section -->
-    <div id="hero" class="text-center mb-12">
-        <h1 class="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white mb-3">
-            Signal Storm: Emergency Message Intelligence
-        </h1>
-        <p class="text-lg text-gray-300 max-w-3xl mx-auto">
-            Classify disaster messages instantly
-        </p>
-    </div>
+    <section id="hero" class="container-page text-center mb-12">
+        <h1>Signal Storm: Emergency Message Intelligence</h1>
+        <p class="max-w-3xl mx-auto">Classify disaster messages instantly</p>
+        <a href="#classifier" class="btn-primary mt-6 inline-block">Try the classifier</a>
+    </section>
 
     <!-- Classifier Input Form -->
-    <div id="classifier" class="max-w-3xl mx-auto mb-12">
+    <section id="classifier" class="container-page max-w-3xl mx-auto mb-12">
         {% from 'macros/forms.html' import render_field, render_submit_button %}
         <form action="/go" method="post" class="w-full">
             {{ form.hidden_tag() }}
-            <div class="bg-brand-slate p-6 rounded-lg shadow-lg">
+            <div class="card">
                 {{ render_field(form.query, help_text="Enter a message about a disaster or emergency situation. The AI will analyze and categorize it for first responders.") }}
                 <div class="flex justify-end">
                     {{ render_submit_button(form.submit) }}
                 </div>
             </div>
         </form>
-    </div>
+    </section>
 
-    <div id="data" class="container mx-auto">
+    <section id="data" class="container-page">
         <!-- Main content block for visualizations -->
         <div class="text-center my-8 border-t border-gray-700 pt-8">
-            <h2 class="text-3xl font-bold text-white">Understanding the Data Landscape</h2>
+            <h2>Understanding the Data Landscape</h2>
         </div>
 
         <!-- Container for Plotly charts (first two charts only) -->
         {% if ids is defined %}
         <div class="grid grid-cols-1 gap-8">
             {% for id in ids[:2] %}
-                <div id="{{id}}" class="bg-brand-slate p-4 rounded-lg shadow-lg" style="width: 100%; max-width: 100%; height: 400px; max-height: 500px;"></div>
+                <div id="{{id}}" class="card" style="width: 100%; max-width: 100%; height: 400px; max-height: 500px;"></div>
                 {% if descriptions %}
-                <p class="text-sm text-gray-400 text-center max-w-2xl mx-auto -mt-2">
+                <p class="caption mt-2 text-center max-w-2xl mx-auto">
                     {{ descriptions[loop.index0] if loop.index0 < descriptions|length else '' }}
                 </p>
                 {% endif %}
             {% endfor %}
         </div>
         {% endif %}
-    </div>
+    </section>
 
     <!-- How It Works Section -->
-    <section id="how-it-works" class="bg-brand-slate mt-16 py-12 rounded-lg">
-        <div class="container mx-auto px-6 text-center">
-            <h2 class="text-3xl font-bold text-white mb-8">How It Works</h2>
+    <section id="how-it-works" class="container-page mt-16">
+        <div class="bg-brand-slate py-12 rounded-lg text-center">
+            <h2 class="mb-8">How It Works</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div class="bg-brand-charcoal p-8 rounded-lg shadow-lg border border-gray-700 hover:border-brand-accent-blue transition-all duration-300">
-                    <h3 class="text-xl font-bold mb-4 text-brand-accent-blue">Data Cleaning</h3>
-                    <p class="text-gray-300 leading-relaxed">Merge messages and categories, remove ambiguities and duplicates, and load into a database for a solid training set.</p>
+                    <h3 class="mb-4 text-brand-accent-blue">Data Cleaning</h3>
+                    <p class="leading-relaxed text-gray-300">Merge messages and categories, remove ambiguities and duplicates, and load into a database for a solid training set.</p>
                 </div>
                 <div class="bg-brand-charcoal p-8 rounded-lg shadow-lg border border-gray-700 hover:border-brand-accent-blue transition-all duration-300">
-                    <h3 class="text-xl font-bold mb-4 text-brand-accent-blue">Feature Extraction (TF-IDF)</h3>
-                    <p class="text-gray-300 leading-relaxed">Custom tokenizer normalizes text and TF-IDF emphasizes critical words while downweighting common terms.</p>
+                    <h3 class="mb-4 text-brand-accent-blue">Feature Extraction (TF-IDF)</h3>
+                    <p class="leading-relaxed text-gray-300">Custom tokenizer normalizes text and TF-IDF emphasizes critical words while downweighting common terms.</p>
                 </div>
                 <div class="bg-brand-charcoal p-8 rounded-lg shadow-lg border border-gray-700 hover:border-brand-accent-blue transition-all duration-300">
-                    <h3 class="text-xl font-bold mb-4 text-brand-accent-blue">Multi-Label Model</h3>
-                    <p class="text-gray-300 leading-relaxed">A MultiOutput Random Forest tags each message with all relevant categories across 36 disaster needs.</p>
+                    <h3 class="mb-4 text-brand-accent-blue">Multi-Label Model</h3>
+                    <p class="leading-relaxed text-gray-300">A MultiOutput Random Forest tags each message with all relevant categories across 36 disaster needs.</p>
                 </div>
             </div>
         </div>
         <!-- Performance Deep Dive with embedded chart -->
-        <div id="performance" class="container mx-auto px-6 text-center mt-12">
-            <h2 class="text-2xl font-bold text-white mb-4">Model Performance Deep Dive</h2>
-            <p class="text-sm text-gray-300 max-w-xl mx-auto mb-6">
+        <div id="performance" class="text-center mt-12">
+            <h2 class="mb-4 text-2xl font-bold text-white">Model Performance Deep Dive</h2>
+            <p class="caption max-w-xl mx-auto mb-6">
                 Baseline vs Optimized: precision improves slightly, but recall drops. In disasters, missing real help messages is costly.
             </p>
-            
+
             <!-- Performance chart container -->
             {% if ids|length > 2 %}
             <div class="max-w-4xl mx-auto">
-                <div id="{{ids[2]}}" class="bg-brand-charcoal p-4 rounded-lg shadow-lg mx-auto" style="width: 100%; max-width: 100%; height: 400px; max-height: 500px;"></div>
+                <div id="{{ids[2]}}" class="card mx-auto" style="width: 100%; max-width: 100%; height: 400px; max-height: 500px;"></div>
             </div>
             {% endif %}
-            
-            <p class="text-xs text-gray-500 text-center mt-4 italic">
-                Blue = Baseline. Orange = Optimized. Notice the precision vs recall trade-off.
-            </p>
+
+            <p class="caption mt-4 italic">Blue = Baseline. Orange = Optimized. Notice the precision vs recall trade-off.</p>
         </div>
     </section>
 {% endblock %}
@@ -139,5 +134,16 @@
             console.error('Error parsing or plotting graph JSON:', error);
         }
     });
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const form = document.querySelector('#classifier form');
+  if (!form) return;
+  const submit = form.querySelector('button[type="submit"]');
+  form.addEventListener('submit', function () {
+    submit.disabled = true;
+    submit.innerHTML = 'Classifying… <span class="ml-2 animate-spin">⏳</span>';
+  });
+});
 </script>
 {% endblock %}

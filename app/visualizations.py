@@ -13,12 +13,13 @@ logger = logging.getLogger(__name__)
 def _create_base_layout(title: str, xaxis_title: str, yaxis_title: str) -> go.Layout:
     """Creates a base layout for Plotly charts with a dark theme."""
     return go.Layout(
-        title={'text': title, 'font': {'color': '#E2E8F0'}},
-        xaxis={'title': xaxis_title, 'gridcolor': '#2D3748', 'color': '#A0AEC0'},
-        yaxis={'title': yaxis_title, 'gridcolor': '#2D3748', 'color': '#A0AEC0'},
-        paper_bgcolor='#1A202C',
-        plot_bgcolor='#1A202C',
-        legend={'font': {'color': '#E2E8F0'}},
+        title={'text': title},
+        xaxis={'title': xaxis_title, 'gridcolor': '#4A5568', 'color': 'rgb(156,163,175)'},
+        yaxis={'title': yaxis_title, 'gridcolor': '#4A5568', 'color': 'rgb(156,163,175)'},
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font={'color': 'rgb(229,231,235)'},
+        legend={'font': {'color': 'rgb(229,231,235)'}},
         margin={'l': 80, 'r': 50, 't': 80, 'b': 50}
     )
 
@@ -38,10 +39,10 @@ class ChartGenerator:
     """Service for generating visualization charts."""
     
     COLOR_PALETTE = {
-        'primary': '#06d6a0',
-        'secondary': '#118ab2',
-        'tertiary': '#ffd166',
-        'quaternary': '#ef476f',
+        'primary': '#3182CE',
+        'secondary': '#4A5568',
+        'tertiary': '#718096',
+        'quaternary': '#A0AEC0',
         'neutral': '#A0AEC0'
     }
     

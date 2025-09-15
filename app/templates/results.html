@@ -11,45 +11,46 @@
                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                 </svg>
             </div>
-            <h1 class="text-4xl md:text-5xl font-extrabold text-white">
-                Analysis Complete
-            </h1>
+            <h1>Analysis Complete</h1>
         </div>
-        <p class="text-lg text-gray-400 max-w-3xl mx-auto">
-            Here's what the AI model detected in your message.
-        </p>
+        <p class="max-w-3xl mx-auto">Here's what the AI model detected in your message.</p>
     </div>
 
-    <!-- Results container -->
-    <div class="max-w-4xl mx-auto bg-brand-slate p-8 rounded-lg shadow-2xl mb-8">
-        <!-- Display the original query -->
-        <div class="mb-6">
-            <h4 class="text-lg font-semibold text-gray-400 uppercase tracking-wider mb-2">Message</h4>
-            <p class="text-xl text-white bg-gray-700 p-4 rounded-md">"{{query}}"</p>
-        </div>
+    <div class="card max-w-4xl mx-auto mb-8">
+        <h2 class="mb-2">Your Input</h2>
+        <p class="text-xl">"{{query}}"</p>
+    </div>
 
+    <div class="card max-w-4xl mx-auto mb-8">
         <!-- Display the classification results -->
         <div>
-            <h4 class="text-lg font-semibold text-gray-400 uppercase tracking-wider mb-3">Predicted Categories</h4>
+            <h2 class="mb-3">Predicted Categories</h2>
             <div class="flex flex-wrap gap-3">
                 {% set has_categories = false %}
                 {% for category, value in classification_result.items() %}
                     {% if value == 1 %}
                         {% set has_categories = true %}
-                        <span class="bg-brand-accent-amber text-gray-900 text-sm font-bold px-4 py-2 rounded-full shadow-md" title="Confidence: {{ (probabilities.get(category, 0) * 100)|round(1) }}%">
+                        <span class="badge-accent" title="Confidence: {{ (probabilities.get(category, 0) * 100)|round(1) }}%">
                             {{ category.replace('_', ' ')|title }} ({{ (probabilities.get(category, 0) * 100)|round(0) }}%)
                         </span>
                     {% endif %}
                 {% endfor %}
                 {% if not has_categories %}
-                    <p class="text-gray-400">This message does not appear to be related to a disaster.</p>
+                    <p class="text-[var(--muted)]">This message does not appear to be related to a disaster.</p>
                 {% endif %}
             </div>
+            <ul class="mt-4 text-[var(--muted)]">
+                {% for category, value in classification_result.items() %}
+                    {% if value == 0 %}
+                        <li>{{ category.replace('_', ' ')|title }}</li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
         </div>
 
         {% if top_category %}
         <div class="mt-6">
-            <p class="text-gray-300">
+            <p>
                 Most confident prediction:
                 <span class="font-bold text-brand-accent-amber">{{ top_category.replace('_', ' ')|title }}</span>
                 ({{ (top_confidence * 100)|round(1) }}% confidence)
@@ -59,18 +60,16 @@
 
         {% if probabilities %}
         <div class="mt-10">
-            <h4 class="text-lg font-semibold text-gray-400 uppercase tracking-wider mb-3">Confidence by Category</h4>
-            <div id="confidence-chart" class="bg-brand-charcoal p-4 rounded-lg shadow-lg" style="width: 100%; height: 400px;"></div>
-            <p class="text-sm text-gray-400 text-center mt-2">Higher bars indicate model confidence for each category.</p>
+            <h2 class="mb-3">Confidence by Category</h2>
+            <div id="confidence-chart" class="card" style="width: 100%; height: 400px;"></div>
+            <p class="caption text-center mt-2">Higher bars indicate model confidence for each category.</p>
         </div>
         {% endif %}
     </div>
 
     <!-- Call to action -->
     <div class="text-center mt-4 mb-8">
-        <a href="/" class="bg-brand-accent-blue hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue">
-            Classify Another Message
-        </a>
+        <a href="/" class="btn-primary">Classify Another Message</a>
     </div>
 
 {% endblock %}
@@ -88,15 +87,15 @@
             x: categories,
             y: values,
             type: 'bar',
-            marker: {color: '#FBBF24'}
+            marker: {color: '#3182CE'}
         }];
         const layout = {
-            yaxis: {title: 'Confidence (%)', range: [0, 100]},
-            xaxis: {automargin: true},
+            yaxis: {title: 'Confidence (%)', range: [0, 100], gridcolor: '#4A5568', color: 'rgb(156,163,175)'},
+            xaxis: {automargin: true, gridcolor: '#4A5568', color: 'rgb(156,163,175)'},
             margin: {t: 30},
-            paper_bgcolor: '#111827',
-            plot_bgcolor: '#111827',
-            font: {color: '#E5E7EB'}
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: {color: 'rgb(229,231,235)'}
         };
         Plotly.newPlot('confidence-chart', data, layout, {responsive: true, displaylogo: false});
     });
