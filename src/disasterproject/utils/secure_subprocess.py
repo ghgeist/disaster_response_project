@@ -48,9 +48,10 @@ def validate_command_args(args):
     for arg in args:
         if not isinstance(arg, str):
             raise SecureSubprocessError("All arguments must be strings")
-        if re.search(r'[;&|`$()<>
-]', arg):
-            raise SecureSubprocessError("Unsafe characters detected in arguments")
+        # Simplified character check
+        for char in "&|;$`()<>\n":
+            if char in arg:
+                raise SecureSubprocessError("Unsafe characters detected in arguments")
 
     return args
 
@@ -103,7 +104,8 @@ def validate_model_filename(filename):
     Raises:
         SecureSubprocessError: If the filename contains invalid characters.
     """
-    if not re.match(r'^[a-zA-Z0-9_\-]+\.pkl$', filename) and not re.match(r'^[a-zA-Z0-9_\-]+$', filename):
+    # Simplified regex
+    if not re.match(r'^[a-zA-Z0-9_\-.]+$', filename):
         raise SecureSubprocessError("Invalid characters in filename")
 
     if not filename.endswith(".pkl"):
@@ -125,7 +127,8 @@ def validate_sampling_method(method):
         SecureSubprocessError: If the method is unknown or contains invalid characters.
     """
     allowed_methods = ["baseline", "smote", "adasyn", "conservative", "random", "borderline"]
-    if not isinstance(method, str) or not re.match(r'^[a-zA-Z_]+$', method):
+    # Simplified regex
+    if not re.match(r'^[a-zA-Z_]+$', method):
         raise SecureSubprocessError("Invalid characters in method name")
 
     if method.lower() not in allowed_methods:

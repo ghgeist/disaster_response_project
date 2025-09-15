@@ -270,7 +270,7 @@ class TestSecureSubprocess:
             
             # Test in command arguments
             with pytest.raises(SecureSubprocessError):
-                validate_command__args(["python", "script.py", pattern])
+                validate_command_args(["python", "script.py", pattern])
 
 
 if __name__ == "__main__":
