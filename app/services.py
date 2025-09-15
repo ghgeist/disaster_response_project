@@ -299,6 +299,7 @@ class ModelService:
         try:
             category_names = self._get_label_order()
             probs: List[float] = []
+            prob_dict: Dict[str, float] = {}
             # Try probability-based thresholding
             try:
                 proba = self._model.predict_proba([text])
@@ -352,15 +353,6 @@ class ModelService:
                 else:
                     # Some wrappers may return ndarray; fallback to simple predict
                     raise TypeError("Unexpected predict_proba output; using predict fallback")
-                
-                # Apply thresholds to get final classification labels
-                if not classification_labels:  # Only if not already set by mapping
-                    thresholds = self._get_thresholds_map()
-                    classification_labels = []
-                    for idx, label_name in enumerate(category_names):
-                        threshold = thresholds.get(label_name, 0.5)
-                        prob_val = probs[idx] if idx < len(probs) else 0.0
-                        classification_labels.append(1 if prob_val >= threshold else 0)
             except Exception as prob_exc:
                 logger.warning(
                     f"Probability path failed ({prob_exc}); falling back to default predict"
@@ -369,11 +361,9 @@ class ModelService:
                 probs = []
 
             # Create final results dictionary
-            if not prob_dict:  # Only if not already created by mapping
-                results = dict(zip(category_names, classification_labels))
+            results = dict(zip(category_names, classification_labels))
+            if not prob_dict:
                 prob_dict = dict(zip(category_names, probs)) if probs else {}
-            else:
-                results = dict(zip(category_names, classification_labels))
             
             return {"labels": results, "probabilities": prob_dict}
             
