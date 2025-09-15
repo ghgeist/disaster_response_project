@@ -42,7 +42,7 @@ def _read_metrics_csv(path: Path) -> Optional[pd.DataFrame]:
         logger.error(f"Parse error in metrics CSV {path}: {exc}")
         return None
     except Exception as exc:
-        logger.error(f"Unexpected error reading metrics CSV {path}: {exc}")
+        logger.exception(f"Unexpected error reading metrics CSV {path}. See traceback:")
         return None
 
 
@@ -192,7 +192,7 @@ class ModelService:
             logger.error(f"Model file corrupted or incompatible: {e}")
             raise RuntimeError(f"Model file is corrupted: {e}") from e
         except Exception as e:
-            logger.error(f"Unexpected error loading model: {e}")
+            logger.exception(f"Unexpected error loading model. See traceback:")
             raise RuntimeError(f"Failed to load model: {e}") from e
     
     def _download_model(self) -> None:
@@ -359,7 +359,7 @@ class ModelService:
             logger.error(f"Model file access error during prediction: {e}")
             raise RuntimeError(f"Model file access failed: {e}") from e
         except Exception as e:
-            logger.error(f"Unexpected error making prediction: {e}")
+            logger.exception(f"Unexpected error making prediction. See traceback:")
             raise RuntimeError(f"Prediction failed: {e}") from e
 
     def _load_artifacts(self) -> None:

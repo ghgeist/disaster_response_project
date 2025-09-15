@@ -120,7 +120,7 @@ def register_routes(app):
             logger.error("Error serving favicon - file system issue: %s", e)
             abort(404)
         except Exception as e:
-            logger.error("Unexpected error serving favicon: %s", e)
+            logger.exception("Unexpected error serving favicon. See traceback:")
             abort(404)
 
     @app.route('/')
@@ -156,7 +156,7 @@ def register_routes(app):
             logger.error("File system error in index route: %s", e)
             abort(500, description="Required data files not found. Please contact administrator.")
         except Exception as e:
-            logger.error("Unexpected error in index route: %s", e)
+            logger.exception("Unexpected error in index route. See traceback:")
             abort(500, description="An unexpected error occurred. Please try again later.")
 
     @app.route('/go', methods=['GET', 'POST'], strict_slashes=False)
@@ -204,7 +204,7 @@ def register_routes(app):
                 logger.error("Model prediction error in go route (GET): %s", e)
                 flash("Error processing message. Please try again.", 'error')
             except Exception as e:
-                logger.error("Unexpected error in go route (GET): %s", e)
+                logger.exception("Unexpected error in go route (GET). See traceback:")
                 flash("An unexpected error occurred. Please try again.", 'error')
             return redirect(url_for('index'))
         
@@ -315,7 +315,7 @@ def register_routes(app):
                 'error': 'Service initialization failed'
             }, 503
         except Exception as e:
-            logger.error("Unexpected error in health check: %s", e)
+            logger.exception("Unexpected error in health check. See traceback:")
             return {
                 'status': 'unhealthy',
                 'error': 'Unexpected system error'
