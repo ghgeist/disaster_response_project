@@ -18,6 +18,10 @@ from sqlalchemy import create_engine
 
 logger = logging.getLogger(__name__)
 
+
+class ModelDownloadSkipped(Exception):
+    """Exception raised when model download should be skipped."""
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 FCT_DIR = BASE_DIR / "data" / "04_fct"
 BASE_METRICS_PATH = FCT_DIR / "fct_median_metrics_by_output_class_base.csv"
@@ -168,14 +172,25 @@ class ModelService:
 
         try:
             # Environment-aware model loading
-            # Always download in Replit environments, otherwise check if model exists locally
+            # If in Replit, always try to download fresh models. Otherwise only download if missing.
             should_download = (
-                os.getenv('REPLIT_DB_URL') is not None or  # Replit environment
-                not self.model_path.exists()               # Model doesn't exist locally
+                os.getenv('REPLIT_DB_URL') is not None or  # Replit: always refresh
+                not self.model_path.exists()               # Local: only if missing
             )
 
             if should_download:
-                self._download_model()
+                try:
+                    self._download_model()
+                except ModelDownloadSkipped:
+                    # Download was skipped because local model exists - this is fine
+                    logger.debug("Model download skipped, using existing local model")
+                except RuntimeError as e:
+                    # Download failed for other reasons
+                    if self.model_path.exists():
+                        logger.warning(f"Download failed but using existing local model: {e}")
+                    else:
+                        # No local model and download failed - re-raise
+                        raise
             
             # Try standard loading first
             self._model = joblib.load(self.model_path)
@@ -223,7 +238,7 @@ class ModelService:
         if not self.gdrive_model_id or self.gdrive_model_id.strip() in {'', 'YOUR_FILE_ID', 'YOUR_GOOGLE_DRIVE_FILE_ID'}:
             if self.model_path.exists():
                 logger.info(f"Model found at {self.model_path}, skipping download")
-                return
+                raise ModelDownloadSkipped("Local model exists, skipping download")
             raise RuntimeError(
                 "GDRIVE_MODEL_ID is not set or is using a placeholder. "
                 f"Provide a valid Google Drive file ID via the GDRIVE_MODEL_ID env var, "
