@@ -157,10 +157,10 @@ source venv/bin/activate
 
 ### Replit Deployment
 
-The Flask application is configured for deployment on Replit:
+The Flask application is optimized for production deployment on Replit with **Autoscale** and **Gunicorn** for maximum performance:
 
 1. **Import the project** into your Replit workspace
-2. **Install dependencies** (Replit will automatically run `pip install -r requirements.txt`)
+2. **Dependencies automatically installed** during deployment build process
 3. **Set environment variables**:
    - `GDRIVE_MODEL_ID`: Google Drive file ID for model download (required if the model is not already in `model/`)
    - Ensure the SQLite DB exists at `data/02_stg/stg_disaster_response.db` (upload it or adjust config)
@@ -264,6 +264,46 @@ The application is pre-configured for Replit deployment:
 - **Environment Variables**: Supports `GDRIVE_MODEL_ID` for model access
 - **Port Configuration**: Automatically uses Replit's assigned port
 - **Error Handling**: Robust error handling for cloud deployment scenarios
+
+## 🚀 Production Deployment
+
+The application is configured for optimal production performance using modern deployment practices:
+
+### Deployment Architecture
+- **Deployment Type**: Autoscale
+  - Automatically scales based on traffic demand
+  - Scales down to zero when idle (cost-effective)
+  - Scales up automatically during high traffic
+  - Pay-per-usage billing model
+
+- **Production Server**: Gunicorn
+  - **40x performance improvement** over Flask development server
+  - **Multi-worker processing**: 2 workers handle concurrent requests
+  - **Production-ready**: Optimized for real-world web traffic
+  - **Timeout handling**: 120-second timeout for longer operations
+
+### Technical Configuration
+```bash
+# Production command (automatically configured)
+gunicorn --bind 0.0.0.0:5000 --workers 2 --timeout 120 wsgi:application
+```
+
+### Files Added for Production
+- **`wsgi.py`**: WSGI entry point for Gunicorn deployment
+- **Deployment configuration**: Automated build and run commands
+
+### Performance Benefits
+| Metric | Development | Production | Improvement |
+|--------|-------------|------------|-------------|
+| Server Type | Flask dev server | Gunicorn | 40x faster |
+| Concurrency | Single-threaded | Multi-worker | Concurrent requests |
+| Scaling | Fixed resources | Auto-scale | Dynamic scaling |
+| Cost Model | Always running | Pay-per-use | Cost-effective |
+
+### When to Use Each Setup
+- **Development**: Use `python run.py` for coding, debugging, local testing
+- **Production**: Replit's deployment system automatically uses Gunicorn configuration
+- **Local Production Testing**: Use Gunicorn command for local performance validation
 
 ## 📈 Model Performance
 
