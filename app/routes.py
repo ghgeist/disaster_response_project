@@ -189,13 +189,18 @@ def register_routes(app):
                 classification_results = prediction.get('labels', {})
                 probabilities = prediction.get('probabilities', {})
 
-                positive_categories = {
-                    cat: probabilities.get(cat, 0)
-                    for cat, label in classification_results.items() if label == 1
-                }
-                sorted_predictions = sorted(
-                    positive_categories.items(), key=lambda item: item[1], reverse=True
-                )
+                # Create a unified list of predictions with their confidence
+                predictions = []
+                for category, label in classification_results.items():
+                    if label == 1:
+                        predictions.append({
+                            "category": category,
+                            "confidence": probabilities.get(category, 0.0)  # Fallback to 0.0 if no probability
+                        })
+                
+                # Sort predictions by confidence in descending order
+                sorted_predictions = sorted(predictions, key=lambda p: p['confidence'], reverse=True)
+
 
                 return render_template(
                     'results.html',
@@ -223,13 +228,18 @@ def register_routes(app):
                     classification_results = prediction.get('labels', {})
                     probabilities = prediction.get('probabilities', {})
                     
-                    positive_categories = {
-                        cat: probabilities.get(cat, 0)
-                        for cat, label in classification_results.items() if label == 1
-                    }
-                    sorted_predictions = sorted(
-                        positive_categories.items(), key=lambda item: item[1], reverse=True
-                    )
+                    # Create a unified list of predictions with their confidence
+                    predictions = []
+                    for category, label in classification_results.items():
+                        if label == 1:
+                            predictions.append({
+                                "category": category,
+                                "confidence": probabilities.get(category, 0.0)  # Fallback to 0.0 if no probability
+                            })
+                    
+                    # Sort predictions by confidence in descending order
+                    sorted_predictions = sorted(predictions, key=lambda p: p['confidence'], reverse=True)
+
 
                     return render_template(
                         'results.html',

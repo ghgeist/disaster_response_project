@@ -3,6 +3,7 @@
 {% block title %}Classification Results - Signal Storm{% endblock %}
 
 {% block content %}
+    <h1 class="text-red-500 text-5xl font-bold text-center">DEBUG: TEMPLATE LOADED AT {{ 'now' | strftime('%Y-%m-%d %H:%M:%S') }}</h1>
     <!-- Hero Section -->
     <div class="text-center mb-12">
         <div class="flex items-center justify-center mb-3">
@@ -33,9 +34,9 @@
             <h4 class="text-lg font-semibold text-gray-400 uppercase tracking-wider mb-3">Predicted Categories</h4>
             <div class="flex flex-wrap gap-3">
                 {% if sorted_predictions %}
-                    {% for category, confidence in sorted_predictions %}
-                        <span class="bg-brand-accent-amber text-gray-900 text-sm font-bold px-4 py-2 rounded-full shadow-md" title="Confidence: {{ (confidence * 100)|round(1) }}%">
-                            {{ category.replace('_', ' ')|title }}
+                    {% for prediction in sorted_predictions %}
+                        <span class="bg-brand-accent-amber text-gray-900 text-sm font-bold px-4 py-2 rounded-full shadow-md" title="Confidence: {{ (prediction.confidence * 100)|round(1) }}%">
+                            {{ prediction.category.replace('_', ' ')|title }}
                         </span>
                     {% endfor %}
                 {% else %}
