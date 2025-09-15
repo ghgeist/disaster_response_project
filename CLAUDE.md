@@ -38,7 +38,7 @@ PYTHONPATH=src python scripts/compare_models.py
 ```bash
 # Use run.py as entry point (not app/app.py directly)
 python run.py
-# Runs on http://localhost:3000
+# Runs on http://localhost:5000
 ```
 
 ### Code Quality

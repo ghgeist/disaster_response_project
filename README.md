@@ -147,7 +147,7 @@ source venv/bin/activate
    ```bash
    python run.py
    ```
-   Open your browser to `http://localhost:3000`
+   Open your browser to `http://localhost:5000`
    
    **Note**: Use `run.py` as the entry point (not `app/app.py`) as it properly handles the Flask application factory and configuration.
 
