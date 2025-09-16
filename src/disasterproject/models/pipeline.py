@@ -93,8 +93,12 @@ def run_parameter_search(pipeline, parameters, X_train, y_train, use_small_subse
     )
 
     if use_small_subset:
-        logger.info("Using small subset (%d samples) for runtime estimation", ESTIMATION_SUBSET_SIZE)
+        print(f"\n🔍 RUNTIME ESTIMATION MODE")
+        print(f"=" * 50)
         X_train_size = len(X_train)
+        print(f"📊 Full dataset size: {X_train_size:,} samples")
+        print(f"🔬 Using subset: {ESTIMATION_SUBSET_SIZE} samples ({ESTIMATION_SUBSET_SIZE/X_train_size*100:.1f}%)")
+
         X_train = X_train[:ESTIMATION_SUBSET_SIZE]
         y_train = y_train[:ESTIMATION_SUBSET_SIZE]
 
@@ -106,17 +110,40 @@ def run_parameter_search(pipeline, parameters, X_train, y_train, use_small_subse
         # Configure for faster estimation
         _configure_estimation_mode(cv)
 
+        print(f"⚙️  Estimation settings:")
+        print(f"   • CV folds: {ESTIMATION_CV_SPLITS}")
+        print(f"   • Parameter trials: {cv.n_iter}")
+        print(f"   • Total CV fits: {ESTIMATION_CV_SPLITS * cv.n_iter}")
+        print(f"\n🚀 Starting estimation...")
+
         cv.fit(X_train, y_train)
         end_time = time()
 
+        subset_time = end_time - start_time
+
         # Extrapolate runtime estimate
-        runtime = (end_time - start_time) * (X_train_size / ESTIMATION_SUBSET_SIZE)
-        hours, remainder = divmod(runtime, 3600)
+        full_runtime = subset_time * (X_train_size / ESTIMATION_SUBSET_SIZE)
+        hours, remainder = divmod(full_runtime, 3600)
         minutes, seconds = divmod(remainder, 60)
-        logger.info(
-            "ESTIMATED FULL RUNTIME: %d hours, %d minutes, %d seconds",
-            int(hours), int(minutes), int(seconds)
-        )
+
+        print(f"\n📈 ESTIMATION RESULTS:")
+        print(f"=" * 50)
+        print(f"⏱️  Subset completed in: {subset_time:.1f} seconds")
+        print(f"🎯 Best score found: {cv.best_score_:.4f}")
+        print(f"🏆 Best parameters: {cv.best_params_}")
+        print(f"\n⚡ FULL SEARCH ESTIMATE:")
+        print(f"   📅 Expected runtime: {int(hours)}h {int(minutes)}m {int(seconds)}s")
+        print(f"   🔢 Full parameter trials: {DEFAULT_N_ITER}")
+        print(f"   📊 Full CV folds: {DEFAULT_CV_SPLITS}")
+        print(f"   🔄 Total CV fits: {DEFAULT_CV_SPLITS * DEFAULT_N_ITER}")
+
+        if hours > 4:
+            print(f"\n⚠️  WARNING: Estimated runtime > 4 hours")
+            print(f"   Consider reducing n_iter or using smaller parameter grid")
+        elif hours < 0.5:
+            print(f"\n✅ Good news: Fast runtime expected!")
+
+        print(f"=" * 50)
     else:
         logger.info("Starting hyperparameter search with resource monitoring")
         logger.info("Configuration: n_iter=%d, n_jobs=%d", DEFAULT_N_ITER, DEFAULT_N_JOBS)

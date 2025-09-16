@@ -24,8 +24,6 @@ import logging
 import multiprocessing
 import os
 import pickle
-import re
-import string
 import sys
 from datetime import datetime
 
@@ -33,8 +31,6 @@ from datetime import datetime
 import numpy as np
 import nltk
 from nltk.corpus import stopwords
-from nltk.stem import WordNetLemmatizer
-from nltk.tokenize import word_tokenize
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
@@ -47,7 +43,8 @@ from sqlalchemy.exc import OperationalError
 
 # Local imports
 from disasterproject.models.pipeline import run_parameter_search
-from disasterproject.utils.config import FEATURE_COLUMNS, TARGET_COLUMNS, STOPWORDS_SET, URL_REGEX
+from disasterproject.utils.config import FEATURE_COLUMNS, TARGET_COLUMNS
+from disasterproject.data.preprocessor import tokenize
 # Removed unused sampling imports - not compatible with multi-label classification
 
 # Download required NLTK resources
@@ -83,16 +80,15 @@ except Exception as e:
 
 # Logging is configured in main() via logging.basicConfig to avoid duplicate handlers
 
-# Constants now imported from disasterproject.utils.config
-URL_PLACE_HOLDER = "urlplaceholder"
+# Constants and tokenizer now imported from disasterproject modules
 
 # Experiment paths structure
-SCRIPT_DIR = os.path.dirname(__file__)
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 
 # Base experiment paths (without date prefix for consistency)
 BASE_PARAMETERS = os.path.join(PROJECT_ROOT, "experiments", "model_candidates", "parameters.json")
-HYPERPARAMETER_OPTIMIZATION = os.path.join(PROJECT_ROOT, "experiments", "experimental_configs", "hyperparameters", "comprehensive-grid_active.json")
+HYPERPARAMETER_OPTIMIZATION = os.path.join(PROJECT_ROOT, "experiments", "experimental_configs", "hyperparameters", "2025-09-16_comprehensive-grid_active.json")
 
 # Results paths (with date prefix for tracking)
 DATE_PREFIX = datetime.now().strftime("%Y-%m-%d")
@@ -162,39 +158,7 @@ def load_data(db_filepath):
     return X, y
 
 
-def tokenize(text):
-    """
-    Tokenize the message data.
-
-    This function detects and replaces URLs, removes punctuation, tokenizes the text, removes stop words, and lemmatizes the tokens.
-
-    Parameters:
-    text (str): The text to be tokenized.
-
-    Returns:
-    cleaned_tokens (list of str): The tokenized and cleaned text.
-
-    If an error occurs during tokenization, an empty list is returned.
-    """
-    try:
-        # Detect and replace URLs
-        text = re.sub(URL_REGEX, URL_PLACE_HOLDER, text)
-        # Remove punctuation
-        text = text.translate(str.maketrans("", "", string.punctuation))
-        # Tokenize text
-        tokens = word_tokenize(text)
-        # Remove stop words
-        tokens = [token for token in tokens if token not in STOPWORDS_SET]
-        # Lemmatize tokens
-        lemmatizer = WordNetLemmatizer()
-        cleaned_tokens = [
-            lemmatizer.lemmatize(token.lower().strip()) for token in tokens
-        ]
-    except Exception as e:
-        logging.error("Error tokenizing text: %s", e)
-        return []
-
-    return cleaned_tokens
+# Tokenizer now imported from disasterproject.data.preprocessor
 
 
 def load_json(file_path):
@@ -249,6 +213,7 @@ def load_parameters(file_path, config_type="model"):
     """
     raw = load_json(file_path)
     if raw is None:
+        logging.error("load_json returned None for file: %s", file_path)
         return None
 
     # For model parameters, unwrap nested structure if present
@@ -531,6 +496,10 @@ def main():
     database_filepath = args.database_filepath
     model_filepath = args.model_filepath
     hyperparameter_config_path = args.config
+
+    # Debug logging for path resolution
+    logging.info("Using hyperparameter config path: %s", hyperparameter_config_path)
+    logging.info("Config file exists: %s", os.path.exists(hyperparameter_config_path))
 
     logging.info("Loading data from database: %s", database_filepath)
     X, Y = load_data(database_filepath)
