@@ -86,14 +86,12 @@ except Exception as e:
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 
-# Base experiment paths (without date prefix for consistency)
+# Base experiment paths
 BASE_PARAMETERS = os.path.join(PROJECT_ROOT, "experiments", "model_candidates", "parameters.json")
-HYPERPARAMETER_OPTIMIZATION = os.path.join(PROJECT_ROOT, "experiments", "experimental_configs", "hyperparameters", "2025-09-16_comprehensive-grid_active.json")
+HYPERPARAMETER_OPTIMIZATION = os.path.join(PROJECT_ROOT, "experiments", "experimental_configs", "hyperparameters", "2025-09-16_comprehensive-grid_search.json")
 
-# Results paths (with date prefix for tracking)
+# Dynamic paths based on config filename - maintains config->results link
 DATE_PREFIX = datetime.now().strftime("%Y-%m-%d")
-GRID_SEARCH_RESULTS = os.path.join(PROJECT_ROOT, "experiments", "results", f"{DATE_PREFIX}_hyperparameter_search_results.json")
-OPTIMIZED_PARAMETERS = os.path.join(PROJECT_ROOT, "experiments", "model_candidates", f"{DATE_PREFIX}_optimized_parameters.json")
 HYPERPARAMETER_LOG = os.path.join(PROJECT_ROOT, "experiments", "logs", f"{DATE_PREFIX}_hyperparameter_search.log")
 
 logging.info("Setting random seed...")
@@ -194,6 +192,29 @@ def load_json(file_path):
         return None
 
     return data
+
+
+def generate_output_paths(config_path):
+    """
+    Generate output file paths based on config filename following naming convention.
+
+    Example:
+    Input:  "2025-09-16_comprehensive-grid_search.json"
+    Output: "2025-09-16-comprehensive-grid-search-optimized-hyperparameters.json"
+    """
+    config_filename = os.path.basename(config_path)
+    config_name = os.path.splitext(config_filename)[0]  # Remove .json
+
+    # Transform: "2025-09-16_comprehensive-grid_search" -> "2025-09-16-comprehensive-grid-search-optimized-hyperparameters"
+    output_base = config_name.replace('_', '-') + "-optimized-hyperparameters"
+
+    results_file = f"{output_base}.json"
+    detailed_results = config_name.replace('_', '-') + "-detailed-results.json"
+
+    return {
+        'optimized_params': os.path.join(PROJECT_ROOT, "experiments", "model_candidates", results_file),
+        'detailed_results': os.path.join(PROJECT_ROOT, "experiments", "results", detailed_results)
+    }
 
 
 def load_parameters(file_path, config_type="model"):
@@ -497,9 +518,14 @@ def main():
     model_filepath = args.model_filepath
     hyperparameter_config_path = args.config
 
+    # Generate output paths based on config filename following naming convention
+    output_paths = generate_output_paths(hyperparameter_config_path)
+
     # Debug logging for path resolution
     logging.info("Using hyperparameter config path: %s", hyperparameter_config_path)
     logging.info("Config file exists: %s", os.path.exists(hyperparameter_config_path))
+    logging.info("Will save optimized parameters to: %s", output_paths['optimized_params'])
+    logging.info("Will save detailed results to: %s", output_paths['detailed_results'])
 
     logging.info("Loading data from database: %s", database_filepath)
     X, Y = load_data(database_filepath)
@@ -574,19 +600,20 @@ def main():
             use_small_subset=False,
         )
         logging.info("Grid search complete!")
-        save_gs_results(grid_search, GRID_SEARCH_RESULTS)
-        save_best_parameters(grid_search, OPTIMIZED_PARAMETERS)
+        save_gs_results(grid_search, output_paths['detailed_results'])
+        save_best_parameters(grid_search, output_paths['optimized_params'])
         logging.info("Grid search results and optimized parameters saved!")
 
         print(f"\n🎉 HYPERPARAMETER SEARCH COMPLETE!")
         print(f"=" * 50)
-        print(f"📄 Results saved to: {GRID_SEARCH_RESULTS}")
-        print(f"⚙️  Best parameters saved to: {OPTIMIZED_PARAMETERS}")
+        print(f"📄 Detailed results saved to: {output_paths['detailed_results']}")
+        print(f"⚙️  Optimized parameters saved to: {output_paths['optimized_params']}")
         print(f"📊 Best score achieved: {grid_search.best_score_:.4f}")
         print(f"\n💡 NEXT STEPS:")
-        print(f"   1. Review the optimized parameters in: {OPTIMIZED_PARAMETERS}")
-        print(f"   2. Copy parameters to: experiments/model_candidates/parameters.json")
-        print(f"   3. Create optimized model with: python scripts/03_create_experimental_model.py")
+        print(f"   1. Review the optimized parameters in: {output_paths['optimized_params']}")
+        print(f"   2. Create optimized model with:")
+        print(f"      python scripts/03_create_experimental_model.py \\")
+        print(f"         --params {output_paths['optimized_params']}")
         print(f"=" * 50)
 
 
