@@ -6,13 +6,34 @@ Estimates the runtime of a hyperparameter search without running the full search
 import argparse
 import sys
 import os
+from sklearn.pipeline import Pipeline
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.multioutput import MultiOutputClassifier
 
 # Add src to path to allow for imports from the disasterproject package
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from disasterproject.data.loader import load_data
-from disasterproject.models.pipeline import create_pipeline, run_parameter_search
+from disasterproject.data.preprocessor import tokenize
+from disasterproject.models.pipeline import run_parameter_search
 from disasterproject.utils.json_io import load_hyperparameter_optimization_config
+
+def create_pipeline():
+    """Create the text classification Pipeline compatible with our parameter grids."""
+    return Pipeline([
+        (
+            "vect",
+            CountVectorizer(analyzer=tokenize, token_pattern=None, lowercase=False),
+        ),
+        ("tfidf", TfidfTransformer(smooth_idf=False)),
+        (
+            "clf",
+            MultiOutputClassifier(
+                RandomForestClassifier(n_jobs=1)
+            ),
+        ),
+    ])
 
 def main():
     """Main function to estimate search runtime."""

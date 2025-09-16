@@ -47,6 +47,27 @@ import numpy as np
 import joblib
 
 
+def generate_model_filename(params_file_path):
+    """
+    Generate model filename based on parameters file following naming convention.
+
+    Example:
+    Input:  "2025-09-16-comprehensive-grid-search-optimized-hyperparameters.json"
+    Output: "2025-09-16-comprehensive-grid-search-optimized-model.pkl"
+    """
+    params_filename = os.path.basename(params_file_path)
+    base_name = os.path.splitext(params_filename)[0]  # Remove .json
+
+    # Replace "optimized-hyperparameters" with "optimized-model"
+    if "optimized-hyperparameters" in base_name:
+        model_name = base_name.replace("optimized-hyperparameters", "optimized-model")
+    else:
+        # Fallback for other naming patterns
+        model_name = f"{base_name}-model"
+
+    return f"{model_name}.pkl"
+
+
 def load_class_weights_config(file_path):
     """Load class weights configuration from JSON file."""
     try:
@@ -241,9 +262,8 @@ def main():
     parser.add_argument('--class-weights', dest='class_weights_path',
                        default='experiments/model_candidates/class_weights.json',
                        help='Path to class weights JSON (default: experiments/model_candidates/class_weights.json)')
-    parser.add_argument('--output', dest='model_out',
-                       default='experiments/results/experimental_classifier.pkl',
-                       help='Output model path (default: experiments/results/experimental_classifier.pkl)')
+    parser.add_argument('--output', dest='model_out', default=None,
+                       help='Output model path (default: auto-generated from params filename)')
     parser.add_argument('--test-size', dest='test_size', type=float, default=0.2,
                        help='Test size fraction (default: 0.2)')
     parser.add_argument('--seed', dest='seed', type=int, default=42,
@@ -254,6 +274,11 @@ def main():
                        help='Force random split even if an eval IDs file exists')
 
     args = parser.parse_args()
+
+    # Auto-generate output filename if not provided
+    if args.model_out is None:
+        model_filename = generate_model_filename(args.params_path)
+        args.model_out = os.path.join("experiments", "results", model_filename)
 
     setup_logging()
 

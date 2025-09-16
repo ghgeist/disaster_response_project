@@ -37,14 +37,27 @@ def load_json(file_path: str) -> Optional[Dict[str, Any]]:
 
     return data
 
-
-def save_json(data: Dict[str, Any], file_path: str) -> bool:
+def save_json(data: Any, file_path: str) -> None:
     """
-    Save a dictionary to a JSON file.
+    Save data to a JSON file.
 
-    This function takes a dictionary and saves it to a JSON file at the specified path.
-    If the file cannot be opened for writing or there's an error during serialization,
-    an error message is logged and the function returns False.
+    Legacy-compatible behavior: accepts any JSON-serializable object and
+    raises exceptions on failure instead of returning a status flag.
+
+    Args:
+        data: Any JSON-serializable Python object.
+        file_path (str): Destination path for the JSON file.
+    """
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+
+def save_json_safe(data: Dict[str, Any], file_path: str) -> bool:
+    """
+    Save a dictionary to a JSON file, returning success as a boolean.
+
+    This safe variant preserves the newer behavior by logging errors and
+    returning False instead of raising exceptions.
 
     Args:
         data (dict): The dictionary to save to JSON.
