@@ -15,7 +15,7 @@ For class weighting, use create_weighted_model.py instead.
 For sampling experiments, use test_sampling_strategies.py instead.
 
 Usage:
-    python scripts/test_hyperparameters.py data/02_stg/stg_disaster_response.db [model_output.pkl]
+    python scripts/02_test_hyperparameters.py data/02_stg/stg_disaster_response.db [model_output.pkl]
 """
 
 # Standard library imports
@@ -27,7 +27,7 @@ import pickle
 import re
 import string
 import sys
-from time import time
+from datetime import datetime
 
 # Third-party imports
 import numpy as np
@@ -39,11 +39,15 @@ import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.metrics import classification_report
-from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.model_selection import train_test_split
 from sklearn.multioutput import MultiOutputClassifier
 from sklearn.pipeline import Pipeline
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
+
+# Local imports
+from disasterproject.models.pipeline import run_parameter_search
+from disasterproject.utils.config import FEATURE_COLUMNS, TARGET_COLUMNS, STOPWORDS_SET, URL_REGEX
 # Removed unused sampling imports - not compatible with multi-label classification
 
 # Download required NLTK resources
@@ -77,89 +81,28 @@ except Exception as e:
     # Continue execution but multiprocessing may have issues
 
 
-# Set up logging
-# File handler with detailed format
-fileFormatter = logging.Formatter(
-    "%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s"
-)
-# Console handler with clean format (no timestamps/thread info)
-consoleFormatter = logging.Formatter("%(message)s")
+# Logging is configured in main() via logging.basicConfig to avoid duplicate handlers
 
-rootLogger = logging.getLogger()
-
-# File handler for detailed logging
-fileHandler = logging.FileHandler("app.log")
-fileHandler.setFormatter(fileFormatter)
-rootLogger.addHandler(fileHandler)
-
-# Console handler for clean output
-consoleHandler = logging.StreamHandler(sys.stdout)
-consoleHandler.setFormatter(consoleFormatter)
-rootLogger.addHandler(consoleHandler)
-
-rootLogger.setLevel(logging.INFO)
-
-# TODO: Import these from disasterproject.utils.config to avoid duplication
-FEATURE_COLUMNS = ["message"]
-TARGET_COLUMNS = [
-    "related",
-    "request",
-    "offer",
-    "aid_related",
-    "medical_help",
-    "medical_products",
-    "search_and_rescue",
-    "security",
-    "military",
-    "child_alone",
-    "water",
-    "food",
-    "shelter",
-    "clothing",
-    "money",
-    "missing_people",
-    "refugees",
-    "death",
-    "other_aid",
-    "infrastructure_related",
-    "transport",
-    "buildings",
-    "electricity",
-    "tools",
-    "hospitals",
-    "shops",
-    "aid_centers",
-    "other_infrastructure",
-    "weather_related",
-    "floods",
-    "storm",
-    "fire",
-    "earthquake",
-    "cold",
-    "other_weather",
-    "direct_report",
-]
-
-STOPWORDS_SET = set(stopwords.words("english"))
-URL_REGEX = (
-    r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
-)
+# Constants now imported from disasterproject.utils.config
 URL_PLACE_HOLDER = "urlplaceholder"
 
-# Updated paths to use experiments structure (2025-09-16)
+# Experiment paths structure
 SCRIPT_DIR = os.path.dirname(__file__)
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
-DATE_PREFIX = "2025-09-16"
 
-# Experiments structure paths
+# Base experiment paths (without date prefix for consistency)
 BASE_PARAMETERS = os.path.join(PROJECT_ROOT, "experiments", "model_candidates", "parameters.json")
-HYPERPARAMETER_OPTIMIZATION = os.path.join(PROJECT_ROOT, "experiments", "experimental_configs", "hyperparameters", f"{DATE_PREFIX}_comprehensive-grid_active.json")
+HYPERPARAMETER_OPTIMIZATION = os.path.join(PROJECT_ROOT, "experiments", "experimental_configs", "hyperparameters", "comprehensive-grid_active.json")
+
+# Results paths (with date prefix for tracking)
+DATE_PREFIX = datetime.now().strftime("%Y-%m-%d")
 GRID_SEARCH_RESULTS = os.path.join(PROJECT_ROOT, "experiments", "results", f"{DATE_PREFIX}_hyperparameter_search_results.json")
 OPTIMIZED_PARAMETERS = os.path.join(PROJECT_ROOT, "experiments", "model_candidates", f"{DATE_PREFIX}_optimized_parameters.json")
 HYPERPARAMETER_LOG = os.path.join(PROJECT_ROOT, "experiments", "logs", f"{DATE_PREFIX}_hyperparameter_search.log")
 
 logging.info("Setting random seed...")
-np.random.seed(0)
+RANDOM_STATE = 42
+np.random.seed(RANDOM_STATE)
 
 
 def load_data(db_filepath):
@@ -258,10 +201,10 @@ def load_json(file_path):
     """
     Load a JSON file and return its contents as a dictionary.
 
-    This function opens a JSON file, decodes it into a Python object, and returns that object. 
-    If the file does not exist, cannot be opened, or does not contain a valid JSON object, 
-    an error message is printed and the function returns None. 
-    If the JSON object is not a dictionary, an error message is printed and the function returns None.
+    This function opens a JSON file, decodes it into a Python object, and returns that object.
+    If the file does not exist, cannot be opened, or does not contain a valid JSON object,
+    an error message is logged and the function returns None.
+    If the JSON object is not a dictionary, an error message is logged and the function returns None.
 
     Args:
     file_path (str): The file path of the JSON file.
@@ -274,93 +217,66 @@ def load_json(file_path):
         with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
     except FileNotFoundError:
-        print(f"File not found: {file_path}")
+        logging.error("File not found: %s", file_path)
         return None
     except json.JSONDecodeError:
-        print(f"Error decoding JSON from file: {file_path}")
+        logging.error("Error decoding JSON from file: %s", file_path)
         return None
 
     if not isinstance(data, dict):
-        print(
-            f"Expected a dictionary in file: {file_path}, but got {type(data)} instead."
+        logging.error(
+            "Expected a dictionary in file: %s, but got %s instead.", file_path, type(data)
         )
         return None
 
     return data
 
 
-def load_model_parameters(file_path):
+def load_parameters(file_path, config_type="model"):
     """
-    Load a JSON file and return its contents as a dictionary.
+    Load and normalize parameters from a JSON configuration file.
 
-    This function opens a JSON file, decodes it into a Python object, and returns that object. 
-    If the file does not exist, cannot be opened, or does not contain a valid JSON object, 
-    an error message is printed and the function returns None. 
-    If the JSON object is not a dictionary, an error message is printed and the function returns None.
+    This function handles both model parameters and hyperparameter optimization configurations.
+    It unwraps nested structures, normalizes list formats, and handles different parameter types.
 
     Args:
     file_path (str): The file path of the JSON file.
+    config_type (str): Type of config - "model" for model parameters, "hyperopt" for optimization configs.
 
     Returns:
-    data (dict): The contents of the JSON file as a dictionary, or None if an error occurred.
+    dict: The normalized parameters, or None if an error occurred.
 
     """
     raw = load_json(file_path)
     if raw is None:
         return None
 
-    # Unwrap nested structure and ignore metadata if present
-    parameters = raw.get("parameters") if isinstance(raw, dict) and "parameters" in raw else raw
+    # For model parameters, unwrap nested structure if present
+    if config_type == "model":
+        parameters = raw.get("parameters") if isinstance(raw, dict) and "parameters" in raw else raw
+    else:
+        parameters = raw
 
     if not isinstance(parameters, dict):
         logging.error("Invalid parameters format in %s; expected object, got %s", file_path, type(parameters))
         return None
 
-    # Convert single-item lists to their values and two-item lists to tuples
+    # Normalize parameter formats
     normalized = {}
     for k, v in parameters.items():
         if isinstance(v, list):
             if len(v) == 1:
                 normalized[k] = v[0]
-            elif len(v) == 2:
+            elif len(v) == 2 and config_type == "model":
                 normalized[k] = tuple(v)
+            elif config_type == "hyperopt" and all(isinstance(i, list) and len(i) == 2 for i in v):
+                normalized[k] = [tuple(i) for i in v]
             else:
                 normalized[k] = v
         else:
             normalized[k] = v
 
     return normalized
-
-
-def load_hyperparameter_optimization_config(file_path):
-    """
-    Load a JSON file and return its contents as a dictionary with hyperparameter optimization configuration.
-
-    This function opens a JSON file, decodes it into a Python object, and returns that object. 
-    If the file does not exist, cannot be opened, or does not contain a valid JSON object, 
-    an error message is printed and the function returns None. 
-    If the JSON object is not a dictionary, an error message is printed and the function returns None.
-
-    Args:
-    file_path (str): The file path of the JSON file.
-
-    Returns:
-    data (dict): The contents of the JSON file as a dictionary, or None if an error occurred.
-
-    """
-    parameters = load_json(file_path)
-    if parameters is None:
-        return None
-
-    # Convert single-item lists to their values and lists of two-item lists to lists of tuples
-    for k, v in parameters.items():
-        if isinstance(v, list):
-            if len(v) == 1:
-                parameters[k] = v[0]
-            elif all(isinstance(i, list) and len(i) == 2 for i in v):
-                parameters[k] = [tuple(i) for i in v]
-
-    return parameters
 
 
 def create_pipeline():
@@ -381,8 +297,8 @@ def create_pipeline():
             [
                 (
                     "vect",
-                    CountVectorizer(tokenizer=tokenize),
-                ),  # Tokenize and vectorize text
+                    CountVectorizer(analyzer=tokenize, token_pattern=None, lowercase=False),
+                ),  # Tokenize and vectorize text without token_pattern warnings
                 (
                     "tfidf",
                     TfidfTransformer(smooth_idf=False),
@@ -390,7 +306,7 @@ def create_pipeline():
                 (
                     "clf",
                     MultiOutputClassifier(
-                        RandomForestClassifier(n_jobs=multiprocessing.cpu_count() - 1)
+                        RandomForestClassifier(n_jobs=1)
                     ),
                 ),  # Use MultiOutputClassifier with RandomForest, n_jobs specifies cores
             ]
@@ -420,9 +336,9 @@ def build_model(pipeline, parameters):
     try:
         # Configure the RandomForestClassifier with the given parameters
         if parameters is None:
-            pipeline.set_params(clf__estimator__random_state=42)
+            pipeline.set_params(clf__estimator__random_state=RANDOM_STATE)
         else:
-            pipeline.set_params(clf__estimator__random_state=42, **parameters)
+            pipeline.set_params(clf__estimator__random_state=RANDOM_STATE, **parameters)
     except (ValueError, ImportError, TypeError) as e:
         logging.error("Error building model: %s", e)
         return None
@@ -452,7 +368,7 @@ def evaluate_model(model, model_name, X_test, Y_test, category_names):
         ]
 
         results_file_path = os.path.join(
-            "data", "04_fct", f"fct_{model_name}_prediction_results.csv"
+            PROJECT_ROOT, "experiments", "results", f"fct_{model_name}_prediction_results.csv"
         )
         results_df.to_csv(results_file_path, index=False)
         logging.info("Evaluation results saved to: %s", results_file_path)
@@ -478,8 +394,6 @@ def save_model(model, model_filepath):
         logging.error("Error saving model: %s", e)
 
 
-# Import centralized parameter search function
-from disasterproject.models.pipeline import run_parameter_search
 
 
 def save_gs_results(cv, output_file_path):
@@ -504,22 +418,31 @@ def save_gs_results(cv, output_file_path):
     cv_results = cv.cv_results_
     results = []
 
-    for params, mean_score in zip(cv_results["params"], cv_results["mean_test_score"]):
-        results.append({"params": params, "score": mean_score})
+    # Handle multi-metric results: capture both and include refit metric
+    mean_weighted = cv_results.get("mean_test_f1_weighted")
+    mean_micro = cv_results.get("mean_test_f1_micro")
+
+    for idx, params in enumerate(cv_results["params"]):
+        entry = {"params": params}
+        if mean_weighted is not None:
+            entry["mean_test_f1_weighted"] = float(mean_weighted[idx])
+        if mean_micro is not None:
+            entry["mean_test_f1_micro"] = float(mean_micro[idx])
+        results.append(entry)
 
     try:
         with open(output_file_path, "w", encoding="utf-8") as f:
             json.dump(results, f)
     except FileNotFoundError as e:
-        logging.error(f"Error saving results: {e}")
+        logging.error("Error saving results: %s", e)
 
 
 def save_best_parameters(cv, output_file_path):
     """
     Save the best parameters of a grid search to a JSON file.
 
-    This function extracts the best parameters from the results of a GridSearchCV, 
-    and saves them to a JSON file. If the file cannot be opened for writing (for example, if the directory does not exist), 
+    This function extracts the best parameters from the results of a GridSearchCV,
+    and saves them to a JSON file. If the file cannot be opened for writing (for example, if the directory does not exist),
     an error message is logged and the function returns without saving the parameters.
 
     Args:
@@ -530,12 +453,17 @@ def save_best_parameters(cv, output_file_path):
     FileNotFoundError: If the file cannot be opened for writing.
     """
     best_params = cv.best_params_
+    payload = {
+        "refit_metric": getattr(cv, "refit", None),
+        "best_score": float(getattr(cv, "best_score_", float("nan"))),
+        "best_params": best_params,
+    }
 
     try:
         with open(output_file_path, "w", encoding="utf-8") as f:
-            json.dump(best_params, f)
+            json.dump(payload, f)
     except FileNotFoundError as e:
-        logging.error(f"Error saving best parameters: {e}")
+        logging.error("Error saving best parameters: %s", e)
 
 
 def get_user_input(prompt):
@@ -612,7 +540,7 @@ def main():
 
     logging.info("Splitting data into training and test sets...")
     # Use consistent random seed for reproducible results (matches production script approach)
-    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
+    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=RANDOM_STATE)
 
     logging.info("Using original training data (no oversampling for multi-label classification)...")
 
@@ -626,7 +554,7 @@ def main():
         sys.exit()
     elif retrain_base_model == "yes":
         logging.info("Loading base parameters...")
-        base_parameters = load_model_parameters(BASE_PARAMETERS)
+        base_parameters = load_parameters(BASE_PARAMETERS, "model")
         if base_parameters is None:
             logging.error("Failed to load base parameters. Please ensure the file exists and is valid.")
         else:
@@ -650,7 +578,7 @@ def main():
         sys.exit()
     elif estimate_runtime == "yes":
         logging.info("Loading grid search parameters...")
-        hyperparameter_config = load_hyperparameter_optimization_config(hyperparameter_config_path)
+        hyperparameter_config = load_parameters(hyperparameter_config_path, "hyperopt")
         logging.info("Estimating grid search runtime (using small subset)...")
         estimated_grid_search = run_parameter_search(
             pipeline,
@@ -668,7 +596,7 @@ def main():
         sys.exit()
     elif do_grid_search == "yes":
         logging.info("Starting full grid search...")
-        hyperparameter_config = load_hyperparameter_optimization_config(hyperparameter_config_path)
+        hyperparameter_config = load_parameters(hyperparameter_config_path, "hyperopt")
         grid_search = run_parameter_search(
             pipeline,
             hyperparameter_config,
@@ -688,7 +616,7 @@ def main():
         sys.exit()
     elif retrain_optimized_model == "yes":
         logging.info("Loading optimized parameters...")
-        optimized_parameters = load_model_parameters(OPTIMIZED_PARAMETERS)
+        optimized_parameters = load_parameters(OPTIMIZED_PARAMETERS, "model")
         if optimized_parameters is None:
             logging.error("Failed to load optimized parameters. Please ensure the file exists and is valid.")
         else:

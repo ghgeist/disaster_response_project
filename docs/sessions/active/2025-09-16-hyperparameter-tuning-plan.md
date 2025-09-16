@@ -168,6 +168,29 @@ The task is complete when:
 - **Secondary Metric**: Improvement in recall for critical, rare categories.
 - **Constraint Metric**: Randomized search execution time.
 
+## ✅ Addendum: Warning & Scoring Refinements (2025-09-16)
+
+These small, low-risk improvements reduce noise, improve metric stability, and make runtime estimates practical without changing core model behavior or the primary search strategy.
+
+- **Vectorizer warning cleanup**
+  - Change `CountVectorizer(tokenizer=tokenize)` to `CountVectorizer(analyzer=tokenize, token_pattern=None, lowercase=False)`.
+  - Impact: Removes repeated `token_pattern` warnings; behavior unchanged because `tokenize` already lowercases.
+
+- **Stable CV scoring with multi-metric tracking**
+  - Use `make_scorer(f1_score, average="weighted", zero_division=0)` to avoid `UndefinedMetricWarning` when a class has no support in a fold.
+  - Track a secondary scorer `f1_micro` for visibility: `scoring={"f1_weighted": ..., "f1_micro": ...}` and set `refit="f1_weighted"`.
+  - Impact: Cleaner logs; consistent optimization target; additional visibility into micro-F1 without changing refit.
+
+- **Predictable estimate mode (fast knob settings)**
+  - When `use_small_subset=True` in the shared search function:
+    - Reduce `n_iter` to 5 and CV splits to 2 (`MultilabelStratifiedKFold(n_splits=2)`).
+    - Temporarily set `vect__max_features=10000` and `clf__estimator__n_estimators=50` for speed.
+  - For full runs, optionally set a higher `vect__max_features` cap (e.g., 50000) to balance speed and performance.
+  - Impact: Estimate completes in minutes and remains directionally useful; full run remains bounded.
+
+- **Notes**
+  - These refinements are additive to the existing plan (CV strategy, resource controls, logging, structure) and do not change the selected approach.
+
 ## 🚨 Risks & Mitigations
 
 | Risk | Impact | Probability | Mitigation |
