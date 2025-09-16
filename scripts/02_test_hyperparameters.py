@@ -462,59 +462,8 @@ def save_model(model, model_filepath):
         logging.error("Error saving model: %s", e)
 
 
-from sklearn.model_selection import RandomizedSearchCV
-
-def run_grid_search(pipeline, parameters, X_train, y_train, use_small_subset=False):
-    """
-    Run a randomized search to find the best parameters for a pipeline.
-
-    This function uses RandomizedSearchCV to find the best parameters for the specified pipeline using the provided training data.
-    The function measures the time it takes to run the search and logs the runtime.
-    If use_small_subset is True, the function uses only the first 100 samples of the training data and estimates the total runtime based on this subset.
-
-    Args:
-    pipeline (Pipeline): The pipeline for which to find the best parameters.
-    parameters (dict): The parameters to try in the search.
-    X_train (numpy.ndarray): The features for the training data.
-    y_train (numpy.ndarray): The labels for the training data.
-    use_small_subset (bool, optional): Whether to use only the first 100 samples of the training data. Defaults to False.
-
-    Returns:
-    cv (RandomizedSearchCV): The fitted RandomizedSearchCV instance.
-
-    """
-    start_time = time()
-    cv = RandomizedSearchCV(
-        pipeline,
-        param_distributions=parameters,
-        n_iter=20,  # Number of parameter settings that are sampled
-        scoring="f1_weighted",
-        n_jobs=multiprocessing.cpu_count() - 1,
-        verbose=1,
-        random_state=42 # for reproducibility
-    )
-
-    if use_small_subset:
-        X_train_size = len(X_train)
-        X_train = X_train[:100]
-        y_train = y_train[:100]
-        cv.fit(X_train, y_train)
-        end_time = time()
-        runtime = (end_time - start_time) * (
-            X_train_size / 100
-        )  # keep the time in seconds
-        formatted_runtime = f"{runtime:.2f} seconds (estimated)"
-    else:
-        cv.fit(X_train, y_train)
-        end_time = time()
-        runtime = end_time - start_time  # keep the time in seconds
-        hours, remainder = divmod(runtime, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        formatted_runtime = f"{int(hours)} hours, {int(minutes)} minutes, and {int(seconds)} seconds (actual)"
-
-    logging.info(f"Runtime: {formatted_runtime}")
-
-    return cv
+# Import centralized parameter search function
+from disasterproject.models.pipeline import run_parameter_search
 
 
 def save_gs_results(cv, output_file_path):
@@ -761,7 +710,8 @@ def main():
         return
 
     logging.info("Splitting data into training and test sets...")
-    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
+    # Use consistent random seed for reproducible results (matches production script approach)
+    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
 
     logging.info("Applying improved oversampling to handle class imbalance...")
     # Try conservative approach first - less aggressive than the original
@@ -803,7 +753,7 @@ def main():
         logging.info("Loading grid search parameters...")
         hyperparameter_config = load_hyperparameter_optimization_config(hyperparameter_config_path)
         logging.info("Estimating grid search runtime (using small subset)...")
-        estimated_grid_search = run_grid_search(
+        estimated_grid_search = run_parameter_search(
             pipeline,
             hyperparameter_config,
             X_train,
@@ -820,7 +770,7 @@ def main():
     elif do_grid_search == "yes":
         logging.info("Starting full grid search...")
         hyperparameter_config = load_hyperparameter_optimization_config(hyperparameter_config_path)
-        grid_search = run_grid_search(
+        grid_search = run_parameter_search(
             pipeline,
             hyperparameter_config,
             X_train,

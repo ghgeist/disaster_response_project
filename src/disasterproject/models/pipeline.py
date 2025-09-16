@@ -19,15 +19,21 @@ def run_parameter_search(pipeline, parameters, X_train, y_train, use_small_subse
     """
     from time import time
     from sklearn.model_selection import RandomizedSearchCV
+    from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
     import numpy as np
     import multiprocessing
 
     start_time = time()
+
+    # Use MultilabelStratifiedKFold for proper multi-label cross-validation
+    cv_strategy = MultilabelStratifiedKFold(n_splits=3, shuffle=True, random_state=42)
+
     cv = RandomizedSearchCV(
         pipeline,
         param_distributions=parameters,
         n_iter=20,  # Number of parameter settings that are sampled
         scoring="f1_weighted",
+        cv=cv_strategy,  # Use proper multi-label CV strategy
         n_jobs=multiprocessing.cpu_count() - 1,
         verbose=1,
         random_state=42 # for reproducibility
