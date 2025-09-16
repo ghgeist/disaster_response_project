@@ -462,32 +462,36 @@ def save_model(model, model_filepath):
         logging.error("Error saving model: %s", e)
 
 
+from sklearn.model_selection import RandomizedSearchCV
+
 def run_grid_search(pipeline, parameters, X_train, y_train, use_small_subset=False):
     """
-    Run a grid search to find the best parameters for a pipeline.
+    Run a randomized search to find the best parameters for a pipeline.
 
-    This function uses GridSearchCV to find the best parameters for the specified pipeline using the provided training data.
-    The function measures the time it takes to run the grid search and logs the runtime.
+    This function uses RandomizedSearchCV to find the best parameters for the specified pipeline using the provided training data.
+    The function measures the time it takes to run the search and logs the runtime.
     If use_small_subset is True, the function uses only the first 100 samples of the training data and estimates the total runtime based on this subset.
 
     Args:
     pipeline (Pipeline): The pipeline for which to find the best parameters.
-    parameters (dict): The parameters to try in the grid search.
+    parameters (dict): The parameters to try in the search.
     X_train (numpy.ndarray): The features for the training data.
     y_train (numpy.ndarray): The labels for the training data.
     use_small_subset (bool, optional): Whether to use only the first 100 samples of the training data. Defaults to False.
 
     Returns:
-    cv (GridSearchCV): The fitted GridSearchCV instance.
+    cv (RandomizedSearchCV): The fitted RandomizedSearchCV instance.
 
     """
     start_time = time()
-    cv = GridSearchCV(
+    cv = RandomizedSearchCV(
         pipeline,
-        param_grid=parameters,
-        scoring="accuracy",
+        param_distributions=parameters,
+        n_iter=20,  # Number of parameter settings that are sampled
+        scoring="f1_weighted",
         n_jobs=multiprocessing.cpu_count() - 1,
         verbose=1,
+        random_state=42 # for reproducibility
     )
 
     if use_small_subset:
@@ -739,117 +743,118 @@ def main():
     Returns:
     None
     """
-    if len(sys.argv) != 3:
-        logging.info(
-            "Please provide the filepath of the disaster messages database "
-            "as the first argument and the filepath of the pickle file to "
-            "save the model to as the second argument. \n\nExample: python "
-            "train_classifier.py ../data/02_stg/stg_disaster_response.db classifier.pkl"
-        )
-    else:
-        database_filepath, model_filepath = sys.argv[1:]
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("database_filepath")
+    parser.add_argument("model_filepath")
+    parser.add_argument("--config", default=HYPERPARAMETER_OPTIMIZATION)
+    args = parser.parse_args()
+
+    database_filepath = args.database_filepath
+    model_filepath = args.model_filepath
+    hyperparameter_config_path = args.config
 
         logging.info("Loading data from database: %s", database_filepath)
-        X, Y = load_data(database_filepath)
-        if X is None or Y is None:
-            logging.error("Error loading data from database")
-            return
+    X, Y = load_data(database_filepath)
+    if X is None or Y is None:
+        logging.error("Error loading data from database")
+        return
 
-        logging.info("Splitting data into training and test sets...")
-        X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
+    logging.info("Splitting data into training and test sets...")
+    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
 
-        logging.info("Applying improved oversampling to handle class imbalance...")
-        # Try conservative approach first - less aggressive than the original
-        X_train, Y_train = apply_multi_label_aware_sampling(X_train, Y_train, method='conservative')
+    logging.info("Applying improved oversampling to handle class imbalance...")
+    # Try conservative approach first - less aggressive than the original
+    X_train, Y_train = apply_multi_label_aware_sampling(X_train, Y_train, method='conservative')
 
-        logging.info("Creating ML pipeline...")
-        pipeline = create_pipeline()
+    logging.info("Creating ML pipeline...")
+    pipeline = create_pipeline()
 
-        retrain_base_model = get_user_input(
-            "Do you want to retrain the base model? (yes/no/exit): "
+    retrain_base_model = get_user_input(
+        "Do you want to retrain the base model? (yes/no/exit): "
+    )
+    if retrain_base_model == "exit":
+        sys.exit()
+    elif retrain_base_model == "yes":
+        logging.info("Loading base parameters...")
+        base_parameters = load_model_parameters(BASE_PARAMETERS)
+        if base_parameters is None:
+            logging.error("Failed to load base parameters. Please ensure the file exists and is valid.")
+        else:
+            logging.info("Base parameters loaded successfully")
+
+        logging.info("Building and training base model...")
+        base_model = build_model(pipeline, base_parameters)
+        base_model.fit(X_train, Y_train)
+
+        logging.info("Evaluating base model...")
+        evaluate_model(base_model, "base_model", X_test, Y_test, TARGET_COLUMNS)
+
+        logging.info("Saving base model to: %s", model_filepath)
+        save_model(base_model, model_filepath)
+        logging.info("Base model training complete!")
+
+    estimate_runtime = get_user_input(
+        "Do you want to estimate the grid search runtime? (yes/no/exit): "
+    )
+    if estimate_runtime == "exit":
+        sys.exit()
+    elif estimate_runtime == "yes":
+        logging.info("Loading grid search parameters...")
+        hyperparameter_config = load_hyperparameter_optimization_config(hyperparameter_config_path)
+        logging.info("Estimating grid search runtime (using small subset)...")
+        estimated_grid_search = run_grid_search(
+            pipeline,
+            hyperparameter_config,
+            X_train,
+            Y_train,
+            use_small_subset=True,
         )
-        if retrain_base_model == "exit":
-            sys.exit()
-        elif retrain_base_model == "yes":
-            logging.info("Loading base parameters...")
-            base_parameters = load_model_parameters(BASE_PARAMETERS)
-            if base_parameters is None:
-                logging.error("Failed to load base parameters. Please ensure the file exists and is valid.")
-            else:
-                logging.info("Base parameters loaded successfully")
+        logging.info("Grid search runtime estimate complete!")
 
-            logging.info("Building and training base model...")
-            base_model = build_model(pipeline, base_parameters)
-            base_model.fit(X_train, Y_train)
-
-            logging.info("Evaluating base model...")
-            evaluate_model(base_model, "base_model", X_test, Y_test, TARGET_COLUMNS)
-
-            logging.info("Saving base model to: %s", model_filepath)
-            save_model(base_model, model_filepath)
-            logging.info("Base model training complete!")
-
-        estimate_runtime = get_user_input(
-            "Do you want to estimate the grid search runtime? (yes/no/exit): "
+    do_grid_search = get_user_input(
+        "Do you want to run a grid search? (yes/no/exit): "
+    )
+    if do_grid_search == "exit":
+        sys.exit()
+    elif do_grid_search == "yes":
+        logging.info("Starting full grid search...")
+        hyperparameter_config = load_hyperparameter_optimization_config(hyperparameter_config_path)
+        grid_search = run_grid_search(
+            pipeline,
+            hyperparameter_config,
+            X_train,
+            Y_train,
+            use_small_subset=False,
         )
-        if estimate_runtime == "exit":
-            sys.exit()
-        elif estimate_runtime == "yes":
-            logging.info("Loading grid search parameters...")
-            hyperparameter_config = load_hyperparameter_optimization_config(HYPERPARAMETER_OPTIMIZATION)
-            logging.info("Estimating grid search runtime (using small subset)...")
-            estimated_grid_search = run_grid_search(
-                pipeline,
-                hyperparameter_config,
-                X_train,
-                Y_train,
-                use_small_subset=True,
-            )
-            logging.info("Grid search runtime estimate complete!")
+        logging.info("Grid search complete!")
+        save_gs_results(grid_search, GRID_SEARCH_RESULTS)
+        save_best_parameters(grid_search, OPTIMIZED_PARAMETERS)
+        logging.info("Grid search results and optimized parameters saved!")
 
-        do_grid_search = get_user_input(
-            "Do you want to run a grid search? (yes/no/exit): "
-        )
-        if do_grid_search == "exit":
-            sys.exit()
-        elif do_grid_search == "yes":
-            logging.info("Starting full grid search...")
-            hyperparameter_config = load_hyperparameter_optimization_config(HYPERPARAMETER_OPTIMIZATION)
-            grid_search = run_grid_search(
-                pipeline,
-                hyperparameter_config,
-                X_train,
-                Y_train,
-                use_small_subset=False,
-            )
-            logging.info("Grid search complete!")
-            save_gs_results(grid_search, GRID_SEARCH_RESULTS)
-            save_best_parameters(grid_search, OPTIMIZED_PARAMETERS)
-            logging.info("Grid search results and optimized parameters saved!")
-
-        retrain_optimized_model = get_user_input(
-            "Do you want to retrain the model using the optimized parameters found by the grid search? (yes/no/exit): "
-        )
-        if retrain_optimized_model == "exit":
-            sys.exit()
-        elif retrain_optimized_model == "yes":
-            logging.info("Loading optimized parameters...")
-            optimized_parameters = load_model_parameters(OPTIMIZED_PARAMETERS)
-            if optimized_parameters is None:
-                logging.error("Failed to load optimized parameters. Please ensure the file exists and is valid.")
-            else:
-                logging.info("Optimized parameters loaded successfully")
-            
-            logging.info("Building and training optimized model...")
-            optimized_model = build_model(pipeline, optimized_parameters)
-            optimized_model.fit(X_train, Y_train)
-            
-            logging.info("Evaluating optimized model...")
-            evaluate_model(optimized_model, "optimized_model", X_test, Y_test, TARGET_COLUMNS)
-            
-            logging.info("Saving optimized model to: %s", model_filepath)
-            save_model(optimized_model, model_filepath)
-            logging.info("Optimized model training complete!")
+    retrain_optimized_model = get_user_input(
+        "Do you want to retrain the model using the optimized parameters found by the grid search? (yes/no/exit): "
+    )
+    if retrain_optimized_model == "exit":
+        sys.exit()
+    elif retrain_optimized_model == "yes":
+        logging.info("Loading optimized parameters...")
+        optimized_parameters = load_model_parameters(OPTIMIZED_PARAMETERS)
+        if optimized_parameters is None:
+            logging.error("Failed to load optimized parameters. Please ensure the file exists and is valid.")
+        else:
+            logging.info("Optimized parameters loaded successfully")
+        
+        logging.info("Building and training optimized model...")
+        optimized_model = build_model(pipeline, optimized_parameters)
+        optimized_model.fit(X_train, Y_train)
+        
+        logging.info("Evaluating optimized model...")
+        evaluate_model(optimized_model, "optimized_model", X_test, Y_test, TARGET_COLUMNS)
+        
+        logging.info("Saving optimized model to: %s", model_filepath)
+        save_model(optimized_model, model_filepath)
+        logging.info("Optimized model training complete!")
 
 
 if __name__ == "__main__":
