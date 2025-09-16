@@ -310,3 +310,32 @@ python scripts/compare_models.py
 **This comprehensive plan addresses all identified reliability and performance issues. The hyperparameter search is currently unsuitable for production execution without these critical fixes.**
 
 **Please review this updated plan and confirm if you'd like me to proceed with the systematic reliability improvements before attempting hyperparameter tuning execution.**
+
+## 📚 Lessons Learned
+
+### **Model Size vs. Performance Trade-offs (2025-09-16)**
+
+**Issue Discovered**: The hyperparameter search found "optimal" parameters that created a 910MB model (4.5x larger than expected), requiring automatic size constraint enforcement.
+
+**Root Cause**:
+- Search grid included `"max_depth": null` (unlimited depth)
+- RandomizedSearchCV optimized for F1-score without considering model size
+- With 36 multi-label outputs × 100 trees = 3,600 individual trees with unlimited depth
+- `min_samples_leaf: 1` allowed extremely granular splits
+
+**Key Insights**:
+1. **Always include practical constraints** in hyperparameter grids - unlimited parameters rarely optimal for production
+2. **Model size should be a search constraint**, not an afterthought handled by guardrails
+3. **Cross-validation can favor overly complex models** that memorize training patterns
+4. **Multi-output classifiers amplify parameter effects** - 36 labels × 100 trees = massive complexity
+
+**Better Hyperparameter Grid Design**:
+```json
+"clf__estimator__max_depth": [10, 15, 20, 25, 30]  // Remove null
+"clf__estimator__min_samples_leaf": [2, 4, 8]      // Prevent overfitting
+"clf__estimator__max_leaf_nodes": [5000, 10000]    // Direct size control
+```
+
+**Resolution**: Script's 200MB guardrail automatically applied `max_leaf_nodes=10000`, preserving most performance benefits while ensuring practical deployment size.
+
+**Recommendation**: For future searches, include model size as an explicit optimization constraint alongside accuracy metrics.

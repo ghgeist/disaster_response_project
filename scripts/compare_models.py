@@ -192,10 +192,13 @@ def show_detailed_category_comparison(output_writer: OutputWriter):
 
     output_writer.print("\nCategories with biggest declines:")
     output_writer.print("-" * 40)
-    worst_declined = comparison.tail(5)
-    for _, row in worst_declined.iterrows():
-        if row['f1_diff'] < 0:
+    # Only show actual declines
+    declines = comparison[comparison['f1_diff'] < 0].head(5)
+    if len(declines) > 0:
+        for _, row in declines.iterrows():
             output_writer.print(f"❌ {row['category']:<20} {row['f1_diff']:+.1f}% F1 decline")
+    else:
+        output_writer.print("✅ No categories showed performance declines!")
 
 
 def main():
@@ -221,7 +224,7 @@ def main():
 
         output_writer.print(f"\n📄 Full comparison report saved to: {output_file}")
 
-    print(f"📄 Full comparison report saved to: {output_file}")
+    print(f"\n📄 Full comparison report saved to: {output_file}")
 
 
 if __name__ == "__main__":
