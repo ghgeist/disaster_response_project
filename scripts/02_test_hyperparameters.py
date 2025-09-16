@@ -42,7 +42,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
 
 # Local imports
-from disasterproject.models.pipeline import run_parameter_search
+from disasterproject.models.hyperparameter_search import run_parameter_search
 from disasterproject.utils.config import FEATURE_COLUMNS, TARGET_COLUMNS
 from disasterproject.data.preprocessor import tokenize
 # Removed unused sampling imports - not compatible with multi-label classification

@@ -14,6 +14,7 @@ src/disasterproject/data/preprocessor.py
 src/disasterproject/evaluation/__init__.py
 src/disasterproject/evaluation/metrics.py
 src/disasterproject/models/__init__.py
+src/disasterproject/models/hyperparameter_search.py
 src/disasterproject/models/pipeline.py
 src/disasterproject/models/samplers.py
 src/disasterproject/utils/__init__.py
@@ -21,11 +22,12 @@ src/disasterproject/utils/config.py
 src/disasterproject/utils/experiment_tracker.py
 src/disasterproject/utils/interaction.py
 src/disasterproject/utils/json_io.py
+src/disasterproject/utils/secure_subprocess.py
 tests/test_app_smoke.py
 tests/test_csrf_smoke.py
-tests/test_perf.py
-tests/test_security.py
 tests/test_flask_standardized.py
 tests/test_gdrive_deployment.py
 tests/test_optimization.py
+tests/test_perf.py
+tests/test_security.py
 tests/test_smoke.py
