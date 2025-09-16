@@ -1,1 +1,21 @@
-{"refit_metric": "f1_weighted", "best_score": 0.5817094605159611, "best_params": {"vect__ngram_range": [1, 1], "clf__estimator__n_estimators": 100, "clf__estimator__min_samples_split": 5, "clf__estimator__min_samples_leaf": 1, "clf__estimator__max_depth": null}}
+{
+  "metadata": {
+    "model_name": "optimized_disaster_classifier",
+    "version": "1.1.0",
+    "created_date": "2025-09-16",
+    "description": "Optimized parameters from comprehensive grid search using RandomizedSearchCV",
+    "model_type": "RandomForestClassifier with TfidfVectorizer",
+    "last_modified": "2025-09-16",
+    "experiment_id": "grid_search_2025-09-16",
+    "refit_metric": "f1_weighted",
+    "best_score": 0.5817094605159611,
+    "search_method": "RandomizedSearchCV"
+  },
+  "parameters": {
+    "vect__ngram_range": [1, 1],
+    "clf__estimator__n_estimators": 100,
+    "clf__estimator__min_samples_split": 5,
+    "clf__estimator__min_samples_leaf": 1,
+    "clf__estimator__max_depth": null
+  }
+}

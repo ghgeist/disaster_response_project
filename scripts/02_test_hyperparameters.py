@@ -425,11 +425,10 @@ def save_gs_results(cv, output_file_path):
 
 def save_best_parameters(cv, output_file_path):
     """
-    Save the best parameters of a grid search to a JSON file.
+    Save the best parameters of a grid search to a JSON file in expected format.
 
     This function extracts the best parameters from the results of a GridSearchCV,
-    and saves them to a JSON file. If the file cannot be opened for writing (for example, if the directory does not exist),
-    an error message is logged and the function returns without saving the parameters.
+    and saves them to a JSON file with metadata structure that matches the expected format.
 
     Args:
     cv (GridSearchCV): The fitted GridSearchCV instance.
@@ -439,15 +438,27 @@ def save_best_parameters(cv, output_file_path):
     FileNotFoundError: If the file cannot be opened for writing.
     """
     best_params = cv.best_params_
+
+    # Create payload in expected format with metadata
     payload = {
-        "refit_metric": getattr(cv, "refit", None),
-        "best_score": float(getattr(cv, "best_score_", float("nan"))),
-        "best_params": best_params,
+        "metadata": {
+            "model_name": "optimized_disaster_classifier",
+            "version": "1.1.0",
+            "created_date": datetime.now().strftime("%Y-%m-%d"),
+            "description": "Optimized parameters from comprehensive grid search using RandomizedSearchCV",
+            "model_type": "RandomForestClassifier with TfidfVectorizer",
+            "last_modified": datetime.now().strftime("%Y-%m-%d"),
+            "experiment_id": f"grid_search_{datetime.now().strftime('%Y-%m-%d')}",
+            "refit_metric": getattr(cv, "refit", None),
+            "best_score": float(getattr(cv, "best_score_", float("nan"))),
+            "search_method": "RandomizedSearchCV"
+        },
+        "parameters": best_params
     }
 
     try:
         with open(output_file_path, "w", encoding="utf-8") as f:
-            json.dump(payload, f)
+            json.dump(payload, f, indent=2)
     except FileNotFoundError as e:
         logging.error("Error saving best parameters: %s", e)
 
