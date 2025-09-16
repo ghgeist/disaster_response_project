@@ -12,12 +12,12 @@ related: ["docs/sessions/active/2025-09-16-hyperparameter-tuning-plan.md"]
 **Date**: 2025-09-17
 **Status**: Active
 **Priority**: Medium
-**Estimated Duration**: 2-3 hours
+**Estimated Duration**: 30 minutes
 **Tags**: `data-quality`, `model-validation`, `debugging`, `multi-label-classification`
 
 ## 🎯 Objective
 
-Investigate and resolve the `child_alone` category degenerate classifier issue discovered during hyperparameter optimization validation. Both production and experimental models exhibit identical problematic behavior where `child_alone` always returns probability 1.0 regardless of input content.
+**Ship-ready fix**: Resolve the `child_alone` degenerate classifier issue in 30 minutes to make the project portfolio-ready. Either fix the data issue or transparently document it - no overengineering.
 
 ## 📋 Success Criteria
 
@@ -28,6 +28,7 @@ Investigate and resolve the `child_alone` category degenerate classifier issue d
 - [ ] Model comparison tools updated to transparently show data quality issues
 
 ## 🔍 Context
+The tuned model already achieves strong performance (~0.94 F1) without class weighting or sampling. Rather than chasing marginal improvements, the focus now is on fixing the one clear correctness gap: the child_alone label. Both production and experimental models always predict 0 for this category, suggesting either no positive training data or an ETL issue. Resolving or documenting this ensures the project is technically sound and portfolio-ready.
 
 During comprehensive model validation on 2025-09-16, diagnostic testing revealed that the `child_alone` category has a degenerate classifier in both production and experimental models:
 
@@ -58,40 +59,26 @@ During comprehensive model validation on 2025-09-16, diagnostic testing revealed
 - Reproducible analysis scripts
 - Clear recommendations for remediation
 
-## 🛠️ Approach
+## 🚀 Critical Path (30 minutes total)
 
-### Phase 1: Data Exploration (30 minutes)
-1. **Create `analyze_category_distribution.py`**:
-   - Query database for category distribution across all 36 labels
-   - Generate summary statistics (total positive examples per category)
-   - Identify categories with zero or extremely few positive examples
+**Goal**: Ship-ready resolution with minimal scope
 
-2. **Deep-dive `child_alone` analysis**:
-   - Extract all messages where `child_alone=1`
-   - Show sample messages for manual inspection
-   - Compare with related categories for context
+### Step 1: Quick Data Check (10 minutes)
+```sql
+SELECT COUNT(*) FROM disaster_messages WHERE child_alone = 1;
+```
+- If 0: Document as "no training data" and move to transparency fix
+- If >0: Quick sample inspection to understand labeling
 
-### Phase 2: Root Cause Analysis (45 minutes)
-3. **Investigate potential causes**:
-   - **Zero examples hypothesis**: Confirm if `child_alone` has 0 positive examples
-   - **Data processing issue**: Check if category was filtered out during ETL
-   - **Labeling inconsistency**: Verify if examples exist but are mislabeled
-   - **Model training bug**: Validate MultiOutputClassifier behavior with sparse labels
+### Step 2: Fix Transparency (15 minutes)
+- Remove masking in `test_experimental_model.py`
+- Show actual degenerate behavior in model comparison
+- Add warning for problematic categories
 
-4. **Comparative analysis**:
-   - Check if other categories exhibit similar degenerate behavior
-   - Analyze correlation with category rarity (few positive examples)
-
-### Phase 3: Solution Implementation (60+ minutes)
-5. **Fix transparency issues**:
-   - Update `test_experimental_model.py` to show actual problematic behavior
-   - Remove artificial masking of degenerate classifier confidence scores
-   - Add warnings/indicators for problematic categories in comparison tools
-
-6. **Implement recommended solution**:
-   - **If zero examples**: Document as "insufficient training data" category
-   - **If few examples**: Consider merging with related category or removal
-   - **If data issue**: Implement data cleaning/correction pipeline
+### Step 3: Document Resolution (5 minutes)
+- Update README/docs with child_alone status
+- Mark category as "insufficient training data" if zero examples
+- Project is now portfolio-ready with transparent reporting
 
 ## 📊 Acceptance Criteria
 
@@ -127,13 +114,23 @@ Success will be measured by:
 | ETL pipeline corrupted data | High | Low | Trace data lineage back to raw CSV files for validation |
 | Model retraining required after fix | Medium | Medium | Plan for experimental model rebuild with corrected data |
 
-## 📄 Deliverables
+## 📄 Deliverables (Minimal Scope)
 
-- [ ] `analyze_category_distribution.py` - Comprehensive data quality analysis script
-- [ ] `child_alone_investigation_report.md` - Detailed findings and recommendations
-- [ ] Updated `test_experimental_model.py` - Transparent reporting (no masking)
-- [ ] Data quality dashboard/summary for all 36 categories
-- [ ] Remediation plan or implementation of recommended solution
+- [ ] Updated `test_experimental_model.py` - Show actual degenerate behavior
+- [ ] Quick documentation update - child_alone status in project docs
+- [ ] ~~Complex analysis scripts~~ - SCOPE CUT for shipping
+
+## ⏰ Confirmation Required
+
+**This is a focused 30-minute fix to make your project portfolio-ready. The approach:**
+
+1. **Quick SQL check** - Count child_alone positive examples (10 min)
+2. **Remove masking** - Show real model behavior in comparison tools (15 min)
+3. **Document status** - Add child_alone caveat to project documentation (5 min)
+
+**Result**: Transparent, honest project that acknowledges the limitation rather than hiding it.
+
+**Please confirm if you'd like me to proceed with this focused investigation approach.**
 
 ## 🎯 Next Steps After Completion
 
