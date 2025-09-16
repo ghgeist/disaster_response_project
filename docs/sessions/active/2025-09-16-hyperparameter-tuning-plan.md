@@ -43,7 +43,7 @@ To systematically search for and identify a more optimal set of hyperparameters 
 - [ ] **CRITICAL**: Remove duplicate `run_grid_search()` function and fix code quality issues.
 - [ ] **CRITICAL**: Fix output paths to use proper `experiments/` directory structure.
 - [ ] **CRITICAL**: Implement proper cross-validation strategy for multi-label classification.
-- [ ] **CRITICAL**: Implement a robust **Custom Search Loop** providing resume capability, granular error handling, and rich progress monitoring.
+- [ ] **CRITICAL**: Implement careful resource management to prevent system crashes during long search.
 - [ ] The improved `scripts/02_test_hyperparameters.py` script is executed successfully.
 - [ ] The script generates an `optimized_parameters.json` file with the best-performing parameter set.
 - [ ] The contents of `optimized_parameters.json` are copied to `model/parameters.json`.
@@ -70,8 +70,16 @@ The current production model uses minimal hyperparameters. The project's scripts
 
 **APPROACH**: One change at a time with validation gates. No parallelization until we're confident each step works.
 
+**TESTING STRATEGY**: Portfolio project focus - prevent 4-hour time loss, not enterprise-grade validation.
+- **SMOKE TESTS**: Quick validation that basic functionality works
+- **FOCUSED TESTS**: Crash-prevention for high-risk components
+- **MINIMAL TESTS**: Just verify no obvious errors
+- **SKIP**: Performance optimization, edge cases, comprehensive validation
+
 ### **Phase 1: Complete Validation First** ⚠️ *CRITICAL FOUNDATION*
-1. **Validate Environment**: Check database exists, memory available, dependencies installed
+1. **Validate Environment**:
+   - Check `data/02_stg/stg_disaster_response.db` exists and can be queried
+   - Verify critical packages import (sklearn, pandas, nltk, iterative-stratification)
 2. **Test Parameter Combinations**: Validate hyperparameter grid for invalid combinations
 3. **Verify Data Loading**: Ensure dataset loads without errors and fits in memory
 4. **Check Resource Limits**: Verify system can handle expected CPU/memory usage
@@ -83,55 +91,63 @@ The current production model uses minimal hyperparameters. The project's scripts
 
 **Fix 1**: Add iterative-stratification dependency
 - Add `iterative-stratification` to `requirements.txt`
-- **TEST**: Verify import works: `from iterstrat.ml_stratifiers import MultilabelStratifiedKFold`
+- **SMOKE TEST**: `python -c "from iterstrat.ml_stratifiers import MultilabelStratifiedKFold; print('Import OK')"`
 
 **Fix 2**: Remove duplicate function
 - Delete `run_grid_search()` function from `scripts/02_test_hyperparameters.py` (lines 465-517)
-- **TEST**: Verify script still loads without errors
+- Add import: `from disasterproject.models.pipeline import run_parameter_search`
+- **SMOKE TEST**: `python scripts/02_test_hyperparameters.py --help` (should show help without errors)
 
 **Fix 3**: Fix cross-validation strategy
-- Implement `MultilabelStratifiedKFold` from the `iterative-stratification` library
-- **TEST**: Verify CV strategy works in isolation with sample data
+- Add import: `from iterstrat.ml_stratifiers import MultilabelStratifiedKFold`
+- Implement `MultilabelStratifiedKFold` in place of default cross-validation
+- **FOCUSED TEST**: Load 100 sample subset, test 3-fold CV, verify reasonable class distribution vs old CV
 
 **Fix 4**: Standardize data splitting
-- Replace naive `train_test_split` with robust "frozen/random" logic from production script
-- **TEST**: Verify data loading works with new split logic
+- Investigate how `scripts/04_create_production_model.py` handles train/test splitting
+- Replace naive `train_test_split` with the production script's robust data splitting logic
+- **MINIMAL TEST**: Verify both frozen/random modes run without errors
 
 **Fix 5**: Fix output paths
 - Update script to output to `experiments/` structure:
   - Results → `experiments/results/2025-09-16_hyperparameter_search_results.json`
   - Parameters → `experiments/model_candidates/2025-09-16_optimized_parameters.json`
   - Models → `experiments/models/2025-09-16_hyperparameter_tuned_model.pkl`
-- **TEST**: Verify directory creation and file outputs work
+  - Logs → `experiments/logs/2025-09-16_hyperparameter_search.log`
+  - Manifest → `experiments/2025-09-16_hyperparameter_search_manifest.json`
+- **Current problematic paths**: `scripts/*.json` outputs (move to experiments structure)
+- **Automation**: Add function to automatically generate manifest JSON at script completion
+- **SMOKE TEST**: Run with minimal params to test directory creation
 
 **Fix 6**: Add resource management
-- Set memory limits, CPU bounds, and timeout protection
-- **TEST**: Verify resource limits work correctly
+- Add import: `import psutil`
+- **Memory monitoring**: Use `psutil` to check RAM usage every 10 iterations, warn at 10GB, abort at 12GB
+- **CPU**: Set `n_jobs=2` instead of `-1` to keep system responsive
+- **Time**: Overall timeout 4-6 hours, per-trial timeout 30 minutes
+- **Implementation**: Add memory check function with `psutil.Process().memory_info().rss`
+- **FOCUSED TEST**: Test with artificial limits to ensure monitoring works (crash prevention)
 
 **🚪 GATE 2**: All fixes implemented and individually tested before proceeding
 
-### **Phase 3: Custom Search Loop Implementation** ⚠️ *HIGH PRIORITY*
+### **Phase 3: Execution & Deployment** ⚠️ *FOCUS ON RESOURCE MANAGEMENT*
+**Strategy**: Use RandomizedSearchCV as-is with careful resource management instead of custom loop complexity.
 
-**Single Focused Implementation**: Replace black-box `RandomizedSearchCV.fit()` with custom loop
-
-7. **Deconstruct the Search**: Generate parameter combinations upfront using `ParameterSampler`
-8. **Implement Trial-by-Trial Loop**: Create `for` loop iterating through each parameter set
-9. **Implement Resume Capability**: Read `search_results.csv` log and skip completed trials
-10. **Implement Granular Error Handling**: Wrap each trial in `try...except` block
-11. **Implement Rich Monitoring**: Write progress to CSV and update best params immediately
-
-**🧪 COMPREHENSIVE TESTING**: Test new search loop thoroughly with small parameter set before full execution
-
-**🚪 GATE 3**: Custom search loop proven reliable before execution
-
-### **Phase 4: Execution & Deployment**
-12. **Estimate Runtime**: Use hardened `scripts/estimate_search_time.py` utility
-13. **Execute Search**: Run fully-improved `scripts/02_test_hyperparameters.py` script
-14. **Monitor Progress**: Track execution and handle any issues
-15. **Validate Results**: Verify search completed successfully
-16. **Promote Parameters**: Copy optimized parameters to `model/parameters.json`
-17. **Train Model**: Execute `scripts/04_create_production_model.py`
-18. **Validate Improvement**: Compare new vs old `performance_metrics.csv`
+7. **Estimate Runtime**: Use `scripts/estimate_search_time.py` to set realistic expectations
+8. **Configure Resource Limits**:
+   - Memory cap: ~12GB (75% of 16GB system)
+   - CPU: `n_jobs=2` for system responsiveness
+   - Search size: `n_iter=100` (reasonable vs 500+)
+   - Timeouts: 4-6 hours overall, 30 min per trial
+9. **Execute Search**: Run improved `scripts/02_test_hyperparameters.py` with monitoring
+10. **Monitor Progress**:
+    - **Console**: Print progress every 10 iterations (completion %, current best score, RAM usage, ETA)
+    - **Log file**: Write detailed progress to `experiments/logs/` with timestamps and system stats
+    - **Git ignore**: Add `experiments/logs/` to `.gitignore`
+11. **Validate Results**: Verify search completed successfully with valid outputs
+12. **Create Experiment Manifest**: Add function to hyperparameter script to automatically generate manifest JSON at completion with all output file paths
+13. **Promote Parameters**: Copy optimized parameters to `model/parameters.json`
+14. **Train Model**: Execute `scripts/04_create_production_model.py`
+15. **Validate Improvement**: Compare new vs old `performance_metrics.csv`
 
 ## 📊 Acceptance Criteria
 
@@ -180,27 +196,33 @@ The task is complete when:
 
 ## 🎯 Immediate Next Steps
 
-**CRITICAL RELIABILITY ISSUES**: The current script has fundamental flaws that will likely cause execution failure. A systematic reliability-first approach is required:
+**CONSERVATIVE APPROACH**: Based on past experience creating messes, we're taking a systematic, one-change-at-a-time approach with validation gates.
 
-### **Phase 1: Pre-Execution Validation**
-1. **Pre-execution validation** - Verify environment readiness and parameter validity
+### **START HERE: Phase 1 - Complete Validation**
+1. **Validate environment** - Confirm database, memory, dependencies ready
+2. **Test current script baseline** - Ensure it runs before we change anything
+3. **Validate parameter grid** - Check for invalid combinations
+4. **🚪 GATE 1**: Don't proceed until baseline confirmed working
 
-### **Phase 2: Critical Foundation Fixes**
-2. **Remove duplicate function** (`run_grid_search` lines 465-517 in hyperparameter script)
-3. **Fix cross-validation strategy** - Implement proper multi-label CV instead of default 5-fold
-4. **Add resource management** - Memory limits, CPU bounds, timeout protection
-5. **Fix output paths** to use proper `experiments/` directory structure
-6. **Update imports** to use centralized package functions
+### **Phase 2: Sequential Fixes (One at a Time)**
+1. **Fix 1**: Add dependency → Test import works
+2. **Fix 2**: Remove duplicate function → Test script loads
+3. **Fix 3**: Fix cross-validation → Test CV works in isolation
+4. **Fix 4**: Fix data splitting → Test data loading works
+5. **Fix 5**: Fix output paths → Test directory creation works
+6. **Fix 6**: Add resource limits → Test limits work
+7. **🚪 GATE 2**: All fixes tested individually before proceeding
 
-### **Phase 3: Custom Search Loop Implementation**
-7. **Implement the robust Custom Search Loop** which will provide resume capability, granular error handling, and rich progress monitoring as a single, integrated solution.
+### **Phase 3: Custom Search Loop (Single Focused Effort)**
+8. **Implement custom search loop** as one cohesive change
+9. **🧪 COMPREHENSIVE TESTING**: Test thoroughly with small parameter set
+10. **🚪 GATE 3**: Prove reliability before full execution
 
-### **Phase 4: Execution & Deployment**
-8. **Test with hardened estimation script** to verify all changes work
-9. **Execute full hyperparameter search** with monitoring and recovery
-10. **Deploy optimized model** and validate improvement
+### **Phase 4: Execute Only When Everything Proven**
+11. **Execute full hyperparameter search** with monitoring
+12. **Deploy optimized model** and validate improvement
 
-**This transforms the plan from "hoping it works" to "ensuring it works reliably" - critical for a multi-hour process that could crash and lose all progress.**
+**This transforms the approach from "change everything and hope" to "change one thing, prove it works, move to next" - essential for avoiding the mess that happened last time.**
 
 ## 🔄 Confirmation Required
 
