@@ -578,29 +578,16 @@ def main():
         save_best_parameters(grid_search, OPTIMIZED_PARAMETERS)
         logging.info("Grid search results and optimized parameters saved!")
 
-    retrain_optimized_model = get_user_input(
-        "Do you want to retrain the model using the optimized parameters found by the grid search? (yes/no/exit): "
-    )
-    if retrain_optimized_model == "exit":
-        sys.exit()
-    elif retrain_optimized_model == "yes":
-        logging.info("Loading optimized parameters...")
-        optimized_parameters = load_parameters(OPTIMIZED_PARAMETERS, "model")
-        if optimized_parameters is None:
-            logging.error("Failed to load optimized parameters. Please ensure the file exists and is valid.")
-        else:
-            logging.info("Optimized parameters loaded successfully")
-        
-        logging.info("Building and training optimized model...")
-        optimized_model = build_model(pipeline, optimized_parameters)
-        optimized_model.fit(X_train, Y_train)
-        
-        logging.info("Evaluating optimized model...")
-        evaluate_model(optimized_model, "optimized_model", X_test, Y_test, TARGET_COLUMNS)
-        
-        logging.info("Saving optimized model to: %s", model_filepath)
-        save_model(optimized_model, model_filepath)
-        logging.info("Optimized model training complete!")
+        print(f"\n🎉 HYPERPARAMETER SEARCH COMPLETE!")
+        print(f"=" * 50)
+        print(f"📄 Results saved to: {GRID_SEARCH_RESULTS}")
+        print(f"⚙️  Best parameters saved to: {OPTIMIZED_PARAMETERS}")
+        print(f"📊 Best score achieved: {grid_search.best_score_:.4f}")
+        print(f"\n💡 NEXT STEPS:")
+        print(f"   1. Review the optimized parameters in: {OPTIMIZED_PARAMETERS}")
+        print(f"   2. Copy parameters to: experiments/model_candidates/parameters.json")
+        print(f"   3. Create optimized model with: python scripts/03_create_experimental_model.py")
+        print(f"=" * 50)
 
 
 if __name__ == "__main__":
