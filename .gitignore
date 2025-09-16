@@ -19,3 +19,6 @@ cookies.txt
 *.cookies
 *.session
 *.sess
+
+# --- Catch accidental weird files
+=*
