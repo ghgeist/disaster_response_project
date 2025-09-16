@@ -148,11 +148,17 @@ URL_REGEX = (
 )
 URL_PLACE_HOLDER = "urlplaceholder"
 
+# Updated paths to use experiments structure (2025-09-16)
 SCRIPT_DIR = os.path.dirname(__file__)
-BASE_PARAMETERS = os.path.join(SCRIPT_DIR, "base_parameters.json")
-HYPERPARAMETER_OPTIMIZATION = os.path.join(SCRIPT_DIR, "hyperparameter_optimization.json")
-GRID_SEARCH_RESULTS = os.path.join(SCRIPT_DIR, "gs_results.json")
-OPTIMIZED_PARAMETERS = os.path.join(SCRIPT_DIR, "optimized_parameters.json")
+PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
+DATE_PREFIX = "2025-09-16"
+
+# Experiments structure paths
+BASE_PARAMETERS = os.path.join(PROJECT_ROOT, "experiments", "model_candidates", "parameters.json")
+HYPERPARAMETER_OPTIMIZATION = os.path.join(PROJECT_ROOT, "experiments", "experimental_configs", "hyperparameters", f"{DATE_PREFIX}_comprehensive-grid_active.json")
+GRID_SEARCH_RESULTS = os.path.join(PROJECT_ROOT, "experiments", "results", f"{DATE_PREFIX}_hyperparameter_search_results.json")
+OPTIMIZED_PARAMETERS = os.path.join(PROJECT_ROOT, "experiments", "model_candidates", f"{DATE_PREFIX}_optimized_parameters.json")
+HYPERPARAMETER_LOG = os.path.join(PROJECT_ROOT, "experiments", "logs", f"{DATE_PREFIX}_hyperparameter_search.log")
 
 logging.info("Setting random seed...")
 np.random.seed(0)
@@ -693,6 +699,17 @@ def main():
     None
     """
     import argparse
+
+    # Configure logging to write to both console and log file
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(HYPERPARAMETER_LOG),
+            logging.StreamHandler()
+        ]
+    )
+
     parser = argparse.ArgumentParser()
     parser.add_argument("database_filepath")
     parser.add_argument("model_filepath")
