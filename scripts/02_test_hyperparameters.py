@@ -754,7 +754,7 @@ def main():
     model_filepath = args.model_filepath
     hyperparameter_config_path = args.config
 
-        logging.info("Loading data from database: %s", database_filepath)
+    logging.info("Loading data from database: %s", database_filepath)
     X, Y = load_data(database_filepath)
     if X is None or Y is None:
         logging.error("Error loading data from database")
