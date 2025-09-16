@@ -80,19 +80,31 @@ def load_model_parameters(file_path: str) -> Optional[Dict[str, Any]]:
     Returns:
         data (dict): The contents of the JSON file as a dictionary, or None if an error occurred.
     """
-    parameters = load_json(file_path)
-    if parameters is None:
+    raw = load_json(file_path)
+    if raw is None:
+        return None
+
+    # Unwrap nested structure and ignore metadata if present
+    parameters = raw.get("parameters") if isinstance(raw, dict) and "parameters" in raw else raw
+
+    if not isinstance(parameters, dict):
+        logging.error("Invalid parameters format in %s; expected object, got %s", file_path, type(parameters))
         return None
 
     # Convert single-item lists to their values and two-item lists to tuples
+    normalized: Dict[str, Any] = {}
     for k, v in parameters.items():
         if isinstance(v, list):
             if len(v) == 1:
-                parameters[k] = v[0]
+                normalized[k] = v[0]
             elif len(v) == 2:
-                parameters[k] = tuple(v)
+                normalized[k] = tuple(v)
+            else:
+                normalized[k] = v
+        else:
+            normalized[k] = v
 
-    return parameters
+    return normalized
 
 
 def load_hyperparameter_optimization_config(file_path: str) -> Optional[Dict[str, Any]]:
