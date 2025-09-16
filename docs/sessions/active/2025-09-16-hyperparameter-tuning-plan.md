@@ -33,6 +33,8 @@ related: ["docs/research/2025-09-16-analyzing-and-improving-the-classifier.md"]
 - **2025-09-16**: **Revised Increment 2 Strategy**: Replaced the initial plan for recovery and monitoring with a more robust **Custom Search Loop** implementation to provide superior resilience, error handling, and progress tracking.
 - **2025-09-16 09:25**: **🎯 ALL CRITICAL FIXES COMPLETED** - Successfully implemented all Phase 2 fixes including dependency installation, duplicate function removal, proper CV strategy, standardized data splitting, experiments directory structure, and resource management.
 - **2025-09-16 09:28**: **🚀 HYPERPARAMETER SEARCH LAUNCHED** - Started full hyperparameter search with all reliability improvements active. Process running in background with comprehensive monitoring and logging.
+- **2025-09-16 14:30**: **🔧 ARCHITECTURE REFACTORING COMPLETED** - Resolved critical separation of concerns issues. Renamed `pipeline.py` to `hyperparameter_search.py` and created proper `pipeline.py` with model creation functions.
+- **2025-09-16 14:35**: **✅ EXPERIMENTAL MODEL PIPELINE OPERATIONAL** - Successfully created missing pipeline creation functions (`create_pipeline`, `create_pipeline_with_custom_weights`, `build_model`) and validated experimental model script can run with optimized parameters.
 
 ## 🎯 Objective
 
@@ -47,7 +49,11 @@ To systematically search for and identify a more optimal set of hyperparameters 
 - [x] **CRITICAL**: Implement proper cross-validation strategy for multi-label classification.
 - [x] **CRITICAL**: Implement careful resource management to prevent system crashes during long search.
 - [x] The improved `scripts/02_test_hyperparameters.py` script is executed successfully.
-- [ ] **IN PROGRESS**: The script generates an `optimized_parameters.json` file with the best-performing parameter set.
+- [x] **COMPLETED**: The script generates an `optimized_parameters.json` file with the best-performing parameter set.
+- [x] **ARCHITECTURE**: Created proper separation of concerns between hyperparameter search and pipeline creation functions.
+- [x] **EXPERIMENTAL PIPELINE**: Implemented missing model creation functions for experimental model script.
+- [ ] **IN PROGRESS**: Execute experimental model creation with optimized parameters.
+- [ ] **PENDING**: Run model comparison between production and experimental models.
 - [ ] The contents of `optimized_parameters.json` are copied to `model/parameters.json`.
 - [ ] A new production model, trained with the optimized parameters, shows a measurable improvement in F1-score or recall.
 
@@ -204,22 +210,37 @@ These small, low-risk improvements reduce noise, improve metric stability, and m
 | **No progress monitoring in long-running process** | **Medium** | **High** | **HIGH**: The custom loop will provide structured, real-time logging for each trial, showing parameters, score, and current best score. |
 | Refactoring breaks existing functionality | Medium | Low | Test with `estimate_search_time.py` after each change. Use existing working import patterns. |
 
-## 🔄 **CURRENT EXECUTION STATUS** *(2025-09-16 09:30)*
+## 🔄 **CURRENT EXECUTION STATUS** *(2025-09-16 14:35)*
 
-**🚀 HYPERPARAMETER SEARCH IN PROGRESS**
+**✅ EXPERIMENTAL MODEL INFRASTRUCTURE READY**
 
-- **Status**: RUNNING in background (process ID: b065de)
-- **Started**: 2025-09-16 09:28 UTC
-- **Configuration**: RandomizedSearchCV with 72 parameter combinations (20 iterations)
-- **Cross-Validation**: MultilabelStratifiedKFold (3-fold)
-- **Resource Management**: Active (n_jobs=2, memory monitoring)
-- **Progress**: Cross-validation actively running with F-score calculations
-- **Expected Runtime**: 1-4 hours
-- **Outputs**:
-  - Log: `experiments/logs/2025-09-16_hyperparameter_search.log`
-  - Results: `experiments/results/2025-09-16_hyperparameter_search_results.json`
-  - Parameters: `experiments/model_candidates/2025-09-16_optimized_parameters.json`
-  - Model: `experiments/models/2025-09-16_hyperparameter_tuned_model.pkl`
+- **Status**: ARCHITECTURE REFACTORED - Ready for experimental model creation and comparison
+- **Hyperparameter Search**: COMPLETED (optimized parameters available)
+- **Architecture Issues**: RESOLVED (proper separation of concerns implemented)
+- **Experimental Pipeline**: OPERATIONAL (all missing functions created)
+
+**🎯 IMMEDIATE NEXT PHASE: Model Creation & Comparison**
+
+**Ready to Execute:**
+```bash
+python scripts/03_create_experimental_model.py \
+  --params experiments/model_candidates/2025-09-16-comprehensive-grid-search-optimized-hyperparameters.json \
+  --class-weights experiments/model_candidates/2025-09-04-default-class_weights.json
+```
+
+**Expected Outputs:**
+- Experimental Model: `experiments/results/2025-09-16-comprehensive-grid-search-optimized-model.pkl`
+- Performance Metrics: `experiments/results/performance_metrics.csv`
+- Training Log: `experiments/results/training_log.json`
+
+**Next Step After Model Creation:**
+```bash
+python scripts/compare_models.py
+```
+
+**Previous Search Results Available:**
+- Optimized Parameters: `experiments/model_candidates/2025-09-16-comprehensive-grid-search-optimized-hyperparameters.json`
+- Best F1 Score Found: 0.5817 (weighted average)
 
 **✅ All Critical Reliability Issues Resolved:**
 1. ✅ Iterative-stratification dependency installed and working
