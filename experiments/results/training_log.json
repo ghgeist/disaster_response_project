@@ -1,7 +1,7 @@
 {
-  "timestamp": "2025-09-04T18:03:37.166706",
-  "model_path": "experiments/results/experimental_classifier.pkl",
-  "training_time_seconds": 16.849010467529297,
+  "timestamp": "2025-09-16T15:40:04.884887",
+  "model_path": "experiments\\results\\2025-09-16-comprehensive-grid-search-optimized-model.pkl",
+  "training_time_seconds": 567.7212924957275,
   "configuration": {
     "hyperparameters": {
       "vect__ngram_range": [
@@ -9,7 +9,9 @@
         1
       ],
       "clf__estimator__n_estimators": 100,
-      "clf__estimator__min_samples_split": 2
+      "clf__estimator__min_samples_split": 5,
+      "clf__estimator__min_samples_leaf": 1,
+      "clf__estimator__max_depth": null
     },
     "class_weighting": {
       "enabled": false,
@@ -27,12 +29,12 @@
     "target_labels": 36
   },
   "performance": {
-    "overall_precision": 0.9107583164766684,
-    "overall_recall": 0.9297445255474452,
-    "overall_f1": 0.9006784722477155,
-    "positive_class_precision": 0.24347774001294945,
-    "positive_class_recall": 0.04160491468554891,
-    "positive_class_f1": 0.04604195682348469,
+    "overall_precision": 0.938496321982855,
+    "overall_recall": 0.9483822085627693,
+    "overall_f1": 0.9366007662843541,
+    "positive_class_precision": 0.578616247011086,
+    "positive_class_recall": 0.2128939526745394,
+    "positive_class_f1": 0.2673392030737666,
     "total_categories": 36,
     "test_samples": 5206
   },
