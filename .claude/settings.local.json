@@ -8,7 +8,10 @@
       "Bash(PYTHONPATH=src python scripts/04_create_production_model.py)",
       "Bash(PYTHONPATH=src python scripts/06_create_lightweight_model.py)",
       "Bash(set PYTHONIOENCODING=utf-8)",
-      "Bash(pylint:*)"
+      "Bash(pylint:*)",
+      "Bash(PYTHONPATH=src python scripts/validate_production_model.py)",
+      "Bash(PYTHONPATH=src python scripts/system_validation.py data/02_stg/stg_disaster_response.db)",
+      "Bash(mkdir:*)"
     ],
     "deny": [],
     "ask": []

@@ -69,12 +69,12 @@ def build_model(pipeline, parameters):
     try:
         if parameters:
             pipeline.set_params(**parameters)
-            logger.info(f"Applied {len(parameters)} parameters to pipeline")
+            logger.info("Applied %s parameters to pipeline", len(parameters))
         else:
             logger.info("No parameters provided, using pipeline defaults")
 
         return pipeline
 
     except Exception as e:
-        logger.error(f"Failed to build model with parameters: {e}")
+        logger.error("Failed to build model with parameters: %s", e)
         return None

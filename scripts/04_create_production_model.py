@@ -140,7 +140,7 @@ def save_training_log(model_dir, config, performance_summary, training_time, mod
     with open(log_path, 'w', encoding='utf-8') as f:
         json.dump(log_data, f, indent=2)
     
-    logging.info(f"Training log saved to: {log_path}")
+    logging.info("Training log saved to: %s", log_path)
     return log_path
 
 
@@ -148,7 +148,7 @@ def _compute_f2_thresholds_for_labels(model, X_eval, Y_eval, labels, all_categor
     try:
         proba_list = model.predict_proba(X_eval)
     except Exception as e:
-        logging.warning(f"predict_proba failed ({e}); returning default thresholds=0.5")
+        logging.warning("predict_proba failed (%s); returning default thresholds=0.5", e)
         return {name: 0.5 for name in labels}, {name: "default" for name in labels}
 
     thresholds = {}
@@ -428,7 +428,7 @@ def main():
         with open(os.path.join(model_dir, 'MODEL_INFO.json'), 'w', encoding='utf-8') as f:
             json.dump(info, f, indent=2)
     except Exception as e:
-        logging.warning(f"Failed to write model artifacts (thresholds/label_order/MODEL_INFO): {e}")
+        logging.warning("Failed to write model artifacts (thresholds/label_order/MODEL_INFO): %s", e)
 
     # Create comprehensive config for logging
     comprehensive_config = {

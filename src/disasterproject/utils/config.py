@@ -61,12 +61,18 @@ def setup_logging() -> None:
     )
     console_formatter = logging.Formatter("%(message)s")
 
-    file_handler = logging.FileHandler("app.log")
+    file_handler = logging.FileHandler("app.log", encoding='utf-8')
     file_handler.setFormatter(file_formatter)
     root_logger.addHandler(file_handler)
 
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(console_formatter)
+    # Handle Windows console encoding issues
+    if hasattr(console_handler.stream, 'reconfigure'):
+        try:
+            console_handler.stream.reconfigure(encoding='utf-8')
+        except Exception:
+            pass  # Fallback for older Python versions or restricted environments
     root_logger.addHandler(console_handler)
 
     root_logger.setLevel(logging.INFO)
