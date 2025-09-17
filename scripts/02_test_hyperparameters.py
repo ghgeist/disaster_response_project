@@ -553,30 +553,6 @@ def main():
     logging.info("Creating ML pipeline...")
     pipeline = create_pipeline()
 
-    retrain_base_model = get_user_input(
-        "Do you want to retrain the base model? (yes/no/exit): "
-    )
-    if retrain_base_model == "exit":
-        sys.exit()
-    elif retrain_base_model == "yes":
-        logging.info("Loading base parameters...")
-        base_parameters = load_parameters(BASE_PARAMETERS, "model")
-        if base_parameters is None:
-            logging.error("Failed to load base parameters. Please ensure the file exists and is valid.")
-        else:
-            logging.info("Base parameters loaded successfully")
-
-        logging.info("Building and training base model...")
-        base_model = build_model(pipeline, base_parameters)
-        base_model.fit(X_train, Y_train)
-
-        logging.info("Evaluating base model...")
-        evaluate_model(base_model, "base_model", X_test, Y_test, TARGET_COLUMNS)
-
-        logging.info("Saving base model to: %s", model_filepath)
-        save_model(base_model, model_filepath)
-        logging.info("Base model training complete!")
-
     estimate_runtime = get_user_input(
         "Do you want to estimate the grid search runtime? (yes/no/exit): "
     )
