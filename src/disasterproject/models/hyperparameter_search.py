@@ -12,17 +12,19 @@ from sklearn.metrics import make_scorer, f1_score
 from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 import psutil
 
-# Resource management constants
-MEMORY_LIMIT_GB = 12
-MEMORY_WARNING_GB = 10
-MIN_AVAILABLE_MEMORY_GB = 2.0
-DEFAULT_N_ITER = 20
-DEFAULT_N_JOBS = 2
-DEFAULT_CV_SPLITS = 3
-ESTIMATION_CV_SPLITS = 2
-ESTIMATION_MAX_ITER = 5
-ESTIMATION_SUBSET_SIZE = 100
-RANDOM_STATE = 42
+# Import centralized configuration constants
+from disasterproject.utils.config import (
+    MEMORY_LIMIT_GB,
+    MEMORY_WARNING_GB,
+    MIN_AVAILABLE_MEMORY_GB,
+    DEFAULT_N_ITER,
+    DEFAULT_N_JOBS,
+    DEFAULT_CV_SPLITS,
+    ESTIMATION_CV_SPLITS,
+    ESTIMATION_MAX_ITER,
+    ESTIMATION_SUBSET_SIZE,
+    RANDOM_STATE
+)
 
 logger = logging.getLogger(__name__)
 

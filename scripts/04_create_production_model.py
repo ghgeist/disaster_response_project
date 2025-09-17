@@ -24,7 +24,7 @@ from time import time
 # Import from installed package (requires: pip install -e .)
 # Alternative: set PYTHONPATH to include src directory
 
-from disasterproject.utils.config import setup_logging, TARGET_COLUMNS
+from disasterproject.utils.config import setup_logging, TARGET_COLUMNS, DEFAULT_TEST_SIZE, DEFAULT_RANDOM_SEED
 from disasterproject.utils.json_io import load_model_parameters
 from disasterproject.data.loader import load_data
 from disasterproject.models.pipeline import (
@@ -233,10 +233,10 @@ def main():
     parser.add_argument('--output', dest='model_out', 
                        default='model/disaster_rf_v1-2-0_prod_2025-09-11.pkl',
                        help='Output model path (default: model/disaster_rf_v1-2-0_prod_2025-09-11.pkl)')
-    parser.add_argument('--test-size', dest='test_size', type=float, default=0.2,
-                       help='Test size fraction (default: 0.2)')
-    parser.add_argument('--seed', dest='seed', type=int, default=42,
-                       help='Random seed (default: 42)')
+    parser.add_argument('--test-size', dest='test_size', type=float, default=DEFAULT_TEST_SIZE,
+                       help=f'Test size fraction (default: {DEFAULT_TEST_SIZE})')
+    parser.add_argument('--seed', dest='seed', type=int, default=DEFAULT_RANDOM_SEED,
+                       help=f'Random seed (default: {DEFAULT_RANDOM_SEED})')
     parser.add_argument('--eval-ids', dest='eval_ids_path', default=None,
                        help='Path to CSV of eval UIDs; if not provided, defaults to data/04_fct/eval_ids.csv if present')
     parser.add_argument('--no-frozen-eval', dest='no_frozen_eval', action='store_true',

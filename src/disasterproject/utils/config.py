@@ -19,6 +19,30 @@ from nltk.corpus import stopwords
 
 logger = logging.getLogger(__name__)
 
+# Resource Management Configuration
+# These constants are used primarily by hyperparameter_search.py but centralized here
+# for system-wide consistency and easy adjustment
+MEMORY_LIMIT_GB = 12
+MEMORY_WARNING_GB = 10
+MIN_AVAILABLE_MEMORY_GB = 2.0
+
+# Hyperparameter Search Configuration
+DEFAULT_N_ITER = 20
+DEFAULT_N_JOBS = 2
+DEFAULT_CV_SPLITS = 3
+ESTIMATION_CV_SPLITS = 2
+ESTIMATION_MAX_ITER = 5
+ESTIMATION_SUBSET_SIZE = 100
+
+# Random State Configuration
+RANDOM_STATE = 42
+
+# Machine Learning Pipeline Configuration
+# Used across scripts for consistent train/test splitting and model behavior
+DEFAULT_TEST_SIZE = 0.2
+DEFAULT_RANDOM_SEED = 42  # Alias for RANDOM_STATE for script arguments
+DEFAULT_N_JOBS = 1  # Conservative default for RF estimators to prevent CPU oversubscription
+
 
 def setup_logging() -> None:
     """Configure logging with file and console handlers (idempotent).
