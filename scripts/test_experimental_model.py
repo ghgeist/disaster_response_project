@@ -12,11 +12,16 @@ sys.path.append('src')
 import joblib
 import numpy as np
 from disasterproject.utils.config import TARGET_COLUMNS
+from disasterproject.utils.experimental_paths import ExperimentalPathManager
 
 def load_models():
     """Load both production and experimental models."""
     production_path = 'model/disaster_rf_v1-2-0_prod_2025-09-11.pkl'
-    experimental_path = 'experiments/results/2025-09-16-comprehensive-grid-search-optimized-model.pkl'
+
+    # Use path manager to find experimental model
+    path_manager = ExperimentalPathManager()
+    artifacts = path_manager.get_latest_experimental_artifacts()
+    experimental_path = artifacts.model_path if artifacts else None
 
     models = {}
 
@@ -28,12 +33,17 @@ def load_models():
         print(f"❌ Production model not found: {production_path}")
         models['production'] = None
 
-    if os.path.exists(experimental_path):
+    if experimental_path and os.path.exists(experimental_path):
         print("🧪 Loading experimental model...")
+        print(f"   Path: {experimental_path}")
         models['experimental'] = joblib.load(experimental_path)
         print("✅ Experimental model loaded!")
     else:
-        print(f"❌ Experimental model not found: {experimental_path}")
+        if experimental_path:
+            print(f"❌ Experimental model not found: {experimental_path}")
+        else:
+            print("❌ No experimental model artifacts found")
+            print("   Searched both experiments/experimental_runs/ and experiments/results/")
         models['experimental'] = None
 
     return models

@@ -12,7 +12,13 @@
       "Bash(PYTHONPATH=src python scripts/validate_production_model.py)",
       "Bash(PYTHONPATH=src python scripts/system_validation.py data/02_stg/stg_disaster_response.db)",
       "Bash(mkdir:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(PYTHONPATH=src python scripts/migrate_experimental_paths.py --validate)",
+      "Bash(PYTHONPATH=src python scripts/migrate_experimental_paths.py --dry-run)",
+      "Bash(PYTHONPATH=src python scripts/migrate_experimental_paths.py)",
+      "Bash(PYTHONPATH=src python scripts/test_experimental_model.py)",
+      "Bash(PYTHONPATH=src python scripts/compare_child_alone.py)",
+      "Bash(PYTHONPATH=src python scripts/compare_models.py)"
     ],
     "deny": [],
     "ask": []

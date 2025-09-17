@@ -9,6 +9,7 @@ sys.path.append('src')
 
 import joblib
 from disasterproject.utils.config import TARGET_COLUMNS
+from disasterproject.utils.experimental_paths import ExperimentalPathManager
 
 def test_child_alone_classifier(model_path, model_name):
     """Test the child_alone classifier behavior."""
@@ -63,10 +64,20 @@ def main():
     """Compare child_alone behavior between models."""
 
     production_model = "model/disaster_rf_v1-2-0_prod_2025-09-11.pkl"
-    experimental_model = "experiments/results/2025-09-16-comprehensive-grid-search-optimized-model.pkl"
+
+    # Use path manager to find experimental model
+    path_manager = ExperimentalPathManager()
+    artifacts = path_manager.get_latest_experimental_artifacts()
+    experimental_model = artifacts.model_path if artifacts else None
 
     test_child_alone_classifier(production_model, "PRODUCTION MODEL")
-    test_child_alone_classifier(experimental_model, "EXPERIMENTAL MODEL")
+
+    if experimental_model:
+        print(f"\n📍 Using experimental model: {experimental_model}")
+        test_child_alone_classifier(experimental_model, "EXPERIMENTAL MODEL")
+    else:
+        print("\n❌ No experimental model found")
+        print("   Searched both experiments/experimental_runs/ and experiments/results/")
 
     print(f"\n" + "=" * 60)
     print("🎯 ANALYSIS:")

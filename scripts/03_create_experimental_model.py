@@ -32,6 +32,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from disasterproject.utils.config import setup_logging, TARGET_COLUMNS
 from disasterproject.utils.json_io import load_model_parameters
+from disasterproject.utils.experimental_paths import ExperimentalPathManager
 from disasterproject.data.loader import load_data
 from disasterproject.models.pipeline import (
     create_pipeline,
@@ -278,7 +279,9 @@ def main():
     # Auto-generate output filename if not provided
     if args.model_out is None:
         model_filename = generate_model_filename(args.params_path)
-        args.model_out = os.path.join("experiments", "results", model_filename)
+        path_manager = ExperimentalPathManager()
+        output_dir = path_manager.get_output_directory()
+        args.model_out = os.path.join(output_dir, model_filename)
 
     setup_logging()
 
@@ -433,8 +436,9 @@ def main():
         except Exception as e:
             logging.warning('Could not snapshot eval IDs file: %s', e)
 
-    # Save model (still to experiments/results for compatibility)
-    results_dir = os.path.dirname(args.model_out) or "experiments/results"
+    # Save model to new experimental structure
+    path_manager = ExperimentalPathManager()
+    results_dir = os.path.dirname(args.model_out) or path_manager.get_output_directory()
     os.makedirs(results_dir, exist_ok=True)
     logging.info(f'Saving model to {args.model_out}')
     save_model(model, args.model_out)

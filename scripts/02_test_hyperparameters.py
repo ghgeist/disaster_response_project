@@ -43,7 +43,7 @@ from sqlalchemy.exc import OperationalError
 
 # Local imports
 from disasterproject.models.hyperparameter_search import run_parameter_search
-from disasterproject.utils.config import FEATURE_COLUMNS, TARGET_COLUMNS, RANDOM_STATE, DEFAULT_N_JOBS
+from disasterproject.utils.config import FEATURE_COLUMNS, TARGET_COLUMNS, RANDOM_STATE, RF_N_JOBS
 from disasterproject.data.preprocessor import tokenize
 # Removed unused sampling imports - not compatible with multi-label classification
 
@@ -291,7 +291,7 @@ def create_pipeline():
                 (
                     "clf",
                     MultiOutputClassifier(
-                        RandomForestClassifier(n_jobs=DEFAULT_N_JOBS)
+                        RandomForestClassifier(n_jobs=RF_N_JOBS)
                     ),
                 ),  # Use MultiOutputClassifier with RandomForest, n_jobs specifies cores
             ]

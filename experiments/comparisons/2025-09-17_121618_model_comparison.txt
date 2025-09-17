@@ -1,0 +1,19 @@
+?? MODEL COMPARISON: Production vs Experimental
+============================================================
+?? Comparison Date: 2025-09-17 12:16:18
+
+?? Experimental artifacts source: not found
+
+?? PERFORMANCE COMPARISON:
+----------------------------------------
+?? PRODUCTION MODEL (model/):
+   F1-Score:   0.9007
+   Precision:  0.9108
+   Recall:     0.9297
+   Model Size: 31.3 MB
+
+?? EXPERIMENTAL MODEL: No metrics found (experiments/experimental_runs/)
+
+============================================================
+
+📄 Full comparison report saved to: experiments/comparisons/2025-09-17_121618_model_comparison.txt

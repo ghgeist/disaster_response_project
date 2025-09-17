@@ -20,6 +20,8 @@ from typing import Dict, Optional
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
+from disasterproject.utils.experimental_paths import ExperimentalPathManager
+
 class OutputWriter:
     """Helper class to write output to both console and file."""
     def __init__(self, file_path: Optional[str] = None):
@@ -97,49 +99,16 @@ def _is_date_directory(path: Path) -> bool:
 
 
 def find_experiment_artifacts() -> Optional[Dict[str, Optional[str]]]:
-    """Locate the most recent experimental metrics and metadata files."""
-    runs_base = Path("experiments") / "experimental_runs"
-    if runs_base.is_dir():
-        directories = sorted(
-            (d for d in runs_base.iterdir() if d.is_dir() and _is_date_directory(d)),
-            key=lambda d: d.name,
-            reverse=True,
-        )
-        for directory in directories:
-            metrics = directory / "performance_metrics.csv"
-            if metrics.is_file():
-                info = directory / "MODEL_INFO.json"
-                return {
-                    "metrics_path": str(metrics),
-                    "info_path": str(info) if info.is_file() else None,
-                    "display_name": f"experiments/experimental_runs/{directory.name}",
-                }
+    """Locate the most recent experimental metrics and metadata files using ExperimentalPathManager."""
+    path_manager = ExperimentalPathManager()
+    artifacts = path_manager.get_latest_experimental_artifacts()
 
-    legacy_metrics = Path("experiments") / "results" / "performance_metrics.csv"
-    if legacy_metrics.is_file():
-        info_candidate = legacy_metrics.with_name("MODEL_INFO.json")
+    if artifacts:
         return {
-            "metrics_path": str(legacy_metrics),
-            "info_path": str(info_candidate) if info_candidate.is_file() else None,
-            "display_name": "experiments/results/performance_metrics.csv",
+            "metrics_path": artifacts.metrics_path,
+            "info_path": artifacts.info_path,
+            "display_name": artifacts.display_name,
         }
-
-    legacy_results = Path("experiments") / "results"
-    if legacy_results.is_dir():
-        directories = sorted(
-            (d for d in legacy_results.iterdir() if d.is_dir() and _is_date_directory(d)),
-            key=lambda d: d.name,
-            reverse=True,
-        )
-        for directory in directories:
-            metrics = directory / "performance_metrics.csv"
-            if metrics.is_file():
-                info = directory / "MODEL_INFO.json"
-                return {
-                    "metrics_path": str(metrics),
-                    "info_path": str(info) if info.is_file() else None,
-                    "display_name": f"experiments/results/{directory.name}",
-                }
 
     return None
 
