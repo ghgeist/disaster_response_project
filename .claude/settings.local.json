@@ -11,7 +11,8 @@
       "Bash(pylint:*)",
       "Bash(PYTHONPATH=src python scripts/validate_production_model.py)",
       "Bash(PYTHONPATH=src python scripts/system_validation.py data/02_stg/stg_disaster_response.db)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []
