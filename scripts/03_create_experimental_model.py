@@ -85,16 +85,16 @@ def load_class_weights_config(file_path):
         return None
 
 
-def evaluate_model_to_results_folder(model, X_test, Y_test, category_names, results_dir="experiments/results"):
+def evaluate_model_to_experiment_folder(model, X_test, Y_test, category_names, experiment_dir):
     """
-    Evaluate model and save results to the experimental results folder.
+    Evaluate model and save results to dated experiment folder.
 
     Args:
         model: Trained model
         X_test: Test features
         Y_test: Test labels
         category_names: List of category names
-        results_dir: Directory to save results (default: "experiments/results")
+        experiment_dir: Experiment directory to save results
 
     Returns:
         dict: Performance summary
@@ -121,9 +121,9 @@ def evaluate_model_to_results_folder(model, X_test, Y_test, category_names, resu
             ["category", "output_class", "precision", "recall", "f1-score", "support"]
         ]
 
-        # Save to experiments results location
-        os.makedirs(results_dir, exist_ok=True)
-        results_file_path = os.path.join(results_dir, "performance_metrics.csv")
+        # Save to experiment folder
+        os.makedirs(experiment_dir, exist_ok=True)
+        results_file_path = os.path.join(experiment_dir, "performance_metrics.csv")
         results_df.to_csv(results_file_path, index=False)
         logging.info("Performance metrics saved to: %s", results_file_path)
 
@@ -149,8 +149,8 @@ def evaluate_model_to_results_folder(model, X_test, Y_test, category_names, resu
         return {}
 
 
-def save_training_log(results_dir, config, performance_summary, training_time, model_path):
-    """Save training metadata to experimental JSON log."""
+def save_training_log(experiment_dir, config, performance_summary, training_time, model_path):
+    """Save training metadata to experiment folder."""
     log_data = {
         'timestamp': datetime.now().isoformat(),
         'model_path': model_path,
@@ -161,7 +161,7 @@ def save_training_log(results_dir, config, performance_summary, training_time, m
         'status': 'experimental'
     }
 
-    log_path = os.path.join(results_dir, 'training_log.json')
+    log_path = os.path.join(experiment_dir, 'training_log.json')
     with open(log_path, 'w', encoding='utf-8') as f:
         json.dump(log_data, f, indent=2)
 
@@ -282,13 +282,17 @@ def main():
 
     setup_logging()
 
+    # Get today's date for experiment folder naming
+    date_str = datetime.now().strftime('%Y-%m-%d')
+    experiment_dir = os.path.join('experiments', 'experimental_runs', date_str)
+
     print(f"\nCreating Experimental Disaster Response Model")
     print(f"{'='*60}")
     print(f"Database: {args.database_filepath}")
     print(f"Hyperparameters: {args.params_path}")
     print(f"Class weights: {args.class_weights_path}")
     print(f"Output: {args.model_out}")
-    print(f"Results will be saved to experiments/results/ directory for clarity")
+    print(f"Experiment results will be saved to: {experiment_dir}")
     print(f"{'='*60}")
 
     # Load data
@@ -416,21 +420,21 @@ def main():
     except Exception as size_exc:
         logging.warning('Size guardrail check failed: %s', size_exc)
 
-    # Evaluate model and save to experiments results directory
-    logging.info('Evaluating model and saving results to experiments/results directory...')
-    results_dir = os.path.dirname(args.model_out) or "experiments/results"
-    performance_summary = evaluate_model_to_results_folder(
-        model, X_test, Y_test, TARGET_COLUMNS, results_dir
+    # Evaluate model and save to experiment folder
+    logging.info(f'Evaluating model and saving results to {experiment_dir}...')
+    performance_summary = evaluate_model_to_experiment_folder(
+        model, X_test, Y_test, TARGET_COLUMNS, experiment_dir
     )
 
     # Snapshot the eval IDs used for this run (traceability)
     if eval_ids_file:
         try:
-            shutil.copyfile(eval_ids_file, os.path.join(results_dir, 'eval_ids_used.csv'))
+            shutil.copyfile(eval_ids_file, os.path.join(experiment_dir, 'eval_ids_used.csv'))
         except Exception as e:
             logging.warning('Could not snapshot eval IDs file: %s', e)
 
-    # Save model
+    # Save model (still to experiments/results for compatibility)
+    results_dir = os.path.dirname(args.model_out) or "experiments/results"
     os.makedirs(results_dir, exist_ok=True)
     logging.info(f'Saving model to {args.model_out}')
     save_model(model, args.model_out)
@@ -449,15 +453,14 @@ def main():
     except Exception:
         pass
 
-    # Compute thresholds for selected labels and save artifacts
+    # Compute thresholds for selected labels and save artifacts to experiment folder
     selected_labels = ['medical_help', 'search_and_rescue', 'water', 'food', 'shelter', 'hospitals', 'security', 'weather_related']
     thresholds_map, threshold_sources = _compute_f2_thresholds_for_labels(model, X_test, Y_test, selected_labels, TARGET_COLUMNS)
     label_order = list(TARGET_COLUMNS)
-    model_dir = os.path.dirname(args.model_out)
     try:
-        with open(os.path.join(model_dir, 'thresholds.json'), 'w', encoding='utf-8') as f:
+        with open(os.path.join(experiment_dir, 'thresholds.json'), 'w', encoding='utf-8') as f:
             json.dump(thresholds_map, f, indent=2)
-        with open(os.path.join(model_dir, 'label_order.json'), 'w', encoding='utf-8') as f:
+        with open(os.path.join(experiment_dir, 'label_order.json'), 'w', encoding='utf-8') as f:
             json.dump(label_order, f, indent=2)
         # MODEL_INFO.json for artifact hygiene
         info = {
@@ -470,7 +473,7 @@ def main():
             'cold_load_seconds': float(cold_load_s) if cold_load_s is not None else None,
             'threshold_sources': _json_safe(threshold_sources),
         }
-        with open(os.path.join(model_dir, 'MODEL_INFO.json'), 'w', encoding='utf-8') as f:
+        with open(os.path.join(experiment_dir, 'MODEL_INFO.json'), 'w', encoding='utf-8') as f:
             json.dump(info, f, indent=2)
     except Exception as e:
         logging.warning(f"Failed to write model artifacts (thresholds/label_order/MODEL_INFO): {e}")
@@ -496,14 +499,14 @@ def main():
 
     # Save training log
     training_log_path = save_training_log(
-        results_dir, comprehensive_config, performance_summary, train_time, args.model_out
+        experiment_dir, comprehensive_config, performance_summary, train_time, args.model_out
     )
 
     # Success summary
     print(f'\nExperimental Model Created Successfully!')
     print(f"{'='*60}")
     print(f'Model: {args.model_out}')
-    print(f'Performance: {results_dir}/performance_metrics.csv')
+    print(f'Experiment: {experiment_dir}')
     print(f'Training Log: {training_log_path}')
     print(f'Training Time: {train_time:.2f} seconds')
     print(f"{'='*60}")
@@ -519,11 +522,19 @@ def main():
     if class_weights_enabled:
         print('   Model uses balanced class weights for experimental evaluation')
 
-    print(f'\nResults Structure:')
-    print(f'   experiments/results/experimental_classifier.pkl <- Experimental model artifact')
-    print(f'   experiments/results/performance_metrics.csv     <- Experimental performance')
-    print(f'   experiments/results/training_log.json           <- Training metadata & config')
-    print(f'\nUse this structure to organize experimental runs!')
+    print(f'\nExperiment Structure:')
+    print(f'   Experimental Model:')
+    print(f'     {args.model_out}')
+    print(f'   ')
+    print(f'   Experiment Results ({experiment_dir}):')
+    print(f'     performance_metrics.csv    <- Detailed classification metrics')
+    print(f'     training_log.json         <- Training metadata & configuration')
+    print(f'     thresholds.json           <- Optimized F2 thresholds')
+    print(f'     label_order.json          <- Category label order')
+    print(f'     MODEL_INFO.json           <- Model metadata & info')
+    if eval_ids_file:
+        print(f'     eval_ids_used.csv         <- Evaluation set identifiers')
+    print(f'\nThis structure organizes all experiment artifacts by date for easy tracking!')
 
 
 if __name__ == '__main__':
