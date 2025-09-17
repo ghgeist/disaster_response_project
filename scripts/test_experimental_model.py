@@ -46,13 +46,16 @@ def get_model_predictions(model, message):
     predictions = model.predict([message])[0]
     probabilities = model.predict_proba([message])
 
-    # Extract positive class probabilities, handling degenerate classifiers
+    # Extract positive class probabilities, showing actual behavior for degenerate classifiers
     pos_probs = []
-    for prob_array in probabilities:
+    for i, prob_array in enumerate(probabilities):
         if prob_array.shape[1] == 2:  # Normal binary classifier
             pos_probs.append(prob_array[0][1])
-        else:  # Degenerate classifier (only one class)
-            pos_probs.append(0.0 if prob_array[0][0] == 1.0 else prob_array[0][0])
+        else:  # Degenerate classifier (only one class) - show actual probability
+            # Show the actual probability value, which will typically be 1.0 for negative class
+            actual_prob = prob_array[0][0]
+            pos_probs.append(actual_prob)
+            print(f"⚠️  WARNING: {TARGET_COLUMNS[i]} has degenerate classifier (shape={prob_array.shape}, prob={actual_prob:.3f})")
 
     # Get predicted categories (where prediction = 1)
     predicted_categories = []

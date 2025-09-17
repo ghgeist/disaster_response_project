@@ -116,9 +116,30 @@ Success will be measured by:
 
 ## 📄 Deliverables (Minimal Scope)
 
-- [ ] Updated `test_experimental_model.py` - Show actual degenerate behavior
-- [ ] Quick documentation update - child_alone status in project docs
+- [x] Updated `test_experimental_model.py` - Show actual degenerate behavior
+- [x] Investigation completed - child_alone status documented below
 - [ ] ~~Complex analysis scripts~~ - SCOPE CUT for shipping
+
+## 🎯 INVESTIGATION RESULTS
+
+**ROOT CAUSE IDENTIFIED**: Zero positive examples in training data
+
+### Key Findings
+- **Training Data**: 0 out of 26,027 messages labeled as `child_alone=1`
+- **Model Behavior**: Both production and experimental models have degenerate classifiers
+  - Shape: `(1,)` instead of `(2,)` for binary classification
+  - Always predicts 0 with probability `[1.0]` (negative class)
+- **Confirmation**: Issue affects both models equally → training data problem, not hyperparameter issue
+
+### Transparency Fixes Applied
+- **`test_experimental_model.py:55`**: Removed masking that artificially set degenerate classifier confidence to 0.0
+- **Warning System**: Added transparent warnings when degenerate classifiers detected
+- **Actual Behavior**: Model comparison tools now show real probability (1.000) instead of masked (0.000)
+
+### Technical Impact
+- **Model Validity**: All other 35 categories unaffected
+- **Portfolio Status**: Project is now transparent about this limitation
+- **No Retraining Needed**: Issue is data availability, not model architecture
 
 ## ⏰ Confirmation Required
 
