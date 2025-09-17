@@ -24,7 +24,7 @@ from time import time
 # Import from installed package (requires: pip install -e .)
 # Alternative: set PYTHONPATH to include src directory
 
-from disasterproject.utils.config import setup_logging, TARGET_COLUMNS
+from disasterproject.utils.config import setup_logging, TARGET_COLUMNS, DEFAULT_TEST_SIZE, DEFAULT_RANDOM_SEED
 from disasterproject.utils.json_io import load_model_parameters
 from disasterproject.data.loader import load_data
 from disasterproject.models.pipeline import (
@@ -140,7 +140,7 @@ def save_training_log(model_dir, config, performance_summary, training_time, mod
     with open(log_path, 'w', encoding='utf-8') as f:
         json.dump(log_data, f, indent=2)
     
-    logging.info(f"Training log saved to: {log_path}")
+    logging.info("Training log saved to: %s", log_path)
     return log_path
 
 
@@ -148,7 +148,7 @@ def _compute_f2_thresholds_for_labels(model, X_eval, Y_eval, labels, all_categor
     try:
         proba_list = model.predict_proba(X_eval)
     except Exception as e:
-        logging.warning(f"predict_proba failed ({e}); returning default thresholds=0.5")
+        logging.warning("predict_proba failed (%s); returning default thresholds=0.5", e)
         return {name: 0.5 for name in labels}, {name: "default" for name in labels}
 
     thresholds = {}
@@ -233,10 +233,10 @@ def main():
     parser.add_argument('--output', dest='model_out', 
                        default='model/disaster_rf_v1-2-0_prod_2025-09-11.pkl',
                        help='Output model path (default: model/disaster_rf_v1-2-0_prod_2025-09-11.pkl)')
-    parser.add_argument('--test-size', dest='test_size', type=float, default=0.2,
-                       help='Test size fraction (default: 0.2)')
-    parser.add_argument('--seed', dest='seed', type=int, default=42,
-                       help='Random seed (default: 42)')
+    parser.add_argument('--test-size', dest='test_size', type=float, default=DEFAULT_TEST_SIZE,
+                       help=f'Test size fraction (default: {DEFAULT_TEST_SIZE})')
+    parser.add_argument('--seed', dest='seed', type=int, default=DEFAULT_RANDOM_SEED,
+                       help=f'Random seed (default: {DEFAULT_RANDOM_SEED})')
     parser.add_argument('--eval-ids', dest='eval_ids_path', default=None,
                        help='Path to CSV of eval UIDs; if not provided, defaults to data/04_fct/eval_ids.csv if present')
     parser.add_argument('--no-frozen-eval', dest='no_frozen_eval', action='store_true',
@@ -428,7 +428,7 @@ def main():
         with open(os.path.join(model_dir, 'MODEL_INFO.json'), 'w', encoding='utf-8') as f:
             json.dump(info, f, indent=2)
     except Exception as e:
-        logging.warning(f"Failed to write model artifacts (thresholds/label_order/MODEL_INFO): {e}")
+        logging.warning("Failed to write model artifacts (thresholds/label_order/MODEL_INFO): %s", e)
 
     # Create comprehensive config for logging
     comprehensive_config = {

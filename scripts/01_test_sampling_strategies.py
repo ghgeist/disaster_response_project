@@ -32,7 +32,7 @@ from datetime import datetime
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from disasterproject.utils.config import setup_logging, TARGET_COLUMNS
+from disasterproject.utils.config import setup_logging, TARGET_COLUMNS, DEFAULT_TEST_SIZE, RANDOM_STATE
 from disasterproject.data.loader import load_data
 from disasterproject.models.pipeline import create_pipeline, build_model
 from disasterproject.models.samplers import apply_multi_label_aware_sampling
@@ -313,7 +313,7 @@ def train_experiment(experiment_name: str, sampling_method: str,
     
     # Split data
     logging.info("Splitting data into training and test sets...")
-    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
+    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=DEFAULT_TEST_SIZE, random_state=RANDOM_STATE)
     
     # Apply sampling if not baseline
     if sampling_method != 'baseline':

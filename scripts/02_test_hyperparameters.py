@@ -43,7 +43,7 @@ from sqlalchemy.exc import OperationalError
 
 # Local imports
 from disasterproject.models.hyperparameter_search import run_parameter_search
-from disasterproject.utils.config import FEATURE_COLUMNS, TARGET_COLUMNS
+from disasterproject.utils.config import FEATURE_COLUMNS, TARGET_COLUMNS, RANDOM_STATE, RF_N_JOBS
 from disasterproject.data.preprocessor import tokenize
 # Removed unused sampling imports - not compatible with multi-label classification
 
@@ -95,7 +95,6 @@ DATE_PREFIX = datetime.now().strftime("%Y-%m-%d")
 HYPERPARAMETER_LOG = os.path.join(PROJECT_ROOT, "experiments", "logs", f"{DATE_PREFIX}_hyperparameter_search.log")
 
 logging.info("Setting random seed...")
-RANDOM_STATE = 42
 np.random.seed(RANDOM_STATE)
 
 
@@ -292,7 +291,7 @@ def create_pipeline():
                 (
                     "clf",
                     MultiOutputClassifier(
-                        RandomForestClassifier(n_jobs=1)
+                        RandomForestClassifier(n_jobs=RF_N_JOBS)
                     ),
                 ),  # Use MultiOutputClassifier with RandomForest, n_jobs specifies cores
             ]
@@ -532,11 +531,9 @@ def main():
     # Generate output paths based on config filename following naming convention
     output_paths = generate_output_paths(hyperparameter_config_path)
 
-    # Debug logging for path resolution
-    logging.info("Using hyperparameter config path: %s", hyperparameter_config_path)
-    logging.info("Config file exists: %s", os.path.exists(hyperparameter_config_path))
-    logging.info("Will save optimized parameters to: %s", output_paths['optimized_params'])
-    logging.info("Will save detailed results to: %s", output_paths['detailed_results'])
+    logging.info("Using hyperparameter config: %s", hyperparameter_config_path)
+    logging.info("Output paths - Parameters: %s, Results: %s",
+                 output_paths['optimized_params'], output_paths['detailed_results'])
 
     logging.info("Loading data from database: %s", database_filepath)
     X, Y = load_data(database_filepath)
@@ -552,30 +549,6 @@ def main():
 
     logging.info("Creating ML pipeline...")
     pipeline = create_pipeline()
-
-    retrain_base_model = get_user_input(
-        "Do you want to retrain the base model? (yes/no/exit): "
-    )
-    if retrain_base_model == "exit":
-        sys.exit()
-    elif retrain_base_model == "yes":
-        logging.info("Loading base parameters...")
-        base_parameters = load_parameters(BASE_PARAMETERS, "model")
-        if base_parameters is None:
-            logging.error("Failed to load base parameters. Please ensure the file exists and is valid.")
-        else:
-            logging.info("Base parameters loaded successfully")
-
-        logging.info("Building and training base model...")
-        base_model = build_model(pipeline, base_parameters)
-        base_model.fit(X_train, Y_train)
-
-        logging.info("Evaluating base model...")
-        evaluate_model(base_model, "base_model", X_test, Y_test, TARGET_COLUMNS)
-
-        logging.info("Saving base model to: %s", model_filepath)
-        save_model(base_model, model_filepath)
-        logging.info("Base model training complete!")
 
     estimate_runtime = get_user_input(
         "Do you want to estimate the grid search runtime? (yes/no/exit): "

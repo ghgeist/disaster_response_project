@@ -25,7 +25,7 @@ from disasterproject.models.pipeline import (
     build_model
 )
 from disasterproject.evaluation.metrics import evaluate_model
-from disasterproject.utils.config import setup_logging, TARGET_COLUMNS
+from disasterproject.utils.config import setup_logging, TARGET_COLUMNS, DEFAULT_TEST_SIZE, RANDOM_STATE
 from sklearn.model_selection import train_test_split
 import numpy as np
 
@@ -172,7 +172,7 @@ def validate_multilabel_sampling(database_filepath):
     
     # Split data
     X_train, X_test, Y_train, Y_test = train_test_split(
-        X, Y, test_size=0.2, random_state=42
+        X, Y, test_size=DEFAULT_TEST_SIZE, random_state=RANDOM_STATE
     )
     
     logging.info(f"Training samples: {len(X_train)}")

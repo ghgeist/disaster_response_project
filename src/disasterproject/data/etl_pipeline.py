@@ -27,14 +27,14 @@ def load_raw_data(messages_filepath, categories_filepath):
         messages = pd.read_csv(messages_filepath)
         categories = pd.read_csv(categories_filepath)
         
-        logging.info(f"Loaded {len(messages)} messages and {len(categories)} categories")
+        logging.info("Loaded %s messages and %s categories", len(messages), len(categories))
         return messages, categories
         
     except FileNotFoundError as e:
-        logging.error(f"File not found: {e}")
+        logging.error("File not found: %s", e)
         raise
     except Exception as e:
-        logging.error(f"Error loading raw data: {e}")
+        logging.error("Error loading raw data: %s", e)
         raise
 
 
@@ -51,11 +51,11 @@ def merge_messages_and_categories(messages_df, categories_df):
     """
     try:
         df = messages_df.merge(categories_df, on='id')
-        logging.info(f"Merged dataframes: {df.shape}")
+        logging.info("Merged dataframes: %s", df.shape)
         return df
         
     except Exception as e:
-        logging.error(f"Error merging dataframes: {e}")
+        logging.error("Error merging dataframes: %s", e)
         raise
 
 
@@ -82,11 +82,11 @@ def split_categories_column(df):
         # Concatenate the 'id' column with the split categories
         result = pd.concat([df['id'], split_categories], axis=1)
         
-        logging.info(f"Split categories into {len(category_colnames)} columns")
+        logging.info("Split categories into %s columns", len(category_colnames))
         return result
         
     except Exception as e:
-        logging.error(f"Error splitting categories: {e}")
+        logging.error("Error splitting categories: %s", e)
         raise
 
 
@@ -113,7 +113,7 @@ def convert_categories_to_numeric(df):
         return df
         
     except Exception as e:
-        logging.error(f"Error converting categories to numeric: {e}")
+        logging.error("Error converting categories to numeric: %s", e)
         raise
 
 
@@ -130,7 +130,7 @@ def clean_related_column(df):
     try:
         # Check distribution before cleaning
         related_counts = df['related'].value_counts()
-        logging.info(f"Related column distribution before cleaning: {related_counts.to_dict()}")
+        logging.info("Related column distribution before cleaning: %s", related_counts.to_dict())
         
         # Drop rows with value 2 (ambiguous)
         original_count = len(df)
@@ -138,13 +138,13 @@ def clean_related_column(df):
         removed_count = original_count - len(df)
         
         if removed_count > 0:
-            logging.warning(f"Removed {removed_count} rows with ambiguous 'related' values")
+            logging.warning("Removed %s rows with ambiguous 'related' values", removed_count)
             
-        logging.info(f"Cleaned 'related' column: {len(df)} rows remaining")
+        logging.info("Cleaned 'related' column: %s rows remaining", len(df))
         return df
         
     except Exception as e:
-        logging.error(f"Error cleaning 'related' column: {e}")
+        logging.error("Error cleaning 'related' column: %s", e)
         raise
 
 
@@ -165,15 +165,15 @@ def remove_duplicates(df):
         if duplicates_count > 0:
             df = df.drop_duplicates()
             removed_count = original_count - len(df)
-            logging.warning(f"Removed {removed_count} duplicate rows")
+            logging.warning("Removed %s duplicate rows", removed_count)
         else:
             logging.info("No duplicates found")
             
-        logging.info(f"Final dataframe shape: {df.shape}")
+        logging.info("Final dataframe shape: %s", df.shape)
         return df
         
     except Exception as e:
-        logging.error(f"Error removing duplicates: {e}")
+        logging.error("Error removing duplicates: %s", e)
         raise
 
 
@@ -194,15 +194,15 @@ def save_processed_data(df, csv_filepath, db_filepath, table_name='stg_disaster_
         
         # Save to CSV
         df.to_csv(csv_filepath, index=False)
-        logging.info(f"Saved data to CSV: {csv_filepath}")
+        logging.info("Saved data to CSV: %s", csv_filepath)
         
         # Save to SQLite database
         engine = create_engine(f'sqlite:///{db_filepath}')
         df.to_sql(table_name, engine, index=False, if_exists='replace')
-        logging.info(f"Saved data to database: {db_filepath}")
+        logging.info("Saved data to database: %s", db_filepath)
         
     except Exception as e:
-        logging.error(f"Error saving processed data: {e}")
+        logging.error("Error saving processed data: %s", e)
         raise
 
 
@@ -249,7 +249,7 @@ def run_etl_pipeline(messages_filepath, categories_filepath, output_csv_path, ou
         return df
         
     except Exception as e:
-        logging.error(f"ETL pipeline failed: {e}")
+        logging.error("ETL pipeline failed: %s", e)
         raise
 
 

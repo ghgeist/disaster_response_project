@@ -1,39 +1,66 @@
-# Repository Guidelines
+# Codex CLI Agent Guide
 
-## Project Structure & Module Organization
-- `src/disasterproject/`: Core ML package (`data/`, `models/`, `evaluation/`, `utils/`).
-- `app/`: Flask web app (`app.py`, `templates/`, `static/`). Run via `run.py`.
-- `scripts/`: Training, experimentation, and utilities (e.g., `04_create_production_model.py`).
-- `data/`: Raw (`01_raw`), staged (`02_stg`), and facts/results (`04_fct`).
-- `experiments/`: Configs and results for tracked runs.
-- `tests/`: Pytest suite (smoke and functional tests).
-- `model/`: Trained artifacts, parameters, thresholds.
+This document explains how to work on the Disaster Response project when operating as the Codex CLI coding agent.
 
-## Build, Test, and Development Commands
-- Install deps: `pip install -r requirements.txt` and `pip install -e .` (enables `src/`).
-- Format/lint: `pre-commit run --all-files` (Black, Ruff).
-- Tests: `pytest -q` or quick check `pytest tests/test_smoke.py -q`.
-- Data ETL: `python data/process_data.py data/01_raw/disaster_messages.csv data/01_raw/disaster_categories.csv data/02_stg/stg_disaster_response.db`.
-- Train: `python scripts/04_create_production_model.py` or `python scripts/06_create_lightweight_model.py`.
-- Run app: `python run.py` then open `http://localhost:5000`.
+## Repository Overview
+- `src/disasterproject/`: Core Python package for data ETL, model training/evaluation, and shared utilities.
+- `app/`: Flask web UI (templates, static assets, factory). Always launch via `run.py`.
+- `scripts/`: Reproducible pipelines for training, experiments, and maintenance tasks.
+- `data/`: Project datasets (`01_raw`, `02_stg`, `04_fct`). Large artifacts live here and stay out of git.
+- `experiments/`: Tracked experiment configs, metrics, and artifacts.
+- `tests/`: Pytest suite (smoke + functional coverage).
+- `model/`: Saved models, parameters, and thresholds consumed by the app.
 
-## Coding Style & Naming Conventions
-- Python 3.12, 4‑space indentation, prefer type hints.
-- Use Black for formatting and Ruff for linting; keep imports and style consistent.
-- Naming: `snake_case` for functions/vars, `PascalCase` for classes, `UPPER_SNAKE_CASE` for constants, modules/files lowercase.
-- Keep modules focused (single responsibility) and add clear docstrings.
+## Environment & Shell Conventions
+- Target Python 3.12+. Create/activate a virtual environment before running project commands.
+- Install dependencies with `pip install -r requirements.txt` followed by `pip install -e .` so `src/` is importable as `disasterproject`.
+- In the Codex CLI, prefer `shell` calls of the form `["bash", "-lc", "<command>"]` and always set the `workdir` parameter. Avoid `cd` chains; invoke commands from the project root when possible.
+- Use `rg`/`rg --files` for fast code or file search. Fall back to `grep` only if ripgrep is unavailable.
+- The workspace has restricted network access; plan around offline execution (no package downloads unless already vendored).
 
-## Testing Guidelines
-- Framework: `pytest` with tests in `tests/` named `test_*.py`.
-- Add tests for new behavior and edge cases; prefer small, fast unit tests.
-- Run `pytest -q` locally; ensure smoke tests pass at minimum before PR.
+## Core Commands
 
-## Commit & Pull Request Guidelines
-- Commits: follow Conventional Commits (`feat:`, `fix:`, `refactor:`, etc.).
-- PRs: concise description, link issues, list changes, include screenshots for UI updates.
-- Checklist before opening PR: ETL/model steps (if relevant) reproducible, `pre-commit` clean, tests passing, docs updated (`README.md`/`docs/`).
+### Setup & Data Preparation
+```bash
+pip install -r requirements.txt
+pip install -e .
+python data/process_data.py data/01_raw/disaster_messages.csv data/01_raw/disaster_categories.csv data/02_stg/stg_disaster_response.db
+```
 
-## Security & Configuration Tips
-- Do not commit secrets. Configure `GDRIVE_MODEL_ID` for model download when needed.
-- Ensure `data/02_stg/stg_disaster_response.db` exists before running the app.
-- Large data/model files belong in `data/` or `model/` (git‑ignored as appropriate).
+### Model Training & Evaluation
+```bash
+python scripts/04_create_production_model.py
+python scripts/06_create_lightweight_model.py
+python scripts/01_test_sampling_strategies.py data/02_stg/stg_disaster_response.db
+python scripts/compare_models.py
+```
+
+### Application & Quality Gates
+```bash
+python run.py              # Flask app on http://localhost:5000
+pytest -q                  # Full test suite
+pytest tests/test_smoke.py -q
+pre-commit run --all-files
+```
+
+## Coding Standards
+- Follow Black + Ruff defaults; keep imports well grouped and tidy. Maintain 4-space indents and type hints for public functions.
+- Functions should stay focused and readable (single responsibility, <50 lines when practical). Document tricky logic with concise comments or docstrings.
+- Prefer explicit exception handling (e.g., `ValueError`) over bare `Exception`.
+- Keep modules cohesive; add new utilities under `src/disasterproject/` rather than ad hoc script code.
+
+## Testing Expectations
+- Add or update pytest coverage for new behavior. Keep tests fast and deterministic.
+- Run at least the smoke suite (`pytest tests/test_smoke.py -q`) before handing changes back; run the full suite when time allows.
+- Use fixtures and temporary paths instead of mutating checked-in data.
+
+## Commit & PR Checklist
+- Conventional Commit messages (`feat:`, `fix:`, `refactor:`, etc.).
+- Ensure `pre-commit` and tests pass locally.
+- Update `README.md`/`docs/` when behavior, interfaces, or commands change.
+- For UI edits, capture a local screenshot for PR context.
+
+## Data & Security Notes
+- Never commit secrets. Configure `GDRIVE_MODEL_ID` through the environment when the app needs to download models.
+- Confirm `data/02_stg/stg_disaster_response.db` exists before running the Flask app.
+- Store large datasets and serialized models under `data/` or `model/` (both git-ignored by default).

@@ -12,17 +12,19 @@ from sklearn.metrics import make_scorer, f1_score
 from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 import psutil
 
-# Resource management constants
-MEMORY_LIMIT_GB = 12
-MEMORY_WARNING_GB = 10
-MIN_AVAILABLE_MEMORY_GB = 2.0
-DEFAULT_N_ITER = 20
-DEFAULT_N_JOBS = 2
-DEFAULT_CV_SPLITS = 3
-ESTIMATION_CV_SPLITS = 2
-ESTIMATION_MAX_ITER = 5
-ESTIMATION_SUBSET_SIZE = 100
-RANDOM_STATE = 42
+# Import centralized configuration constants
+from disasterproject.utils.config import (
+    MEMORY_LIMIT_GB,
+    MEMORY_WARNING_GB,
+    MIN_AVAILABLE_MEMORY_GB,
+    DEFAULT_N_ITER,
+    SEARCH_N_JOBS,
+    DEFAULT_CV_SPLITS,
+    ESTIMATION_CV_SPLITS,
+    ESTIMATION_MAX_ITER,
+    ESTIMATION_SUBSET_SIZE,
+    RANDOM_STATE
+)
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +89,7 @@ def run_parameter_search(pipeline, parameters, X_train, y_train, use_small_subse
         scoring={"f1_weighted": f1_weighted_scorer, "f1_micro": f1_micro_scorer},
         refit="f1_weighted",
         cv=cv_strategy,
-        n_jobs=DEFAULT_N_JOBS,  # Conservative CPU usage for system responsiveness
+        n_jobs=SEARCH_N_JOBS,  # Parallelism for hyperparameter search
         verbose=2,  # Detailed progress output
         random_state=RANDOM_STATE
     )
@@ -146,7 +148,7 @@ def run_parameter_search(pipeline, parameters, X_train, y_train, use_small_subse
         print(f"=" * 50)
     else:
         logger.info("Starting hyperparameter search with resource monitoring")
-        logger.info("Configuration: n_iter=%d, n_jobs=%d", DEFAULT_N_ITER, DEFAULT_N_JOBS)
+        logger.info("Configuration: n_iter=%d, n_jobs=%d", DEFAULT_N_ITER, SEARCH_N_JOBS)
 
         # Configure pipeline to prevent CPU oversubscription
         _configure_production_mode(cv)

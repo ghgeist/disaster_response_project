@@ -116,9 +116,80 @@ Success will be measured by:
 
 ## 📄 Deliverables (Minimal Scope)
 
-- [ ] Updated `test_experimental_model.py` - Show actual degenerate behavior
-- [ ] Quick documentation update - child_alone status in project docs
+- [x] Updated `test_experimental_model.py` - Show actual degenerate behavior
+- [x] Investigation completed - child_alone status documented below
 - [ ] ~~Complex analysis scripts~~ - SCOPE CUT for shipping
+
+## 🎯 INVESTIGATION RESULTS
+
+**ROOT CAUSE IDENTIFIED**: Zero positive examples in source dataset
+
+### Key Findings
+- **Source Data**: 0 out of 26,248 messages labeled as `child_alone=1` in original `disaster_categories.csv`
+- **Training Data**: 0 out of 26,027 messages labeled as `child_alone=1` (after ETL processing)
+- **Model Behavior**: Both production and experimental models have degenerate classifiers
+  - Shape: `(1,)` instead of `(2,)` for binary classification
+  - Always predicts 0 with probability `[1.0]` (negative class)
+- **Confirmation**: Issue affects both models equally → source data limitation, not technical issue
+
+### Data Quality Analysis
+- **Category Distribution**: `child_alone` is the **only** category with 0 examples out of 36 total categories
+- **Other Rare Categories**: Even very rare categories have some examples (e.g., `offer`: 118, `shops`: 120)
+- **ETL Validation**: ✅ Our pipeline correctly processed the source data (26,248 → 26,027 after cleaning)
+- **Source Verification**: ✅ Original Figure Eight/Appen dataset contains no `child_alone-1` labels
+
+### Transparency Fixes Applied
+- **`test_experimental_model.py:55`**: Removed masking that artificially set degenerate classifier confidence to 0.0
+- **Warning System**: Added transparent warnings when degenerate classifiers detected
+- **Actual Behavior**: Model comparison tools now show real probability (1.000) instead of masked (0.000)
+
+### Technical Impact
+- **ETL Pipeline**: ✅ Working correctly - no bug found
+- **Model Architecture**: ✅ Working correctly - learned from available data
+- **Model Validity**: All other 35 categories unaffected and functioning normally
+- **Portfolio Status**: Project demonstrates professional handling of real-world data quality issues
+- **No Technical Fix Needed**: Issue is source data availability, not implementation problem
+
+## 🚨 CRITICAL DISCOVERY: Systematic Long-Tail Category Failure
+
+**Date**: 2025-09-17 (Extended Investigation)
+
+### Performance Analysis Results
+Analysis of `model/performance_metrics.csv` reveals **systematic failure** of the model to detect rare but potentially **life-critical** categories:
+
+#### Categories with 0% Recall (Complete Detection Failure)
+- **`medical_help`** (432 examples): 0.0% recall - CRITICAL for medical emergencies
+- **`medical_products`** (273 examples): 0.0% recall - CRITICAL for medical supplies
+- **`search_and_rescue`** (138 examples): 0.0% recall - CRITICAL for missing persons
+- **`water`** (324 examples): 0.0% recall - CRITICAL for survival needs
+- **`food`** (590 examples): 0.0% recall - CRITICAL for survival needs
+- **`security`** (95 examples): 0.0% recall - CRITICAL for safety
+- **`offer`** (29 examples): 0.0% recall - Resource coordination
+
+#### Categories with <5% Recall (Near-Complete Failure)
+- **`floods`**: 1.1% recall (437 examples) - CRITICAL weather emergency
+- **`storm`**: 0.8% recall (490 examples) - CRITICAL weather emergency
+- **`earthquake`**: 0.4% recall (527 examples) - CRITICAL natural disaster
+- **`direct_report`**: 2.0% recall (1002 examples) - CRITICAL for emergency validation
+
+### Emergency Response Implications
+**This is not a "long-tail" problem - this is a safety-critical system failure**:
+
+1. **Life-threatening**: Model fails to detect medical emergencies and survival needs
+2. **Resource allocation**: Missing rescue requests and aid offers
+3. **Early warning**: Poor detection of natural disasters in progress
+4. **Validation**: Extremely poor detection of direct reports from disaster zones
+
+### Root Cause: Class Imbalance Without Safety Considerations
+- Model optimized for overall accuracy by ignoring rare categories
+- No safety-critical category prioritization in training
+- Standard ML metrics don't account for emergency response requirements
+
+### Required Actions (URGENT)
+1. **Implement heavy class weighting** prioritizing life-critical categories
+2. **Adjust decision thresholds** to maximize recall for safety-critical categories
+3. **Never remove emergency categories** - missing a medical emergency is catastrophic
+4. **Redesign evaluation metrics** to weight recall of critical categories heavily
 
 ## ⏰ Confirmation Required
 

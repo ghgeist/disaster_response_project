@@ -77,11 +77,12 @@ def test_prediction_functionality():
         for i, test_case in enumerate(test_cases, 1):
             try:
                 result = model_service.predict(test_case)
-                print(f"✅ Test {i}: Prediction successful ({len(result)} labels)")
-                
+                labels = result.get('labels', {})
+                print(f"✅ Test {i}: Prediction successful ({len(labels)} labels)")
+
                 # Check if all expected labels are present
-                if len(result) != len(TARGET_COLUMNS):
-                    print(f"⚠️ Expected {len(TARGET_COLUMNS)} labels, got {len(result)}")
+                if len(labels) != len(TARGET_COLUMNS):
+                    print(f"⚠️ Expected {len(TARGET_COLUMNS)} labels, got {len(labels)}")
                     all_passed = False
                     
             except Exception as e:
@@ -121,9 +122,10 @@ def test_critical_labels():
         all_passed = True
         for label, message in test_messages.items():
             result = model_service.predict(message)
-            if label in result:
-                status = "✅" if result[label] else "⚠️"
-                print(f"{status} {label}: {result[label]}")
+            labels = result.get('labels', {})
+            if label in labels:
+                status = "✅" if labels[label] else "⚠️"
+                print(f"{status} {label}: {labels[label]}")
             else:
                 print(f"❌ {label}: Not found in predictions")
                 all_passed = False

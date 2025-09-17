@@ -12,11 +12,16 @@ sys.path.append('src')
 import joblib
 import numpy as np
 from disasterproject.utils.config import TARGET_COLUMNS
+from disasterproject.utils.experimental_paths import ExperimentalPathManager
 
 def load_models():
     """Load both production and experimental models."""
     production_path = 'model/disaster_rf_v1-2-0_prod_2025-09-11.pkl'
-    experimental_path = 'experiments/results/2025-09-16-comprehensive-grid-search-optimized-model.pkl'
+
+    # Use path manager to find experimental model
+    path_manager = ExperimentalPathManager()
+    artifacts = path_manager.get_latest_experimental_artifacts()
+    experimental_path = artifacts.model_path if artifacts else None
 
     models = {}
 
@@ -28,12 +33,17 @@ def load_models():
         print(f"❌ Production model not found: {production_path}")
         models['production'] = None
 
-    if os.path.exists(experimental_path):
+    if experimental_path and os.path.exists(experimental_path):
         print("🧪 Loading experimental model...")
+        print(f"   Path: {experimental_path}")
         models['experimental'] = joblib.load(experimental_path)
         print("✅ Experimental model loaded!")
     else:
-        print(f"❌ Experimental model not found: {experimental_path}")
+        if experimental_path:
+            print(f"❌ Experimental model not found: {experimental_path}")
+        else:
+            print("❌ No experimental model artifacts found")
+            print("   Searched both experiments/experimental_runs/ and experiments/results/")
         models['experimental'] = None
 
     return models
@@ -46,13 +56,16 @@ def get_model_predictions(model, message):
     predictions = model.predict([message])[0]
     probabilities = model.predict_proba([message])
 
-    # Extract positive class probabilities, handling degenerate classifiers
+    # Extract positive class probabilities, showing actual behavior for degenerate classifiers
     pos_probs = []
-    for prob_array in probabilities:
+    for i, prob_array in enumerate(probabilities):
         if prob_array.shape[1] == 2:  # Normal binary classifier
             pos_probs.append(prob_array[0][1])
-        else:  # Degenerate classifier (only one class)
-            pos_probs.append(0.0 if prob_array[0][0] == 1.0 else prob_array[0][0])
+        else:  # Degenerate classifier (only one class) - show actual probability
+            # Show the actual probability value, which will typically be 1.0 for negative class
+            actual_prob = prob_array[0][0]
+            pos_probs.append(actual_prob)
+            print(f"⚠️  WARNING: {TARGET_COLUMNS[i]} has degenerate classifier (shape={prob_array.shape}, prob={actual_prob:.3f})")
 
     # Get predicted categories (where prediction = 1)
     predicted_categories = []

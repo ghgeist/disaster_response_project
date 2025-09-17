@@ -1,7 +1,7 @@
 {
-  "timestamp": "2025-09-11T11:13:10.625559",
+  "timestamp": "2025-09-15T14:40:59.660977",
   "model_path": "model/disaster_rf_v1-2-0_prod_2025-09-11.pkl",
-  "training_time_seconds": 25.38822889328003,
+  "training_time_seconds": 41.19371938705444,
   "configuration": {
     "hyperparameters": {
       "vect__ngram_range": [
@@ -26,12 +26,12 @@
     "target_labels": 36
   },
   "performance": {
-    "overall_precision": 0.9084662266267824,
-    "overall_recall": 0.9299045972595721,
-    "overall_f1": 0.9009650424045846,
-    "positive_class_precision": 0.2146513666492862,
-    "positive_class_recall": 0.04233740389620384,
-    "positive_class_f1": 0.04715679366787087,
+    "overall_precision": 0.9107583164766684,
+    "overall_recall": 0.9297445255474452,
+    "overall_f1": 0.9006784722477155,
+    "positive_class_precision": 0.24347774001294945,
+    "positive_class_recall": 0.04160491468554891,
+    "positive_class_f1": 0.04604195682348469,
     "total_categories": 36,
     "test_samples": 5206
   },
