@@ -1,0 +1,28 @@
+{
+  "baseline": {
+    "evaluation_type": "baseline",
+    "weighted_f1": 0.9038334128789665,
+    "weighted_precision": 0.9240194411405003,
+    "weighted_recall": 0.9037143887486476,
+    "macro_f1": 0.7784445527044271,
+    "macro_precision": 0.8750694191023409,
+    "macro_recall": 0.7592747516550967,
+    "safety_recall": 0.914678110697324,
+    "total_violations": 9166,
+    "violations_per_1k": 1760.6607760276604,
+    "n_samples": 5206
+  },
+  "hierarchy": {
+    "evaluation_type": "hierarchy",
+    "weighted_f1": 0.8902083366991447,
+    "weighted_precision": 0.8965141164291539,
+    "weighted_recall": 0.9074407981728573,
+    "macro_f1": 0.7672745263224316,
+    "macro_precision": 0.8542683163445628,
+    "macro_recall": 0.7611530696243188,
+    "safety_recall": 0.914678110697324,
+    "total_violations": 0,
+    "violations_per_1k": 0.0,
+    "n_samples": 5206
+  }
+}

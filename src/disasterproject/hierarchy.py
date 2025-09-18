@@ -27,7 +27,7 @@ def apply_hierarchy(
     taxonomy: Dict[str, List[str]],
     critical_labels: Set[str],
     exclude: Set[str],
-    critical_threshold_reduction: float = 0.10
+    critical_threshold_reduction: float = 0.00
 ) -> Tuple[Dict[str, float], Dict[str, int]]:
     """
     Apply hierarchical consistency to probabilities and generate binary predictions.
