@@ -365,7 +365,17 @@ class HierarchyEvaluator:
         # Safety recall improvement
         safety_improvement = hierarchy['safety_recall'] - baseline['safety_recall']
         if safety_improvement > 0:
-            print(f"✅ Safety Recall improved by {safety_improvement:.4f} (+{safety_improvement/baseline['safety_recall']*100:.1f}%)")
+            baseline_sr = baseline['safety_recall']
+            if baseline_sr > 0:
+                pct = safety_improvement / baseline_sr * 100
+                print(
+                    f"✅ Safety Recall improved by {safety_improvement:.4f} (+{pct:.1f}%)"
+                )
+            else:
+                # Avoid divide-by-zero when baseline safety recall is 0
+                print(
+                    f"✅ Safety Recall improved by {safety_improvement:.4f} (baseline was 0)"
+                )
         else:
             print(f"❌ Safety Recall decreased by {abs(safety_improvement):.4f}")
 

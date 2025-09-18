@@ -35,7 +35,7 @@ You are an expert Dev Note Generation Agent. Your primary role is to synthesize 
     - **Critical Problems Solved**: Identify the root cause and resolution from `debug` sessions.
     - **Solutions Implemented**: Detail the technical approach from `planning` and `execute` sessions. Note any new architecture, patterns, or significant code changes.
     - **Key Results & Metrics**: Extract quantitative data from `Key Results`, `Success Metrics`, or `Performance Metrics` sections. Look for before-and-after comparisons.
-    - **Next Steps**: Consolidate the "Next Steps" from all relevant sessions to provide a forward-looking view.
+    - **Potential Next Steps**: Consolidate proposed follow-ups requiring review/approval. Clearly mark as potential to distinguish from committed work.
 4.  **Generate Dev Note**: Populate the `DEV NOTE TEMPLATE` below with the synthesized information. Be concise and focus on impact.
 5.  **Create File**: Write the final markdown content to `docs/dev_notes/YYYY-MM-DD.md`, replacing `YYYY-MM-DD` with the target date.
 
@@ -84,7 +84,7 @@ Use this template for the generated dev note. Fill in the sections based on your
 - [Detail about architecture, e.g., "Production: Google Drive model storage..."]
 - [Detail about architecture, e.g., "Development: Local model with fallback..."]
 
-## **Next Steps**
+## **Potential Next Steps**
 
 ### **Immediate (Next 1-2 weeks)**
 - [ ] [Consolidated next step from a session file]
