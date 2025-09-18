@@ -4,8 +4,7 @@ Utility functions for the Disaster Response application.
 import re
 import logging
 from typing import Optional, Tuple
-from pathlib import Path
-from flask import Flask
+from flask import Flask, g, has_request_context, request
 
 from .services import DataService, ModelService
 
@@ -225,6 +224,15 @@ def sanitize_input(text: str) -> str:
     return text
 
 
+def format_request_context() -> str:
+    """Return a formatted suffix containing request metadata for logging."""
+    if not has_request_context():
+        return ""
+
+    request_id = getattr(g, "request_id", None) or request.headers.get("X-Request-ID") or "-"
+    return " [request_id=%s method=%s path=%s]" % (request_id, request.method, request.path)
+
+
 def validate_environment(config_class=None) -> dict:
     """
     Validate environment configuration with comprehensive checks.
@@ -235,7 +243,6 @@ def validate_environment(config_class=None) -> dict:
     Returns:
         Dictionary with validation results including errors, warnings, and status
     """
-    import os
     from .config import Config
 
     # Use provided config class or default to Config

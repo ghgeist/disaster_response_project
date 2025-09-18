@@ -7,9 +7,10 @@ Focus areas:
 - Idempotent logging setup
 """
 
-import os
 import logging
 import sys
+from pathlib import Path
+
 import numpy as np
 from nltk.corpus import stopwords
 
@@ -61,16 +62,16 @@ def setup_logging() -> None:
     )
     console_formatter = logging.Formatter("%(message)s")
 
-    file_handler = logging.FileHandler("app.log", encoding='utf-8')
+    file_handler = logging.FileHandler("app.log", encoding="utf-8")
     file_handler.setFormatter(file_formatter)
     root_logger.addHandler(file_handler)
 
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(console_formatter)
     # Handle Windows console encoding issues
-    if hasattr(console_handler.stream, 'reconfigure'):
+    if hasattr(console_handler.stream, "reconfigure"):
         try:
-            console_handler.stream.reconfigure(encoding='utf-8')
+            console_handler.stream.reconfigure(encoding="utf-8")
         except Exception:
             pass  # Fallback for older Python versions or restricted environments
     root_logger.addHandler(console_handler)
@@ -78,6 +79,7 @@ def setup_logging() -> None:
     root_logger.setLevel(logging.INFO)
     # Mark as configured to prevent duplicates
     setattr(root_logger, "_disasterproject_logging_configured", True)
+
 
 # Data configuration
 FEATURE_COLUMNS = ["message"]
@@ -129,28 +131,49 @@ except Exception as exc:  # LookupError, OSError, etc.
     logger.warning("NLTK stopwords unavailable (%s); using empty fallback set", exc)
     STOPWORDS_SET = set()
 
-URL_REGEX = (
-    r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
-)
+URL_REGEX = r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
 URL_PLACE_HOLDER = "urlplaceholder"
 
 # File paths
-SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-BASE_PARAMETERS = os.path.join(SCRIPT_DIR, "model", "base_parameters.json")
-HYPERPARAMETER_OPTIMIZATION = os.path.join(SCRIPT_DIR, "model", "hyperparameter_optimization.json")
-GRID_SEARCH_RESULTS = os.path.join(SCRIPT_DIR, "model", "gs_results.json")
-OPTIMIZED_PARAMETERS = os.path.join(SCRIPT_DIR, "model", "optimized_parameters.json")
+# ``SCRIPT_DIR`` historically pointed at the repository root even though the
+# name implies the package directory. Keep a string form for backwards
+# compatibility while introducing more explicit Path-based constants for new
+# call sites.
+SRC_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = SRC_ROOT.parent
+SCRIPT_DIR = str(PROJECT_ROOT)
+FCT_DIR = PROJECT_ROOT / "data" / "04_fct"
+BASE_METRICS_PATH = FCT_DIR / "fct_median_metrics_by_output_class_base.csv"
+OPT_METRICS_PATH = FCT_DIR / "fct_median_metrics_by_output_class_optimized.csv"
+MODEL_DIR = PROJECT_ROOT / "model"
+BASE_PARAMETERS = MODEL_DIR / "base_parameters.json"
+HYPERPARAMETER_OPTIMIZATION = MODEL_DIR / "hyperparameter_optimization.json"
+GRID_SEARCH_RESULTS = MODEL_DIR / "gs_results.json"
+OPTIMIZED_PARAMETERS = MODEL_DIR / "optimized_parameters.json"
 
 # Hierarchy Configuration
 # Label taxonomy (parent -> children) for enforcing hierarchical consistency
 TAXONOMY = {
     "aid_related": [
-        "medical_help", "medical_products", "search_and_rescue", "water", "food",
-        "shelter", "clothing", "money", "other_aid"
+        "medical_help",
+        "medical_products",
+        "search_and_rescue",
+        "water",
+        "food",
+        "shelter",
+        "clothing",
+        "money",
+        "other_aid",
     ],
     "infrastructure_related": [
-        "transport", "buildings", "electricity", "tools", "hospitals", "shops",
-        "aid_centers", "other_infrastructure"
+        "transport",
+        "buildings",
+        "electricity",
+        "tools",
+        "hospitals",
+        "shops",
+        "aid_centers",
+        "other_infrastructure",
     ],
     # Keep weather strictly weather; treat earthquake/fire as independent
     "weather_related": ["floods", "storm", "cold", "other_weather"],
@@ -160,7 +183,12 @@ TAXONOMY = {
 
 # Critical leaves (use softer thresholds in the fixer)
 CRITICAL_LABELS = {
-    "medical_help", "medical_products", "search_and_rescue", "water", "food", "security"
+    "medical_help",
+    "medical_products",
+    "search_and_rescue",
+    "water",
+    "food",
+    "security",
 }
 
 # Labels excluded from hierarchy constraints (documented data limitations)

@@ -1,6 +1,4 @@
-"""
-Data loading functions for disaster response classification.
-"""
+"""Data loading helpers for the disaster response classification project."""
 
 import logging
 import os
@@ -101,5 +99,5 @@ def prepare_data(messages_filepath, categories_filepath, output_csv_path, output
         return df
         
     except Exception as e:
-        logging.error(f"Data preparation failed: {e}")
+        logging.error("Data preparation failed: %s", e)
         raise

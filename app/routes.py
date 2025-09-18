@@ -8,9 +8,15 @@ import plotly
 import sqlalchemy.exc
 import pandas as pd
 
-from .services import load_metric_frames, extract_perf_triplet, ModelHealthMonitor
+from .services import (
+    DataServiceError,
+    ModelHealthMonitor,
+    ModelServiceError,
+    extract_perf_triplet,
+    load_metric_frames,
+)
 from .visualizations import ChartGenerator
-from .utils import validate_message_input, sanitize_input
+from .utils import format_request_context, sanitize_input, validate_message_input
 from .forms import MessageForm
 from .nltk_setup import get_nltk_status
 
@@ -60,6 +66,8 @@ def _add_performance_visualization(graphs, descriptions):
     """
     try:
         base_df, opt_df = load_metric_frames()
+        context = format_request_context()
+
         if base_df is not None and opt_df is not None:
             metrics, labels = extract_perf_triplet(base_df, opt_df)
             perf_graph = ChartGenerator.create_performance_visual(metrics, labels)
@@ -68,12 +76,20 @@ def _add_performance_visualization(graphs, descriptions):
                 "Baseline (blue) vs Optimized (orange). Precision improves slightly; recall drops significantly. In disasters, missing real help messages is costly."
             )
         else:
-            logger.warning("Performance CSVs missing; skipping performance chart.")
+            logger.warning("Performance CSVs missing; skipping performance chart%s", context)
     except (FileNotFoundError, pd.errors.EmptyDataError, KeyError) as perf_exc:
-        logger.warning("Skipping performance chart due to data issue: %s", perf_exc)
+        logger.warning(
+            "Skipping performance chart due to data issue%s: %s",
+            context,
+            perf_exc,
+        )
     except Exception as perf_exc:
-        logger.warning("Skipping performance chart due to unexpected error: %s", perf_exc)
-    
+        logger.warning(
+            "Skipping performance chart due to unexpected error%s: %s",
+            context,
+            perf_exc,
+        )
+
     return graphs, descriptions
 
 
@@ -117,11 +133,13 @@ def register_routes(app):
 
             abort(404)
             
-        except (OSError, FileNotFoundError) as e:
-            logger.error("Error serving favicon - file system issue: %s", e)
+        except (OSError, FileNotFoundError) as error:
+            context = format_request_context()
+            logger.error("Favicon access failed%s: %s", context, error)
             abort(404)
-        except Exception as e:
-            logger.exception("Unexpected error serving favicon. See traceback:")
+        except Exception:
+            context = format_request_context()
+            logger.exception("Unhandled favicon error%s", context)
             abort(404)
 
     @app.route('/')
@@ -150,15 +168,22 @@ def register_routes(app):
 
             return render_template('home.html', form=form, ids=ids, graphJSON=graph_json, descriptions=descriptions)
 
-        except (sqlalchemy.exc.SQLAlchemyError, pd.errors.DatabaseError) as e:
-            logger.error("Database error in index route: %s", e)
-            abort(500, description="Database connection error. Please try again later.")
-        except (OSError, FileNotFoundError) as e:
-            logger.error("File system error in index route: %s", e)
-            abort(500, description="Required data files not found. Please contact administrator.")
-        except Exception as e:
-            logger.exception("Unexpected error in index route. See traceback:")
-            abort(500, description="An unexpected error occurred. Please try again later.")
+        except (sqlalchemy.exc.SQLAlchemyError, pd.errors.DatabaseError) as error:
+            context = format_request_context()
+            logger.error("Index rendering blocked by database error%s: %s", context, error)
+            abort(500, description="Database unavailable.")
+        except DataServiceError as error:
+            context = format_request_context()
+            logger.error("Index rendering blocked by data service error%s: %s", context, error)
+            abort(500, description="Data service unavailable.")
+        except (OSError, FileNotFoundError) as error:
+            context = format_request_context()
+            logger.error("Index rendering blocked by missing files%s: %s", context, error)
+            abort(500, description="Required data missing.")
+        except Exception:
+            context = format_request_context()
+            logger.exception("Unhandled index error%s", context)
+            abort(500, description="Unexpected server error.")
 
     @app.route('/go', methods=['GET', 'POST'], strict_slashes=False)
     def go():
@@ -213,11 +238,13 @@ def register_routes(app):
                     sorted_predictions=sorted_predictions,
                     probabilities=probabilities
                 )
-            except (ValueError, RuntimeError) as e:
-                logger.error("Model prediction error in go route (GET): %s", e)
+            except (ValueError, ModelServiceError) as error:
+                context = format_request_context()
+                logger.error("Prediction failure on GET /go%s: %s", context, error)
                 flash("Error processing message. Please try again.", 'error')
-            except Exception as e:
-                logger.exception("Unexpected error in go route (GET). See traceback:")
+            except Exception:
+                context = format_request_context()
+                logger.exception("Unhandled GET /go error%s", context)
                 flash("An unexpected error occurred. Please try again.", 'error')
             return redirect(url_for('index'))
         
@@ -257,12 +284,14 @@ def register_routes(app):
                         sorted_predictions=sorted_predictions,
                         probabilities=probabilities
                     )
-                except (ValueError, RuntimeError) as e:
-                    logger.exception("Model prediction failed in /go route (POST). See traceback:")
+                except (ValueError, ModelServiceError) as error:
+                    context = format_request_context()
+                    logger.error("Prediction failure on POST /go%s: %s", context, error)
                     flash("Error processing message. Please try again.", 'error')
                     return redirect(url_for('index'))
-                except Exception as e:
-                    logger.exception("An unexpected error occurred in /go route (POST). See traceback:")
+                except Exception:
+                    context = format_request_context()
+                    logger.exception("Unhandled POST /go error%s", context)
                     flash("An unexpected error occurred. Please try again.", 'error')
                     return redirect(url_for('index'))
             else:
@@ -286,8 +315,9 @@ def register_routes(app):
             graph_json, ids = _encode_graphs_to_json(graphs)
 
             return render_template('home.html', form=form, ids=ids, graphJSON=graph_json, descriptions=descriptions)
-        except Exception as e:
-            logger.error("Error re-rendering index page on form validation failure: %s", e)
+        except Exception as error:
+            context = format_request_context()
+            logger.error("Failed to re-render index after validation error%s: %s", context, error)
             flash("An error occurred while processing your request.", 'error')
             return render_template('home.html', form=form, ids=[], graphJSON="[]", descriptions=[])
 
@@ -357,24 +387,27 @@ def register_routes(app):
                     }
                 }, 503
                 
-        except (sqlalchemy.exc.SQLAlchemyError, pd.errors.DatabaseError) as e:
-            logger.error("Database error in health check: %s", e)
+        except (sqlalchemy.exc.SQLAlchemyError, pd.errors.DatabaseError) as error:
+            context = format_request_context()
+            logger.error("Health check database failure%s: %s", context, error)
             return {
                 'status': 'unhealthy',
                 'data_service': 'error',
                 'model_service': 'unknown',
                 'error': 'Database connection failed'
             }, 503
-        except (OSError, FileNotFoundError, RuntimeError) as e:
-            logger.error("Service error in health check: %s", e)
+        except (OSError, FileNotFoundError, RuntimeError, DataServiceError, ModelServiceError) as error:
+            context = format_request_context()
+            logger.error("Health check service failure%s: %s", context, error)
             return {
                 'status': 'unhealthy',
                 'data_service': 'unknown',
                 'model_service': 'error',
                 'error': 'Service initialization failed'
             }, 503
-        except Exception as e:
-            logger.exception("Unexpected error in health check. See traceback:")
+        except Exception:
+            context = format_request_context()
+            logger.exception("Unhandled health check error%s", context)
             return {
                 'status': 'unhealthy',
                 'error': 'Unexpected system error'
@@ -402,10 +435,11 @@ def register_routes(app):
                 ids=[]
             )
             
-        except Exception as e:
-            logger.error("Error in model health dashboard: %s", e)
+        except Exception as error:
+            context = format_request_context()
+            logger.error("Model health dashboard failed%s: %s", context, error)
             return render_template(
-                'error.html', 
+                'error.html',
                 message="Model health dashboard unavailable"
             ), 503
 
@@ -426,10 +460,11 @@ def register_routes(app):
             
             return health_report
             
-        except Exception as e:
-            logger.error("Error in model health API: %s", e)
+        except Exception as error:
+            context = format_request_context()
+            logger.error("Model health API failed%s: %s", context, error)
             return {
-                'error': str(e),
+                'error': str(error),
                 'timestamp': pd.Timestamp.now().isoformat()
             }, 500
 
@@ -465,10 +500,11 @@ def register_routes(app):
             
             return diagnostics
             
-        except Exception as e:
-            logger.error("Error in performance diagnostics API: %s", e)
+        except Exception as error:
+            context = format_request_context()
+            logger.error("Performance diagnostics API failed%s: %s", context, error)
             return {
-                'error': str(e),
+                'error': str(error),
                 'timestamp': pd.Timestamp.now().isoformat()
             }, 500
 
