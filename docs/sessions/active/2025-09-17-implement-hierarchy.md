@@ -18,7 +18,8 @@ Implement a lightweight hierarchy post-processor that enforces parent ≥ child 
 
   * [ ] Safety Recall (avg recall on critical labels) improves meaningfully
   * [ ] Parent≥Child violations drop to 0 per 1k predictions
-  * [ ] Macro F1 change within −0 to −2 points
+  * [ ] Macro F1 (across labels) change within −0 to −2 points
+  * [ ] Weighted F1 (across labels) reported for context
 * [x] README note explaining exclusion and rationale for `child_alone` given 0 positives.
 
 ## 🔍 Context
@@ -69,7 +70,7 @@ Your validation showed catastrophic recall on rare but urgent categories despite
 * Run baseline eval and record metrics
 * Run with hierarchy fixer and record after metrics
 * Log “violations per 1k preds” before and after
-* Integration hook: update `evaluate_model_to_model_folder` in `scripts/04_create_production_model.py` to compute baseline vs post-fix results (function starts near line 63).
+* Integration hook: update `evaluate_model_to_model_folder` in `scripts/04_create_production_model.py` to compute baseline vs post-fix results.
 
 4. **Document `child_alone`**
    Short README section: zero positives in dataset and training, excluded from constraints to avoid spurious flips. Keep predictions visible.
@@ -77,11 +78,11 @@ Your validation showed catastrophic recall on rare but urgent categories despite
 ## 📊 Acceptance Criteria
 
 * `apply_hierarchy` is unit-tested and integrated
-* Before/after table included in report with:
+* Before/after table included in report (saved to `model/performance_metrics.csv`) with:
 
   * Safety Recall ↑
   * Violations = 0
-  * Macro F1 within target band
+  * Macro F1 within target band (across labels)
 * README updated to explain hierarchy logic and `child_alone` rationale with dataset counts.
 
 ## 🔗 Related Work
@@ -220,7 +221,7 @@ CRITICAL_THRESHOLDS = {
 All major design decisions have been addressed and documented:
 
 1. **Training approach**: Post-processing for Phase 1 (time-efficient), hierarchy-aware training for future phases
-2. **Threshold strategy**: Validation-optimized thresholds with safety buffer (hybrid approach)
+2. **Threshold strategy**: Validation-optimized thresholds with safety buffer (hybrid approach). Macro F1 across labels is the primary gate; Weighted F1 across labels is secondary for context.
 3. **Reverse violations**: Ignore parent=1, children=0 cases (conservative approach)
 4. **Taxonomy completeness**: Removed non-existent `safety_related` parent, corrected weather grouping; ~78% coverage with clear rationale for independent labels
 
@@ -306,3 +307,28 @@ All major design decisions have been addressed and documented:
 - **Exclusion handling**: Complete bypass for `child_alone` due to zero training examples
 - **Integration point**: Evaluation path only in Phase 1 (Flask app unchanged)
 
+## 🗺️ Scope-Controlled Plan (Ready for Approval)
+
+Focus on high-impact, low-effort changes only to avoid scope creep.
+
+1) Load Per-Label Thresholds in Evaluation (High impact, low effort)
+- Load thresholds from artifacts when present; fallback to 0.5
+- Apply critical-label buffer during hierarchy decisioning
+- Persist `model/thresholds_used_hierarchy.json` for reproducibility
+
+2) Emit Compact Metrics Summary (Medium impact, low effort)
+- Write `model/metrics_summary.json` including:
+  - Macro/Weighted F1 across labels (baseline vs hierarchy) + deltas
+  - Safety Recall baseline vs hierarchy + delta
+  - Violations per 1k before vs after
+
+3) Observability Tweaks (Low effort)
+- Log number of labels skipped due to `EXCLUDE_FROM_CONSTRAINTS`
+
+Deferred (Optional, schedule later)
+- Per-group violation diagnostics (top parent→child pairs pre-fix) for targeted tuning
+
+Success Criteria
+- Evaluation uses per-label thresholds when available and persists the effective set used
+- Summary JSON written next to CSV with the gates above
+- Logs show exclusion counts; scope limited to evaluation path only

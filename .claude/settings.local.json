@@ -18,7 +18,8 @@
       "Bash(PYTHONPATH=src python scripts/migrate_experimental_paths.py)",
       "Bash(PYTHONPATH=src python scripts/test_experimental_model.py)",
       "Bash(PYTHONPATH=src python scripts/compare_child_alone.py)",
-      "Bash(PYTHONPATH=src python scripts/compare_models.py)"
+      "Bash(PYTHONPATH=src python scripts/compare_models.py)",
+      "Bash(PYTHONPATH=src python scripts/evaluate_hierarchy.py)"
     ],
     "deny": [],
     "ask": []

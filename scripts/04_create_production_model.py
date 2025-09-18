@@ -176,27 +176,55 @@ def evaluate_model_to_model_folder(model, X_test, Y_test, category_names, model_
         results_df.to_csv(results_file_path, index=False)
         logging.info("Performance metrics saved to: %s", results_file_path)
 
-        # Calculate summary statistics for baseline
+        # Calculate summary statistics with clear across-label metrics
         baseline_df = results_df[results_df['evaluation_type'] == 'baseline']
-        weighted_avg = baseline_df[baseline_df['output_class'] == 'weighted avg']
-        positive_class = baseline_df[baseline_df['output_class'] == '1']
+
+        # Helper: compute across-label Macro/Weighted scores using positive class ('1') rows
+        def _across_label_scores(df: pd.DataFrame):
+            pos_rows = df[df['output_class'] == '1']
+            # Ensure only known categories are considered
+            pos_rows = pos_rows[pos_rows['category'].isin(category_names)]
+            # Macro over labels: simple mean of label-wise F1/precision/recall
+            macro_precision = pos_rows['precision'].mean() if not pos_rows.empty else 0.0
+            macro_recall = pos_rows['recall'].mean() if not pos_rows.empty else 0.0
+            macro_f1 = pos_rows['f1-score'].mean() if not pos_rows.empty else 0.0
+            # Weighted over labels: weights by positive support per label
+            weights = pos_rows['support'].astype(float)
+            total_w = float(weights.sum()) if not pos_rows.empty else 0.0
+            if total_w > 0:
+                weighted_precision = float((pos_rows['precision'] * weights).sum() / total_w)
+                weighted_recall = float((pos_rows['recall'] * weights).sum() / total_w)
+                weighted_f1 = float((pos_rows['f1-score'] * weights).sum() / total_w)
+            else:
+                weighted_precision = weighted_recall = weighted_f1 = 0.0
+            return {
+                'macro_precision': macro_precision,
+                'macro_recall': macro_recall,
+                'macro_f1': macro_f1,
+                'weighted_precision': weighted_precision,
+                'weighted_recall': weighted_recall,
+                'weighted_f1': weighted_f1,
+            }
+
+        baseline_across = _across_label_scores(baseline_df)
 
         summary = {
-            'overall_precision': weighted_avg['precision'].mean(),
-            'overall_recall': weighted_avg['recall'].mean(),
-            'overall_f1': weighted_avg['f1-score'].mean(),
-            'positive_class_precision': positive_class['precision'].mean(),
-            'positive_class_recall': positive_class['recall'].mean(),
-            'positive_class_f1': positive_class['f1-score'].mean(),
+            # Legacy overall rows (per-label weighted avg across classes, then mean) kept for continuity
             'total_categories': len(category_names),
-            'test_samples': len(Y_test)
+            'test_samples': len(Y_test),
+            # Across-label metrics (primary/secondary gates)
+            'macro_precision_baseline': baseline_across['macro_precision'],
+            'macro_recall_baseline': baseline_across['macro_recall'],
+            'macro_f1_baseline': baseline_across['macro_f1'],
+            'weighted_precision_baseline': baseline_across['weighted_precision'],
+            'weighted_recall_baseline': baseline_across['weighted_recall'],
+            'weighted_f1_baseline': baseline_across['weighted_f1'],
         }
 
         # Add hierarchy comparison if available
         if proba_list is not None and hierarchy_results:
             hierarchy_df = results_df[results_df['evaluation_type'] == 'hierarchy_corrected']
-            h_weighted_avg = hierarchy_df[hierarchy_df['output_class'] == 'weighted avg']
-            h_positive_class = hierarchy_df[hierarchy_df['output_class'] == '1']
+            hierarchy_across = _across_label_scores(hierarchy_df)
 
             # Calculate Safety Recall (average recall on critical labels)
             critical_recalls_baseline = []
@@ -218,20 +246,30 @@ def evaluate_model_to_model_folder(model, X_test, Y_test, category_names, model_
             safety_recall_hierarchy = np.mean(critical_recalls_hierarchy) if critical_recalls_hierarchy else 0.0
 
             summary.update({
-                'hierarchy_overall_precision': h_weighted_avg['precision'].mean(),
-                'hierarchy_overall_recall': h_weighted_avg['recall'].mean(),
-                'hierarchy_overall_f1': h_weighted_avg['f1-score'].mean(),
-                'hierarchy_positive_class_f1': h_positive_class['f1-score'].mean(),
+                # Across-label metrics after hierarchy
+                'macro_precision_hierarchy': hierarchy_across['macro_precision'],
+                'macro_recall_hierarchy': hierarchy_across['macro_recall'],
+                'macro_f1_hierarchy': hierarchy_across['macro_f1'],
+                'weighted_precision_hierarchy': hierarchy_across['weighted_precision'],
+                'weighted_recall_hierarchy': hierarchy_across['weighted_recall'],
+                'weighted_f1_hierarchy': hierarchy_across['weighted_f1'],
+                # Deltas
+                'macro_f1_change': hierarchy_across['macro_f1'] - baseline_across['macro_f1'],
+                'weighted_f1_change': hierarchy_across['weighted_f1'] - baseline_across['weighted_f1'],
+                # Safety + violations
                 'violations_per_1k_before': violations_per_1k_before,
                 'violations_per_1k_after': violations_per_1k_after,
                 'safety_recall_baseline': safety_recall_baseline,
                 'safety_recall_hierarchy': safety_recall_hierarchy,
                 'safety_recall_improvement': safety_recall_hierarchy - safety_recall_baseline,
-                'macro_f1_change': h_weighted_avg['f1-score'].mean() - weighted_avg['f1-score'].mean()
             })
 
-            logging.info(f"Safety Recall: {safety_recall_baseline:.3f} → {safety_recall_hierarchy:.3f} (Δ{safety_recall_hierarchy - safety_recall_baseline:+.3f})")
-            logging.info(f"Macro F1 Change: {h_weighted_avg['f1-score'].mean() - weighted_avg['f1-score'].mean():+.3f}")
+            logging.info(
+                f"Safety Recall: {safety_recall_baseline:.3f} → {safety_recall_hierarchy:.3f} (Δ{(safety_recall_hierarchy - safety_recall_baseline):+.3f})"
+            )
+            logging.info(
+                f"Macro F1 (across labels) Change: {summary['macro_f1_change']:+.3f}"
+            )
 
         return summary
 
