@@ -61,53 +61,54 @@ class TestNLTKSetupModule:
     @patch('nltk.data.find')
     def test_setup_nltk_resources_success(self, mock_find, mock_download):
         """Test successful NLTK resource setup."""
-        # Mock successful resource finding
         mock_find.return_value = '/mock/path'
-        
-        # Mock successful validation
-        with patch('app.nltk_setup.RESOURCE_VALIDATORS') as mock_validators:
-            mock_validators.__getitem__.return_value = lambda: True
-            
+
+        validator_overrides = {
+            'stopwords': lambda: True,
+            'wordnet': lambda: True,
+            'punkt': lambda: True,
+        }
+        with patch.dict('app.nltk_setup.RESOURCE_VALIDATORS', validator_overrides, clear=True):
             result = setup_nltk_resources()
-            
-            assert result['success'] is True
-            assert 'setup_time_ms' in result
-            assert 'resources_loaded' in result
-            assert 'resources_failed' in result
-            assert 'errors' in result
+
+        assert result['success'] is True
+        assert 'setup_time_ms' in result
+        assert 'resources_loaded' in result
+        assert 'resources_failed' in result
+        assert 'errors' in result
 
     @patch('nltk.download')
     @patch('nltk.data.find')
     def test_setup_nltk_resources_critical_failure(self, mock_find, mock_download):
         """Test NLTK setup failure when critical resources are missing."""
-        # Mock resource not found
-        mock_find.side_effect = LookupError("Resource not found")
-        
-        # Mock validation failure for critical resources
-        with patch('app.nltk_setup.RESOURCE_VALIDATORS') as mock_validators:
-            def mock_validator(resource):
-                if resource in ['stopwords', 'punkt']:
-                    return False  # Critical resources fail
-                return True
-            mock_validators.__getitem__.return_value = mock_validator
-            
-            with pytest.raises(NLTKSetupError, match="Critical NLTK resources missing"):
+        mock_find.side_effect = LookupError('Resource not found')
+
+        validator_overrides = {
+            'stopwords': lambda: False,
+            'punkt': lambda: False,
+            'wordnet': lambda: True,
+        }
+        with patch.dict('app.nltk_setup.RESOURCE_VALIDATORS', validator_overrides, clear=True):
+            with pytest.raises(NLTKSetupError, match='Critical NLTK resources missing'):
                 setup_nltk_resources()
 
     def test_validate_nltk_resources(self):
         """Test NLTK resource validation."""
         with patch('nltk.data.find') as mock_find:
             mock_find.return_value = '/mock/path'
-            
-            with patch('app.nltk_setup.RESOURCE_VALIDATORS') as mock_validators:
-                mock_validators.__getitem__.return_value = lambda: True
-                
+
+            validator_overrides = {
+                'stopwords': lambda: True,
+                'wordnet': lambda: True,
+                'punkt': lambda: True,
+            }
+            with patch.dict('app.nltk_setup.RESOURCE_VALIDATORS', validator_overrides, clear=True):
                 result = validate_nltk_resources()
-                
-                assert 'all_available' in result
-                assert 'available_resources' in result
-                assert 'missing_resources' in result
-                assert 'validation_errors' in result
+
+        assert 'all_available' in result
+        assert 'available_resources' in result
+        assert 'missing_resources' in result
+        assert 'validation_errors' in result
 
     def test_get_nltk_status(self):
         """Test NLTK status retrieval."""
@@ -256,11 +257,15 @@ class TestOptimizationIntegration:
     def test_optimization_error_handling(self):
         """Test that optimizations have proper error handling."""
         # Test NLTK setup error handling
-        with patch('app.nltk_setup.setup_nltk_resources') as mock_setup:
-            mock_setup.side_effect = NLTKSetupError("Test error")
-            
-            with pytest.raises(NLTKSetupError):
-                setup_nltk_resources()
-        
+        with patch('nltk.download'), patch('nltk.data.find', side_effect=LookupError('Resource not found')):
+            validator_overrides = {
+                'stopwords': lambda: False,
+                'punkt': lambda: False,
+                'wordnet': lambda: True,
+            }
+            with patch.dict('app.nltk_setup.RESOURCE_VALIDATORS', validator_overrides, clear=True):
+                with pytest.raises(NLTKSetupError):
+                    setup_nltk_resources()
+
         # Note: Compatibility error handling test removed since app.compat was removed
         # Models now load directly with joblib without compatibility layers
