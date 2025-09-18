@@ -16,7 +16,12 @@ import requests
 import sqlalchemy.exc
 from sqlalchemy import create_engine
 
-from disasterproject.utils.config import TARGET_COLUMNS
+from disasterproject.utils.config import (
+    BASE_METRICS_PATH,
+    OPT_METRICS_PATH,
+    TARGET_COLUMNS,
+)
+from disasterproject.utils.metrics_io import read_metrics_csv
 
 logger = logging.getLogger(__name__)
 
@@ -24,38 +29,19 @@ logger = logging.getLogger(__name__)
 class ModelDownloadSkipped(Exception):
     """Exception raised when model download should be skipped."""
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-FCT_DIR = BASE_DIR / "data" / "04_fct"
-BASE_METRICS_PATH = FCT_DIR / "fct_median_metrics_by_output_class_base.csv"
-OPT_METRICS_PATH = FCT_DIR / "fct_median_metrics_by_output_class_optimized.csv"
+
+class DataServiceError(RuntimeError):
+    """Raised when the data service cannot fulfill a request."""
 
 
-def _read_metrics_csv(path: Path) -> Optional[pd.DataFrame]:
-    """Read a metrics CSV and normalize column names; return None if missing."""
-    try:
-        if not path.exists():
-            logger.warning("Metrics CSV not found: %s", path)
-            return None
-        df = pd.read_csv(path)
-        df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
-        if "output_class" in df.columns:
-            df["output_class"] = df["output_class"].astype(str)
-        return df
-    except (FileNotFoundError, pd.errors.EmptyDataError) as exc:
-        logger.error("File not found or empty metrics CSV %s: %s", path, exc)
-        return None
-    except (pd.errors.ParserError, UnicodeDecodeError) as exc:
-        logger.error("Parse error in metrics CSV %s: %s", path, exc)
-        return None
-    except Exception:
-        logger.exception("Unexpected error reading metrics CSV %s. See traceback:", path)
-        return None
+class ModelServiceError(RuntimeError):
+    """Raised when the model service encounters an unrecoverable issue."""
 
 
 def load_metric_frames() -> Tuple[Optional[pd.DataFrame], Optional[pd.DataFrame]]:
     """Load baseline and optimized metrics DataFrames if available."""
-    base_df = _read_metrics_csv(BASE_METRICS_PATH)
-    opt_df = _read_metrics_csv(OPT_METRICS_PATH)
+    base_df = read_metrics_csv(BASE_METRICS_PATH)
+    opt_df = read_metrics_csv(OPT_METRICS_PATH)
     return base_df, opt_df
 
 
@@ -86,7 +72,7 @@ def extract_perf_triplet(base_df: pd.DataFrame, opt_df: pd.DataFrame) -> Tuple[D
     base_row = select_row(base_df).to_dict()
     opt_row = select_row(opt_df).to_dict()
 
-    def pick(d: Dict[str, any], *keys: str, default=None):
+    def pick(d: Dict[str, Any], *keys: str, default=None):
         for k in keys:
             if k in d:
                 return d[k]
@@ -141,9 +127,9 @@ class DataService:
             logger.info("Data loaded successfully from table '%s'", table_name)
             return self._df
             
-        except (OSError, pd.errors.DatabaseError, sqlalchemy.exc.SQLAlchemyError) as e:
-            logger.error("Error loading data from database: %s", e)
-            raise RuntimeError(f"Failed to load data: {e}") from e
+        except (OSError, pd.errors.DatabaseError, sqlalchemy.exc.SQLAlchemyError) as error:
+            logger.error("Error loading data from database: %s", error)
+            raise DataServiceError("Failed to load data from database.") from error
     
     def get_data(self) -> pd.DataFrame:
         """Get the loaded data."""
@@ -205,15 +191,15 @@ class ModelService:
             self._load_artifacts()
             return self._model
             
-        except (FileNotFoundError, OSError) as e:
-            logger.error("Model file not found or inaccessible: %s", e)
-            raise RuntimeError(f"Model file not found: {e}") from e
-        except (joblib.externals.loky.process_executor.TerminatedWorkerError, pickle.PickleError) as e:
-            logger.error("Model file corrupted or incompatible: %s", e)
-            raise RuntimeError(f"Model file is corrupted: {e}") from e
-        except Exception as e:
-            logger.exception("Unexpected error loading model. See traceback:")
-            raise RuntimeError(f"Failed to load model: {e}") from e
+        except (FileNotFoundError, OSError) as error:
+            logger.error("Model file not found or inaccessible: %s", error)
+            raise ModelServiceError("Model file not found.") from error
+        except (joblib.externals.loky.process_executor.TerminatedWorkerError, pickle.PickleError) as error:
+            logger.error("Model file corrupted or incompatible: %s", error)
+            raise ModelServiceError("Model file is corrupted.") from error
+        except Exception as error:
+            logger.exception("Unexpected error loading model from %s", self.model_path)
+            raise ModelServiceError("Failed to load model.") from error
     
     def _download_model(self) -> None:
         """Download model from Google Drive if not available locally."""
@@ -230,13 +216,13 @@ class ModelService:
             self._finalize_download(temp_path)
             logger.info("Model downloaded and validated successfully!")
 
-        except requests.exceptions.RequestException as e:
+        except requests.exceptions.RequestException as error:
             self._cleanup_temp_file(temp_path)
-            logger.error("Network error downloading model: %s", e)
-            raise RuntimeError(f"Network error downloading model: {e}") from e
-        except Exception as e:
+            logger.error("Network error downloading model: %s", error)
+            raise ModelServiceError("Network error downloading model.") from error
+        except Exception as error:
             self._cleanup_temp_file(temp_path)
-            self._handle_download_error(e)
+            self._handle_download_error(error)
     
     def _validate_gdrive_config(self) -> None:
         """Validate Google Drive configuration before attempting download."""
@@ -244,10 +230,8 @@ class ModelService:
             if self.model_path.exists():
                 logger.info("Model found at %s, skipping download", self.model_path)
                 raise ModelDownloadSkipped("Local model exists, skipping download")
-            raise RuntimeError(
-                "GDRIVE_MODEL_ID is not set or is using a placeholder. "
-                f"Provide a valid Google Drive file ID via the GDRIVE_MODEL_ID env var, "
-                f"or place the model at: {self.model_path}"
+            raise ModelServiceError(
+                "GDRIVE_MODEL_ID is not configured for model downloads."
             )
     
     def _perform_download(self, temp_path: str) -> None:
@@ -262,10 +246,8 @@ class ModelService:
         """Validate that the response contains the expected file content."""
         content_type = response.headers.get('content-type', '')
         if 'text/html' in content_type.lower():
-            raise RuntimeError(
-                "Google Drive returned HTML instead of the model file. "
-                "This usually means the file requires authentication or is too large. "
-                "Please check the GDRIVE_MODEL_ID or download manually."
+            raise ModelServiceError(
+                "Google Drive returned HTML instead of the model file."
             )
     
     def _write_download_to_file(self, response, temp_path: str) -> None:
@@ -278,13 +260,13 @@ class ModelService:
     def _validate_downloaded_file(self, temp_path: str) -> None:
         """Validate the downloaded file size and integrity."""
         if os.path.getsize(temp_path) < 1000:  # Model files should be at least 1KB
-            raise RuntimeError("Downloaded file is too small, likely corrupted")
-        
+            raise ModelServiceError("Downloaded model file is too small.")
+
         try:
             test_model = joblib.load(temp_path)
             del test_model  # Clean up test load
-        except Exception as e:
-            raise RuntimeError(f"Downloaded model file is corrupted: {e}") from e
+        except Exception as error:
+            raise ModelServiceError("Downloaded model file is corrupted.") from error
     
     def _finalize_download(self, temp_path: str) -> None:
         """Move the temporary file to the final location."""
@@ -303,19 +285,10 @@ class ModelService:
         error_str = str(error).lower()
         
         if "timeout" in error_str:
-            raise RuntimeError(
-                f"Download timed out. Please check your internet connection and try again. "
-                f"Error: {error}"
-            ) from error
+            raise ModelServiceError("Download timed out.") from error
         if "corrupted" in error_str:
-            raise RuntimeError(
-                f"Download failed due to corruption. Please try again. "
-                f"Error: {error}"
-            ) from error
-        raise RuntimeError(
-            f"Failed to download model: {error}. "
-            f"Please check the GDRIVE_MODEL_ID or download manually to: {self.model_path}"
-        ) from error
+            raise ModelServiceError("Downloaded model file is corrupted.") from error
+        raise ModelServiceError("Failed to download model from Google Drive.") from error
     
     def predict(self, text: str) -> dict:
         """Make a prediction on the given text using per-label thresholds when available."""
@@ -436,15 +409,15 @@ class ModelService:
             
             return {"labels": results, "probabilities": prob_dict}
             
-        except (ValueError, AttributeError) as e:
-            logger.error("Model prediction input error: %s", e)
-            raise RuntimeError(f"Invalid input for prediction: {e}") from e
-        except (OSError, FileNotFoundError) as e:
-            logger.error("Model file access error during prediction: %s", e)
-            raise RuntimeError(f"Model file access failed: {e}") from e
-        except Exception as e:
-            logger.exception("Unexpected error making prediction. See traceback:")
-            raise RuntimeError(f"Prediction failed: {e}") from e
+        except (ValueError, AttributeError) as error:
+            logger.error("Model prediction input error: %s", error)
+            raise ModelServiceError("Invalid input for prediction.") from error
+        except (OSError, FileNotFoundError) as error:
+            logger.error("Model file access error during prediction: %s", error)
+            raise ModelServiceError("Model file access failed.") from error
+        except Exception as error:
+            logger.exception("Unexpected error during prediction for model %s", self.model_path)
+            raise ModelServiceError("Prediction failed.") from error
 
     def _load_artifacts(self) -> None:
         """Load thresholds and label_order artifacts from the model directory if present."""
@@ -536,7 +509,11 @@ class ModelService:
             # Model has more or equal outputs than expected - use first N expected categories
             active_categories = expected_categories[:model_output_count]
             category_mapping = {i: i for i in range(model_output_count)}
-            logger.info(f"Model has {model_output_count} outputs, using first {len(active_categories)} expected categories")
+            logger.info(
+                "Model has %d outputs, using first %d expected categories",
+                model_output_count,
+                len(active_categories),
+            )
         else:
             # Model has fewer outputs - try to map to most relevant expected categories
             # For now, use the first N expected categories as a conservative approach
@@ -544,11 +521,13 @@ class ModelService:
             # or training metadata to determine which categories were actually used
             active_categories = expected_categories[:model_output_count]
             category_mapping = {i: i for i in range(model_output_count)}
-            
+
             logger.warning(
-                f"Model has {model_output_count} outputs but {len(expected_categories)} expected categories. "
-                f"Using first {model_output_count} expected categories. "
-                f"Consider updating the model or expected categories to match."
+                "Model has %d outputs but %d expected categories. Using first %d expected categories."
+                " Consider updating the model or expected categories to match.",
+                model_output_count,
+                len(expected_categories),
+                model_output_count,
             )
         
         return active_categories, category_mapping
@@ -599,7 +578,7 @@ class ModelService:
                 prob_val = 0.0
                 label = 0
                 final_probs[category_name] = prob_val
-                logger.debug(f"Category '{category_name}' not in model output, setting to 0")
+                logger.debug("Category %s not in model output, setting to 0", category_name)
             
             final_labels.append(label)
         
@@ -651,7 +630,7 @@ class ModelHealthMonitor:
                 'loadable': self._test_model_loading(file_path)
             }
         except Exception as e:
-            logger.error(f"Error getting metadata for {file_path}: {e}")
+            logger.error("Error getting metadata for %s: %s", file_path, e)
             return {
                 'name': file_path.name,
                 'path': str(file_path),
@@ -715,7 +694,7 @@ class ModelHealthMonitor:
             }
             
         except Exception as e:
-            logger.error(f"Error checking current model status: {e}")
+            logger.error("Error checking current model status: %s", e)
             return {
                 'status': 'error',
                 'error': str(e),
@@ -757,10 +736,10 @@ class ModelHealthMonitor:
                             'labels': labels
                         }
                     except Exception as e:
-                        logger.warning(f"Error extracting performance comparison: {e}")
-            
+                        logger.warning("Error extracting performance comparison: %s", e)
+
         except Exception as e:
-            logger.error(f"Error loading performance metrics: {e}")
+            logger.error("Error loading performance metrics: %s", e)
             metrics['error'] = str(e)
         
         return metrics
@@ -789,7 +768,7 @@ class ModelHealthMonitor:
             return summary
             
         except Exception as e:
-            logger.error(f"Error summarizing metrics for {model_name}: {e}")
+            logger.error("Error summarizing metrics for %s: %s", model_name, e)
             return {'model_name': model_name, 'error': str(e)}
     
     def get_prediction_sample(self, model_service=None) -> Dict[str, Any]:
@@ -834,7 +813,7 @@ class ModelHealthMonitor:
             }
             
         except Exception as e:
-            logger.error(f"Error getting prediction sample: {e}")
+            logger.error("Error getting prediction sample: %s", e)
             return {'error': str(e)}
     
     def get_comprehensive_health_report(self, model_service=None) -> Dict[str, Any]:

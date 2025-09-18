@@ -1,9 +1,8 @@
-"""
-One-time NLTK resource setup for application startup.
+"""One-time NLTK resource setup for application startup.
 
-This module handles NLTK resource downloading and validation during application
-startup to avoid per-request performance issues. All NLTK resources are
-pre-loaded and validated once at startup.
+This module handles NLTK resource downloading and validation during
+application startup to avoid per-request performance issues. All NLTK
+resources are pre-loaded and validated once at startup.
 """
 import logging
 import time
@@ -79,14 +78,23 @@ def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
                             "type": resource_type,
                             "load_time_ms": round(resource_time, 2)
                         })
-                        logger.info(f"✓ {resource_type}/{resource} loaded successfully ({resource_time:.1f}ms)")
+                        logger.info(
+                            "✓ %s/%s loaded successfully (%.1fms)",
+                            resource_type,
+                            resource,
+                            resource_time,
+                        )
                     else:
                         setup_results["resources_failed"].append({
                             "name": resource,
                             "type": resource_type,
                             "error": "Validation failed"
                         })
-                        logger.warning(f"✗ {resource_type}/{resource} validation failed")
+                        logger.warning(
+                            "✗ %s/%s validation failed",
+                            resource_type,
+                            resource,
+                        )
 
                 except Exception as e:
                     error_msg = f"Failed to setup {resource_type}/{resource}: {e}"
@@ -96,7 +104,7 @@ def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
                         "error": str(e)
                     })
                     setup_results["errors"].append(error_msg)
-                    logger.error(f"✗ {error_msg}")
+                    logger.error("✗ %s", error_msg)
         
         # Check if critical resources are available
         critical_resources = ["stopwords", "punkt"]
@@ -124,9 +132,15 @@ def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
         setup_results["setup_time_ms"] = round((time.time() - start_time) * 1000, 2)
         
         if setup_results["success"]:
-            logger.info(f"NLTK setup completed successfully in {setup_results['setup_time_ms']}ms")
+            logger.info(
+                "NLTK setup completed successfully in %sms",
+                setup_results["setup_time_ms"],
+            )
         else:
-            logger.warning(f"NLTK setup completed with warnings in {setup_results['setup_time_ms']}ms")
+            logger.warning(
+                "NLTK setup completed with warnings in %sms",
+                setup_results["setup_time_ms"],
+            )
             
         return setup_results
         
@@ -134,7 +148,7 @@ def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
         setup_results["success"] = False
         setup_results["setup_time_ms"] = round((time.time() - start_time) * 1000, 2)
         setup_results["errors"].append(f"Setup failed: {e}")
-        logger.error(f"NLTK setup failed: {e}")
+        logger.error("NLTK setup failed: %s", e)
         raise NLTKSetupError(f"NLTK setup failed: {e}") from e
 
 
@@ -163,21 +177,21 @@ def _setup_single_resource(resource_type: str, resource: str, force_download: bo
         # Download if needed
         if not resource_exists or force_download:
             download_attempted = True
-            logger.info(f"Downloading NLTK resource: {resource}")
+            logger.info("Downloading NLTK resource: %s", resource)
             nltk.download(resource, quiet=True)
-            logger.info(f"Downloaded NLTK resource: {resource}")
+            logger.info("Downloaded NLTK resource: %s", resource)
 
         # Validate resource
         if resource in RESOURCE_VALIDATORS:
             validation_result = RESOURCE_VALIDATORS[resource]()
             if not validation_result:
-                logger.warning(f"Resource validation failed for {resource}")
+                logger.warning("Resource validation failed for %s", resource)
                 return False, download_attempted
 
         return True, download_attempted
 
     except Exception as e:
-        logger.error(f"Error setting up {resource_type}/{resource}: {e}")
+        logger.error("Error setting up %s/%s: %s", resource_type, resource, e)
         return False, download_attempted
 
 

@@ -1,7 +1,4 @@
-"""
-Text preprocessing functions for disaster response classification.
-"""
-
+"""Text preprocessing utilities for disaster response classification."""
 import logging
 import re
 import string
