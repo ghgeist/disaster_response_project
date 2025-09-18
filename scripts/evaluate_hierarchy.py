@@ -29,7 +29,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from disasterproject.utils.config import (
     setup_logging, TARGET_COLUMNS, TAXONOMY, CRITICAL_LABELS,
-    EXCLUDE_FROM_CONSTRAINTS, DEFAULT_TEST_SIZE, DEFAULT_RANDOM_SEED
+    EXCLUDE_FROM_CONSTRAINTS, DEFAULT_TEST_SIZE, DEFAULT_RANDOM_SEED,
+    HIERARCHY_CRITICAL_THRESHOLD_REDUCTION,
 )
 from disasterproject.data.loader import load_data
 from disasterproject.hierarchy import apply_hierarchy, count_violations
@@ -53,6 +54,7 @@ class HierarchyEvaluator:
         self.y_test = None
         self.label_names = None
         self.thresholds = {}
+        self.effective_thresholds = {}
 
         # Create output directory
         os.makedirs(output_dir, exist_ok=True)
@@ -109,6 +111,15 @@ class HierarchyEvaluator:
         logger.info("Using default thresholds (0.5)")
         return {label: 0.5 for label in self.label_names}
 
+    def _compute_effective_thresholds(self) -> Dict[str, float]:
+        """Apply configured critical reduction to base thresholds."""
+        effective = dict(self.thresholds)
+        if HIERARCHY_CRITICAL_THRESHOLD_REDUCTION > 0:
+            for lbl in CRITICAL_LABELS:
+                if lbl in effective:
+                    effective[lbl] = max(0.0, effective[lbl] - HIERARCHY_CRITICAL_THRESHOLD_REDUCTION)
+        return effective
+
     def get_predictions(self, apply_hierarchy_processing: bool = False) -> Tuple[np.ndarray, np.ndarray]:
         """Get model predictions with optional hierarchy processing."""
         logger.info(f"Generating predictions (hierarchy={'enabled' if apply_hierarchy_processing else 'disabled'})")
@@ -158,7 +169,8 @@ class HierarchyEvaluator:
                 thresholds=self.thresholds,
                 taxonomy=TAXONOMY,
                 critical_labels=CRITICAL_LABELS,
-                exclude=EXCLUDE_FROM_CONSTRAINTS
+                exclude=EXCLUDE_FROM_CONSTRAINTS,
+                critical_threshold_reduction=HIERARCHY_CRITICAL_THRESHOLD_REDUCTION,
             )
 
             # Convert back to arrays
@@ -185,16 +197,31 @@ class HierarchyEvaluator:
 
         return np.mean(safety_recalls) if safety_recalls else 0.0
 
-    def count_hierarchy_violations(self, probs: np.ndarray) -> int:
-        """Count hierarchy violations in probability matrix."""
+    def _count_edges(self, prob_dict: Dict[str, float]) -> int:
+        """Count valid parent→child edges considered for a single sample."""
+        total = 0
+        for parent, children in TAXONOMY.items():
+            if parent == 'related' or parent in EXCLUDE_FROM_CONSTRAINTS:
+                continue
+            if parent not in prob_dict:
+                continue
+            for child in children:
+                if child in EXCLUDE_FROM_CONSTRAINTS or child not in prob_dict:
+                    continue
+                total += 1
+        return total
+
+    def count_hierarchy_violations_and_edges(self, probs: np.ndarray) -> tuple[int, int]:
+        """Count hierarchy violations and total edges considered across all samples."""
         total_violations = 0
+        total_edges = 0
 
         for i in range(len(probs)):
             prob_dict = {label: probs[i, j] for j, label in enumerate(self.label_names)}
-            violations = count_violations(prob_dict, TAXONOMY, EXCLUDE_FROM_CONSTRAINTS)
-            total_violations += violations
+            total_violations += count_violations(prob_dict, TAXONOMY, EXCLUDE_FROM_CONSTRAINTS)
+            total_edges += self._count_edges(prob_dict)
 
-        return total_violations
+        return total_violations, total_edges
 
     def calculate_metrics(self, y_true: np.ndarray, y_pred: np.ndarray, probs: np.ndarray, evaluation_type: str) -> Dict:
         """Calculate comprehensive metrics."""
@@ -209,9 +236,9 @@ class HierarchyEvaluator:
         # Safety recall
         safety_recall = self.calculate_safety_recall(y_true, y_pred)
 
-        # Hierarchy violations
-        violations = self.count_hierarchy_violations(probs)
-        violations_per_1k = (violations / len(y_true)) * 1000
+        # Hierarchy violations (per 1k edges)
+        violations, total_edges = self.count_hierarchy_violations_and_edges(probs)
+        violations_per_1k = (violations / total_edges * 1000) if total_edges > 0 else 0.0
 
         return {
             'evaluation_type': evaluation_type,
@@ -236,6 +263,8 @@ class HierarchyEvaluator:
             logger.info("Loading thresholds...")
             self.thresholds = self.load_thresholds()
             logger.info(f"Loaded {len(self.thresholds)} thresholds")
+            # Compute and persist effective thresholds used
+            self.effective_thresholds = self._compute_effective_thresholds()
 
             results = {}
 
@@ -255,6 +284,8 @@ class HierarchyEvaluator:
             )
             results['hierarchy'] = hierarchy_metrics
 
+            logger.info("Note: 'violations per 1k' is edge-normalized (per parent→child edge).")
+
             return results
         except Exception as e:
             logger.error(f"Error in run_evaluation: {e}", exc_info=True)
@@ -269,6 +300,15 @@ class HierarchyEvaluator:
         with open(metrics_file, 'w') as f:
             json.dump(results, f, indent=2)
         logger.info(f"Detailed results saved to {metrics_file}")
+
+        # Persist thresholds used for hierarchy
+        try:
+            thresholds_file = os.path.join(self.output_dir, f"thresholds_used_hierarchy_{timestamp}.json")
+            with open(thresholds_file, 'w') as f:
+                json.dump(self.effective_thresholds or self.thresholds, f, indent=2)
+            logger.info(f"Effective thresholds saved to {thresholds_file}")
+        except Exception as e:
+            logger.warning(f"Failed to save effective thresholds: {e}")
 
         # Save summary CSV
         summary_data = []
@@ -331,7 +371,7 @@ class HierarchyEvaluator:
 
         # Violations reduction
         violation_reduction = baseline['violations_per_1k'] - hierarchy['violations_per_1k']
-        print(f"✅ Violations reduced by {violation_reduction:.2f} per 1k predictions")
+        print(f"✅ Violations reduced by {violation_reduction:.2f} per 1k edges")
 
         # F1 impact
         f1_change = hierarchy['macro_f1'] - baseline['macro_f1']

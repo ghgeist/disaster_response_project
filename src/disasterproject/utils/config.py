@@ -166,5 +166,10 @@ CRITICAL_LABELS = {
 # Labels excluded from hierarchy constraints (documented data limitations)
 EXCLUDE_FROM_CONSTRAINTS = {"child_alone"}  # 0 positives in source + train data
 
+# Hierarchy threshold behavior
+# Default reduction applied to critical labels during hierarchy decisioning.
+# Kept configurable for clarity in experiments; 0.0 per latest evaluation.
+HIERARCHY_CRITICAL_THRESHOLD_REDUCTION = 0.0
+
 # Set random seed for reproducibility without noisy import-time logs
 np.random.seed(0)

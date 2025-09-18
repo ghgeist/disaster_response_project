@@ -69,7 +69,7 @@ Your validation showed catastrophic recall on rare but urgent categories despite
 
 * Run baseline eval and record metrics
 * Run with hierarchy fixer and record after metrics
-* Log “violations per 1k preds” before and after
+* Log “violations per 1k edges” before and after (edge-normalized; not per-sample)
 * Integration hook: update `evaluate_model_to_model_folder` in `scripts/04_create_production_model.py` to compute baseline vs post-fix results.
 
 4. **Document `child_alone`**
@@ -93,17 +93,19 @@ Your validation showed catastrophic recall on rare but urgent categories despite
 ## 📈 Metrics
 
 * **Safety Recall**: mean recall over critical labels
-* **Parent≥Child Violations**: count per 1k predictions
+* **Parent≥Child Violations**: count per 1k edges
 * **Macro F1 Δ**: after − baseline
 * **Critical FN Count**: number of false negatives for critical labels at chosen thresholds
 * **Forced Parent Activations**: count of times child→parent set parent=1
+
+Note on metric definition: As of 2025-09-18 we report violations normalized per 1k parent→child edges evaluated (not per 1k samples). This improves comparability across taxonomies and exclusion sets.
 
 ## 🚨 Risks & Mitigations
 
 | Risk                                  | Impact | Prob.  | Mitigation                                                            |                               |
 | ------------------------------------- | ------ | ------ | --------------------------------------------------------------------- | ----------------------------- |
 | Precision drop on critical labels     | Medium | Medium | Tune per-class thresholds via PR curves to maintain a precision floor |                               |
-| Taxonomy edges mismatch data          | Medium | Low    | Compute P(child=1                                                     | parent=1); adjust edges < 0.5 |
+| Taxonomy edges mismatch data          | Medium | Low    | Compute `P(child=1 \| parent=1)`; adjust edges < 0.5                 |                               |
 | Over-activation of parents            | Low    | Medium | Cap parent lift to max(child) and monitor confusion slices            |                               |
 | Confusion from `child_alone` handling | Low    | Low    | Explicit README note with counts and exclusion rationale              |                               |
 
@@ -241,7 +243,7 @@ All major design decisions have been addressed and documented:
 ## 🔌 API and Structure
 
 - `src/disasterproject/hierarchy.py`
-  - `apply_hierarchy(probs: Dict[str, float], thresholds: Dict[str, float], taxonomy: Dict[str, List[str]], exclude: Set[str]) -> Tuple[Dict[str, float], Dict[str, int]]`
+  - `apply_hierarchy(probs: Dict[str, float], thresholds: Dict[str, float], taxonomy: Dict[str, List[str]], critical_labels: Set[str], exclude: Set[str], critical_threshold_reduction: float = ...) -> Tuple[Dict[str, float], Dict[str, int]]`
     - Probability monotonicity for real parent groups (aid/infrastructure/weather).
     - Decision-level child→parent for `related` only; no probability clamping there.
     - Respects `exclude` set.
@@ -290,10 +292,20 @@ All major design decisions have been addressed and documented:
    - Built `scripts/optimize_thresholds.py` for threshold optimization
    - Integrated with experimental model evaluation pipeline
 
-5. **Documentation** (`README.md`)
+5. **Per-Edge Violation Metric + Logging**
+   - Updated `scripts/04_create_production_model.py` and `scripts/evaluate_hierarchy.py` to compute violations per 1k edges (edge-normalized)
+   - Added explicit log note: "'violations per 1k' is edge-normalized (per parent→child edge)"
+
+6. **Config-Driven Threshold Reduction**
+   - Added `HIERARCHY_CRITICAL_THRESHOLD_REDUCTION = 0.0` in `src/disasterproject/utils/config.py`
+   - Both evaluation scripts import and pass this value into `apply_hierarchy(...)`
+
+7. **Documentation** (`README.md`)
    - Added "Hierarchy Post-Processing" section explaining the system
    - Documented `child_alone` exclusion with dataset statistics (0/26,027 messages)
    - Included rationale for design choices
+   - Documented API signature (includes `critical_labels` and `critical_threshold_reduction`)
+   - Added metric definition change note (per-edge vs per-sample) with date
 
 ### ✅ Evaluation Results (2025-09-18)
 
@@ -318,7 +330,7 @@ All major design decisions have been addressed and documented:
 
 - **Conservative approach**: Only enforce child→parent violations, ignore reverse violations
 - **Related group exception**: Apply decision-level forcing only, no probability clamping
-- **Critical threshold strategy**: **0.00 reduction** (optimized from 0.10) - constraint enforcement provides main benefits
+- **Critical threshold strategy**: **0.00 reduction** (optimized from 0.10) - constraint enforcement provides main benefits; managed via config `HIERARCHY_CRITICAL_THRESHOLD_REDUCTION`
 - **Exclusion handling**: Complete bypass for `child_alone` due to zero training examples
 - **Integration point**: Evaluation path only in Phase 1 (Flask app unchanged)
 
@@ -345,7 +357,7 @@ Focus on high-impact, low-effort changes only to avoid scope creep.
 - Write `model/metrics_summary.json` including:
   - Macro/Weighted F1 across labels (baseline vs hierarchy) + deltas
   - Safety Recall baseline vs hierarchy + delta
-  - Violations per 1k before vs after
+  - Violations per 1k edges before vs after
 
 3) Observability Tweaks (Low effort)
 - Log number of labels skipped due to `EXCLUDE_FROM_CONSTRAINTS`
@@ -357,3 +369,9 @@ Success Criteria
 - Evaluation uses per-label thresholds when available and persists the effective set used
 - Summary JSON written next to CSV with the gates above
 - Logs show exclusion counts; scope limited to evaluation path only
+
+## 📝 Change Log (2025-09-18)
+
+- Metric normalization switched to per-edge: all "violations per 1k" values are now computed per parent→child edge, not per sample. Scripts log this explicitly.
+- Configuration added: `HIERARCHY_CRITICAL_THRESHOLD_REDUCTION = 0.0`, used by evaluation scripts when calling `apply_hierarchy(...)`.
+- Documentation updated: README now includes API signature, metric definition change, and config default; this session note corrected API signature and escaped `P(child=1 \| parent=1)`.

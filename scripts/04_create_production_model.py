@@ -24,7 +24,7 @@ from time import time
 # Import from installed package (requires: pip install -e .)
 # Alternative: set PYTHONPATH to include src directory
 
-from disasterproject.utils.config import setup_logging, TARGET_COLUMNS, DEFAULT_TEST_SIZE, DEFAULT_RANDOM_SEED, TAXONOMY, CRITICAL_LABELS, EXCLUDE_FROM_CONSTRAINTS
+from disasterproject.utils.config import setup_logging, TARGET_COLUMNS, DEFAULT_TEST_SIZE, DEFAULT_RANDOM_SEED, TAXONOMY, CRITICAL_LABELS, EXCLUDE_FROM_CONSTRAINTS, HIERARCHY_CRITICAL_THRESHOLD_REDUCTION
 from disasterproject.utils.json_io import load_model_parameters
 from disasterproject.data.loader import load_data
 from disasterproject.models.pipeline import (
@@ -112,6 +112,31 @@ def evaluate_model_to_model_folder(model, X_test, Y_test, category_names, model_
 
             violations_before = 0
             violations_after = 0
+            edges_before = 0
+            edges_after = 0
+
+            def _count_edges(prob_map, taxonomy, exclude) -> int:
+                total = 0
+                for parent, children in taxonomy.items():
+                    if parent == "related" or parent in exclude:
+                        continue
+                    if parent not in prob_map:
+                        continue
+                    for child in children:
+                        if child in exclude or child not in prob_map:
+                            continue
+                        total += 1
+                return total
+
+            # Prepare thresholds used (apply critical-label reduction once)
+            base_thresholds = {name: 0.5 for name in category_names}
+            thresholds_used = base_thresholds.copy()
+            if HIERARCHY_CRITICAL_THRESHOLD_REDUCTION > 0:
+                for lbl in CRITICAL_LABELS:
+                    if lbl in thresholds_used:
+                        thresholds_used[lbl] = max(
+                            0.0, thresholds_used[lbl] - HIERARCHY_CRITICAL_THRESHOLD_REDUCTION
+                        )
 
             # Process each sample
             for sample_idx in range(n_samples):
@@ -130,25 +155,34 @@ def evaluate_model_to_model_folder(model, X_test, Y_test, category_names, model_
 
                 # Count violations before hierarchy
                 violations_before += count_violations(probs, TAXONOMY, EXCLUDE_FROM_CONSTRAINTS)
+                edges_before += _count_edges(probs, TAXONOMY, EXCLUDE_FROM_CONSTRAINTS)
 
                 # Apply hierarchy correction
-                thresholds = {name: 0.5 for name in category_names}  # Default thresholds
                 adjusted_probs, binary_predictions = apply_hierarchy(
-                    probs, thresholds, TAXONOMY, CRITICAL_LABELS, EXCLUDE_FROM_CONSTRAINTS
+                    probs=probs,
+                    thresholds=thresholds_used,
+                    taxonomy=TAXONOMY,
+                    critical_labels=CRITICAL_LABELS,
+                    exclude=EXCLUDE_FROM_CONSTRAINTS,
+                    critical_threshold_reduction=0.0,
                 )
 
                 # Count violations after hierarchy
                 violations_after += count_violations(adjusted_probs, TAXONOMY, EXCLUDE_FROM_CONSTRAINTS)
+                edges_after += _count_edges(adjusted_probs, TAXONOMY, EXCLUDE_FROM_CONSTRAINTS)
 
                 # Store hierarchy-corrected predictions
                 for label_idx, label_name in enumerate(category_names):
                     Y_pred_hierarchy[sample_idx, label_idx] = binary_predictions.get(label_name, Y_pred_baseline[sample_idx, label_idx])
 
-            # Calculate violation rates
-            violations_per_1k_before = (violations_before / n_samples) * 1000
-            violations_per_1k_after = (violations_after / n_samples) * 1000
+            # Calculate violation rates per 1k edges
+            violations_per_1k_before = (violations_before / edges_before * 1000) if edges_before > 0 else 0.0
+            violations_per_1k_after = (violations_after / edges_after * 1000) if edges_after > 0 else 0.0
 
-            logging.info(f"Violations per 1k predictions - Before: {violations_per_1k_before:.1f}, After: {violations_per_1k_after:.1f}")
+            logging.info(
+                f"Violations per 1k edges - Before: {violations_per_1k_before:.1f}, After: {violations_per_1k_after:.1f}"
+            )
+            logging.info("Note: 'violations per 1k' is edge-normalized (per parent→child edge).")
 
             # Hierarchy-corrected evaluation
             for i, col in enumerate(category_names):
@@ -175,6 +209,15 @@ def evaluate_model_to_model_folder(model, X_test, Y_test, category_names, model_
         results_file_path = os.path.join(model_dir, "performance_metrics.csv")
         results_df.to_csv(results_file_path, index=False)
         logging.info("Performance metrics saved to: %s", results_file_path)
+
+        # Persist thresholds used for hierarchy (for reproducibility)
+        try:
+            thresholds_out_path = os.path.join(model_dir, "thresholds_used_hierarchy.json")
+            with open(thresholds_out_path, "w", encoding="utf-8") as f:
+                json.dump(thresholds_used, f, indent=2)
+            logging.info("Hierarchy thresholds saved to: %s", thresholds_out_path)
+        except Exception as e:
+            logging.warning("Failed to persist hierarchy thresholds: %s", e)
 
         # Calculate summary statistics with clear across-label metrics
         baseline_df = results_df[results_df['evaluation_type'] == 'baseline']

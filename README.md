@@ -329,6 +329,21 @@ The system includes a hierarchy post-processor that enforces parent-child consis
 - **Critical Label Thresholds**: Reduced thresholds for safety-critical labels to improve recall
 - **Violation Reduction**: Eliminates parent < child probability violations post-processing
 
+API and Config
+- API: `apply_hierarchy(probs, thresholds, taxonomy, critical_labels, exclude, critical_threshold_reduction=...)`
+- Config default: `HIERARCHY_CRITICAL_THRESHOLD_REDUCTION = 0.0` (in `src/disasterproject/utils/config.py`). Scripts import and pass this value explicitly.
+- Metrics: hierarchy violation rate is reported as "violations per 1k edges" (normalized by total parent→child edges evaluated), improving comparability across taxonomies.
+
+Metric Definition Change
+- As of 2025-09-18, "violations per 1k" is normalized by total parent→child edges evaluated (per-edge), not by samples.
+- Earlier runs may show "per 1k samples". When comparing across runs, ensure you compare the same denominator.
+
+Reproducibility: Persisted Thresholds
+- During evaluation, the effective per-label thresholds used for hierarchy decisions are saved for reproducibility:
+  - Production evaluation: `model/thresholds_used_hierarchy.json`
+  - Experimental evaluator: `experiments/hierarchy_evaluation/thresholds_used_hierarchy_<timestamp>.json`
+- The saved values reflect any configured critical-label reduction; with the current default (0.0), they typically remain 0.5 unless overridden by experiment thresholds.
+
 #### Label Exclusions
 
 **`child_alone` Label**: This category has 0 positive examples across all 26,027 messages in the dataset (0.000%). Due to this complete absence of training data, the `child_alone` label is excluded from hierarchy constraints to prevent spurious activations while remaining visible in model outputs for potential future use.
