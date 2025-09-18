@@ -100,6 +100,8 @@ Your validation showed catastrophic recall on rare but urgent categories despite
 
 Note on metric definition: As of 2025-09-18 we report violations normalized per 1k parent→child edges evaluated (not per 1k samples). This improves comparability across taxonomies and exclusion sets.
 
+Operational note: If a sample lacks complete probabilities (e.g., a model sub-estimator fails to return `predict_proba` for a label), that sample is evaluated with baseline predictions only and is excluded from hierarchy edge metrics to avoid mixing hard labels with probabilities.
+
 ## 🚨 Risks & Mitigations
 
 | Risk                                  | Impact | Prob.  | Mitigation                                                            |                               |
@@ -333,6 +335,17 @@ All major design decisions have been addressed and documented:
 - **Critical threshold strategy**: **0.00 reduction** (optimized from 0.10) - constraint enforcement provides main benefits; managed via config `HIERARCHY_CRITICAL_THRESHOLD_REDUCTION`
 - **Exclusion handling**: Complete bypass for `child_alone` due to zero training examples
 - **Integration point**: Evaluation path only in Phase 1 (Flask app unchanged)
+
+### 🔁 Reproducibility: Persist Thresholds Used
+
+We now persist the exact thresholds used during evaluation so runs can be reproduced:
+
+- What is saved: a JSON mapping of `label → threshold` used for 0/1 decisions (after any configured safety reduction).
+- Where it’s saved:
+  - Production eval: `model/thresholds_used_hierarchy.json`
+  - Experimental evaluator: `experiments/hierarchy_evaluation/thresholds_used_hierarchy_<timestamp>.json`
+- How reductions are applied: we build a single `thresholds_used` set (base thresholds, minus any configured reduction for critical labels) and pass it to `apply_hierarchy` with `critical_threshold_reduction=0.0` to avoid applying the reduction twice.
+- Current config: `HIERARCHY_CRITICAL_THRESHOLD_REDUCTION = 0.0`, so thresholds usually remain at 0.5 unless experiment thresholds are loaded.
 
 ### 📊 Final Status: ✅ **COMPLETE & OPTIMIZED**
 

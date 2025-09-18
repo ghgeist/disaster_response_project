@@ -114,6 +114,7 @@ def evaluate_model_to_model_folder(model, X_test, Y_test, category_names, model_
             violations_after = 0
             edges_before = 0
             edges_after = 0
+            skipped_samples_missing_proba = 0
 
             def _count_edges(prob_map, taxonomy, exclude) -> int:
                 total = 0
@@ -142,6 +143,7 @@ def evaluate_model_to_model_folder(model, X_test, Y_test, category_names, model_
             for sample_idx in range(n_samples):
                 # Build probability dict for this sample
                 probs = {}
+                proba_complete = True
                 for label_idx, label_name in enumerate(category_names):
                     try:
                         proba_array = proba_list[label_idx]
@@ -151,9 +153,17 @@ def evaluate_model_to_model_folder(model, X_test, Y_test, category_names, model_
                             prob = proba_array[sample_idx]
                         probs[label_name] = float(prob)
                     except Exception:
-                        probs[label_name] = float(Y_pred_baseline[sample_idx, label_idx])
+                        # Mark as incomplete and avoid mixing hard labels with probabilities
+                        proba_complete = False
+                        break
 
-                # Count violations before hierarchy
+                if not proba_complete:
+                    # Fall back to baseline for this sample, do not include in hierarchy metric counts
+                    skipped_samples_missing_proba += 1
+                    Y_pred_hierarchy[sample_idx, :] = Y_pred_baseline[sample_idx, :]
+                    continue
+
+                # Count violations before hierarchy (only when probabilities are complete)
                 violations_before += count_violations(probs, TAXONOMY, EXCLUDE_FROM_CONSTRAINTS)
                 edges_before += _count_edges(probs, TAXONOMY, EXCLUDE_FROM_CONSTRAINTS)
 
@@ -183,6 +193,8 @@ def evaluate_model_to_model_folder(model, X_test, Y_test, category_names, model_
                 f"Violations per 1k edges - Before: {violations_per_1k_before:.1f}, After: {violations_per_1k_after:.1f}"
             )
             logging.info("Note: 'violations per 1k' is edge-normalized (per parent→child edge).")
+            if skipped_samples_missing_proba > 0:
+                logging.info("Hierarchy: %d samples used baseline only due to missing probabilities; excluded from edge metrics.", skipped_samples_missing_proba)
 
             # Hierarchy-corrected evaluation
             for i, col in enumerate(category_names):

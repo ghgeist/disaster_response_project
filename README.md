@@ -338,6 +338,9 @@ Metric Definition Change
 - As of 2025-09-18, "violations per 1k" is normalized by total parent→child edges evaluated (per-edge), not by samples.
 - Earlier runs may show "per 1k samples". When comparing across runs, ensure you compare the same denominator.
 
+Note on Edge Metrics
+- Samples lacking complete probabilities (for any label) are excluded from hierarchy edge metrics to avoid mixing hard labels with probabilities. See the session note for details: `docs/sessions/active/2025-09-17-implement-hierarchy.md`.
+
 Reproducibility: Persisted Thresholds
 - During evaluation, the effective per-label thresholds used for hierarchy decisions are saved for reproducibility:
   - Production evaluation: `model/thresholds_used_hierarchy.json`
