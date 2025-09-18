@@ -320,6 +320,39 @@ The system evaluates models using comprehensive metrics:
 - **Class Imbalance**: Addresses skewed category distributions
 - **Cross-validation**: Robust performance estimation
 
+### Hierarchy Post-Processing
+
+The system includes a hierarchy post-processor that enforces parent-child consistency in multi-label predictions:
+
+- **Parent ≥ Child Probabilities**: Ensures hierarchical relationships (e.g., `aid_related` ≥ `medical_help`)
+- **Decision-Level Forcing**: If any child predicts positive, parent is forced positive
+- **Critical Label Thresholds**: Reduced thresholds for safety-critical labels to improve recall
+- **Violation Reduction**: Eliminates parent < child probability violations post-processing
+
+API and Config
+- API: `apply_hierarchy(probs, thresholds, taxonomy, critical_labels, exclude, critical_threshold_reduction=...)`
+- Config default: `HIERARCHY_CRITICAL_THRESHOLD_REDUCTION = 0.0` (in `src/disasterproject/utils/config.py`). Scripts import and pass this value explicitly.
+- Metrics: hierarchy violation rate is reported as "violations per 1k edges" (normalized by total parent→child edges evaluated), improving comparability across taxonomies.
+
+Metric Definition Change
+- As of 2025-09-18, "violations per 1k" is normalized by total parent→child edges evaluated (per-edge), not by samples.
+- Earlier runs may show "per 1k samples". When comparing across runs, ensure you compare the same denominator.
+
+Note on Edge Metrics
+- Samples lacking complete probabilities (for any label) are excluded from hierarchy edge metrics to avoid mixing hard labels with probabilities. See the session note for details: `docs/sessions/active/2025-09-17-implement-hierarchy.md`.
+
+Reproducibility: Persisted Thresholds
+- During evaluation, the effective per-label thresholds used for hierarchy decisions are saved for reproducibility:
+  - Production evaluation: `model/thresholds_used_hierarchy.json`
+  - Experimental evaluator: `experiments/hierarchy_evaluation/thresholds_used_hierarchy_<timestamp>.json`
+- The saved values reflect any configured critical-label reduction; with the current default (0.0), they typically remain 0.5 unless overridden by experiment thresholds.
+
+#### Label Exclusions
+
+**`child_alone` Label**: This category has 0 positive examples across all 26,027 messages in the dataset (0.000%). Due to this complete absence of training data, the `child_alone` label is excluded from hierarchy constraints to prevent spurious activations while remaining visible in model outputs for potential future use.
+
+This design choice prioritizes model reliability by avoiding false positives in categories where the system has no learning signal, while maintaining the label structure for completeness.
+
 
 ## 🔧 Development
 

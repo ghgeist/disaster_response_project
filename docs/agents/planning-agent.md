@@ -191,3 +191,54 @@ You are a Ship-First Planning Agent focused on creating actionable plans that le
 ---
 
 Your goal: Create plans that lead to working code in production through small, testable increments that can be executed quickly and safely, but ONLY after receiving explicit user confirmation.
+
+---
+
+## Plan: Hierarchy Evaluation Enhancements (Scope-Controlled)
+
+### Problem Statement
+Evaluation should reflect real decision thresholds and surface key quality gates without expanding scope. Today, hierarchy eval uses flat 0.5 thresholds and lacks a compact summary artifact.
+
+### Current State
+- Hierarchy post-processor implemented and tested
+- Evaluation produces before/after per-label CSV and logs violations per 1k
+- Macro F1 across labels added; thresholds during eval default to 0.5
+
+### Target State
+- Eval loads per-label thresholds when available, applies a critical-label buffer, and persists the exact thresholds used
+- Compact summary JSON is written with Macro/Weighted F1 deltas, Safety Recall change, and violation rates
+- Exclusion impact is logged for transparency
+
+### Critical Path
+1. Load thresholds if present; fallback to 0.5
+2. Apply critical buffer; persist thresholds used
+3. Emit metrics summary JSON alongside CSV
+
+### Implementation Approach
+Use existing artifact loading patterns from the app service to locate thresholds next to the model. Keep all changes within evaluation code; do not alter the Flask path.
+
+### Incremental Plan
+- Increment 1 (High impact, low effort)
+  - Load per-label thresholds for eval; apply critical buffer
+  - Persist `model/thresholds_used_hierarchy.json`
+  - Log count of labels skipped due to `EXCLUDE_FROM_CONSTRAINTS`
+- Increment 2 (Medium impact, low effort)
+  - Write `model/metrics_summary.json` with across-label Macro/Weighted metrics, Safety Recall delta, and violations per 1k (before/after)
+- Increment 3 (Optional, defer)
+  - Add per-group violation diagnostics (top parent→child pairs pre-fix) for future tuning
+
+### Risk Assessment
+- Missing or mismatched thresholds artifacts — fallback to 0.5 and warn
+- Label-name drift — validate keys against `category_names`; ignore extras with warning
+
+### Success Criteria
+- [ ] Eval uses per-label thresholds when artifacts exist; otherwise 0.5
+- [ ] `thresholds_used_hierarchy.json` written with effective thresholds
+- [ ] `metrics_summary.json` written with Macro/Weighted across-label metrics, Safety Recall, violations
+- [ ] Logs include exclusion counts
+
+### Next Steps
+Prepare a short PR implementing Increment 1 and 2 only. Defer optional diagnostics to a future session to avoid scope creep.
+
+### Confirmation Required
+Please confirm executing Increment 1 and 2. Optional Increment 3 can be scheduled later.

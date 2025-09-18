@@ -75,6 +75,22 @@ Disaster response message classification system with modular ML pipeline targeti
 - Auto-downloads models from Google Drive for cloud deployment
 - Optimized for both local development and Replit
 
+## AI Model Usage
+
+### When to use Gemini
+- Initial codebase exploration and research to conserve Claude tokens
+- Large file analysis to identify relevant sections before detailed work
+- Broad architectural questions about the disaster response system
+- Understanding unfamiliar code patterns or libraries in the codebase
+
+### When to use Codex
+- Code completion and boilerplate generation for ML pipelines
+- Writing test cases and unit tests for the disaster response models
+- Generating data transformation and preprocessing functions
+- Creating utility functions and helper methods
+- Quick prototyping of new features before full implementation
+- Note: Codex has multiple model options - choose appropriate model based on task complexity
+
 ## Code Conventions
 
 From `.cursor/rules/`:
