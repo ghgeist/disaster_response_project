@@ -64,9 +64,9 @@ def _add_performance_visualization(graphs, descriptions):
     Returns:
         tuple: (updated_graphs, updated_descriptions)
     """
+    context = format_request_context()
     try:
         base_df, opt_df = load_metric_frames()
-        context = format_request_context()
 
         if base_df is not None and opt_df is not None:
             metrics, labels = extract_perf_triplet(base_df, opt_df)
