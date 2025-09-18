@@ -1,8 +1,12 @@
+"""CSRF smoke test ensuring the form workflow behaves when protection is enabled."""
+from __future__ import annotations
+
 import re
+
 import pytest
 
-from app.app import create_app
 from app.config import Config
+from tests.conftest import create_test_app, skip_if_no_model
 
 
 class CSRFTestConfig(Config):
@@ -11,23 +15,26 @@ class CSRFTestConfig(Config):
     SKIP_ENVIRONMENT_VALIDATION = True
 
 
-@pytest.fixture
-def app():
-    if not CSRFTestConfig.MODEL_PATH.exists() and not (
-        CSRFTestConfig.GDRIVE_MODEL_ID and CSRFTestConfig.GDRIVE_MODEL_ID.strip()
-    ):
-        pytest.skip("model missing")
-    app = create_app(CSRFTestConfig)
-    return app
+pytestmark = [pytest.mark.integration, pytest.mark.slow]
+
+
+@pytest.fixture(scope="module")
+def csrf_app():
+    skip_if_no_model(
+        CSRFTestConfig,
+        reason="Model artifact required for CSRF workflow tests is not present.",
+    )
+    return create_test_app(CSRFTestConfig)
 
 
 @pytest.fixture
-def client(app):
-    return app.test_client()
+def client(csrf_app):
+    with csrf_app.test_client() as client:
+        yield client
 
 
 def extract_csrf_token(html_text: str) -> str:
-    # Match csrf_token value regardless of attribute order
+    """Extract the CSRF token from the rendered HTML."""
     match = re.search(
         r'<input[^>]*name=["\']csrf_token["\'][^>]*value=["\']([^"\']+)',
         html_text,
@@ -38,29 +45,20 @@ def extract_csrf_token(html_text: str) -> str:
 
 
 def test_csrf_smoke_home_to_go(client):
-    # GET home and ensure csrf_token is present
+    """Ensure we can capture a token from the homepage and submit a guarded form."""
     get_resp = client.get("/")
-    assert get_resp.status_code == 200
-    html = get_resp.get_data(as_text=True)
-    token = extract_csrf_token(html)
+    assert get_resp.status_code == 200, "Homepage failed while preparing CSRF token"
+    token = extract_csrf_token(get_resp.get_data(as_text=True))
 
-    # Submit POST to /go with token and minimal valid message
-    form_data = {
-        "csrf_token": token,
-        "query": "Need water and medical aid at 5th street",
-    }
     post_resp = client.post(
-        '/go',
-        data=form_data,
+        "/go",
+        data={"csrf_token": token, "query": "Need water and medical aid at 5th street"},
         follow_redirects=False,
-        headers={'Referer': 'http://localhost/'},
-        base_url='http://localhost'
+        headers={"Referer": "http://localhost/"},
+        base_url="http://localhost",
     )
 
-    # Accept either 200 (render results) or 302 redirect back to index on errors
-    assert post_resp.status_code in (200, 302)
-
-    # If redirected, follow and expect 200
+    assert post_resp.status_code in (200, 302), "CSRF protected submission did not complete"
     if post_resp.status_code == 302:
         follow = client.get(post_resp.headers["Location"])
-        assert follow.status_code == 200
+        assert follow.status_code == 200, "Redirect target after CSRF submission was not reachable"

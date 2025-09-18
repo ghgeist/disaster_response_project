@@ -1,36 +1,41 @@
-"""
-Test Flask application with standardized model naming.
-"""
-import pytest
+"""Tests ensuring the Flask app uses consistent configuration and model wiring."""
+from __future__ import annotations
+
 from pathlib import Path
 
-from app.app import create_app
+import pytest
+
 from app.config import Config, TestConfig
 from app.services import ModelService
+from tests.conftest import create_test_app, skip_if_no_model
+
+pytestmark = pytest.mark.integration
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def production_app():
-    """Create test Flask app with production config."""
-    return create_app(Config)
+    skip_if_no_model(
+        Config,
+        reason="Model artifact required for production-config tests is not present.",
+    )
+    return create_test_app(Config)
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
+def production_client(production_app):
+    with production_app.test_client() as client:
+        yield client
+
+
+@pytest.fixture(scope="module")
 def test_app():
-    """Create test Flask app with test config."""
-    return create_app(TestConfig)
+    return create_test_app(TestConfig)
 
 
-@pytest.fixture
-def client(production_app):
-    """Create test client for production config."""
-    return production_app.test_client()
-
-
-@pytest.fixture
+@pytest.fixture(scope="module")
 def test_client(test_app):
-    """Create test client for test config."""
-    return test_app.test_client()
+    with test_app.test_client() as client:
+        yield client
 
 
 class TestFlaskStandardized:
@@ -39,12 +44,12 @@ class TestFlaskStandardized:
     def test_app_creation(self, production_app):
         """Test Flask app creation with standardized model validation."""
         assert production_app is not None
-        assert production_app.config['TESTING'] is False
+        assert production_app.config["TESTING"] is False
 
     def test_test_app_creation(self, test_app):
         """Test Flask test app creation."""
         assert test_app is not None
-        assert test_app.config['TESTING'] is True
+        assert test_app.config["TESTING"] is True
 
     def test_model_service_initialization(self, production_app):
         """Test model service initialization in app context."""
@@ -57,22 +62,19 @@ class TestFlaskStandardized:
         """Test model prediction through Flask app."""
         with production_app.app_context():
             model_service = production_app.model_service
-            
-            # Test prediction with disaster message
-            test_message = 'Search and rescue teams needed for earthquake victims'
-            result = model_service.predict(test_message)
-            
-            # Validate result structure
+
+            result = model_service.predict(
+                "Search and rescue teams needed for earthquake victims"
+            )
+
             assert isinstance(result, dict)
-            assert 'labels' in result
-            assert 'probabilities' in result
-            
-            # Count positive predictions
-            labels = result['labels']
+            assert "labels" in result
+            assert "probabilities" in result
+
+            labels = result["labels"]
             positive_count = sum(1 for v in labels.values() if v == 1)
             assert positive_count >= 0
-            
-            # Get active categories (first 4 for display)
+
             active_cats = [k for k, v in labels.items() if v == 1][:4]
             assert len(active_cats) <= 4
 
@@ -80,23 +82,21 @@ class TestFlaskStandardized:
         """Test model prediction with various disaster messages."""
         test_messages = [
             "We need urgent medical supplies for earthquake victims",
-            "Food and water running low in shelter area", 
+            "Food and water running low in shelter area",
             "Roads blocked by fallen trees need clearing",
-            "Missing person reported in flood zone"
+            "Missing person reported in flood zone",
         ]
-        
+
         with production_app.app_context():
             model_service = production_app.model_service
-            
+
             for message in test_messages:
                 result = model_service.predict(message)
-                
-                # Validate result structure
+
                 assert isinstance(result, dict)
-                assert 'labels' in result
-                
-                # Validate labels are binary (0 or 1)
-                labels = result['labels']
+                assert "labels" in result
+
+                labels = result["labels"]
                 for label, value in labels.items():
                     assert value in [0, 1], f"Label {label} has invalid value {value}"
 
@@ -104,17 +104,13 @@ class TestFlaskStandardized:
         """Test that model artifacts (thresholds, labels) are loaded correctly."""
         with production_app.app_context():
             model_service = production_app.model_service
-            
-            # Test that model can make predictions (implies artifacts loaded)
-            test_message = 'Medical help needed urgently'
-            result = model_service.predict(test_message)
-            
-            # Check that we have reasonable number of categories
-            labels = result['labels']
-            assert len(labels) > 20  # Should have many disaster categories
-            
-            # Check that some common categories are present
-            expected_categories = ['medical_help', 'water', 'food', 'shelter']
+
+            result = model_service.predict("Medical help needed urgently")
+
+            labels = result["labels"]
+            assert len(labels) > 20
+
+            expected_categories = ["medical_help", "water", "food", "shelter"]
             for category in expected_categories:
                 assert category in labels, f"Expected category {category} not found in labels"
 
@@ -122,51 +118,37 @@ class TestFlaskStandardized:
         """Test model service with Google Drive configuration."""
         with production_app.app_context():
             model_service = production_app.model_service
-            
-            # Check if Google Drive ID is configured
-            gdrive_id = production_app.config.get('GDRIVE_MODEL_ID')
-            if gdrive_id and gdrive_id.strip() not in {'', 'YOUR_FILE_ID', 'YOUR_GOOGLE_DRIVE_FILE_ID'}:
-                # If GDrive is configured, test that model can still load
-                test_message = 'Test message for GDrive model'
-                result = model_service.predict(test_message)
+
+            gdrive_id = production_app.config.get("GDRIVE_MODEL_ID")
+            if gdrive_id and gdrive_id.strip() not in {"", "YOUR_FILE_ID", "YOUR_GOOGLE_DRIVE_FILE_ID"}:
+                result = model_service.predict("Test message for GDrive model")
                 assert isinstance(result, dict)
-                assert 'labels' in result
+                assert "labels" in result
             else:
-                # If no GDrive config, should still work with local model
                 pytest.skip("GDRIVE_MODEL_ID not configured, testing local model only")
 
-    def test_app_routes_accessible(self, client):
-        """Test that main app routes are accessible."""
-        # Test home page
-        response = client.get('/')
+    def test_app_routes_accessible(self, test_client):
+        """Test that main app routes are accessible under the test config."""
+        response = test_client.get("/")
         assert response.status_code == 200
-        assert b'Signal Storm' in response.data
-        
-        # Test health check (if available)
+        assert b"Signal Storm" in response.data
+
         try:
-            response = client.get('/health')
-            assert response.status_code in [200, 404]  # 404 if not implemented
+            response = test_client.get("/health")
+            assert response.status_code in [200, 404]
         except Exception:
-            pass  # Health endpoint might not exist
+            pass
 
-    def test_model_path_configuration(self, production_app):
+    def test_model_path_configuration(self):
         """Test that model path is correctly configured."""
-        with production_app.app_context():
-            model_path = production_app.config.get('MODEL_PATH')
-            assert model_path is not None
-            assert isinstance(model_path, Path)
-            
-            # Check that model directory exists
-            model_dir = model_path.parent
-            assert model_dir.exists(), f"Model directory {model_dir} does not exist"
+        model_path = Config.MODEL_PATH
+        assert isinstance(model_path, Path)
+        assert model_path.parent.exists(), f"Model directory {model_path.parent} does not exist"
 
-    def test_model_filename_configuration(self, production_app):
+    def test_model_filename_configuration(self):
         """Test that model filename is correctly configured."""
-        with production_app.app_context():
-            model_filename = production_app.config.get('MODEL_FILENAME')
-            assert model_filename is not None
-            assert model_filename.endswith('.pkl')
-            
-            # Check that it matches the expected naming convention
-            assert 'disaster_rf' in model_filename
-            assert 'prod' in model_filename
+        model_filename = Config.MODEL_FILENAME
+        assert model_filename is not None
+        assert model_filename.endswith(".pkl")
+        assert "disaster_rf" in model_filename
+        assert "prod" in model_filename

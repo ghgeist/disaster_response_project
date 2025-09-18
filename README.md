@@ -388,6 +388,19 @@ python scripts/validate_multilabel_sampling.py
 - pre-commit run --files <files>
 - pytest -q
 
+### Testing
+
+See [docs/testing.md](docs/testing.md) for the full strategy, including marker usage and troubleshooting notes. Run the suites that match your change scope:
+
+```bash
+pytest -q -m "not gdrive and not perf and not slow"   # fast core
+pytest -q -m perf                                    # performance suite
+pytest -q -m gdrive                                  # Google Drive (mocked)
+pytest -q                                            # entire suite
+```
+
+Marks (`gdrive`, `perf`, `slow`, etc.) keep the default CI lane fast while leaving opt-in coverage for deployment scenarios. Tests that require optional artifacts use descriptive skips so the signal stays clear even when resources are unavailable.
+
 ## 📁 Project Structure
 
 ```
