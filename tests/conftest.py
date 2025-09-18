@@ -28,6 +28,8 @@ def create_test_app(config_cls: Type[Config]) -> Flask:
     return app
 
 
+# Fixture dependency chain:
+# create_test_app(Config subclass) -> app (session scope) -> client (function scope)
 @pytest.fixture(scope="session")
 def app() -> Flask:
     """Session-wide application instance configured for fast smoke tests."""

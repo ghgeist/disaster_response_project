@@ -38,6 +38,14 @@ pytest -q -m "gdrive or perf"               # full extended validation
 
 Tests that truly need the production pickle call `skip_if_no_model(...)` which aborts early with a clear reason if the artifact is missing. This keeps CI deterministic while still broadcasting the requirement.
 
+## Test environment variables
+
+| Variable | Purpose | When to set |
+| --- | --- | --- |
+| `GDRIVE_MODEL_ID` | Points the Google Drive download helper at a real artifact. Placeholder values keep the real-download test skipped. | Set when running `tests/test_gdrive_deployment.py::test_gdrive_integration_with_real_id` or when you want the perf suite to hydrate the model via Drive instead of relying on the local pickle. |
+
+All other suites run hermetically. If you need to surface additional inputs, document them alongside the relevant tests so contributors know how to enable the path.
+
 ## Debugging tips
 
 - Add `-vv` for verbose assertion messages when diagnosing a failure.
@@ -72,3 +80,7 @@ A minimal GitHub Actions step after installing dependencies:
 ```
 
 Tailor the final step to your deployment needs; the suite was designed so the first command is safe for every push.
+
+### Expected counts
+
+As of this revision, `pytest -q` (with the default marker filter) reports **111 passed, 7 skipped, 15 deselected** in roughly five seconds on a typical developer laptop. If the totals drop unexpectedly, confirm new tests are marked correctly rather than silently excluded.
