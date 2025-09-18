@@ -24,7 +24,7 @@ from time import time
 # Import from installed package (requires: pip install -e .)
 # Alternative: set PYTHONPATH to include src directory
 
-from disasterproject.utils.config import setup_logging, TARGET_COLUMNS, DEFAULT_TEST_SIZE, DEFAULT_RANDOM_SEED
+from disasterproject.utils.config import setup_logging, TARGET_COLUMNS, DEFAULT_TEST_SIZE, DEFAULT_RANDOM_SEED, TAXONOMY, CRITICAL_LABELS, EXCLUDE_FROM_CONSTRAINTS
 from disasterproject.utils.json_io import load_model_parameters
 from disasterproject.data.loader import load_data
 from disasterproject.models.pipeline import (
@@ -34,6 +34,7 @@ from disasterproject.models.pipeline import (
 )
 from disasterproject.models.samplers import get_multilabel_class_weights
 from disasterproject.evaluation.metrics import evaluate_model, save_model
+from disasterproject.hierarchy import apply_hierarchy, count_violations
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 import pandas as pd
@@ -62,38 +63,111 @@ def load_class_weights_config(file_path):
 
 def evaluate_model_to_model_folder(model, X_test, Y_test, category_names, model_dir="model"):
     """
-    Evaluate model and save results to clean model folder structure.
-    
+    Evaluate model with both baseline and hierarchy-corrected predictions.
+
     Args:
         model: Trained model
         X_test: Test features
-        Y_test: Test labels  
+        Y_test: Test labels
         category_names: List of category names
         model_dir: Directory to save results (default: "model")
-        
+
     Returns:
-        dict: Performance summary
+        dict: Performance summary including hierarchy comparison
     """
     try:
-        # Make predictions
-        Y_pred = model.predict(X_test)
-        results = []
+        # Make baseline predictions
+        Y_pred_baseline = model.predict(X_test)
 
-        # Generate detailed classification report for each category
+        # Get probabilities for hierarchy processing
+        try:
+            proba_list = model.predict_proba(X_test)
+        except Exception as e:
+            logging.warning("predict_proba failed (%s); hierarchy evaluation skipped", e)
+            proba_list = None
+
+        results = []
+        hierarchy_results = []
+
+        # Baseline evaluation
         for i, col in enumerate(category_names):
             report = classification_report(
-                Y_test[:, i], Y_pred[:, i], output_dict=True, zero_division=0
+                Y_test[:, i], Y_pred_baseline[:, i], output_dict=True, zero_division=0
             )
             for output_class, metrics in report.items():
                 if isinstance(metrics, dict):
                     temp = metrics.copy()
                     temp["output_class"] = output_class
                     temp["category"] = col
+                    temp["evaluation_type"] = "baseline"
                     results.append(temp)
 
-        results_df = pd.DataFrame(results)
+        # Hierarchy-corrected evaluation (if probabilities available)
+        if proba_list is not None:
+            logging.info("Performing hierarchy-corrected evaluation...")
+
+            # Convert probabilities to dict format expected by apply_hierarchy
+            n_samples = len(X_test)
+            Y_pred_hierarchy = np.zeros_like(Y_pred_baseline)
+
+            violations_before = 0
+            violations_after = 0
+
+            # Process each sample
+            for sample_idx in range(n_samples):
+                # Build probability dict for this sample
+                probs = {}
+                for label_idx, label_name in enumerate(category_names):
+                    try:
+                        proba_array = proba_list[label_idx]
+                        if proba_array.ndim == 2 and proba_array.shape[1] > 1:
+                            prob = proba_array[sample_idx, 1]  # Positive class probability
+                        else:
+                            prob = proba_array[sample_idx]
+                        probs[label_name] = float(prob)
+                    except Exception:
+                        probs[label_name] = float(Y_pred_baseline[sample_idx, label_idx])
+
+                # Count violations before hierarchy
+                violations_before += count_violations(probs, TAXONOMY, EXCLUDE_FROM_CONSTRAINTS)
+
+                # Apply hierarchy correction
+                thresholds = {name: 0.5 for name in category_names}  # Default thresholds
+                adjusted_probs, binary_predictions = apply_hierarchy(
+                    probs, thresholds, TAXONOMY, CRITICAL_LABELS, EXCLUDE_FROM_CONSTRAINTS
+                )
+
+                # Count violations after hierarchy
+                violations_after += count_violations(adjusted_probs, TAXONOMY, EXCLUDE_FROM_CONSTRAINTS)
+
+                # Store hierarchy-corrected predictions
+                for label_idx, label_name in enumerate(category_names):
+                    Y_pred_hierarchy[sample_idx, label_idx] = binary_predictions.get(label_name, Y_pred_baseline[sample_idx, label_idx])
+
+            # Calculate violation rates
+            violations_per_1k_before = (violations_before / n_samples) * 1000
+            violations_per_1k_after = (violations_after / n_samples) * 1000
+
+            logging.info(f"Violations per 1k predictions - Before: {violations_per_1k_before:.1f}, After: {violations_per_1k_after:.1f}")
+
+            # Hierarchy-corrected evaluation
+            for i, col in enumerate(category_names):
+                report = classification_report(
+                    Y_test[:, i], Y_pred_hierarchy[:, i], output_dict=True, zero_division=0
+                )
+                for output_class, metrics in report.items():
+                    if isinstance(metrics, dict):
+                        temp = metrics.copy()
+                        temp["output_class"] = output_class
+                        temp["category"] = col
+                        temp["evaluation_type"] = "hierarchy_corrected"
+                        hierarchy_results.append(temp)
+
+        # Combine results
+        all_results = results + hierarchy_results
+        results_df = pd.DataFrame(all_results)
         results_df = results_df[
-            ["category", "output_class", "precision", "recall", "f1-score", "support"]
+            ["category", "evaluation_type", "output_class", "precision", "recall", "f1-score", "support"]
         ]
 
         # Save to clean model folder location
@@ -102,10 +176,11 @@ def evaluate_model_to_model_folder(model, X_test, Y_test, category_names, model_
         results_df.to_csv(results_file_path, index=False)
         logging.info("Performance metrics saved to: %s", results_file_path)
 
-        # Calculate summary statistics
-        weighted_avg = results_df[results_df['output_class'] == 'weighted avg']
-        positive_class = results_df[results_df['output_class'] == '1']
-        
+        # Calculate summary statistics for baseline
+        baseline_df = results_df[results_df['evaluation_type'] == 'baseline']
+        weighted_avg = baseline_df[baseline_df['output_class'] == 'weighted avg']
+        positive_class = baseline_df[baseline_df['output_class'] == '1']
+
         summary = {
             'overall_precision': weighted_avg['precision'].mean(),
             'overall_recall': weighted_avg['recall'].mean(),
@@ -116,7 +191,48 @@ def evaluate_model_to_model_folder(model, X_test, Y_test, category_names, model_
             'total_categories': len(category_names),
             'test_samples': len(Y_test)
         }
-        
+
+        # Add hierarchy comparison if available
+        if proba_list is not None and hierarchy_results:
+            hierarchy_df = results_df[results_df['evaluation_type'] == 'hierarchy_corrected']
+            h_weighted_avg = hierarchy_df[hierarchy_df['output_class'] == 'weighted avg']
+            h_positive_class = hierarchy_df[hierarchy_df['output_class'] == '1']
+
+            # Calculate Safety Recall (average recall on critical labels)
+            critical_recalls_baseline = []
+            critical_recalls_hierarchy = []
+
+            for label in CRITICAL_LABELS:
+                if label in category_names:
+                    baseline_recall = baseline_df[(baseline_df['category'] == label) &
+                                                (baseline_df['output_class'] == '1')]['recall']
+                    hierarchy_recall = hierarchy_df[(hierarchy_df['category'] == label) &
+                                                   (hierarchy_df['output_class'] == '1')]['recall']
+
+                    if not baseline_recall.empty:
+                        critical_recalls_baseline.append(baseline_recall.iloc[0])
+                    if not hierarchy_recall.empty:
+                        critical_recalls_hierarchy.append(hierarchy_recall.iloc[0])
+
+            safety_recall_baseline = np.mean(critical_recalls_baseline) if critical_recalls_baseline else 0.0
+            safety_recall_hierarchy = np.mean(critical_recalls_hierarchy) if critical_recalls_hierarchy else 0.0
+
+            summary.update({
+                'hierarchy_overall_precision': h_weighted_avg['precision'].mean(),
+                'hierarchy_overall_recall': h_weighted_avg['recall'].mean(),
+                'hierarchy_overall_f1': h_weighted_avg['f1-score'].mean(),
+                'hierarchy_positive_class_f1': h_positive_class['f1-score'].mean(),
+                'violations_per_1k_before': violations_per_1k_before,
+                'violations_per_1k_after': violations_per_1k_after,
+                'safety_recall_baseline': safety_recall_baseline,
+                'safety_recall_hierarchy': safety_recall_hierarchy,
+                'safety_recall_improvement': safety_recall_hierarchy - safety_recall_baseline,
+                'macro_f1_change': h_weighted_avg['f1-score'].mean() - weighted_avg['f1-score'].mean()
+            })
+
+            logging.info(f"Safety Recall: {safety_recall_baseline:.3f} → {safety_recall_hierarchy:.3f} (Δ{safety_recall_hierarchy - safety_recall_baseline:+.3f})")
+            logging.info(f"Macro F1 Change: {h_weighted_avg['f1-score'].mean() - weighted_avg['f1-score'].mean():+.3f}")
+
         return summary
 
     except Exception as e:

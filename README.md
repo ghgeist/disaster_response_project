@@ -320,6 +320,21 @@ The system evaluates models using comprehensive metrics:
 - **Class Imbalance**: Addresses skewed category distributions
 - **Cross-validation**: Robust performance estimation
 
+### Hierarchy Post-Processing
+
+The system includes a hierarchy post-processor that enforces parent-child consistency in multi-label predictions:
+
+- **Parent ≥ Child Probabilities**: Ensures hierarchical relationships (e.g., `aid_related` ≥ `medical_help`)
+- **Decision-Level Forcing**: If any child predicts positive, parent is forced positive
+- **Critical Label Thresholds**: Reduced thresholds for safety-critical labels to improve recall
+- **Violation Reduction**: Eliminates parent < child probability violations post-processing
+
+#### Label Exclusions
+
+**`child_alone` Label**: This category has 0 positive examples across all 26,027 messages in the dataset (0.000%). Due to this complete absence of training data, the `child_alone` label is excluded from hierarchy constraints to prevent spurious activations while remaining visible in model outputs for potential future use.
+
+This design choice prioritizes model reliability by avoiding false positives in categories where the system has no learning signal, while maintaining the label structure for completeness.
+
 
 ## 🔧 Development
 

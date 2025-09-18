@@ -141,5 +141,30 @@ HYPERPARAMETER_OPTIMIZATION = os.path.join(SCRIPT_DIR, "model", "hyperparameter_
 GRID_SEARCH_RESULTS = os.path.join(SCRIPT_DIR, "model", "gs_results.json")
 OPTIMIZED_PARAMETERS = os.path.join(SCRIPT_DIR, "model", "optimized_parameters.json")
 
+# Hierarchy Configuration
+# Label taxonomy (parent -> children) for enforcing hierarchical consistency
+TAXONOMY = {
+    "aid_related": [
+        "medical_help", "medical_products", "search_and_rescue", "water", "food",
+        "shelter", "clothing", "money", "other_aid"
+    ],
+    "infrastructure_related": [
+        "transport", "buildings", "electricity", "tools", "hospitals", "shops",
+        "aid_centers", "other_infrastructure"
+    ],
+    # Keep weather strictly weather; treat earthquake/fire as independent
+    "weather_related": ["floods", "storm", "cold", "other_weather"],
+    # Treat "related" as a root with siblings; apply child→parent at decision level only
+    "related": ["request", "offer", "direct_report"],
+}
+
+# Critical leaves (use softer thresholds in the fixer)
+CRITICAL_LABELS = {
+    "medical_help", "medical_products", "search_and_rescue", "water", "food", "security"
+}
+
+# Labels excluded from hierarchy constraints (documented data limitations)
+EXCLUDE_FROM_CONSTRAINTS = {"child_alone"}  # 0 positives in source + train data
+
 # Set random seed for reproducibility without noisy import-time logs
 np.random.seed(0)
