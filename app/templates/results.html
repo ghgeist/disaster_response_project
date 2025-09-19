@@ -25,19 +25,17 @@
     </div>
 
     <!-- Results container -->
-    <div class="{% if use_hierarchy %}max-w-6xl{% else %}max-w-4xl{% endif %} mx-auto bg-brand-slate p-8 rounded-lg shadow-2xl mb-8">
-        <!-- Display the original query -->
-        <div class="mb-6">
-            <h4 class="text-lg font-semibold text-gray-400 uppercase tracking-wider mb-2">Message</h4>
-            <p class="text-xl text-white bg-gray-700 p-4 rounded-md">"{{query}}"</p>
-        </div>
+    <div class="max-w-4xl mx-auto bg-brand-slate p-6 md:p-8 rounded-lg shadow-2xl space-y-6">
+        <!-- Message -->
+        <section class="space-y-2">
+            <h4 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Message</h4>
+            <p class="text-lg md:text-xl text-white bg-gray-700/80 p-3 md:p-4 rounded-md">"{{query}}"</p>
+        </section>
 
-        <!-- Emergency Categories Found - MOVED TO TOP PRIORITY -->
-        <div class="mb-8">
-            <h4 class="text-lg font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                Category Analysis
-            </h4>
-            <div class="flex flex-wrap gap-3">
+        <!-- Category chips -->
+        <section class="space-y-3">
+            <h4 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Category Analysis</h4>
+            <div class="flex flex-wrap gap-2">
                 {% if use_hierarchy %}
                     {% set display_predictions = fixed.predictions if fixed else raw.predictions %}
                 {% else %}
@@ -46,7 +44,7 @@
 
                 {% if display_predictions %}
                     {% for prediction in display_predictions %}
-                        <span class="bg-brand-accent-amber text-gray-900 text-sm font-bold px-4 py-2 rounded-full shadow-md" title="Match strength: {{ (prediction.confidence * 100)|round(1) }}%">
+                        <span class="bg-brand-accent-amber text-gray-900 text-xs font-bold px-3 py-1.5 rounded-full shadow" title="Match strength: {{ (prediction.confidence * 100)|round(1) }}%">
                             {{ prediction.category.replace('_', ' ')|title }}
                         </span>
                     {% endfor %}
@@ -64,215 +62,120 @@
                     {% endif %}
                 {% endif %}
             </div>
-        </div>
+        </section>
 
         {% if use_hierarchy %}
-        <!-- System Confidence Indicator -->
-        <div class="mb-6 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center">
-                    <span class="text-sm text-gray-400">Logic Check: Active</span>
-                </div>
-                <div class="text-right">
+        <!-- Compact System Status Bar -->
+        <section class="bg-brand-charcoal/80 border border-gray-600 rounded-lg p-4">
+            <div class="flex flex-col md:flex-row gap-4 items-start md:items-center">
+                <div class="flex items-center gap-2">
                     {% if violations %}
-                        <div class="text-green-400 font-semibold text-sm">
-                            <svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                            </svg>
-                            {{ violations|length }} improvements applied
-                        </div>
-                        <div class="text-green-300 text-xs">Results refined for logical consistency</div>
+                        <svg class="w-4 h-4 text-green-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293z" clip-rule="evenodd"/></svg>
+                        <div class="text-sm text-gray-300"><span class="font-semibold text-green-400">{{ violations|length }}</span> improvements applied</div>
                     {% else %}
-                        <div class="text-green-400 font-semibold text-sm">
-                            <svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                            </svg>
-                            Logically consistent
-                        </div>
-                        <div class="text-green-300 text-xs">No refinements needed</div>
+                        <svg class="w-4 h-4 text-green-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                        <div class="text-sm text-gray-300"><span class="font-semibold text-green-400">Logically consistent</span> · no refinements needed</div>
                     {% endif %}
                 </div>
-            </div>
-        </div>
 
-        <!-- Production Performance Summary - MOVED UP -->
-        <div class="mb-6 bg-brand-charcoal p-6 rounded-lg border border-gray-600">
-            <div class="flex items-center justify-between mb-3">
-                <h4 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">System Performance</h4>
-                <span class="text-xs text-gray-500">Live Production Data</span>
-            </div>
-            <div class="flex items-center justify-between space-x-6">
-                <div class="flex items-center space-x-2">
-                    {% set v = (metrics.violations if metrics and 'violations' in metrics else 0) %}
-                    <div class="text-2xl font-bold text-green-400">{{ v }}</div>
-                    <div class="text-sm text-gray-400">Violations</div>
-                </div>
-                <div class="flex items-center space-x-2">
-                    {% set sr = (metrics.safety_recall if metrics and 'safety_recall' in metrics else 0.9147) %}
-                    <div class="text-2xl font-bold text-blue-400">{{ (sr * 100) | round(1) }}%</div>
-                    <div class="text-sm text-gray-400">Safety Recall</div>
-                </div>
-                <div class="flex items-center space-x-2">
-                    {% set df1 = (metrics.macro_f1_delta if metrics and 'macro_f1_delta' in metrics else -0.0143) %}
-                    <div class="text-2xl font-bold text-amber-400">{{ (df1 * 100) | round(2) }}%</div>
-                    <div class="text-sm text-gray-400">F1 Delta</div>
+                {% set v = (metrics.violations if metrics and 'violations' in metrics else 0) %}
+                {% set sr = (metrics.safety_recall if metrics and 'safety_recall' in metrics else 0.9147) %}
+                {% set df1 = (metrics.macro_f1_delta if metrics and 'macro_f1_delta' in metrics else -0.0143) %}
+
+                <div class="flex flex-wrap gap-6">
+                    <div class="flex items-center gap-2">
+                        <div class="text-lg font-semibold text-green-400">{{ v }}</div>
+                        <div class="text-xs text-gray-400">Violations</div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="text-lg font-semibold text-blue-400">{{ (sr*100)|round(1) }}%</div>
+                        <div class="text-xs text-gray-400">Safety Recall</div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="text-lg font-semibold text-amber-400">{{ (df1*100)|round(2) }}%</div>
+                        <div class="text-xs text-gray-400">F1 Δ</div>
+                    </div>
                 </div>
             </div>
-        </div>
+        </section>
         {% endif %}
 
         {% if use_hierarchy %}
-        <!-- Technical Details - COLLAPSIBLE SECTION -->
-        <div class="mb-6 border border-gray-600 rounded-lg">
-            <button id="toggle-details" class="w-full text-left p-6 bg-brand-charcoal hover:bg-brand-slate rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-accent-blue transition duration-300 ease-in-out">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center">
-                        <svg class="w-5 h-5 text-gray-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
-                        </svg>
-                        <span class="text-sm font-semibold text-gray-300">Technical Analysis Details</span>
-                    </div>
-                    <div class="flex items-center">
-                        <span id="toggle-text" class="text-xs text-gray-400 mr-2">Show detailed breakdown</span>
-                        <svg id="toggle-icon" class="w-4 h-4 text-gray-400 transform transition-transform" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"></path>
-                        </svg>
-                    </div>
-                </div>
+        <!-- Changes Details Accordion -->
+        <section class="border border-gray-600 rounded-lg" x-data="{open1: {{ 'true' if changed_categories|length > 0 else 'false' }}}">
+            <!-- Changes Panel -->
+            <button @click="open1=!open1" :aria-expanded="open1" class="w-full text-left p-4 bg-brand-charcoal hover:bg-brand-slate flex items-center justify-between">
+                <span class="text-sm font-semibold text-gray-300">Changes after logic check</span>
+                <svg :class="{'rotate-180':open1}" class="w-4 h-4 text-gray-400 transition-transform" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
             </button>
-
-            <div id="technical-details" class="hidden p-6 border-t border-gray-600 bg-brand-slate">
-                <h5 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Category-by-Category Analysis</h5>
-                
-                <!-- Changed Categories -->
-            <div id="changed-categories" class="overflow-x-auto mb-4">
-                {% set changed_categories = [] %}
-                {% for label in raw.probabilities.keys() %}
-                    {% if label != 'related' %}
-                        {% if raw.probabilities[label] != fixed.probabilities[label] or raw.labels[label] != fixed.labels[label] %}
-                            {% set _ = changed_categories.append(label) %}
-                        {% endif %}
-                    {% endif %}
-                {% endfor %}
-
-                {% if changed_categories %}
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="border-b border-gray-600">
-                            <th class="text-left py-3 px-4 text-gray-300 font-semibold">Category</th>
-                            <th class="text-center py-3 px-4 text-gray-300 font-semibold">Before</th>
-                            <th class="text-center py-3 px-4 text-gray-300 font-semibold">After</th>
-                            <th class="text-center py-3 px-4 text-gray-300 font-semibold">Change</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for label in changed_categories %}
-                        <tr class="border-b border-gray-700 hover:bg-gray-800/50">
-                            <td class="py-3 px-4 text-white font-medium">{{ label.replace('_', ' ')|title }}</td>
-                            <td class="py-3 px-4 text-center">
-                                <div class="flex flex-col items-center">
-                                    <span class="text-white">{{ "%.1f"|format(raw.probabilities[label] * 100) }}%</span>
-                                    {% if raw.labels[label] == 1 %}
-                                        <span class="bg-blue-500 text-white text-xs px-2 py-1 rounded-full mt-1">YES</span>
-                                    {% else %}
-                                        <span class="bg-gray-500 text-white text-xs px-2 py-1 rounded-full mt-1">NO</span>
-                                    {% endif %}
-                                </div>
-                            </td>
-                            <td class="py-3 px-4 text-center">
-                                <div class="flex flex-col items-center">
-                                    <span class="text-white">{{ "%.1f"|format(fixed.probabilities[label] * 100) }}%</span>
-                                    {% if fixed.labels[label] == 1 %}
-                                        <span class="bg-blue-500 text-white text-xs px-2 py-1 rounded-full mt-1">YES</span>
-                                    {% else %}
-                                        <span class="bg-gray-500 text-white text-xs px-2 py-1 rounded-full mt-1">NO</span>
-                                    {% endif %}
-                                </div>
-                            </td>
-                            <td class="py-3 px-4 text-center">
-                                <span class="bg-green-500 text-white text-xs px-2 py-1 rounded-full">IMPROVED</span>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                {% else %}
-                <p class="text-gray-400 text-center py-4">No category predictions were changed by hierarchy processing.</p>
-                {% endif %}
-            </div>
-
-            <!-- All Categories (Collapsible) -->
-            <div id="all-categories" class="overflow-x-auto hidden">
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="border-b border-gray-600">
-                            <th class="text-left py-3 px-4 text-gray-300 font-semibold">Category</th>
-                            <th class="text-center py-3 px-4 text-gray-300 font-semibold">Initial Result</th>
-                            <th class="text-center py-3 px-4 text-gray-300 font-semibold">Final Result</th>
-                            <th class="text-center py-3 px-4 text-gray-300 font-semibold">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for label in raw.probabilities.keys() %}
+            <div x-show="open1" x-collapse class="p-4 bg-brand-slate border-t border-gray-600">
+                <div class="overflow-x-auto">
+                    {% set changed_categories = [] %}
+                    {% for label in raw.probabilities.keys() %}
                         {% if label != 'related' %}
-                        <tr class="border-b border-gray-700 hover:bg-gray-800/50">
-                            <td class="py-3 px-4 text-white font-medium">{{ label.replace('_', ' ')|title }}</td>
-                            <td class="py-3 px-4 text-center">
-                                <div class="flex flex-col items-center">
-                                    <span class="text-white">{{ "%.1f"|format(raw.probabilities[label] * 100) }}%</span>
-                                    {% if raw.labels[label] == 1 %}
-                                        <span class="bg-blue-500 text-white text-xs px-2 py-1 rounded-full mt-1">YES</span>
-                                    {% else %}
-                                        <span class="bg-gray-500 text-white text-xs px-2 py-1 rounded-full mt-1">NO</span>
-                                    {% endif %}
-                                </div>
-                            </td>
-                            <td class="py-3 px-4 text-center">
-                                <div class="flex flex-col items-center">
-                                    <span class="text-white">{{ "%.1f"|format(fixed.probabilities[label] * 100) }}%</span>
-                                    {% if fixed.labels[label] == 1 %}
-                                        <span class="bg-blue-500 text-white text-xs px-2 py-1 rounded-full mt-1">YES</span>
-                                    {% else %}
-                                        <span class="bg-gray-500 text-white text-xs px-2 py-1 rounded-full mt-1">NO</span>
-                                    {% endif %}
-                                </div>
-                            </td>
-                            <td class="py-3 px-4 text-center">
-                                {% set has_violation = false %}
-                                {% for violation in violations %}
-                                    {% if violation.child == label or violation.parent == label %}
-                                        {% set has_violation = true %}
-                                    {% endif %}
-                                {% endfor %}
-
-                                {% if has_violation %}
-                                        {% if raw.probabilities[label] != fixed.probabilities[label] or raw.labels[label] != fixed.labels[label] %}
-                                            <span class="bg-green-500 text-white text-xs px-2 py-1 rounded-full">IMPROVED</span>
-                                        {% else %}
-                                            <span class="bg-yellow-500 text-white text-xs px-2 py-1 rounded-full">NEEDS REVIEW</span>
-                                        {% endif %}
-                                {% else %}
-                                    <span class="bg-gray-600 text-white text-xs px-2 py-1 rounded-full">OK</span>
-                                {% endif %}
-                            </td>
-                        </tr>
+                            {% if raw.probabilities[label] != fixed.probabilities[label] or raw.labels[label] != fixed.labels[label] %}
+                                {% set _ = changed_categories.append(label) %}
+                            {% endif %}
                         {% endif %}
-                        {% endfor %}
-                    </tbody>
-                </table>
+                    {% endfor %}
+
+                    {% if changed_categories %}
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-gray-600">
+                                <th class="text-left py-3 px-4 text-gray-300 font-semibold">Category</th>
+                                <th class="text-center py-3 px-4 text-gray-300 font-semibold">Before</th>
+                                <th class="text-center py-3 px-4 text-gray-300 font-semibold">After</th>
+                                <th class="text-center py-3 px-4 text-gray-300 font-semibold">Change</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for label in changed_categories %}
+                            <tr class="border-b border-gray-700 hover:bg-gray-800/50">
+                                <td class="py-3 px-4 text-white font-medium">{{ label.replace('_', ' ')|title }}</td>
+                                <td class="py-3 px-4 text-center">
+                                    <div class="flex flex-col items-center">
+                                        <span class="text-white">{{ "%.1f"|format(raw.probabilities[label] * 100) }}%</span>
+                                        {% if raw.labels[label] == 1 %}
+                                            <span class="bg-blue-500 text-white text-xs px-2 py-1 rounded-full mt-1">YES</span>
+                                        {% else %}
+                                            <span class="bg-gray-500 text-white text-xs px-2 py-1 rounded-full mt-1">NO</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="py-3 px-4 text-center">
+                                    <div class="flex flex-col items-center">
+                                        <span class="text-white">{{ "%.1f"|format(fixed.probabilities[label] * 100) }}%</span>
+                                        {% if fixed.labels[label] == 1 %}
+                                            <span class="bg-blue-500 text-white text-xs px-2 py-1 rounded-full mt-1">YES</span>
+                                        {% else %}
+                                            <span class="bg-gray-500 text-white text-xs px-2 py-1 rounded-full mt-1">NO</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="py-3 px-4 text-center">
+                                    <span class="bg-green-500 text-white text-xs px-2 py-1 rounded-full">IMPROVED</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-gray-400 text-center py-4">No category predictions were changed by hierarchy processing.</p>
+                    {% endif %}
+                </div>
             </div>
-            </div> <!-- Close technical-details -->
-        </div> <!-- Close technical details section -->
+        </section>
         {% endif %}
 
         {% if not use_hierarchy %}
         <!-- Chart for simple mode -->
         {% if probabilities %}
-        <div class="mt-10">
-            <h4 class="text-lg font-semibold text-gray-400 uppercase tracking-wider mb-3">Category Match Strength</h4>
-            <div id="confidence-chart" class="bg-brand-charcoal p-4 rounded-lg shadow-lg" style="width: 100%; height: 400px;"></div>
-            <p class="text-sm text-gray-400 text-center mt-2">Higher bars show stronger matches between your message and each emergency category.</p>
-        </div>
+        <section class="space-y-2">
+            <h4 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Top Category Match Strength</h4>
+            <div id="confidence-chart" class="bg-brand-charcoal p-4 rounded-lg shadow" style="width:100%;height:360px;"></div>
+            <p class="text-xs text-gray-400 text-center">Higher bars show stronger matches.</p>
+        </section>
         {% endif %}
         {% endif %}
     </div>
@@ -318,30 +221,4 @@
 </script>
 {% endif %}
 
-{% if use_hierarchy %}
-<script type="text/javascript">
-    document.addEventListener('DOMContentLoaded', function() {
-        const toggleButton = document.getElementById('toggle-details');
-        const toggleText = document.getElementById('toggle-text');
-        const toggleIcon = document.getElementById('toggle-icon');
-        const technicalDetails = document.getElementById('technical-details');
-
-        if (toggleButton && technicalDetails) {
-            toggleButton.addEventListener('click', function() {
-                const isHidden = technicalDetails.classList.contains('hidden');
-
-                if (isHidden) {
-                    technicalDetails.classList.remove('hidden');
-                    toggleText.textContent = 'Hide detailed breakdown';
-                    toggleIcon.classList.add('rotate-180');
-                } else {
-                    technicalDetails.classList.add('hidden');
-                    toggleText.textContent = 'Show detailed breakdown';
-                    toggleIcon.classList.remove('rotate-180');
-                }
-            });
-        }
-    });
-</script>
-{% endif %}
 {% endblock %}
