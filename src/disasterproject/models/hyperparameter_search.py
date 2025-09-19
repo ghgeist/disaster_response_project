@@ -8,7 +8,7 @@ resource monitoring, memory management, and progress tracking.
 import logging
 from time import time
 from sklearn.model_selection import RandomizedSearchCV
-from sklearn.metrics import make_scorer, f1_score
+from sklearn.metrics import make_scorer, f1_score, accuracy_score, precision_score, recall_score
 from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 import psutil
 
@@ -29,7 +29,60 @@ from disasterproject.utils.config import (
 logger = logging.getLogger(__name__)
 
 
-def run_parameter_search(pipeline, parameters, X_train, y_train, use_small_subset=False):
+def create_scorers_from_config(optimization_config):
+    """
+    Create sklearn scorer objects from optimization configuration.
+
+    Args:
+        optimization_config (dict): Configuration containing scoring metrics
+
+    Returns:
+        tuple: (scoring_dict, refit_metric)
+
+    Example config:
+        {
+            "scoring": {
+                "f1_weighted": {"scorer_type": "f1_score", "average": "weighted", "zero_division": 0},
+                "accuracy": "accuracy"
+            },
+            "refit_metric": "f1_weighted"
+        }
+    """
+    if not optimization_config or "scoring" not in optimization_config:
+        raise ValueError("optimization_config must contain 'scoring' section")
+
+    scoring_dict = {}
+    scorer_functions = {
+        "f1_score": f1_score,
+        "accuracy_score": accuracy_score,
+        "precision_score": precision_score,
+        "recall_score": recall_score
+    }
+
+    for metric_name, metric_config in optimization_config["scoring"].items():
+        if isinstance(metric_config, str):
+            # Built-in sklearn scorer (e.g., "accuracy")
+            scoring_dict[metric_name] = metric_config
+        elif isinstance(metric_config, dict):
+            # Custom scorer configuration
+            scorer_type = metric_config["scorer_type"]
+            if scorer_type not in scorer_functions:
+                raise ValueError(f"Unknown scorer_type: {scorer_type}")
+
+            scorer_func = scorer_functions[scorer_type]
+            scorer_kwargs = {k: v for k, v in metric_config.items() if k != "scorer_type"}
+            scoring_dict[metric_name] = make_scorer(scorer_func, **scorer_kwargs)
+        else:
+            raise ValueError(f"Invalid metric config for {metric_name}: {metric_config}")
+
+    refit_metric = optimization_config.get("refit_metric")
+    if refit_metric and refit_metric not in scoring_dict:
+        raise ValueError(f"refit_metric '{refit_metric}' not found in scoring configuration")
+
+    return scoring_dict, refit_metric
+
+
+def run_parameter_search(pipeline, parameters, X_train, y_train, use_small_subset=False, optimization_config=None):
     """
     Run a randomized search to find the best parameters for a pipeline with resource management.
 
@@ -43,6 +96,7 @@ def run_parameter_search(pipeline, parameters, X_train, y_train, use_small_subse
     X_train (numpy.ndarray): The features for the training data.
     y_train (numpy.ndarray): The labels for the training data.
     use_small_subset (bool, optional): Whether to use only the first 100 samples of the training data. Defaults to False.
+    optimization_config (dict, optional): Configuration for scoring metrics and refit strategy. If None, uses default F1 weighted.
 
     Returns:
     cv (RandomizedSearchCV): The fitted RandomizedSearchCV instance.
@@ -77,17 +131,26 @@ def run_parameter_search(pipeline, parameters, X_train, y_train, use_small_subse
         n_splits=DEFAULT_CV_SPLITS, shuffle=True, random_state=RANDOM_STATE
     )
 
-    # Define scorers for multi-label classification
-    f1_weighted_scorer = make_scorer(f1_score, average="weighted", zero_division=0)
-    f1_micro_scorer = make_scorer(f1_score, average="micro", zero_division=0)
+    # Configure scoring metrics based on optimization config or use defaults
+    if optimization_config:
+        scoring_dict, refit_metric = create_scorers_from_config(optimization_config)
+        logger.info("Using configured optimization metrics: %s", list(scoring_dict.keys()))
+        logger.info("Refit metric: %s", refit_metric)
+    else:
+        # Default to original hardcoded behavior for backward compatibility
+        f1_weighted_scorer = make_scorer(f1_score, average="weighted", zero_division=0)
+        f1_micro_scorer = make_scorer(f1_score, average="micro", zero_division=0)
+        scoring_dict = {"f1_weighted": f1_weighted_scorer, "f1_micro": f1_micro_scorer}
+        refit_metric = "f1_weighted"
+        logger.info("Using default optimization metrics (backward compatibility)")
 
     # Configure RandomizedSearchCV with conservative resource settings
     cv = RandomizedSearchCV(
         pipeline,
         param_distributions=parameters,
         n_iter=DEFAULT_N_ITER,
-        scoring={"f1_weighted": f1_weighted_scorer, "f1_micro": f1_micro_scorer},
-        refit="f1_weighted",
+        scoring=scoring_dict,
+        refit=refit_metric,
         cv=cv_strategy,
         n_jobs=SEARCH_N_JOBS,  # Parallelism for hyperparameter search
         verbose=2,  # Detailed progress output

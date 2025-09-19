@@ -228,7 +228,8 @@ def load_parameters(file_path, config_type="model"):
     config_type (str): Type of config - "model" for model parameters, "hyperopt" for optimization configs.
 
     Returns:
-    dict: The normalized parameters, or None if an error occurred.
+    dict or tuple: For hyperopt configs, returns (parameters, optimization_config). For model configs, returns parameters dict.
+                   Returns None if an error occurred.
 
     """
     raw = load_json(file_path)
@@ -240,6 +241,8 @@ def load_parameters(file_path, config_type="model"):
     if config_type == "model":
         parameters = raw.get("parameters") if isinstance(raw, dict) and "parameters" in raw else raw
     else:
+        # For hyperopt configs, extract optimization_config separately
+        optimization_config = raw.pop("optimization_config", None) if isinstance(raw, dict) else None
         parameters = raw
 
     if not isinstance(parameters, dict):
@@ -261,7 +264,11 @@ def load_parameters(file_path, config_type="model"):
         else:
             normalized[k] = v
 
-    return normalized
+    # Return appropriate format based on config type
+    if config_type == "hyperopt":
+        return normalized, optimization_config
+    else:
+        return normalized
 
 
 def create_pipeline():
@@ -557,7 +564,15 @@ def main():
         sys.exit()
     elif estimate_runtime == "yes":
         logging.info("Loading grid search parameters...")
-        hyperparameter_config = load_parameters(hyperparameter_config_path, "hyperopt")
+        config_result = load_parameters(hyperparameter_config_path, "hyperopt")
+        if config_result is None:
+            logging.error("Failed to load hyperparameter configuration")
+            return
+
+        hyperparameter_config, optimization_config = config_result
+        if optimization_config:
+            logging.info("Found optimization config: refit_metric=%s", optimization_config.get("refit_metric"))
+
         logging.info("Estimating grid search runtime (using small subset)...")
         estimated_grid_search = run_parameter_search(
             pipeline,
@@ -565,6 +580,7 @@ def main():
             X_train,
             Y_train,
             use_small_subset=True,
+            optimization_config=optimization_config,
         )
         logging.info("Grid search runtime estimate complete!")
 
@@ -575,13 +591,22 @@ def main():
         sys.exit()
     elif do_grid_search == "yes":
         logging.info("Starting full grid search...")
-        hyperparameter_config = load_parameters(hyperparameter_config_path, "hyperopt")
+        config_result = load_parameters(hyperparameter_config_path, "hyperopt")
+        if config_result is None:
+            logging.error("Failed to load hyperparameter configuration")
+            return
+
+        hyperparameter_config, optimization_config = config_result
+        if optimization_config:
+            logging.info("Using optimization config: refit_metric=%s", optimization_config.get("refit_metric"))
+
         grid_search = run_parameter_search(
             pipeline,
             hyperparameter_config,
             X_train,
             Y_train,
             use_small_subset=False,
+            optimization_config=optimization_config,
         )
         logging.info("Grid search complete!")
         save_gs_results(grid_search, output_paths['detailed_results'])

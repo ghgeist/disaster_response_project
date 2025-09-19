@@ -1,4 +1,19 @@
 {
+    "optimization_config": {
+        "scoring": {
+            "f1_weighted": {
+                "scorer_type": "f1_score",
+                "average": "weighted",
+                "zero_division": 0
+            },
+            "f1_micro": {
+                "scorer_type": "f1_score",
+                "average": "micro",
+                "zero_division": 0
+            }
+        },
+        "refit_metric": "f1_weighted"
+    },
     "vect__ngram_range": [[1, 1], [1, 2]],
     "clf__estimator__n_estimators": [100, 200],
     "clf__estimator__max_depth": [null, 10, 20],
