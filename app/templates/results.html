@@ -12,11 +12,11 @@
                 </svg>
             </div>
             <h1 class="text-4xl md:text-5xl font-extrabold text-white">
-                Analysis Complete
+                Message Classified
             </h1>
         </div>
         <p class="text-lg text-gray-400 max-w-3xl mx-auto">
-            Here's what the AI model detected in your message.
+            We've identified the disaster response categories that match your message.
         </p>
     </div>
 
@@ -30,19 +30,19 @@
 
         <!-- Display the classification results -->
         <div>
-            <h4 class="text-lg font-semibold text-gray-400 uppercase tracking-wider mb-3">Predicted Categories</h4>
+            <h4 class="text-lg font-semibold text-gray-400 uppercase tracking-wider mb-3">Emergency Categories</h4>
             <div class="flex flex-wrap gap-3">
                 {% if sorted_predictions %}
                     {% for prediction in sorted_predictions %}
-                        <span class="bg-brand-accent-amber text-gray-900 text-sm font-bold px-4 py-2 rounded-full shadow-md" title="Confidence: {{ (prediction.confidence * 100)|round(1) }}%">
+                        <span class="bg-brand-accent-amber text-gray-900 text-sm font-bold px-4 py-2 rounded-full shadow-md" title="Match strength: {{ (prediction.confidence * 100)|round(1) }}%">
                             {{ prediction.category.replace('_', ' ')|title }}
                         </span>
                     {% endfor %}
                 {% else %}
                     {% if probabilities and probabilities.get('related', 0) > 0.5 %}
-                        <p class="text-gray-400">This message appears to be disaster-related but no specific categories were identified.</p>
+                        <p class="text-gray-400">This message is disaster-related, but doesn't match our specific emergency categories.</p>
                     {% else %}
-                        <p class="text-gray-400">This message does not appear to be related to a disaster.</p>
+                        <p class="text-gray-400">This message doesn't appear to be about a disaster or emergency.</p>
                     {% endif %}
                 {% endif %}
             </div>
@@ -50,9 +50,9 @@
 
         {% if probabilities %}
         <div class="mt-10">
-            <h4 class="text-lg font-semibold text-gray-400 uppercase tracking-wider mb-3">Confidence by Category</h4>
+            <h4 class="text-lg font-semibold text-gray-400 uppercase tracking-wider mb-3">Category Match Strength</h4>
             <div id="confidence-chart" class="bg-brand-charcoal p-4 rounded-lg shadow-lg" style="width: 100%; height: 400px;"></div>
-            <p class="text-sm text-gray-400 text-center mt-2">Higher bars indicate model confidence for each category.</p>
+            <p class="text-sm text-gray-400 text-center mt-2">Higher bars show stronger matches between your message and each emergency category.</p>
         </div>
         {% endif %}
     </div>
@@ -86,7 +86,7 @@
             marker: {color: '#FBBF24'}
         }];
         const layout = {
-            yaxis: {title: 'Confidence (%)', range: [0, 100]},
+            yaxis: {title: 'Match Strength (%)', range: [0, 100]},
             xaxis: {automargin: true},
             margin: {t: 30},
             paper_bgcolor: '#111827',

@@ -12,14 +12,14 @@
                 </svg>
             </div>
             <h1 class="text-4xl md:text-5xl font-extrabold text-white">
-                Hierarchy Analysis Complete
+                Message Classification Complete
             </h1>
         </div>
         <p class="text-lg text-gray-400 max-w-3xl mx-auto">
             {% if use_hierarchy %}
-                Comparison of raw AI predictions vs hierarchy-corrected results.
+                Your message has been analyzed with our smart accuracy system that ensures logical results.
             {% else %}
-                Raw AI predictions (hierarchy processing disabled).
+                Your message has been classified using our standard analysis.
             {% endif %}
         </p>
     </div>
@@ -44,16 +44,16 @@
 
         <!-- Violations Summary -->
         {% if violations %}
-        <div class="mb-6 p-4 bg-red-900/20 border border-red-500/30 rounded-lg">
-            <h4 class="text-red-400 font-semibold mb-2">
+        <div class="mb-6 p-4 bg-green-900/20 border border-green-500/30 rounded-lg">
+            <h4 class="text-green-400 font-semibold mb-2">
                 <svg class="w-5 h-5 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                 </svg>
-                {{ violations|length }} Logical Violations Detected
+                {{ violations|length }} Accuracy Improvements Applied
             </h4>
-            <p class="text-red-300 text-sm">
-                Parent categories should have higher confidence than their children.
-                {% if use_hierarchy %}These violations were automatically corrected.{% else %}Enable hierarchy processing to fix these automatically.{% endif %}
+            <p class="text-green-300 text-sm">
+                Our system automatically refined the results to ensure they make logical sense together.
+                {% if use_hierarchy %}These improvements were automatically applied.{% else %}Enable hierarchy processing to apply these automatically.{% endif %}
             </p>
         </div>
         {% else %}
@@ -62,23 +62,23 @@
                 <svg class="w-5 h-5 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
                 </svg>
-                No Logical Violations Detected
+                Results Are Logically Consistent
             </h4>
-            <p class="text-green-300 text-sm">All parent-child relationships are logically consistent.</p>
+            <p class="text-green-300 text-sm">All the categories identified work well together and make logical sense.</p>
         </div>
         {% endif %}
 
         <!-- Comparison Table -->
         {% if use_hierarchy %}
         <div class="mb-8">
-            <h4 class="text-lg font-semibold text-gray-400 uppercase tracking-wider mb-4">Before vs After Comparison</h4>
+            <h4 class="text-lg font-semibold text-gray-400 uppercase tracking-wider mb-4">Initial vs Refined Results</h4>
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="border-b border-gray-600">
                             <th class="text-left py-3 px-4 text-gray-300 font-semibold">Category</th>
-                            <th class="text-center py-3 px-4 text-gray-300 font-semibold">Raw Prediction</th>
-                            <th class="text-center py-3 px-4 text-gray-300 font-semibold">Fixed Prediction</th>
+                            <th class="text-center py-3 px-4 text-gray-300 font-semibold">Initial Result</th>
+                            <th class="text-center py-3 px-4 text-gray-300 font-semibold">Final Result</th>
                             <th class="text-center py-3 px-4 text-gray-300 font-semibold">Status</th>
                         </tr>
                     </thead>
@@ -116,11 +116,11 @@
                                 {% endfor %}
 
                                 {% if has_violation %}
-                                    {% if raw.probabilities[label] != fixed.probabilities[label] or raw.labels[label] != fixed.labels[label] %}
-                                        <span class="bg-green-500 text-white text-xs px-2 py-1 rounded-full">FIXED</span>
-                                    {% else %}
-                                        <span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full">VIOLATION</span>
-                                    {% endif %}
+                                        {% if raw.probabilities[label] != fixed.probabilities[label] or raw.labels[label] != fixed.labels[label] %}
+                                            <span class="bg-green-500 text-white text-xs px-2 py-1 rounded-full">IMPROVED</span>
+                                        {% else %}
+                                            <span class="bg-yellow-500 text-white text-xs px-2 py-1 rounded-full">NEEDS REVIEW</span>
+                                        {% endif %}
                                 {% else %}
                                     <span class="bg-gray-600 text-white text-xs px-2 py-1 rounded-full">OK</span>
                                 {% endif %}
@@ -137,22 +137,22 @@
         <!-- Display the classification results -->
         <div class="mb-8">
             <h4 class="text-lg font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                Summary of Predicted Categories
+                Emergency Categories Found
             </h4>
             <div class="flex flex-wrap gap-3">
                 {% set display_predictions = fixed.predictions if use_hierarchy else raw.predictions %}
                 {% if display_predictions %}
                     {% for prediction in display_predictions %}
-                        <span class="bg-brand-accent-amber text-gray-900 text-sm font-bold px-4 py-2 rounded-full shadow-md" title="Confidence: {{ (prediction.confidence * 100)|round(1) }}%">
+                        <span class="bg-brand-accent-amber text-gray-900 text-sm font-bold px-4 py-2 rounded-full shadow-md" title="Match strength: {{ (prediction.confidence * 100)|round(1) }}%">
                             {{ prediction.category.replace('_', ' ')|title }}
                         </span>
                     {% endfor %}
                 {% else %}
                     {% set display_probs = fixed.probabilities if use_hierarchy else raw.probabilities %}
                     {% if display_probs and display_probs.get('related', 0) > 0.5 %}
-                        <p class="text-gray-400">This message appears to be disaster-related but no specific categories were identified.</p>
+                        <p class="text-gray-400">This message is disaster-related, but doesn't match our specific emergency categories.</p>
                     {% else %}
-                        <p class="text-gray-400">This message does not appear to be related to a disaster.</p>
+                        <p class="text-gray-400">This message doesn't appear to be about a disaster or emergency.</p>
                     {% endif %}
                 {% endif %}
             </div>

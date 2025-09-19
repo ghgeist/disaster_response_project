@@ -24,12 +24,4 @@ class MessageForm(FlaskForm):
             "aria-describedby": "query-help",
         },
     )
-    use_hierarchy = BooleanField(
-        "Use Hierarchy Processing",
-        default=False,
-        render_kw={
-            "class": "form-check-input",
-            "aria-describedby": "hierarchy-help",
-        },
-    )
     submit = SubmitField("Analyze Message", render_kw={"class": "btn btn-primary"})
