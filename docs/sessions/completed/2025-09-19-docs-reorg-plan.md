@@ -1,7 +1,7 @@
 ---
 title: "Planning Agent: Documentation Reorganization and ADR Cleanup"
 date: "2025-09-19"
-status: "complete"
+status: "completed"
 tags: ["documentation", "adr", "information-architecture", "docs-reorg"]
 author: "Codex CLI Agent"
 related: ["docs/adr/adr_template.md", "docs/testing.md", "docs/model-naming-convention.md"]

@@ -348,7 +348,6 @@ Success will be measured by:
 ---
 
 ## 🔄 POST-COMPLETION UPDATE (2025-09-19 Continued)
-
 ### Current Status: Model Promotion & File Organization
 
 **Context**: After completing the Flask hierarchy integration, work shifted to model promotion scripts and repository cleanup. User encountered confusion during file refactoring and got stuck.
@@ -370,7 +369,7 @@ Promotion workflow gaps closed and validated:
   - Retains validation gates via `PERFORMANCE_THRESHOLDS`
 
 - scripts/README.md
-  - Added “Promotion Workflow” section with usage examples
+  - Added "Promotion Workflow" section with usage examples
 
 - Validation
   - Smoke tests: `pytest tests/test_smoke.py -q` → 3 passed
@@ -390,3 +389,53 @@ python scripts/promote_model.py experiments/experimental_runs/2025-09-18 --no-up
 ```
 
 Status: Model promotion script completed; remaining file organization tasks are non-blocking and can be handled separately if needed.
+
+---
+
+## 🚀 Model Promotion Plan (Portfolio)
+
+Goal: Lightweight, reproducible, storage-friendly. Rebuild models on demand using pinned configs; avoid keeping large binaries in git or long-term on disk.
+
+### Philosophy
+- Rebuild-on-demand over storing artifacts: prefer rerunning training with the exact params and frozen eval set.
+- Keep only small, human-readable metadata and configs in git (JSON). Large `.pkl` files remain local or are regenerated when needed.
+
+### Inputs (Pinned for Reproducibility)
+- Data: `data/02_stg/stg_disaster_response.db`
+- Frozen eval set: `experiments/experimental_configs/eval_sets/eval_ids.json`
+- Candidate hyperparameters: `experiments/model_candidates/2025-09-16-comprehensive-grid-search-optimized-hyperparameters.json`
+- Class weights config: `experiments/model_candidates/2025-09-04-default-class_weights.json`
+
+### Recommended Flow: Rebuild Promotion (no artifact copying)
+1. Reproduce candidate locally (optional sanity):
+   - `python scripts/03_create_experimental_model.py --params experiments/model_candidates/2025-09-16-comprehensive-grid-search-optimized-hyperparameters.json --class-weights experiments/model_candidates/2025-09-04-default_class_weights.json`
+   - Confirms environment and config correctness using the frozen eval IDs.
+2. Compare vs current production (optional but helpful):
+   - `python scripts/compare_models.py` → confirm the +3.99% F1 lift observed on 2025-09-16.
+3. Promote by rebuilding production artifact deterministically:
+   - `python scripts/04_create_production_model.py --params experiments/model_candidates/2025-09-16-comprehensive-grid-search-optimized-hyperparameters.json --class-weights experiments/model_candidates/2025-09-04-default_class_weights.json`
+   - Guardrail: this script checks size and may refit with `max_leaf_nodes=10000` if >200MB.
+   - Outputs to `model/` with metrics, thresholds, label order, MODEL_INFO.
+4. Point the app at the new model:
+   - Update `app/config.py:40` `MODEL_FILENAME` to the new `*_prod_YYYY-MM-DD.pkl` created.
+5. Validate:
+   - `pytest tests/test_smoke.py -q`
+   - `python scripts/test_deployment_scenarios.py all`
+   - Launch: `python run.py` → exercise `/classify` and hierarchy toggle.
+
+### Alternative Flow: Copy Promotion (when a local candidate .pkl exists)
+- `python scripts/promote_model.py experiments/experimental_runs/2025-09-16 --dry-run`
+- `python scripts/promote_model.py experiments/experimental_runs/2025-09-16 --keep-old 2`
+- Note: Use this only when the candidate `.pkl` is already present locally; otherwise prefer the Rebuild flow above.
+
+### Storage & Guardrails
+- Git keeps JSON configs/metadata only; `.pkl` files remain untracked/regenerated.
+- Size guardrail baked into `04_create_production_model.py` (refits with constrained `max_leaf_nodes` if needed).
+- Repro keys are documented: DB path, frozen eval IDs, parameters, class weights, and creation date.
+
+### One-Glance Checklist (12 months later)
+- Data present at `data/02_stg/stg_disaster_response.db`
+- Frozen eval IDs at `experiments/experimental_configs/eval_sets/eval_ids.json`
+- Params at `experiments/model_candidates/2025-09-16-comprehensive-grid-search-optimized-hyperparameters.json`
+- Run `scripts/04_create_production_model.py` with the params and class weights JSON
+- Update `app/config.py:40` to the new filename and validate
