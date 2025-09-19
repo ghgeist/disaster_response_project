@@ -447,7 +447,7 @@ def main():
     parser.add_argument('--seed', dest='seed', type=int, default=DEFAULT_RANDOM_SEED,
                        help=f'Random seed (default: {DEFAULT_RANDOM_SEED})')
     parser.add_argument('--eval-ids', dest='eval_ids_path', default=None,
-                       help='Path to CSV of eval UIDs; if not provided, defaults to data/04_fct/eval_ids.csv if present')
+                       help='Path to eval UIDs file (JSON or CSV); if not provided, defaults to experiments/experimental_configs/eval_sets/eval_ids.json if present')
     parser.add_argument('--no-frozen-eval', dest='no_frozen_eval', action='store_true',
                        help='Force random split even if an eval IDs file exists')
 
@@ -477,7 +477,7 @@ def main():
     eval_ids_file = None
     if not args.no_frozen_eval:
         # Prefer explicit path; otherwise default to conventional location
-        candidate = args.eval_ids_path or os.path.join('data', '04_fct', 'eval_ids.csv')
+        candidate = args.eval_ids_path or os.path.join('experiments', 'experimental_configs', 'eval_sets', 'eval_ids.json')
         if os.path.isfile(candidate):
             eval_ids_file = candidate
 
@@ -492,8 +492,15 @@ def main():
     if eval_ids_file:
         logging.info('Using frozen eval set from %s', eval_ids_file)
         try:
-            eval_df = pd.read_csv(eval_ids_file)
-            eval_uids = set(eval_df['uid'].astype(str).tolist())
+            # Support both JSON and legacy CSV formats
+            if eval_ids_file.endswith('.json'):
+                with open(eval_ids_file, 'r') as f:
+                    data = json.load(f)
+                eval_uids = set(data['eval_ids'])
+            else:
+                # Legacy CSV format
+                eval_df = pd.read_csv(eval_ids_file)
+                eval_uids = set(eval_df['uid'].astype(str).tolist())
         except Exception as e:
             logging.error('Failed to read eval IDs file: %s', e)
             sys.exit(1)

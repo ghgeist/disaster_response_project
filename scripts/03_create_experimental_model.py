@@ -270,7 +270,7 @@ def main():
     parser.add_argument('--seed', dest='seed', type=int, default=42,
                        help='Random seed (default: 42)')
     parser.add_argument('--eval-ids', dest='eval_ids_path', default=None,
-                       help='Path to CSV of eval UIDs; if not provided, defaults to data/04_fct/eval_ids.csv if present')
+                       help='Path to eval UIDs file (JSON or CSV); if not provided, defaults to experiments/experimental_configs/eval_sets/eval_ids.json if present')
     parser.add_argument('--no-frozen-eval', dest='no_frozen_eval', action='store_true',
                        help='Force random split even if an eval IDs file exists')
 
@@ -310,7 +310,7 @@ def main():
     # Determine split mode (frozen eval vs random)
     eval_ids_file = None
     if not args.no_frozen_eval:
-        candidate = args.eval_ids_path or os.path.join('data', '04_fct', 'eval_ids.csv')
+        candidate = args.eval_ids_path or os.path.join('experiments', 'experimental_configs', 'eval_sets', 'eval_ids.json')
         if os.path.isfile(candidate):
             eval_ids_file = candidate
 
@@ -325,8 +325,15 @@ def main():
     if eval_ids_file:
         logging.info('Using frozen eval set from %s', eval_ids_file)
         try:
-            eval_df = pd.read_csv(eval_ids_file)
-            eval_uids = set(eval_df['uid'].astype(str).tolist())
+            # Support both JSON and legacy CSV formats
+            if eval_ids_file.endswith('.json'):
+                with open(eval_ids_file, 'r') as f:
+                    data = json.load(f)
+                eval_uids = set(data['eval_ids'])
+            else:
+                # Legacy CSV format
+                eval_df = pd.read_csv(eval_ids_file)
+                eval_uids = set(eval_df['uid'].astype(str).tolist())
         except Exception as e:
             logging.error('Failed to read eval IDs file: %s', e)
             sys.exit(1)
@@ -432,7 +439,12 @@ def main():
     # Snapshot the eval IDs used for this run (traceability)
     if eval_ids_file:
         try:
-            shutil.copyfile(eval_ids_file, os.path.join(experiment_dir, 'eval_ids_used.csv'))
+            # Copy eval IDs file to experiment directory with appropriate extension
+            if eval_ids_file.endswith('.json'):
+                target_file = os.path.join(experiment_dir, 'eval_ids_used.json')
+            else:
+                target_file = os.path.join(experiment_dir, 'eval_ids_used.csv')
+            shutil.copyfile(eval_ids_file, target_file)
         except Exception as e:
             logging.warning('Could not snapshot eval IDs file: %s', e)
 
@@ -537,7 +549,8 @@ def main():
     print(f'     label_order.json          <- Category label order')
     print(f'     MODEL_INFO.json           <- Model metadata & info')
     if eval_ids_file:
-        print(f'     eval_ids_used.csv         <- Evaluation set identifiers')
+        eval_file_ext = 'json' if eval_ids_file.endswith('.json') else 'csv'
+        print(f'     eval_ids_used.{eval_file_ext}         <- Evaluation set identifiers')
     print(f'\nThis structure organizes all experiment artifacts by date for easy tracking!')
 
 

@@ -29,3 +29,4 @@ For most work you can rely on the mocked tests. To validate the real integration
 3. Run the opt-in test: `pytest -q tests/test_gdrive_deployment.py -k real_id`.
 
 This path is skipped by default and should be scheduled sparingly (e.g., nightly or pre-release) because it will perform an actual download and depends on external availability.
+

@@ -2,7 +2,7 @@
 """
 Create a frozen evaluation set (by stable UID) from the SQLite DB.
 
-This script writes a CSV of UIDs that define the eval (holdout) split so that
+This script writes a JSON file of UIDs that define the eval (holdout) split so that
 all future models can be compared on the exact same examples.
 
 UIDs are computed as SHA-1 of "<message>|<row_index>", where row_index comes
@@ -12,7 +12,7 @@ underlying dataset ordering and content do not change.
 Usage:
     python scripts/create_frozen_eval_ids.py \
         --db data/02_stg/stg_disaster_response.db \
-        --out data/04_fct/eval_ids.csv \
+        --out experiments/experimental_configs/eval_sets/eval_ids.json \
         --test-size 0.2 --seed 42
 """
 
@@ -21,6 +21,8 @@ import hashlib
 import os
 import sys
 import logging
+import json
+from datetime import datetime
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
@@ -56,9 +58,9 @@ def main():
     parser.add_argument('--db', dest='database_filepath',
                         default='data/02_stg/stg_disaster_response.db',
                         help='Path to SQLite database (default: data/02_stg/stg_disaster_response.db)')
-    parser.add_argument('--out', dest='out_csv',
-                        default='data/04_fct/eval_ids.csv',
-                        help='Output CSV path for eval UIDs (default: data/04_fct/eval_ids.csv)')
+    parser.add_argument('--out', dest='out_json',
+                        default='experiments/experimental_configs/eval_sets/eval_ids.json',
+                        help='Output JSON path for eval UIDs (default: experiments/experimental_configs/eval_sets/eval_ids.json)')
     parser.add_argument('--test-size', dest='test_size', type=float, default=0.2,
                         help='Holdout fraction (default: 0.2)')
     parser.add_argument('--seed', dest='seed', type=int, default=42,
@@ -94,12 +96,28 @@ def main():
 
     eval_uids = [uids[i] for i in idx_eval]
 
-    out_dir = os.path.dirname(args.out_csv) or '.'
-    os.makedirs(out_dir, exist_ok=True)
-    pd.DataFrame({'uid': eval_uids}).to_csv(args.out_csv, index=False)
+    # Create JSON structure with metadata
+    json_data = {
+        'metadata': {
+            'created_date': datetime.now().strftime('%Y-%m-%d'),
+            'purpose': 'frozen_evaluation_set',
+            'count': len(eval_uids),
+            'test_size': args.test_size,
+            'random_seed': args.seed,
+            'source_db': args.database_filepath,
+            'uid_algorithm': 'sha1(message|row_index)'
+        },
+        'eval_ids': eval_uids
+    }
 
-    logging.info('Wrote %d eval UIDs to %s', len(eval_uids), args.out_csv)
-    print(f"Wrote {len(eval_uids)} eval UIDs to {args.out_csv}")
+    out_dir = os.path.dirname(args.out_json) or '.'
+    os.makedirs(out_dir, exist_ok=True)
+
+    with open(args.out_json, 'w') as f:
+        json.dump(json_data, f, indent=2)
+
+    logging.info('Wrote %d eval UIDs to %s', len(eval_uids), args.out_json)
+    print(f"Wrote {len(eval_uids)} eval UIDs to {args.out_json}")
 
 
 if __name__ == '__main__':
