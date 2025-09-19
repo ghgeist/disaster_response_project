@@ -65,9 +65,14 @@ Disaster response message classification system with modular ML pipeline targeti
 5. Models serialized with joblib in `model/` directory
 
 ### Experiment System
-- Structured experiments in `experiments/` with naming convention
-- Each contains: models, parameters, metrics, visualizations
-- Experiment tracker manages reproducibility
+- Organized experiments in `experiments/` with clear structure:
+  - `experimental_runs/{YYYY-MM-DD}/` - Dated experiment results (models, metrics, logs)
+  - `experimental_configs/` - Reusable configurations (hyperparameters, sampling strategies)
+  - `comparisons/` - Timestamped model comparison reports
+  - `logs/` - Training and execution logs
+  - `model_candidates/` - Hyperparameter optimization results
+- Each dated folder contains complete experiment artifacts from that date
+- Experiment tracker manages reproducibility and metadata
 
 ### Web Application
 - Flask factory pattern in `app/`
@@ -90,6 +95,22 @@ Disaster response message classification system with modular ML pipeline targeti
 - Creating utility functions and helper methods
 - Quick prototyping of new features before full implementation
 - Note: Codex has multiple model options - choose appropriate model based on task complexity
+
+## Experiment Organization
+
+### Folder Structure Rules
+- **Dated Runs**: All experiment artifacts go in `experiments/experimental_runs/{YYYY-MM-DD}/`
+- **Date Consistency**: Only put artifacts from that specific date in each dated folder
+- **Sub-experiments**: Use subfolders for related experiments (e.g., `hierarchy_initial/`, `hierarchy_optimized/`)
+- **Configuration Separation**: Reusable configs in `experimental_configs/`, results in `experimental_runs/`
+- **Legacy Placement**: Old or one-off artifacts in `experimental_runs/legacy/`
+
+### File Placement Guidelines
+- Model files (.pkl): `experimental_runs/{date}/`
+- Metrics/results (.csv): `experimental_runs/{date}/`
+- Hyperparameter configs (.json): `experimental_configs/hyperparameters/`
+- Comparison reports: `comparisons/` with timestamps
+- Training logs: `logs/` with clear naming
 
 ## Code Conventions
 

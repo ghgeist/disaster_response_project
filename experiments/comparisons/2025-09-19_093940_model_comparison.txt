@@ -1,0 +1,34 @@
+MODEL COMPARISON: 2025-09-16 Comprehensive Grid Search [n_est=[100, 200], depth=[None, 10, 20], ngrams=[[1, 1], [1, 2]]] vs disaster_rf_v1-2-0 Production (2025-09-11)
+================================================================================
+Comparison Date: 2025-09-19 09:39:40
+
+Production Model: disaster_rf_v1-2-0 Production (2025-09-11)
+Experimental Model: 2025-09-16 Comprehensive Grid Search [n_est=[100, 200], depth=[None, 10, 20], ngrams=[[1, 1], [1, 2]]]
+Experiment Date: 2025-09-16
+Key Hyperparameters: n_estimators=[100, 200], max_depth=[None, 10, 20], ngram_range=[[1, 1], [1, 2]], min_samples_leaf=[1, 2, 4]
+
+PERFORMANCE COMPARISON:
+--------------------------------------------------
+PRODUCTION (disaster_rf_v1-2-0 Production (2025-09-11)):
+   F1-Score:   0.9007
+   Precision:  0.9108
+   Recall:     0.9297
+   Model Size: 31.3 MB
+
+EXPERIMENTAL (2025-09-16 Comprehensive Grid Search [n_est=[100, 200], depth=[None, 10, 20], ngrams=[[1, 1], [1, 2]]]):
+   F1-Score:   0.9366
+   Precision:  0.9385
+   Recall:     0.9484
+
+PERFORMANCE CHANGES:
+------------------------------
+   F1-Score:   +3.99%
+   Precision:  +3.05%
+   Recall:     +2.00%
+
+VERDICT:
+   Experimental model shows improvement!
+
+============================================================
+
+📄 Full comparison report saved to: experiments/comparisons/2025-09-19_093940_model_comparison.txt

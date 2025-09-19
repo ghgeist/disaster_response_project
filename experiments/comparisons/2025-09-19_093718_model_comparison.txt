@@ -1,0 +1,19 @@
+MODEL COMPARISON: No Experimental Model vs disaster_rf_v1-2-0 Production (2025-09-11)
+================================================================================
+Comparison Date: 2025-09-19 09:37:18
+
+Experimental artifacts source: not found
+
+PERFORMANCE COMPARISON:
+--------------------------------------------------
+PRODUCTION (disaster_rf_v1-2-0 Production (2025-09-11)):
+   F1-Score:   0.9007
+   Precision:  0.9108
+   Recall:     0.9297
+   Model Size: 31.3 MB
+
+EXPERIMENTAL (Unknown): No metrics found
+
+============================================================
+
+📄 Full comparison report saved to: experiments/comparisons/2025-09-19_093718_model_comparison.txt
