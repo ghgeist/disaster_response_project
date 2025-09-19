@@ -10,7 +10,7 @@ class Config:
     
     # Flask settings
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
-    DEBUG = True  # Temporarily enabled for development
+    DEBUG = os.environ.get('FLASK_ENV') == 'development'
     
     # Security settings
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB limit to prevent DoS attacks
