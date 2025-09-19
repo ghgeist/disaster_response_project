@@ -42,7 +42,7 @@ from disasterproject.models.pipeline import (
 from disasterproject.models.samplers import get_multilabel_class_weights
 from disasterproject.evaluation.metrics import evaluate_model, save_model
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, f1_score
 import pandas as pd
 import numpy as np
 import joblib
@@ -132,6 +132,16 @@ def evaluate_model_to_experiment_folder(model, X_test, Y_test, category_names, e
         weighted_avg = results_df[results_df['output_class'] == 'weighted avg']
         positive_class = results_df[results_df['output_class'] == '1']
 
+        # True across-label metrics (micro/samples) for promotion gating
+        try:
+            micro_f1 = float(f1_score(Y_test, Y_pred, average="micro", zero_division=0))
+        except Exception:
+            micro_f1 = None
+        try:
+            samples_f1 = float(f1_score(Y_test, Y_pred, average="samples", zero_division=0))
+        except Exception:
+            samples_f1 = None
+
         summary = {
             'overall_precision': weighted_avg['precision'].mean(),
             'overall_recall': weighted_avg['recall'].mean(),
@@ -139,6 +149,8 @@ def evaluate_model_to_experiment_folder(model, X_test, Y_test, category_names, e
             'positive_class_precision': positive_class['precision'].mean(),
             'positive_class_recall': positive_class['recall'].mean(),
             'positive_class_f1': positive_class['f1-score'].mean(),
+            'micro_f1': micro_f1,
+            'samples_f1': samples_f1,
             'total_categories': len(category_names),
             'test_samples': len(Y_test)
         }
@@ -556,5 +568,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
 
