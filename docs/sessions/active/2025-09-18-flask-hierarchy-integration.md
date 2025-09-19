@@ -25,10 +25,10 @@ Create a live, working demonstration that proves the hierarchy post-processing s
 ## 📋 Success Criteria - "It Works" Focus
 
 **Primary Success**: Immediate proof that the system works
-- [ ] User types emergency message → gets instant, logical results
-- [ ] Toggle shows AI making mistakes → hierarchy fixing them automatically
-- [ ] System runs reliably without crashes or errors
-- [ ] 30-second demo proves functionality to any viewer
+- [x] User types emergency message → gets instant, logical results
+- [x] Toggle shows AI making mistakes → hierarchy fixing them automatically
+- [x] System runs reliably without crashes or errors
+- [x] 30-second demo proves functionality to any viewer
 
 **Secondary Success**: Production credibility
 - [ ] Health dashboard shows system actually runs in production
@@ -322,6 +322,7 @@ Success will be measured by:
 - `app/templates/home.html` - Updated form to route to `/classify` with hierarchy toggle and example buttons
 - `app/templates/macros/forms.html` - Added `render_checkbox_field()` macro
 - `app/templates/classify_results.html` - New template with violation diff table and static metrics
+- `app/static/demo_metrics.json` - Static metrics source rendered by results page
 - `README.md` - Added "Hierarchy Processing Demo" section with complete documentation
 
 ### 30-Second Demo Flow (Tested & Working)
@@ -356,19 +357,36 @@ Success will be measured by:
 - **Model Promotion Script Development**: Started work on promoting experimental models to production
 - **File Organization Issues**: Began refactoring confusing file structures but became stuck
 
-#### Current Blockers
-- **File Refactoring Confusion**: User got stuck during file reorganization process
-- **Unclear File Relationships**: Some files may have unclear purposes or duplicated functionality
-- **Model Promotion Incomplete**: Script development was interrupted by file organization issues
+#### Follow-up Work Completed (2025-09-19)
 
-#### Next Steps Required
-1. **Assess Current File State**: Review what files were being refactored and why they were confusing
-2. **Clarify File Purposes**: Identify which files serve what purpose in the model promotion workflow
-3. **Complete Model Promotion**: Finish the script to promote experimental models to production
-4. **Resolve File Organization**: Clean up any remaining file structure issues
+Promotion workflow gaps closed and validated:
 
-#### Files Likely Affected (Investigation Needed)
-- Model promotion scripts in `scripts/`
-- Experimental model files in `experiments/`
-- Production model configurations
-- Potentially duplicated or unclear utility files
+- scripts/promote_model.py
+  - Flexible artifact discovery:
+    - Metrics from `training_log.json` (preferred) or `performance_metrics.csv`
+    - Model file = newest `*.pkl` in candidate directory
+  - Auto-update `app/config.py` `MODEL_FILENAME` after promotion (writes `.bak`)
+  - New flags: `--no-update-config`, `--print-new-path`, `--keep-old`
+  - Retains validation gates via `PERFORMANCE_THRESHOLDS`
+
+- scripts/README.md
+  - Added “Promotion Workflow” section with usage examples
+
+- Validation
+  - Smoke tests: `pytest tests/test_smoke.py -q` → 3 passed
+  - App boots and `/classify` demo loop verified
+
+Usage examples:
+
+```
+# Validate only
+python scripts/promote_model.py experiments/experimental_runs/2025-09-18 --dry-run
+
+# Promote and update app config
+python scripts/promote_model.py experiments/experimental_runs/2025-09-18 --keep-old 1 --print-new-path
+
+# Promote without touching app/config.py
+python scripts/promote_model.py experiments/experimental_runs/2025-09-18 --no-update-config
+```
+
+Status: Model promotion script completed; remaining file organization tasks are non-blocking and can be handled separately if needed.
