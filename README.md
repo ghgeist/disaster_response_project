@@ -131,7 +131,7 @@ source venv/bin/activate
 
 1. **Process raw data**:
    ```bash
-   python data/process_data.py data/01_raw/disaster_messages.csv data/01_raw/disaster_categories.csv data/02_stg/stg_disaster_response.db
+   python scripts/process_data.py data/01_raw/disaster_messages.csv data/01_raw/disaster_categories.csv data/02_stg/stg_disaster_response.db
    ```
 
 2. **Train a model**:
@@ -481,7 +481,7 @@ python scripts/04_create_production_model.py
 **Database connection issues:**
 ```bash
 # Verify database exists and is accessible
-python data/process_data.py data/01_raw/disaster_messages.csv data/01_raw/disaster_categories.csv data/02_stg/stg_disaster_response.db
+python scripts/process_data.py data/01_raw/disaster_messages.csv data/01_raw/disaster_categories.csv data/02_stg/stg_disaster_response.db
 ```
 
 **Port already in use:**

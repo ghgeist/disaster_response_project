@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Data Processing
 ```bash
-python data/process_data.py data/01_raw/disaster_messages.csv data/01_raw/disaster_categories.csv data/02_stg/stg_disaster_response.db
+python scripts/process_data.py data/01_raw/disaster_messages.csv data/01_raw/disaster_categories.csv data/02_stg/stg_disaster_response.db
 ```
 
 ### Model Training
@@ -58,7 +58,7 @@ Disaster response message classification system with modular ML pipeline targeti
 - **utils/**: Configuration, experiment tracking, I/O
 
 ### Key Data Flow
-1. Raw CSV → SQLite staging DB (via `data/process_data.py`)
+1. Raw CSV → SQLite staging DB (via `scripts/process_data.py`)
 2. ETL pipeline processes text + creates multi-label targets
 3. Sampling strategies handle severe class imbalance
 4. RandomForest with MultiOutputClassifier for 36 categories

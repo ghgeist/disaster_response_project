@@ -29,7 +29,7 @@ Ship a hardened, coherent repo where data processing, model training, evaluation
 
 ## 🔍 Context
 
-You shared a repo map and hotspot scan highlighting tight coupling in `ModelService.load_model`, duplicated path logic in `validate_environment`, and mixed concerns in `data/process_data.py`. You also proposed eight quick wins with three concrete patches. The current test collection fails due to missing `disasterproject.utils.secure_subprocess` and `train_classifier`. The plan below turns this into shippable increments with rollback points.
+You shared a repo map and hotspot scan highlighting tight coupling in `ModelService.load_model`, duplicated path logic in `validate_environment`, and mixed concerns in `scripts/process_data.py`. You also proposed eight quick wins with three concrete patches. The current test collection fails due to missing `disasterproject.utils.secure_subprocess` and `train_classifier`. The plan below turns this into shippable increments with rollback points.
 
 ## 📝 Requirements
 
@@ -184,7 +184,7 @@ Follow the Ship-First Planning Agent template: present complete plan, get explic
 ## 🎯 What Was Accomplished
 
 ### Increment 0: Baseline and guardrails ✅
-- **✅ Patch 1 Applied**: Fixed typo `drop_ambigious_messages` → `drop_ambiguous_messages` in `data/process_data.py`
+- **✅ Patch 1 Applied**: Fixed typo `drop_ambigious_messages` → `drop_ambiguous_messages` in `scripts/process_data.py`
 - **✅ Patch 3 Applied**: Created comprehensive smoke test in `tests/test_app_smoke.py` that validates:
   - App startup without errors
   - Index page loads correctly 

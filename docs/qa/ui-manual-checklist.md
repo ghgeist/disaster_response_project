@@ -15,3 +15,4 @@
 - [ ] Results page badges wrap cleanly and chart resizes to screen width.
 - [ ] Keyboard dismissal returns to full results view.
 - [ ] Navigate back to home using button or browser back works correctly.
+

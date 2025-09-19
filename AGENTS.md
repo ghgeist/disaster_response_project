@@ -24,7 +24,7 @@ This document explains how to work on the Disaster Response project when operati
 ```bash
 pip install -r requirements.txt
 pip install -e .
-python data/process_data.py data/01_raw/disaster_messages.csv data/01_raw/disaster_categories.csv data/02_stg/stg_disaster_response.db
+python scripts/process_data.py data/01_raw/disaster_messages.csv data/01_raw/disaster_categories.csv data/02_stg/stg_disaster_response.db
 ```
 
 ### Model Training & Evaluation
