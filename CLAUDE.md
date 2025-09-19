@@ -119,3 +119,7 @@ From `.cursor/rules/`:
 - Specific exception handling (ValueError vs Exception)
 - Import grouping: standard library, third-party, local
 - Focus on functional changes over linting issues
+
+## Workflow
+
+**IMPORTANT**: Always seek user approval before implementing code changes. Present suggestions and plans first, then wait for explicit approval before proceeding with implementation.

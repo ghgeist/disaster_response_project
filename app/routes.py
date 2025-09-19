@@ -383,8 +383,6 @@ def register_routes(app):
         # Handle GET requests (for URL parameters or direct access)
         if request.method == 'GET':
             query = request.args.get('query', '')
-            use_hierarchy = request.args.get('use_hierarchy', 'false').lower() == 'true'
-
             if not query:
                 return redirect(url_for('index'))
 
@@ -397,7 +395,6 @@ def register_routes(app):
                 return redirect(url_for('index'))
 
             query = sanitize_input(form.query.data)
-            use_hierarchy = form.use_hierarchy.data
 
         # Validate input
         is_valid, error_message = validate_message_input(query)
@@ -423,20 +420,15 @@ def register_routes(app):
             # Compute violations in raw predictions
             violations = compute_violations(raw_probabilities, TAXONOMY, EXCLUDE_FROM_CONSTRAINTS)
 
-            # Apply hierarchy if requested
-            if use_hierarchy:
-                # Apply hierarchy post-processing
-                fixed_probabilities, fixed_labels = apply_hierarchy(
-                    probs=raw_probabilities,
-                    thresholds=thresholds,
-                    taxonomy=TAXONOMY,
-                    critical_labels=CRITICAL_LABELS,
-                    exclude=EXCLUDE_FROM_CONSTRAINTS,
-                    critical_threshold_reduction=HIERARCHY_CRITICAL_THRESHOLD_REDUCTION
-                )
-            else:
-                fixed_probabilities = raw_probabilities
-                fixed_labels = raw_labels
+            # Always apply hierarchy processing
+            fixed_probabilities, fixed_labels = apply_hierarchy(
+                probs=raw_probabilities,
+                thresholds=thresholds,
+                taxonomy=TAXONOMY,
+                critical_labels=CRITICAL_LABELS,
+                exclude=EXCLUDE_FROM_CONSTRAINTS,
+                critical_threshold_reduction=HIERARCHY_CRITICAL_THRESHOLD_REDUCTION
+            )
 
             # Create prediction lists for display (exclude 'related')
             raw_predictions = []
@@ -473,7 +465,7 @@ def register_routes(app):
             # Prepare response data
             response_data = {
                 'query': query,
-                'use_hierarchy': use_hierarchy,
+                'use_hierarchy': True, # Always true now
                 'raw': {
                     'predictions': raw_predictions,
                     'probabilities': raw_probabilities,
@@ -494,7 +486,7 @@ def register_routes(app):
 
             # For regular requests, render template
             return render_template(
-                'classify_results.html',
+                'results.html',
                 **response_data
             )
 

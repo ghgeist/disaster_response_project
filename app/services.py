@@ -326,15 +326,15 @@ class ModelService:
 
                     for idx, p in enumerate(proba):
                         if p.shape[1] == 1:
-                            # Single column: assume it's the positive class probability
-                            prob_val = p[:, 0][0]
+                            # Single column: degenerate classifier (only negative class learned)
+                            # The single probability represents P(negative_class), so P(positive_class) = 0
+                            prob_val = 0.0  # Force positive class probability to 0 for degenerate classifiers
                             probs.append(prob_val)
                             category_name = active_categories[idx] if idx < len(active_categories) else f"unknown_{idx}"
                             logger.debug(
-                                "Label %d (%s): single column prob=%.4f",
+                                "Label %d (%s): degenerate classifier detected, setting positive prob to 0.0",
                                 idx,
                                 category_name,
-                                prob_val,
                             )
                         elif p.shape[1] == 2:
                             # Two columns: assume class 1 is positive (standard binary classification)
