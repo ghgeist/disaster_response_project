@@ -1,0 +1,5 @@
+output_class,precision,recall,f1-score
+0,96.0,100.0,98.0
+1,78.0,4.0,7.0
+macro avg,85.0,52.0,53.0
+weighted avg,95.0,96.0,94.0
