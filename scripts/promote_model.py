@@ -300,7 +300,8 @@ def _update_app_config_model_filename(config_path: Path, new_filename: str, back
             return False
         import re
         pattern = r"^(\s*MODEL_FILENAME\s*=\s*)(['\"])(.+?)\2"
-        repl = r"\1'" + new_filename + r"'"
+        # Preserve the original quote style by using the captured group
+        repl = r"\1\2" + new_filename + r"\2"
         new_text, n = re.subn(pattern, repl, text, flags=re.MULTILINE)
         if n == 0:
             print("Warning: Could not update MODEL_FILENAME line; skipping auto-update")
