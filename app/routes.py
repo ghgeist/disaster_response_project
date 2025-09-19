@@ -486,7 +486,7 @@ def register_routes(app):
 
             # For regular requests, render template
             return render_template(
-                'classify_results.html',
+                'results.html',
                 **response_data
             )
 
