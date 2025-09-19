@@ -64,8 +64,16 @@ scripts/                          # Professional training and testing interface
 ├── 02_test_hyperparameters.py     # Hyperparameter optimization
 ├── 03_create_experimental_model.py # Experimental model creation
 ├── 04_create_production_model.py  # Production model creation
-├── 06_create_lightweight_model.py # Lightweight model creation
 ├── compare_models.py            # Model comparison tool
+├── compare_child_alone.py       # Child alone label analysis
+├── evaluate_hierarchy.py        # Hierarchy constraint evaluation
+├── optimize_thresholds.py       # Threshold optimization
+├── promote_model.py             # Model promotion utility
+├── test_experimental_model.py   # Experimental model testing
+├── validate_production_model.py # Production model validation
+├── validate_multilabel_sampling.py # Multilabel sampling validation
+├── system_validation.py         # System validation checks
+├── deployment_health_check.py   # Deployment health verification
 └── run_batch_experiments.py     # Batch experiment runner
 
 experiments/                      # Organized experiment results
@@ -103,7 +111,7 @@ source venv/bin/activate
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/your-username/disaster-response-project.git
+   git clone <repository-url>
    cd disaster-response-project
    ```
 
@@ -113,8 +121,9 @@ source venv/bin/activate
    ```
 
 3. **Install local package** (required for training scripts):
+   The project uses modern Python packaging with `pyproject.toml`:
    ```bash
-   # Recommended
+   # Recommended - installs package in development mode
    pip install -e .
    # Or set PYTHONPATH per call (macOS/Linux)
    PYTHONPATH=src python scripts/04_create_production_model.py
@@ -139,8 +148,8 @@ source venv/bin/activate
    # Create production model
    python scripts/04_create_production_model.py
    
-   # Create lightweight model (recommended for deployment)
-   python scripts/06_create_lightweight_model.py
+   # Alternative: Create experimental model with custom parameters
+   python scripts/03_create_experimental_model.py
    ```
 
 3. **Run the web application**:
@@ -221,8 +230,17 @@ python scripts/01_test_sampling_strategies.py data/02_stg/stg_disaster_response.
 # Test hyperparameters
 python scripts/02_test_hyperparameters.py data/02_stg/stg_disaster_response.db
 
+# Create experimental model
+python scripts/03_create_experimental_model.py
+
 # Compare experiment results
 python scripts/compare_models.py
+
+# Additional analysis tools
+python scripts/evaluate_hierarchy.py
+python scripts/optimize_thresholds.py
+python scripts/validate_production_model.py
+python scripts/test_experimental_model.py
 ```
 
 ### Experiment Tracking
@@ -433,7 +451,10 @@ disaster_response_project/
 ├── scripts/                     # Training and utility scripts
 ├── experiments/                 # Experiment results
 ├── app/                         # Web application
-├── data/                        # Data storage (raw, processed, results)
+├── data/                        # Data storage
+│   ├── 01_raw/                  # Raw input data
+│   ├── 02_stg/                  # Staging/processed data
+│   └── 04_fct/                  # Fact tables and final outputs
 ├── model/                       # Trained models and parameters
 ├── notebooks/                   # Jupyter notebooks for analysis
 ├── docs/                        # Documentation and guides
