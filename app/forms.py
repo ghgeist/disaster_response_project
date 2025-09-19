@@ -1,7 +1,7 @@
 """Flask-WTF forms for the Disaster Response application."""
 
 from flask_wtf import FlaskForm
-from wtforms import TextAreaField, SubmitField
+from wtforms import TextAreaField, SubmitField, BooleanField
 from wtforms.validators import DataRequired, Length, Regexp
 
 
@@ -22,6 +22,14 @@ class MessageForm(FlaskForm):
             "placeholder": "Enter an emergency message...",
             "rows": 3,
             "aria-describedby": "query-help",
+        },
+    )
+    use_hierarchy = BooleanField(
+        "Use Hierarchy Processing",
+        default=False,
+        render_kw={
+            "class": "form-check-input",
+            "aria-describedby": "hierarchy-help",
         },
     )
     submit = SubmitField("Analyze Message", render_kw={"class": "btn btn-primary"})

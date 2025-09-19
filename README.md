@@ -131,7 +131,7 @@ source venv/bin/activate
 
 1. **Process raw data**:
    ```bash
-   python data/process_data.py data/01_raw/disaster_messages.csv data/01_raw/disaster_categories.csv data/02_stg/stg_disaster_response.db
+   python scripts/process_data.py data/01_raw/disaster_messages.csv data/01_raw/disaster_categories.csv data/02_stg/stg_disaster_response.db
    ```
 
 2. **Train a model**:
@@ -238,10 +238,34 @@ The Flask web application provides:
 
 ### Features
 - **Real-time Classification**: Input messages and get instant category predictions
+- **Hierarchy Demo**: Interactive demonstration of logical consistency enforcement
 - **Data Visualization**: Interactive charts showing message distribution and categories
 - **Model Performance**: Visual representation of model metrics
 - **Responsive Design**: Tailwind CSS-based modern interface
 - **Cloud Deployment**: Optimized for Replit deployment with automatic model downloading
+
+### Hierarchy Processing Demo
+
+The web application includes a live demonstration of the hierarchy post-processing system:
+
+**Key Features:**
+- **Toggle Interface**: Enable/disable hierarchy processing with a simple checkbox
+- **Violation Detection**: Automatically identifies logical inconsistencies (e.g., `medical_help=YES` but `aid_related=NO`)
+- **Before/After Comparison**: Visual diff table showing raw predictions vs. hierarchy-corrected results
+- **Curated Examples**: Pre-filled messages that reliably trigger violations for demonstration
+- **Production Metrics**: Static display of real performance data (zero violations on 26,027 test messages)
+
+**Demo Flow:**
+1. Enter a message (or use curated examples)
+2. Submit without hierarchy processing to see raw AI predictions with violations
+3. Enable hierarchy toggle and resubmit to see automatic corrections
+4. Compare results in the side-by-side violation diff table
+
+**Endpoints:**
+- `/classify` - Main classification endpoint with optional `use_hierarchy` parameter
+- Supports both form submissions and URL parameters for easy testing
+
+This demonstrates the system's ability to enforce logical consistency in AI predictions for mission-critical disaster response scenarios.
 
 ### Usage
 1. Navigate to the main page to see data visualizations
@@ -457,7 +481,7 @@ python scripts/04_create_production_model.py
 **Database connection issues:**
 ```bash
 # Verify database exists and is accessible
-python data/process_data.py data/01_raw/disaster_messages.csv data/01_raw/disaster_categories.csv data/02_stg/stg_disaster_response.db
+python scripts/process_data.py data/01_raw/disaster_messages.csv data/01_raw/disaster_categories.csv data/02_stg/stg_disaster_response.db
 ```
 
 **Port already in use:**

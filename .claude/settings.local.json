@@ -21,7 +21,10 @@
       "Bash(PYTHONPATH=src python scripts/compare_models.py)",
       "Bash(PYTHONPATH=src python scripts/evaluate_hierarchy.py)",
       "Bash(PYTHONPATH=src python scripts/optimize_thresholds.py)",
-      "Bash(PYTHONPATH=src python scripts/evaluate_hierarchy.py --output-dir experiments/optimized_hierarchy_final)"
+      "Bash(PYTHONPATH=src python scripts/evaluate_hierarchy.py --output-dir experiments/optimized_hierarchy_final)",
+      "Bash(tree:*)",
+      "Bash(awk:*)",
+      "Bash(mv:*)"
     ],
     "deny": [],
     "ask": []

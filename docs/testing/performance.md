@@ -30,3 +30,4 @@ Because timing on developer machines can be noisy, consider:
 - Adjusting the threshold only after profiling the bottleneck and documenting the change.
 
 The perf marker is excluded by default to keep pull-request CI fast, but schedule it for nightly or pre-release jobs to avoid regressions.
+

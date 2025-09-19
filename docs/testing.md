@@ -1,5 +1,10 @@
 # Testing Guide
 
+## Index
+- Performance testing: `docs/testing/performance.md`
+- Google Drive testing: `docs/testing/gdrive.md`
+- FAQ: `docs/testing/faq.md`
+
 This repository ships with a curated pytest suite designed to reassure reviewers that the Flask + ML stack is production ready. The tests intentionally mix fast smoke coverage with targeted integration, security, and deployment checks.
 
 ## Layout

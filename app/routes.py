@@ -20,7 +20,57 @@ from .utils import format_request_context, sanitize_input, validate_message_inpu
 from .forms import MessageForm
 from .nltk_setup import get_nltk_status
 
+# Import hierarchy functions
+from disasterproject.hierarchy import apply_hierarchy, count_violations
+from disasterproject.utils.config import (
+    TAXONOMY,
+    CRITICAL_LABELS,
+    EXCLUDE_FROM_CONSTRAINTS,
+    HIERARCHY_CRITICAL_THRESHOLD_REDUCTION
+)
+
 logger = logging.getLogger(__name__)
+
+
+def compute_violations(probs, taxonomy, exclude_set):
+    """
+    Compute parent < child violations for display in the diff table.
+
+    Args:
+        probs: Dictionary mapping label names to probabilities
+        taxonomy: Dictionary mapping parent labels to list of child labels
+        exclude_set: Set of labels to exclude from violation checks
+
+    Returns:
+        List of violation dictionaries with parent, child, parent_prob, child_prob
+    """
+    violations = []
+
+    for parent, children in taxonomy.items():
+        if parent == "related":
+            continue  # Skip 'related' group as it doesn't use probability constraints
+
+        if parent in exclude_set:
+            continue
+
+        # Find valid children (present in probs and not excluded)
+        valid_children = [child for child in children
+                         if child in probs and child not in exclude_set]
+
+        if not valid_children or parent not in probs:
+            continue
+
+        # Find violations where child > parent
+        for child in valid_children:
+            if probs[child] > probs[parent]:
+                violations.append({
+                    'parent': parent,
+                    'child': child,
+                    'parent_prob': probs[parent],
+                    'child_prob': probs[child]
+                })
+
+    return violations
 
 
 def _create_basic_visualizations(data_service, chart_generator):
@@ -320,6 +370,132 @@ def register_routes(app):
             logger.error("Failed to re-render index after validation error%s: %s", context, error)
             flash("An error occurred while processing your request.", 'error')
             return render_template('home.html', form=form, ids=[], graphJSON="[]", descriptions=[])
+
+    @app.route('/classify', methods=['GET', 'POST'], strict_slashes=False)
+    def classify():
+        """
+        Classify messages with optional hierarchy processing.
+        Supports both raw predictions and hierarchy-fixed results.
+        """
+        form = MessageForm()
+
+        # Handle GET requests (for URL parameters or direct access)
+        if request.method == 'GET':
+            query = request.args.get('query', '')
+            use_hierarchy = request.args.get('use_hierarchy', 'false').lower() == 'true'
+
+            if not query:
+                return redirect(url_for('index'))
+
+        else:  # POST request
+            if not form.validate_on_submit():
+                # Handle form validation errors
+                for field, errors in form.errors.items():
+                    for error in errors:
+                        flash(f"{form[field].label.text}: {error}", 'error')
+                return redirect(url_for('index'))
+
+            query = sanitize_input(form.query.data)
+            use_hierarchy = form.use_hierarchy.data
+
+        # Validate input
+        is_valid, error_message = validate_message_input(query)
+        if not is_valid:
+            flash(error_message, 'error')
+            return redirect(url_for('index'))
+
+        try:
+            model_service = current_app.model_service
+
+            # Get raw predictions from model
+            prediction = model_service.predict(query)
+            raw_labels = prediction.get('labels', {})
+            raw_probabilities = prediction.get('probabilities', {})
+
+            # Synthesize probabilities from labels when predict_proba unavailable
+            if not raw_probabilities and raw_labels:
+                raw_probabilities = {k: 1.0 if v == 1 else 0.0 for k, v in raw_labels.items()}
+
+            # Default thresholds (0.5 for all labels)
+            thresholds = {label: 0.5 for label in raw_probabilities.keys()}
+
+            # Compute violations in raw predictions
+            violations = compute_violations(raw_probabilities, TAXONOMY, EXCLUDE_FROM_CONSTRAINTS)
+
+            # Apply hierarchy if requested
+            if use_hierarchy:
+                # Apply hierarchy post-processing
+                fixed_probabilities, fixed_labels = apply_hierarchy(
+                    probs=raw_probabilities,
+                    thresholds=thresholds,
+                    taxonomy=TAXONOMY,
+                    critical_labels=CRITICAL_LABELS,
+                    exclude=EXCLUDE_FROM_CONSTRAINTS,
+                    critical_threshold_reduction=HIERARCHY_CRITICAL_THRESHOLD_REDUCTION
+                )
+            else:
+                fixed_probabilities = raw_probabilities
+                fixed_labels = raw_labels
+
+            # Create prediction lists for display (exclude 'related')
+            raw_predictions = []
+            fixed_predictions = []
+
+            for category, label in raw_labels.items():
+                if label == 1 and category != 'related':
+                    raw_predictions.append({
+                        "category": category,
+                        "confidence": raw_probabilities.get(category, 0.0)
+                    })
+
+            for category, label in fixed_labels.items():
+                if label == 1 and category != 'related':
+                    fixed_predictions.append({
+                        "category": category,
+                        "confidence": fixed_probabilities.get(category, 0.0)
+                    })
+
+            # Sort predictions by confidence
+            raw_predictions.sort(key=lambda p: p['confidence'], reverse=True)
+            fixed_predictions.sort(key=lambda p: p['confidence'], reverse=True)
+
+            # Prepare response data
+            response_data = {
+                'query': query,
+                'use_hierarchy': use_hierarchy,
+                'raw': {
+                    'predictions': raw_predictions,
+                    'probabilities': raw_probabilities,
+                    'labels': raw_labels
+                },
+                'fixed': {
+                    'predictions': fixed_predictions,
+                    'probabilities': fixed_probabilities,
+                    'labels': fixed_labels
+                },
+                'violations': violations
+            }
+
+            # For AJAX requests, return JSON
+            if request.headers.get('Content-Type') == 'application/json' or request.args.get('format') == 'json':
+                return response_data
+
+            # For regular requests, render template
+            return render_template(
+                'classify_results.html',
+                **response_data
+            )
+
+        except (ValueError, ModelServiceError) as error:
+            context = format_request_context()
+            logger.error("Prediction failure on /classify%s: %s", context, error)
+            flash("Error processing message. Please try again.", 'error')
+            return redirect(url_for('index'))
+        except Exception:
+            context = format_request_context()
+            logger.exception("Unhandled /classify error%s", context)
+            flash("An unexpected error occurred. Please try again.", 'error')
+            return redirect(url_for('index'))
 
     @app.route('/health')
     def health_check():

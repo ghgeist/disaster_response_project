@@ -199,5 +199,13 @@ EXCLUDE_FROM_CONSTRAINTS = {"child_alone"}  # 0 positives in source + train data
 # Kept configurable for clarity in experiments; 0.0 per latest evaluation.
 HIERARCHY_CRITICAL_THRESHOLD_REDUCTION = 0.0
 
+# Model Promotion Configuration
+# Performance thresholds for model validation during promotion
+PERFORMANCE_THRESHOLDS = {
+    'min_f1_weighted': 0.5,  # Minimum weighted F1 score for promotion
+    'min_f1_micro': 0.6,     # Minimum micro F1 score for promotion
+    'max_model_size_mb': 1000  # Maximum model size in MB for production
+}
+
 # Set random seed for reproducibility without noisy import-time logs
 np.random.seed(0)

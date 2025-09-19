@@ -10,6 +10,8 @@ path structures with backward compatibility.
 import os
 import shutil
 import logging
+import json
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
@@ -20,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ExperimentalArtifacts:
-    """Container for experimental artifacts with their paths."""
+    """Container for experimental artifacts with their paths and metadata."""
     model_path: Optional[str] = None
     metrics_path: Optional[str] = None
     info_path: Optional[str] = None
@@ -28,6 +30,13 @@ class ExperimentalArtifacts:
     summary_path: Optional[str] = None
     base_dir: Optional[str] = None
     display_name: Optional[str] = None
+    # Enhanced metadata
+    model_name: Optional[str] = None
+    experiment_date: Optional[str] = None
+    experiment_type: Optional[str] = None
+    hyperparameters: Optional[Dict] = None
+    sampling_strategy: Optional[str] = None
+    descriptive_name: Optional[str] = None
 
 
 class ExperimentalPathManager:
@@ -76,7 +85,7 @@ class ExperimentalPathManager:
         if not self.new_base.exists():
             return None
 
-        # Find latest date directory
+        # Find all date directories and check them for artifacts, starting with latest
         date_dirs = [
             d for d in self.new_base.iterdir()
             if d.is_dir() and self._is_date_directory(d)
@@ -85,8 +94,15 @@ class ExperimentalPathManager:
         if not date_dirs:
             return None
 
-        latest_dir = max(date_dirs, key=lambda d: d.name)
-        return self._extract_artifacts_from_dir(latest_dir, f"experiments/experimental_runs/{latest_dir.name}")
+        # Sort directories by date (newest first) and try each one
+        sorted_dirs = sorted(date_dirs, key=lambda d: d.name, reverse=True)
+
+        for directory in sorted_dirs:
+            artifacts = self._extract_artifacts_from_dir(directory, f"experiments/experimental_runs/{directory.name}")
+            if artifacts:  # Found artifacts in this directory
+                return artifacts
+
+        return None  # No artifacts found in any date directory
 
     def _find_artifacts_legacy_structure(self) -> Optional[ExperimentalArtifacts]:
         """Find artifacts in legacy experiments/results/ structure."""
@@ -129,9 +145,12 @@ class ExperimentalPathManager:
 
         # Also check for date-prefixed versions
         date_pattern = directory.name.replace('-', '_')
+        date_pattern_alt = directory.name.replace('-', '_').replace('_', '-', 2) + '_'  # Handle 2025_09-16_ pattern
         potential_files.update({
             f'{date_pattern}_performance_metrics.csv': 'metrics_path',
+            f'{date_pattern_alt}performance_metrics.csv': 'metrics_path',
             f'{directory.name}_training_log.json': 'summary_path',
+            f'{directory.name}_hyperparameter_search_results.json': 'summary_path',
         })
 
         for filename, attr_name in potential_files.items():
@@ -157,11 +176,161 @@ class ExperimentalPathManager:
             latest_model = max(model_files, key=lambda f: f.stat().st_mtime)
             artifacts.model_path = str(latest_model)
 
-        # Return artifacts only if we found at least metrics or model
+        # Enrich with metadata if we found artifacts
         if artifacts.metrics_path or artifacts.model_path:
+            self._enrich_metadata(artifacts, directory)
             return artifacts
 
         return None
+
+    def _enrich_metadata(self, artifacts: ExperimentalArtifacts, directory: Path) -> None:
+        """Enrich artifacts with metadata extracted from files and directory structure."""
+        # Extract date from directory name if it's a date directory
+        if self._is_date_directory(directory):
+            artifacts.experiment_date = directory.name
+
+        # Extract model name from model file
+        if artifacts.model_path:
+            model_file = Path(artifacts.model_path)
+            artifacts.model_name = model_file.stem
+
+            # Parse experiment type from model filename
+            artifacts.experiment_type = self._parse_experiment_type(model_file.name)
+
+        # Load hyperparameters from various sources
+        artifacts.hyperparameters = self._load_hyperparameters(directory)
+
+        # Determine sampling strategy
+        artifacts.sampling_strategy = self._determine_sampling_strategy(directory)
+
+        # Create descriptive name
+        artifacts.descriptive_name = self._create_descriptive_name(artifacts)
+
+    def _parse_experiment_type(self, model_filename: str) -> str:
+        """Parse experiment type from model filename."""
+        filename_lower = model_filename.lower()
+
+        if 'grid-search' in filename_lower or 'gridsearch' in filename_lower:
+            if 'comprehensive' in filename_lower:
+                return "Comprehensive Grid Search"
+            elif 'original' in filename_lower:
+                return "Original Grid Search"
+            else:
+                return "Grid Search"
+        elif 'optimized' in filename_lower:
+            return "Optimized Model"
+        elif 'baseline' in filename_lower:
+            return "Baseline Model"
+        elif 'lightweight' in filename_lower:
+            return "Lightweight Model"
+        elif 'prod' in filename_lower or 'production' in filename_lower:
+            return "Production Model"
+        else:
+            return "Experimental Model"
+
+    def _load_hyperparameters(self, directory: Path) -> Optional[Dict]:
+        """Load hyperparameters from various sources in the directory."""
+        # Check for hyperparameter search results
+        hyperparams_files = [
+            f"{directory.name}_hyperparameter_search_results.json",
+            "hyperparameter_search_results.json",
+            f"{directory.name}_training_log.json",
+            "training_log.json"
+        ]
+
+        for filename in hyperparams_files:
+            filepath = directory / filename
+            if filepath.exists():
+                try:
+                    with open(filepath, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        # Try different keys where hyperparameters might be stored
+                        if 'best_params' in data:
+                            return data['best_params']
+                        elif 'hyperparameters' in data:
+                            return data['hyperparameters']
+                        elif 'parameters' in data:
+                            return data['parameters']
+                except (json.JSONDecodeError, OSError):
+                    continue
+
+        # Check parent directories for config files
+        config_dir = Path("experiments/experimental_configs/hyperparameters")
+        if config_dir.exists() and directory.name:
+            config_file = config_dir / f"{directory.name}_comprehensive-grid-search.json"
+            if config_file.exists():
+                try:
+                    with open(config_file, 'r', encoding='utf-8') as f:
+                        return json.load(f)
+                except (json.JSONDecodeError, OSError):
+                    pass
+
+        return None
+
+    def _determine_sampling_strategy(self, directory: Path) -> str:
+        """Determine the sampling strategy used."""
+        # Check training log for sampling info
+        training_log_files = [
+            f"{directory.name}_training_log.json",
+            "training_log.json"
+        ]
+
+        for filename in training_log_files:
+            filepath = directory / filename
+            if filepath.exists():
+                try:
+                    with open(filepath, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        if 'sampling_strategy' in data:
+                            return data['sampling_strategy']
+                        elif 'experiment_config' in data and 'sampling' in data['experiment_config']:
+                            return data['experiment_config']['sampling']
+                except (json.JSONDecodeError, OSError):
+                    continue
+
+        # Infer from directory structure or model name
+        model_files = list(directory.glob("*.pkl"))
+        if model_files:
+            model_name = model_files[0].name.lower()
+            if 'smote' in model_name:
+                return "SMOTE"
+            elif 'adasyn' in model_name:
+                return "ADASYN"
+            elif 'baseline' in model_name:
+                return "No Sampling"
+
+        return "Unknown"
+
+    def _create_descriptive_name(self, artifacts: ExperimentalArtifacts) -> str:
+        """Create a human-readable descriptive name for the experiment."""
+        parts = []
+
+        if artifacts.experiment_date:
+            parts.append(artifacts.experiment_date)
+
+        if artifacts.experiment_type:
+            parts.append(artifacts.experiment_type)
+
+        if artifacts.sampling_strategy and artifacts.sampling_strategy != "Unknown":
+            if artifacts.sampling_strategy != "No Sampling":
+                parts.append(f"({artifacts.sampling_strategy})")
+
+        if artifacts.hyperparameters:
+            # Add key hyperparameters if available
+            hp_parts = []
+            if 'clf__estimator__n_estimators' in artifacts.hyperparameters:
+                hp_parts.append(f"n_est={artifacts.hyperparameters['clf__estimator__n_estimators']}")
+            if 'clf__estimator__max_depth' in artifacts.hyperparameters:
+                depth = artifacts.hyperparameters['clf__estimator__max_depth']
+                hp_parts.append(f"depth={depth if depth else 'None'}")
+            if 'vect__ngram_range' in artifacts.hyperparameters:
+                ngram = artifacts.hyperparameters['vect__ngram_range']
+                hp_parts.append(f"ngrams={ngram}")
+
+            if hp_parts:
+                parts.append(f"[{', '.join(hp_parts)}]")
+
+        return " ".join(parts) if parts else artifacts.display_name or "Unknown Experiment"
 
     def _is_date_directory(self, path: Path) -> bool:
         """Check if directory name looks like an ISO date (YYYY-MM-DD)."""

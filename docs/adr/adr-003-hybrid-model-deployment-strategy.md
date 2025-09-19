@@ -152,8 +152,8 @@ We have implemented a **Hybrid Model Deployment Strategy** with the following co
 
 ## References
 
-- [Model Naming Convention Documentation](../model-naming-convention.md)
-- [Deployment Configuration Guide](../deployment-configuration.md)
+- [Model Naming Convention Documentation](../standards/model-naming.md)
+- [Deployment Configuration Guide](../runbooks/deployment.md)
 - [Google Drive Model Storage](https://drive.google.com/file/d/1s_sBXnUdJ-rWm4-YEsDixHCbxBca-oXh/view)
 - [ADR-002: Tokenization Trade-offs](adr-002-tokenization-trade-offs.md)
 

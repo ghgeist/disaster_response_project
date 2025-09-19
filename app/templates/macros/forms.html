@@ -24,6 +24,32 @@
     </div>
 {% endmacro %}
 
+{% macro render_checkbox_field(field, help_text='') %}
+    <div class="form-group mb-4 {{ 'has-error' if field.errors }}">
+        <div class="flex items-center">
+            {{ field(class="h-4 w-4 text-brand-accent-blue focus:ring-brand-accent-blue border-gray-600 bg-gray-700 rounded") }}
+            {{ field.label(class="ml-2 text-sm font-medium text-gray-300") }}
+        </div>
+
+        {% if help_text %}
+            <p class="text-xs text-gray-400 mt-1" id="{{ field.id }}-help">{{ help_text }}</p>
+        {% endif %}
+
+        {% if field.errors %}
+            <div class="error-messages mt-2" role="alert" aria-live="polite">
+                {% for error in field.errors %}
+                    <div class="text-red-400 text-sm flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                        </svg>
+                        {{ error }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
 {% macro render_submit_button(field, class_='') %}
     <div class="form-group">
         {{ field(class="w-full sm:w-auto bg-brand-accent-blue hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue " + class_) }}

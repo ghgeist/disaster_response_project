@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Data Processing
 ```bash
-python data/process_data.py data/01_raw/disaster_messages.csv data/01_raw/disaster_categories.csv data/02_stg/stg_disaster_response.db
+python scripts/process_data.py data/01_raw/disaster_messages.csv data/01_raw/disaster_categories.csv data/02_stg/stg_disaster_response.db
 ```
 
 ### Model Training
@@ -58,16 +58,21 @@ Disaster response message classification system with modular ML pipeline targeti
 - **utils/**: Configuration, experiment tracking, I/O
 
 ### Key Data Flow
-1. Raw CSV → SQLite staging DB (via `data/process_data.py`)
+1. Raw CSV → SQLite staging DB (via `scripts/process_data.py`)
 2. ETL pipeline processes text + creates multi-label targets
 3. Sampling strategies handle severe class imbalance
 4. RandomForest with MultiOutputClassifier for 36 categories
 5. Models serialized with joblib in `model/` directory
 
 ### Experiment System
-- Structured experiments in `experiments/` with naming convention
-- Each contains: models, parameters, metrics, visualizations
-- Experiment tracker manages reproducibility
+- Organized experiments in `experiments/` with clear structure:
+  - `experimental_runs/{YYYY-MM-DD}/` - Dated experiment results (models, metrics, logs)
+  - `experimental_configs/` - Reusable configurations (hyperparameters, sampling strategies)
+  - `comparisons/` - Timestamped model comparison reports
+  - `logs/` - Training and execution logs
+  - `model_candidates/` - Hyperparameter optimization results
+- Each dated folder contains complete experiment artifacts from that date
+- Experiment tracker manages reproducibility and metadata
 
 ### Web Application
 - Flask factory pattern in `app/`
@@ -90,6 +95,22 @@ Disaster response message classification system with modular ML pipeline targeti
 - Creating utility functions and helper methods
 - Quick prototyping of new features before full implementation
 - Note: Codex has multiple model options - choose appropriate model based on task complexity
+
+## Experiment Organization
+
+### Folder Structure Rules
+- **Dated Runs**: All experiment artifacts go in `experiments/experimental_runs/{YYYY-MM-DD}/`
+- **Date Consistency**: Only put artifacts from that specific date in each dated folder
+- **Sub-experiments**: Use subfolders for related experiments (e.g., `hierarchy_initial/`, `hierarchy_optimized/`)
+- **Configuration Separation**: Reusable configs in `experimental_configs/`, results in `experimental_runs/`
+- **Legacy Placement**: Old or one-off artifacts in `experimental_runs/legacy/`
+
+### File Placement Guidelines
+- Model files (.pkl): `experimental_runs/{date}/`
+- Metrics/results (.csv): `experimental_runs/{date}/`
+- Hyperparameter configs (.json): `experimental_configs/hyperparameters/`
+- Comparison reports: `comparisons/` with timestamps
+- Training logs: `logs/` with clear naming
 
 ## Code Conventions
 

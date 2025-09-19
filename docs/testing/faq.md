@@ -17,3 +17,4 @@ This command updates the experimental run directories and `experiments/results/p
 
 ## What if NLTK downloads hang during testing?
 The test suite never triggers live downloads; `tests/test_optimization.py` explicitly asserts that `nltk.download` is absent from `app/config.py`. If you hit a hang when running the application itself, pre-download the corpora by executing `python app/nltk_setup.py` or running the app once with network access. The tests will continue to pass because they rely on mocks rather than runtime downloads.
+

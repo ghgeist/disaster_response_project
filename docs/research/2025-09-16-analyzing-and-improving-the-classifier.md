@@ -7,7 +7,7 @@ Data Provenance and Preprocessing Pipeline Analysis
 A critical evaluation of the entire data lifecycle is necessary to understand the foundation upon which the machine learning models are built. This involves tracing the data from its raw form through a series of transformations, with a specific focus on identifying implicit assumptions and potential areas where critical information may be lost or biased.
 Data Ingestion and ETL
 The project's data pipeline begins with two raw CSV files: disaster_messages.csv and disaster_categories.csv.1 The messages file contains an ID, the message text in both English and its original language (primarily Haitian Creole), and a genre tag (e.g., 'direct').1 The categories file maps each message ID to a semicolon-delimited string of 36 binary labels, indicating the presence or absence of specific disaster-related needs or information.1
-The initial Extract, Transform, Load (ETL) process is handled by the data/process_data.py script.1 This script is responsible for merging these two sources, cleaning the combined dataset by removing duplicates and handling inconsistencies, and then loading the final, structured data into a SQLite database named
+The initial Extract, Transform, Load (ETL) process is handled by the scripts/process_data.py script.1 This script is responsible for merging these two sources, cleaning the combined dataset by removing duplicates and handling inconsistencies, and then loading the final, structured data into a SQLite database named
 stg_disaster_response.db.1 The resulting database table serves as the single source of truth for all subsequent model training and evaluation, containing the message text alongside 36 distinct binary target columns.
 
 Text Cleaning and Normalization
