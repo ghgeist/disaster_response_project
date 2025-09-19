@@ -101,6 +101,29 @@ python scripts/compare_models.py experiment1 experiment2
 
 # Compare CSV results
 python scripts/compare_csv_models.py results1.csv results2.csv
+
+## Promotion Workflow
+
+Promote a validated experimental run to production:
+
+```bash
+# Validate only
+python scripts/promote_model.py experiments/experimental_runs/2025-09-18 --dry-run
+
+# Promote with auto-update of app/config.py MODEL_FILENAME
+python scripts/promote_model.py experiments/experimental_runs/2025-09-18 --keep-old 1 --print-new-path
+
+# Promote but do NOT update app/config.py automatically
+python scripts/promote_model.py experiments/experimental_runs/2025-09-18 --no-update-config
+```
+
+Notes:
+- The promotion script now discovers artifacts flexibly:
+  - Metrics: `training_log.json` (preferred) or `performance_metrics.csv`
+  - Model: newest `*.pkl` file in the candidate directory
+- Validation gates use `PERFORMANCE_THRESHOLDS` from `src/disasterproject/utils/config.py`.
+- On success, the promoted file is named `disaster_rf_<version>_prod_<YYYY-MM-DD>.pkl` and placed under `model/`.
+- By default, `app/config.py` is updated to point to the new `MODEL_FILENAME` with a `.bak` backup created.
 ```
 
 ## Script Dependencies

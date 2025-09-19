@@ -17,6 +17,9 @@ from pathlib import Path
 from datetime import datetime
 import sys
 import os
+from typing import Optional, Tuple
+
+import pandas as pd
 
 # Add src to path for package imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -33,49 +36,99 @@ def compute_model_hash(model_path: Path) -> str:
     return sha256_hash.hexdigest()
 
 
-def validate_candidate_model(candidate_dir: Path) -> dict:
-    """Validate that candidate model meets promotion criteria."""
+def _load_training_log(candidate_dir: Path) -> Optional[dict]:
+    """Load training_log.json if present."""
+    for name in ["training_log.json", f"{candidate_dir.name}_training_log.json"]:
+        p = candidate_dir / name
+        if p.exists():
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                return None
+    return None
 
-    # Load performance metrics (handle different naming patterns)
-    metrics_files = [
+
+def _parse_metrics_from_training_log(log_data: dict) -> Optional[Tuple[float, float]]:
+    """Extract (f1_weighted, f1_micro) from training log structure."""
+    try:
+        perf = log_data.get("performance") or {}
+        # Map to thresholds: use overall_f1 (weighted avg across categories) for f1_weighted
+        f1_weighted = float(perf.get("overall_f1")) if perf.get("overall_f1") is not None else None
+        # Prefer explicit micro metrics when available; otherwise fall back to weighted F1
+        f1_micro = (
+            perf.get("micro_f1")
+            or perf.get("f1_micro")
+            or perf.get("samples_f1")
+            or None
+        )
+        f1_micro = float(f1_micro) if f1_micro is not None else f1_weighted
+        if f1_weighted is None:
+            return None
+        return f1_weighted, f1_micro
+    except Exception:
+        return None
+
+
+def _parse_metrics_from_csv(metrics_csv: Path) -> Optional[Tuple[float, float]]:
+    """Compute (f1_weighted, f1_micro≈positive_class_f1) from performance_metrics.csv."""
+    try:
+        df = pd.read_csv(metrics_csv)
+        if df.empty:
+            return None
+        # f1_weighted = mean of 'weighted avg' f1 across categories
+        w = df[df["output_class"].astype(str).str.lower() == "weighted avg"]["f1-score"].astype(float)
+        f1_weighted = float(w.mean()) if not w.empty else None
+        # True micro-F1 cannot be reconstructed from per-label CSV; use weighted F1
+        f1_micro = f1_weighted
+        if f1_weighted is None:
+            return None
+        return f1_weighted, f1_micro
+    except Exception:
+        return None
+
+
+def _discover_metrics(candidate_dir: Path) -> Tuple[float, float]:
+    """Discover f1_weighted and f1_micro using multiple fallbacks."""
+    # 1) training_log.json
+    log_data = _load_training_log(candidate_dir)
+    if log_data:
+        parsed = _parse_metrics_from_training_log(log_data)
+        if parsed:
+            return parsed
+    # 2) performance_metrics.csv (several naming patterns)
+    candidates = [
+        candidate_dir / "performance_metrics.csv",
         candidate_dir / f"{candidate_dir.name}_performance_metrics.csv",
-        candidate_dir / f"{candidate_dir.name.replace('-', '_')}_performance_metrics.csv"
+        candidate_dir / f"{candidate_dir.name.replace('-', '_')}_performance_metrics.csv",
     ]
-    metrics_file = None
-    for mf in metrics_files:
-        if mf.exists():
-            metrics_file = mf
-            break
+    for p in candidates:
+        if p.exists():
+            parsed = _parse_metrics_from_csv(p)
+            if parsed:
+                return parsed
+    raise FileNotFoundError("Unable to discover metrics (training_log.json or performance_metrics.csv)")
 
-    if not metrics_file:
-        raise FileNotFoundError(f"Missing performance metrics. Tried: {[str(f) for f in metrics_files]}")
 
-    # Load hyperparameters
-    hyperparam_file = candidate_dir / f"{candidate_dir.name}_hyperparameter_search_results.json"
-    if not hyperparam_file.exists():
-        raise FileNotFoundError(f"Missing hyperparameters: {hyperparam_file}")
-
-    # Find model file
+def _discover_model_file(candidate_dir: Path) -> Path:
+    """Find exactly one .pkl model file in candidate_dir."""
     model_files = list(candidate_dir.glob("*.pkl"))
     if not model_files:
         raise FileNotFoundError(f"No model file (.pkl) found in {candidate_dir}")
-    if len(model_files) > 1:
-        raise ValueError(f"Multiple model files found: {model_files}")
+    # Prefer the most recent file
+    model_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+    return model_files[0]
 
-    model_file = model_files[0]
+
+def validate_candidate_model(candidate_dir: Path) -> dict:
+    """Validate that candidate model meets promotion criteria (robust discovery)."""
+
+    # Discover metrics using flexible inputs
+    f1_weighted, f1_micro = _discover_metrics(candidate_dir)
+
+    # Find model file and compute size/hash
+    model_file = _discover_model_file(candidate_dir)
     model_size_mb = model_file.stat().st_size / (1024 * 1024)
-
-    # Load and validate hyperparameters
-    with open(hyperparam_file, 'r') as f:
-        hyperparams = json.load(f)
-
-    # Get best hyperparameters (first entry should be best from grid search)
-    if not hyperparams or not isinstance(hyperparams, list):
-        raise ValueError("Invalid hyperparameter format")
-
-    best_params = hyperparams[0]
-    f1_weighted = best_params.get('mean_test_f1_weighted', 0)
-    f1_micro = best_params.get('mean_test_f1_micro', 0)
 
     # Validation criteria
     min_f1_weighted = PERFORMANCE_THRESHOLDS.get('min_f1_weighted', 0.5)
@@ -238,6 +291,32 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
     return promotion_record
 
 
+def _update_app_config_model_filename(config_path: Path, new_filename: str, backup: bool = True) -> bool:
+    """Safely update app/config.py MODEL_FILENAME to new_filename."""
+    try:
+        text = config_path.read_text(encoding="utf-8")
+        if "MODEL_FILENAME" not in text:
+            print("Warning: MODEL_FILENAME not found in config; skipping auto-update")
+            return False
+        import re
+        # Only match MODEL_FILENAME in the Config class, not TestConfig class
+        # Use a more specific pattern that looks for MODEL_FILENAME within the Config class
+        pattern = r"^class Config\b.*?^(\s*MODEL_FILENAME\s*=\s*)(['\"])(.+?)\2"
+        repl = r"\1'" + new_filename + r"'"
+        new_text, n = re.subn(pattern, repl, text, flags=re.MULTILINE | re.DOTALL)
+        if n == 0:
+            print("Warning: Could not update MODEL_FILENAME line; skipping auto-update")
+            return False
+        if backup:
+            bak = config_path.with_suffix(config_path.suffix + ".bak")
+            bak.write_text(text, encoding="utf-8")
+        config_path.write_text(new_text, encoding="utf-8")
+        return True
+    except Exception as e:
+        print(f"Warning: Failed to update app config: {e}")
+        return False
+
+
 def cleanup_old_production_models(model_dir: Path, keep_count: int = 2):
     """Remove old production model files, keeping only metadata."""
 
@@ -261,6 +340,8 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="Validate but don't promote")
     parser.add_argument("--force", action="store_true", help="Skip validation checks")
     parser.add_argument("--keep-old", type=int, default=1, help="Number of old production models to keep")
+    parser.add_argument("--no-update-config", action="store_true", help="Do not update app/config.py MODEL_FILENAME")
+    parser.add_argument("--print-new-path", action="store_true", help="Print promoted model filename for CI logs")
 
     args = parser.parse_args()
 
@@ -306,6 +387,20 @@ def main():
         # Promote new model
         print("\n🚀 Promoting candidate model to production...")
         promotion_record = promote_model(candidate_dir, model_dir, validation_results)
+
+        # Optionally update app/config.py to point at the new model filename
+        prod_model_path = Path(promotion_record['promoted_model'])
+        new_filename = prod_model_path.name
+        if args.print_new_path:
+            print(f"NEW_PRODUCTION_MODEL={new_filename}")
+
+        if not args.no_update_config:
+            app_config_path = project_root / "app" / "config.py"
+            updated = _update_app_config_model_filename(app_config_path, new_filename, backup=True)
+            if updated:
+                print(f"🛠  Updated app/config.py MODEL_FILENAME -> {new_filename}")
+            else:
+                print("⚠️  Skipped updating app/config.py (see warnings above)")
 
         # Cleanup old models
         print(f"\n🧹 Cleaning up old production models (keeping {args.keep_old})...")

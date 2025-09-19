@@ -3,6 +3,7 @@ Routes for the Disaster Response application.
 """
 import json
 import logging
+from pathlib import Path
 from flask import render_template, request, current_app, send_from_directory, abort, flash, redirect, url_for
 import plotly
 import sqlalchemy.exc
@@ -459,6 +460,16 @@ def register_routes(app):
             raw_predictions.sort(key=lambda p: p['confidence'], reverse=True)
             fixed_predictions.sort(key=lambda p: p['confidence'], reverse=True)
 
+            # Load static demo metrics (non-fatal if missing)
+            metrics = None
+            try:
+                metrics_path = Path(current_app.static_folder) / "demo_metrics.json"
+                if metrics_path.exists():
+                    with open(metrics_path, "r", encoding="utf-8") as f:
+                        metrics = json.load(f)
+            except Exception as _:
+                metrics = None
+
             # Prepare response data
             response_data = {
                 'query': query,
@@ -473,7 +484,8 @@ def register_routes(app):
                     'probabilities': fixed_probabilities,
                     'labels': fixed_labels
                 },
-                'violations': violations
+                'violations': violations,
+                'metrics': metrics
             }
 
             # For AJAX requests, return JSON

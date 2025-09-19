@@ -1,0 +1,43 @@
+{
+  "timestamp": "2025-09-16T15:40:04.884887",
+  "model_path": "experiments\\results\\2025-09-16-comprehensive-grid-search-optimized-model.pkl",
+  "training_time_seconds": 567.7212924957275,
+  "configuration": {
+    "hyperparameters": {
+      "vect__ngram_range": [
+        1,
+        1
+      ],
+      "clf__estimator__n_estimators": 100,
+      "clf__estimator__min_samples_split": 5,
+      "clf__estimator__min_samples_leaf": 1,
+      "clf__estimator__max_depth": null
+    },
+    "class_weighting": {
+      "enabled": false,
+      "strategy": null
+    },
+    "data_split": {
+      "test_size": 0.2,
+      "random_seed": 42,
+      "train_samples": 20821,
+      "test_samples": 5206,
+      "mode": "frozen_eval",
+      "eval_ids_file": "data\\04_fct\\eval_ids.csv",
+      "eval_uid_count": 5206
+    },
+    "target_labels": 36
+  },
+  "performance": {
+    "overall_precision": 0.938496321982855,
+    "overall_recall": 0.9483822085627693,
+    "overall_f1": 0.9366007662843541,
+    "positive_class_precision": 0.578616247011086,
+    "positive_class_recall": 0.2128939526745394,
+    "positive_class_f1": 0.2673392030737666,
+    "total_categories": 36,
+    "test_samples": 5206
+  },
+  "version": "0.1-exp",
+  "status": "experimental"
+}

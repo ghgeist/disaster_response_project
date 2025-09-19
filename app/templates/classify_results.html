@@ -137,7 +137,7 @@
         <!-- Display the classification results -->
         <div class="mb-8">
             <h4 class="text-lg font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                {% if use_hierarchy %}Final{% else %}Raw{% endif %} Predicted Categories
+                Summary of Predicted Categories
             </h4>
             <div class="flex flex-wrap gap-3">
                 {% set display_predictions = fixed.predictions if use_hierarchy else raw.predictions %}
@@ -163,15 +163,19 @@
             <h4 class="text-lg font-semibold text-gray-400 uppercase tracking-wider mb-4">Production Performance</h4>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
                 <div>
-                    <div class="text-2xl font-bold text-green-400">0</div>
-                    <div class="text-sm text-gray-400">Hierarchy violations on 26,027 test messages</div>
+                    {% set v = (metrics.violations if metrics and 'violations' in metrics else 0) %}
+                    {% set n = (metrics.samples if metrics and 'samples' in metrics else 26027) %}
+                    <div class="text-2xl font-bold text-green-400">{{ v }}</div>
+                    <div class="text-sm text-gray-400">Hierarchy violations on {{ n }} test messages</div>
                 </div>
                 <div>
-                    <div class="text-2xl font-bold text-blue-400">91.47%</div>
+                    {% set sr = (metrics.safety_recall if metrics and 'safety_recall' in metrics else 0.9147) %}
+                    <div class="text-2xl font-bold text-blue-400">{{ (sr * 100) | round(2) }}%</div>
                     <div class="text-sm text-gray-400">Safety recall maintained</div>
                 </div>
                 <div>
-                    <div class="text-2xl font-bold text-amber-400">-1.43%</div>
+                    {% set df1 = (metrics.macro_f1_delta if metrics and 'macro_f1_delta' in metrics else -0.0143) %}
+                    <div class="text-2xl font-bold text-amber-400">{{ (df1 * 100) | round(2) }}%</div>
                     <div class="text-sm text-gray-400">Macro-F1 delta (acceptable trade-off)</div>
                 </div>
             </div>
