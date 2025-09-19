@@ -1,0 +1,60 @@
+{
+  "sha256": "acd54433a6d7f31e44a7dc2e529c5b8a5792268553f4cf95d0b68dad8d5b0aa3",
+  "rf_params": {
+    "bootstrap": true,
+    "ccp_alpha": 0.0,
+    "class_weight": null,
+    "criterion": "gini",
+    "max_depth": 25,
+    "max_features": "sqrt",
+    "max_leaf_nodes": null,
+    "max_samples": null,
+    "min_impurity_decrease": 0.0,
+    "min_samples_leaf": 2,
+    "min_samples_split": 2,
+    "min_weight_fraction_leaf": 0.0,
+    "monotonic_cst": null,
+    "n_estimators": 100,
+    "n_jobs": 15,
+    "oob_score": false,
+    "random_state": 42,
+    "verbose": 0,
+    "warm_start": false
+  },
+  "vectorizer_params": {
+    "analyzer": "word",
+    "binary": false,
+    "decode_error": "strict",
+    "dtype": "<function:int64>",
+    "encoding": "utf-8",
+    "input": "content",
+    "lowercase": true,
+    "max_df": 1.0,
+    "max_features": null,
+    "min_df": 1,
+    "ngram_range": [
+      1,
+      1
+    ],
+    "preprocessor": null,
+    "stop_words": null,
+    "strip_accents": null,
+    "token_pattern": "(?u)\\b\\w\\w+\\b",
+    "tokenizer": "<function:tokenize>",
+    "vocabulary": null
+  },
+  "label_order_hash": "ce03e505f9fa17f5cd078048b59a6764e48a6b00",
+  "fit_time_seconds": 41.19371938705444,
+  "model_size_mb": 31.343624114990234,
+  "cold_load_seconds": 0.7483241558074951,
+  "threshold_sources": {
+    "medical_help": "optimized",
+    "search_and_rescue": "optimized",
+    "water": "optimized",
+    "food": "optimized",
+    "shelter": "optimized",
+    "hospitals": "optimized",
+    "security": "optimized",
+    "weather_related": "optimized"
+  }
+}

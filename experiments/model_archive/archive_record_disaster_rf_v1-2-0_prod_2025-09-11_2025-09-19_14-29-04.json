@@ -1,0 +1,13 @@
+{
+  "archived_model": "C:\\Users\\grant\\OneDrive\\Documents\\udacity_data_science_program\\05_disaster_response_project\\model\\disaster_rf_v1-2-0_prod_2025-09-11.pkl",
+  "archive_timestamp": "2025-09-19_14-29-04",
+  "model_size_mb": 31.343624114990234,
+  "model_hash": "acd54433a6d7f31e44a7dc2e529c5b8a5792268553f4cf95d0b68dad8d5b0aa3",
+  "archived_metadata": {
+    "_labels.json": "C:\\Users\\grant\\OneDrive\\Documents\\udacity_data_science_program\\05_disaster_response_project\\experiments\\model_archive\\disaster_rf_v1-2-0_prod_2025-09-11_2025-09-19_14-29-04_labels.json",
+    "_thresholds.json": "C:\\Users\\grant\\OneDrive\\Documents\\udacity_data_science_program\\05_disaster_response_project\\experiments\\model_archive\\disaster_rf_v1-2-0_prod_2025-09-11_2025-09-19_14-29-04_thresholds.json",
+    "_training.json": "C:\\Users\\grant\\OneDrive\\Documents\\udacity_data_science_program\\05_disaster_response_project\\experiments\\model_archive\\disaster_rf_v1-2-0_prod_2025-09-11_2025-09-19_14-29-04_training.json",
+    "model_info": "C:\\Users\\grant\\OneDrive\\Documents\\udacity_data_science_program\\05_disaster_response_project\\experiments\\model_archive\\MODEL_INFO_disaster_rf_v1-2-0_prod_2025-09-11_2025-09-19_14-29-04.json"
+  },
+  "status": "archived"
+}

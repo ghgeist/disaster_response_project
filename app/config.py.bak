@@ -37,7 +37,7 @@ class Config:
     DATABASE_URL = f'sqlite:///{DATABASE_PATH}'
     
     # Model settings
-    MODEL_FILENAME = 'disaster_rf_v25-09-16_prod_2025-09-19.pkl'
+    MODEL_FILENAME = 'disaster_rf_v1-2-0_prod_2025-09-11.pkl'
     MODEL_PATH = MODELS_DIR / MODEL_FILENAME
     
     # Google Drive model configuration
@@ -77,5 +77,5 @@ class TestConfig(Config):
     DATABASE_URL = 'sqlite:///:memory:'
 
     # Mock model settings - these won't be validated
-    MODEL_FILENAME = 'disaster_rf_v25-09-16_prod_2025-09-19.pkl'
+    MODEL_FILENAME = 'test_model.pkl'
     GDRIVE_MODEL_ID = None
