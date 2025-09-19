@@ -177,7 +177,19 @@ body {
 .bg-brand-accent-blue { background-color: var(--brand-accent-blue); }
 .bg-brand-accent-amber { background-color: var(--brand-accent-amber); }
 .bg-gray-700 { background-color: rgb(55 65 81); }
+.bg-gray-800 { background-color: rgb(31 41 55); }
+.bg-gray-900 { background-color: rgb(17 24 39); }
 .bg-red-500 { background-color: rgb(239 68 68); }
+.bg-blue-500 { background-color: rgb(59 130 246); }
+.bg-green-500 { background-color: rgb(34 197 94); }
+.bg-yellow-500 { background-color: rgb(234 179 8); }
+.bg-amber-400 { background-color: rgb(251 191 36); }
+.bg-blue-400 { background-color: rgb(96 165 250); }
+.bg-green-400 { background-color: rgb(74 222 128); }
+
+/* Background opacity variants */
+.bg-blue-900\/20 { background-color: rgb(30 58 138 / 0.2); }
+.bg-green-900\/20 { background-color: rgb(20 83 45 / 0.2); }
 
 /* Text colors */
 .text-white { color: rgb(255 255 255); }
@@ -187,10 +199,17 @@ body {
 .text-gray-500 { color: rgb(107 114 128); }
 .text-gray-900 { color: rgb(17 24 39); }
 .text-red-400 { color: rgb(248 113 113); }
+.text-blue-400 { color: rgb(96 165 250); }
+.text-green-400 { color: rgb(74 222 128); }
+.text-green-300 { color: rgb(134 239 172); }
+.text-amber-400 { color: rgb(251 191 36); }
 
 /* Hover colors */
 .hover\:text-white:hover { color: rgb(255 255 255); }
 .hover\:bg-blue-600:hover { background-color: rgb(37 99 235); }
+.hover\:bg-brand-slate:hover { background-color: var(--brand-slate); }
+.hover\:bg-blue-300:hover { background-color: rgb(147 197 253); }
+.hover\:bg-green-700:hover { background-color: rgb(21 128 61); }
 
 /* Typography */
 .text-xs { font-size: 0.75rem; line-height: 1rem; }
@@ -239,8 +258,12 @@ body {
 /* Spacing */
 .gap-2 { gap: 0.5rem; }
 .gap-3 { gap: 0.75rem; }
+.gap-4 { gap: 1rem; }
+.gap-6 { gap: 1.5rem; }
 .gap-8 { gap: 2rem; }
+.space-x-2 > :not([hidden]) ~ :not([hidden]) { margin-left: 0.5rem; }
 .space-x-4 > :not([hidden]) ~ :not([hidden]) { margin-left: 1rem; }
+.space-x-6 > :not([hidden]) ~ :not([hidden]) { margin-left: 1.5rem; }
 
 .p-2 { padding: 0.5rem; }
 .p-4 { padding: 1rem; }
@@ -302,10 +325,13 @@ body {
 .border { border-width: 1px; }
 .border-2 { border-width: 2px; }
 .border-t { border-top-width: 1px; }
+.border-b { border-bottom-width: 1px; }
 
 .border-gray-600 { border-color: rgb(75 85 99); }
 .border-gray-700 { border-color: rgb(55 65 81); }
 .border-red-500 { border-color: rgb(239 68 68); }
+.border-blue-500\/30 { border-color: rgb(59 130 246 / 0.3); }
+.border-green-500\/30 { border-color: rgb(34 197 94 / 0.3); }
 
 .rounded-md { border-radius: 0.375rem; }
 .rounded-lg { border-radius: 0.5rem; }
@@ -328,14 +354,24 @@ body {
 
 /* Transitions */
 .transition { transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 150ms; }
+.transition-transform { transition-property: transform; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 150ms; }
+.transition-colors { transition-property: color, background-color, border-color, text-decoration-color, fill, stroke; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 150ms; }
 .duration-300 { transition-duration: 300ms; }
 .ease-in-out { transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+
+/* Transforms */
+.transform { transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y)); }
+.rotate-180 { --tw-rotate: 180deg; transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y)); }
+
+/* Overflow */
+.overflow-x-auto { overflow-x: auto; }
 
 /* Whitespace */
 .whitespace-nowrap { white-space: nowrap; }
 
 /* Custom focus ring color */
 .focus\:ring-brand-accent-blue:focus { --tw-ring-color: var(--brand-accent-blue); }
+.focus\:ring-blue-500:focus { --tw-ring-color: rgb(59 130 246); }
 
 /* Additional hover states */
 .hover\:text-brand-accent-blue:hover { color: var(--brand-accent-blue); }
