@@ -4,7 +4,7 @@
 
 {% block content %}
     <!-- Hero Section -->
-    <div class="text-center mb-12">
+    <div class="text-center mb-8">
         <div class="flex items-center justify-center mb-3">
             <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mr-3">
                 <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -27,7 +27,7 @@
     <!-- Results container -->
     <div class="max-w-4xl mx-auto bg-brand-slate p-6 md:p-8 rounded-lg shadow-2xl space-y-8">
         <!-- Message -->
-        <section class="space-y-2">
+        <section class="space-y-3">
             <h4 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Message</h4>
             <p class="text-lg md:text-xl text-white bg-gray-700/80 p-3 md:p-4 rounded-md">"{{query}}"</p>
         </section>
@@ -44,7 +44,7 @@
 
                 {% if display_predictions %}
                     {% for prediction in display_predictions %}
-                        <span class="bg-brand-accent-amber text-gray-900 text-xs font-bold px-3 py-2 rounded-full shadow leading-tight" title="Match strength: {{ (prediction.confidence * 100)|round(1) }}%">
+                        <span class="bg-brand-accent-amber text-gray-900 text-sm font-semibold px-4 py-3 rounded-full shadow leading-relaxed inline-flex items-center" title="Match strength: {{ (prediction.confidence * 100)|round(1) }}%">
                             {{ prediction.category.replace('_', ' ')|title }}
                         </span>
                     {% endfor %}
@@ -66,7 +66,7 @@
 
         {% if use_hierarchy %}
         <!-- Compact System Status Bar -->
-        <section class="bg-brand-charcoal/80 border border-gray-600 rounded-lg p-4 space-y-4">
+        <section class="bg-brand-charcoal/80 border border-gray-600 rounded-lg p-6 space-y-4">
             <div class="flex flex-col md:flex-row gap-6 items-start md:items-center">
                 <div class="flex items-center gap-3">
                     {% if violations %}
@@ -102,7 +102,7 @@
 
         {% if use_hierarchy %}
         <!-- Changes Details Accordion -->
-        <section class="border border-gray-600 rounded-lg mb-6" x-data="{open1: {{ 'true' if changed_categories|length > 0 else 'false' }}}">
+        <section class="border border-gray-600 rounded-lg" x-data="{open1: {{ 'true' if changed_categories|length > 0 else 'false' }}}">
             <!-- Changes Panel -->
             <button @click="open1=!open1" :aria-expanded="open1" class="w-full text-left p-4 bg-brand-charcoal hover:bg-brand-slate flex items-center justify-between">
                 <div class="flex items-center gap-3">
@@ -228,7 +228,7 @@
     </div>
 
     <!-- Call to action -->
-    <div class="text-center mt-8 mb-8 space-x-4">
+    <div class="text-center mt-12 mb-8 space-x-4">
         <a href="/" class="bg-brand-accent-blue hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue">
             Classify Another Message
         </a>
