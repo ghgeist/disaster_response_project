@@ -19,7 +19,7 @@
         <form action="/classify" method="post" class="w-full">
             {{ form.hidden_tag() }}
             <div class="bg-brand-slate p-6 rounded-lg shadow-lg">
-                {{ render_field(form.query, help_text="Enter a message about a disaster or emergency situation. The AI will analyze and categorize it for first responders.") }}
+                {{ render_field(form.query, help_text="Enter a message about a disaster or emergency situation. The model will analyze and categorize it for first responders.") }}
 
                 <!-- Example Messages -->
                 <div class="mb-4">
