@@ -70,8 +70,75 @@
 
         <!-- Comparison Table for Hierarchy Mode -->
         <div class="mb-8">
-            <h4 class="text-lg font-semibold text-gray-400 uppercase tracking-wider mb-4">Initial vs Refined Results</h4>
-            <div class="overflow-x-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="text-lg font-semibold text-gray-400 uppercase tracking-wider">Accuracy Improvements</h4>
+                <button id="toggle-details" class="text-sm text-blue-400 hover:text-blue-300 focus:outline-none">
+                    <span id="toggle-text">Show all categories</span>
+                    <svg id="toggle-icon" class="w-4 h-4 inline ml-1 transform transition-transform" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Changed Categories (Always Visible) -->
+            <div id="changed-categories" class="overflow-x-auto mb-4">
+                {% set changed_categories = [] %}
+                {% for label in raw.probabilities.keys() %}
+                    {% if label != 'related' %}
+                        {% if raw.probabilities[label] != fixed.probabilities[label] or raw.labels[label] != fixed.labels[label] %}
+                            {% set _ = changed_categories.append(label) %}
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+
+                {% if changed_categories %}
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-gray-600">
+                            <th class="text-left py-3 px-4 text-gray-300 font-semibold">Category</th>
+                            <th class="text-center py-3 px-4 text-gray-300 font-semibold">Before</th>
+                            <th class="text-center py-3 px-4 text-gray-300 font-semibold">After</th>
+                            <th class="text-center py-3 px-4 text-gray-300 font-semibold">Change</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for label in changed_categories %}
+                        <tr class="border-b border-gray-700 hover:bg-gray-800/50">
+                            <td class="py-3 px-4 text-white font-medium">{{ label.replace('_', ' ')|title }}</td>
+                            <td class="py-3 px-4 text-center">
+                                <div class="flex flex-col items-center">
+                                    <span class="text-white">{{ "%.1f"|format(raw.probabilities[label] * 100) }}%</span>
+                                    {% if raw.labels[label] == 1 %}
+                                        <span class="bg-blue-500 text-white text-xs px-2 py-1 rounded-full mt-1">YES</span>
+                                    {% else %}
+                                        <span class="bg-gray-500 text-white text-xs px-2 py-1 rounded-full mt-1">NO</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="py-3 px-4 text-center">
+                                <div class="flex flex-col items-center">
+                                    <span class="text-white">{{ "%.1f"|format(fixed.probabilities[label] * 100) }}%</span>
+                                    {% if fixed.labels[label] == 1 %}
+                                        <span class="bg-blue-500 text-white text-xs px-2 py-1 rounded-full mt-1">YES</span>
+                                    {% else %}
+                                        <span class="bg-gray-500 text-white text-xs px-2 py-1 rounded-full mt-1">NO</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="py-3 px-4 text-center">
+                                <span class="bg-green-500 text-white text-xs px-2 py-1 rounded-full">IMPROVED</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-gray-400 text-center py-4">No category predictions were changed by hierarchy processing.</p>
+                {% endif %}
+            </div>
+
+            <!-- All Categories (Collapsible) -->
+            <div id="all-categories" class="overflow-x-auto hidden">
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="border-b border-gray-600">
@@ -244,6 +311,33 @@
             font: {color: '#E5E7EB'}
         };
         Plotly.newPlot('confidence-chart', data, layout, {responsive: true, displaylogo: false});
+    });
+</script>
+{% endif %}
+
+{% if use_hierarchy %}
+<script type="text/javascript">
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggleButton = document.getElementById('toggle-details');
+        const toggleText = document.getElementById('toggle-text');
+        const toggleIcon = document.getElementById('toggle-icon');
+        const allCategories = document.getElementById('all-categories');
+
+        if (toggleButton && allCategories) {
+            toggleButton.addEventListener('click', function() {
+                const isHidden = allCategories.classList.contains('hidden');
+
+                if (isHidden) {
+                    allCategories.classList.remove('hidden');
+                    toggleText.textContent = 'Show only changes';
+                    toggleIcon.classList.add('rotate-180');
+                } else {
+                    allCategories.classList.add('hidden');
+                    toggleText.textContent = 'Show all categories';
+                    toggleIcon.classList.remove('rotate-180');
+                }
+            });
+        }
     });
 </script>
 {% endif %}
