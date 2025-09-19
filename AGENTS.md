@@ -18,6 +18,17 @@ This document explains how to work on the Disaster Response project when operati
 - Use `rg`/`rg --files` for fast code or file search. Fall back to `grep` only if ripgrep is unavailable.
 - The workspace has restricted network access; plan around offline execution (no package downloads unless already vendored).
 
+### Virtual Environment (required for scripts)
+- Standard venv location: `.venv/` at the project root.
+- Create once: `python -m venv .venv`.
+- Activate before any `python`, `pip`, or `pytest` command:
+  - Bash: `source .venv/bin/activate`
+  - PowerShell: `. .venv\Scripts\Activate.ps1`
+- In Codex CLI shell calls, always inline activation before running scripts:
+  - Bash example: `["bash", "-lc", "source .venv/bin/activate && python scripts/04_create_production_model.py"]` (set `workdir` to the repo root)
+  - PowerShell example: `["pwsh", "-NoProfile", "-Command", ". .venv\\Scripts\\Activate.ps1; python scripts/04_create_production_model.py"]`
+- Prefer `python -m pip ...` to ensure installs land in the active venv.
+
 ## Core Commands
 
 ### Setup & Data Preparation
