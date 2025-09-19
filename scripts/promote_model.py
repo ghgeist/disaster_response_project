@@ -55,8 +55,13 @@ def _parse_metrics_from_training_log(log_data: dict) -> Optional[Tuple[float, fl
         perf = log_data.get("performance") or {}
         # Map to thresholds: use overall_f1 (weighted avg across categories) for f1_weighted
         f1_weighted = float(perf.get("overall_f1")) if perf.get("overall_f1") is not None else None
-        # Approximate micro with positive_class_f1 when available; fallback to overall_f1
-        f1_micro = perf.get("positive_class_f1")
+        # Prefer explicit micro metrics when available; otherwise fall back to weighted F1
+        f1_micro = (
+            perf.get("micro_f1")
+            or perf.get("f1_micro")
+            or perf.get("samples_f1")
+            or None
+        )
         f1_micro = float(f1_micro) if f1_micro is not None else f1_weighted
         if f1_weighted is None:
             return None
@@ -74,9 +79,8 @@ def _parse_metrics_from_csv(metrics_csv: Path) -> Optional[Tuple[float, float]]:
         # f1_weighted = mean of 'weighted avg' f1 across categories
         w = df[df["output_class"].astype(str).str.lower() == "weighted avg"]["f1-score"].astype(float)
         f1_weighted = float(w.mean()) if not w.empty else None
-        # micro approx = mean f1 for positive class across categories
-        pos = df[df["output_class"].astype(str) == "1"]["f1-score"].astype(float)
-        f1_micro = float(pos.mean()) if not pos.empty else f1_weighted
+        # True micro-F1 cannot be reconstructed from per-label CSV; use weighted F1
+        f1_micro = f1_weighted
         if f1_weighted is None:
             return None
         return f1_weighted, f1_micro
