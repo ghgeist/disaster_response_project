@@ -15,11 +15,32 @@
 
     <!-- Classifier Input Form -->
     <div id="classifier" class="max-w-3xl mx-auto mb-12">
-        {% from 'macros/forms.html' import render_field, render_submit_button %}
-        <form action="/go" method="post" class="w-full">
+        {% from 'macros/forms.html' import render_field, render_checkbox_field, render_submit_button %}
+        <form action="/classify" method="post" class="w-full">
             {{ form.hidden_tag() }}
             <div class="bg-brand-slate p-6 rounded-lg shadow-lg">
                 {{ render_field(form.query, help_text="Enter a message about a disaster or emergency situation. The AI will analyze and categorize it for first responders.") }}
+
+                <!-- Example Messages -->
+                <div class="mb-4">
+                    <p class="text-sm text-gray-400 mb-2">Try these examples that demonstrate hierarchy violations:</p>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" class="example-btn bg-gray-600 hover:bg-gray-500 text-white text-xs px-3 py-1 rounded transition"
+                                onclick="document.getElementById('query').value='Need medical help urgently for injured child but this is not aid related'">
+                            Medical Help Example
+                        </button>
+                        <button type="button" class="example-btn bg-gray-600 hover:bg-gray-500 text-white text-xs px-3 py-1 rounded transition"
+                                onclick="document.getElementById('query').value='Need water and food supplies but not seeking any aid'">
+                            Water and Food Example
+                        </button>
+                        <button type="button" class="example-btn bg-gray-600 hover:bg-gray-500 text-white text-xs px-3 py-1 rounded transition"
+                                onclick="document.getElementById('query').value='Hospital damaged by earthquake but no infrastructure issues'">
+                            Damaged Building Example
+                        </button>
+                    </div>
+                </div>
+
+                {{ render_checkbox_field(form.use_hierarchy, help_text="Enable hierarchy processing to automatically fix logical inconsistencies in AI predictions (e.g., medical_help=YES but aid_related=NO). Shows before/after comparison.") }}
                 <div class="flex justify-end">
                     {{ render_submit_button(form.submit) }}
                 </div>
