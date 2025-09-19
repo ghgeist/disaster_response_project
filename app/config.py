@@ -77,5 +77,5 @@ class TestConfig(Config):
     DATABASE_URL = 'sqlite:///:memory:'
 
     # Mock model settings - these won't be validated
-    MODEL_FILENAME = 'disaster_rf_v25-09-16_prod_2025-09-19.pkl'
+    MODEL_FILENAME = 'test_model.pkl'
     GDRIVE_MODEL_ID = None

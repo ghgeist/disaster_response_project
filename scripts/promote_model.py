@@ -299,9 +299,11 @@ def _update_app_config_model_filename(config_path: Path, new_filename: str, back
             print("Warning: MODEL_FILENAME not found in config; skipping auto-update")
             return False
         import re
-        pattern = r"^(\s*MODEL_FILENAME\s*=\s*)(['\"])(.+?)\2"
+        # Only match MODEL_FILENAME in the Config class, not TestConfig class
+        # Use a more specific pattern that looks for MODEL_FILENAME within the Config class
+        pattern = r"^class Config\b.*?^(\s*MODEL_FILENAME\s*=\s*)(['\"])(.+?)\2"
         repl = r"\1'" + new_filename + r"'"
-        new_text, n = re.subn(pattern, repl, text, flags=re.MULTILINE)
+        new_text, n = re.subn(pattern, repl, text, flags=re.MULTILINE | re.DOTALL)
         if n == 0:
             print("Warning: Could not update MODEL_FILENAME line; skipping auto-update")
             return False
