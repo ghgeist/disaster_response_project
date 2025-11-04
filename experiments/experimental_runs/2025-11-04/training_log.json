@@ -1,7 +1,7 @@
 {
-  "timestamp": "2025-11-04T19:14:00.178091",
-  "model_path": "experiments\\experimental_runs\\2025-11-04\\2025-11-04-logistic-regression-baseline-hyperparameters-model.pkl",
-  "training_time_seconds": 55.4030065536499,
+  "timestamp": "2025-11-04T20:50:52.353850",
+  "model_path": "experiments/experimental_runs/2025-11-04/lr_baseline_model.pkl",
+  "training_time_seconds": 50.27457809448242,
   "configuration": {
     "hyperparameters": {
       "vect__ngram_range": [

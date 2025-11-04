@@ -40,9 +40,9 @@
     "vocabulary": null
   },
   "label_order_hash": "ce03e505f9fa17f5cd078048b59a6764e48a6b00",
-  "fit_time_seconds": 55.4030065536499,
+  "fit_time_seconds": 50.27457809448242,
   "model_size_mb": 67.69432640075684,
-  "cold_load_seconds": 0.8408448696136475,
+  "cold_load_seconds": 1.1325485706329346,
   "threshold_sources": {
     "medical_help": "optimized",
     "search_and_rescue": "optimized",
