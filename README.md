@@ -170,13 +170,31 @@ The Flask application is optimized for production deployment on Replit with **Au
 
 1. **Import the project** into your Replit workspace
 2. **Dependencies automatically installed** during deployment build process
-3. **Set environment variables**:
-   - `GDRIVE_MODEL_ID`: Google Drive file ID for model download (required if the model is not already in `model/`)
+3. **Upload the model file** (if not using Google Drive):
+   - **For files < 100MB**: Use Replit's GUI uploader (Files → Upload File)
+   - **For files > 100MB**: Use `scp` (SSH) to upload directly:
+     ```powershell
+     # PowerShell (Windows)
+     scp -i $env:USERPROFILE/.ssh/replit -P 22 model/your-model-file.pkl username@your-repl-id.replit.dev:~/
+     ```
+     ```bash
+     # macOS/Linux
+     scp -i ~/.ssh/replit -P 22 model/your-model-file.pkl username@your-repl-id.replit.dev:~/
+     ```
+     Then in Replit Shell, move it to the model directory:
+     ```bash
+     cd workspace
+     mv ~/your-model-file.pkl model/
+     ls -lh model/your-model-file.pkl  # Verify
+     ```
+   - **To find your Replit SSH connection info**: Run `echo $REPLIT_SSH_HOST` in Replit Shell
+4. **Set environment variables** (optional if model is uploaded locally):
+   - `GDRIVE_MODEL_ID`: Google Drive file ID for model download (only needed if model is not in `model/` directory)
    - Ensure the SQLite DB exists at `data/02_stg/stg_disaster_response.db` (upload it or adjust config)
-4. **Run the application**: Click the "Run" button in Replit
-5. **Access the app**: Use the provided Replit URL
+5. **Run the application**: Click the "Run" button in Replit
+6. **Access the app**: Use the provided Replit URL
 
-**Note**: The app can automatically download the model from Google Drive if not present locally, but only when `GDRIVE_MODEL_ID` is set. The database file must also exist.
+**Note**: The app will use the local model file if present in `model/` directory. If not found and `GDRIVE_MODEL_ID` is set, it will download from Google Drive. The database file must exist for the app to function.
 
 ## 📊 Data
 
