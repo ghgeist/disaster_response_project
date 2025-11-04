@@ -61,9 +61,28 @@ def predict_with_thresholds(model, X, thresholds, category_names):
     n_labels = len(category_names)
     proba_array = np.zeros((n_samples, n_labels))
     
+    # Access the underlying classifier to get class information
+    clf = model.named_steps['clf']
+    
     for i, probs in enumerate(y_proba):
         if probs.ndim == 2 and probs.shape[1] == 2:
             proba_array[:, i] = probs[:, 1]  # Probability of class 1
+        elif probs.ndim == 2 and probs.shape[1] == 1:
+            # Single class present - check which class it is
+            if hasattr(clf, 'classes_') and i < len(clf.classes_):
+                classes = clf.classes_[i]
+                if len(classes) == 1 and classes[0] == 0:
+                    # Only class 0 present, probability of class 1 is 0
+                    proba_array[:, i] = 0.0
+                elif len(classes) == 1 and classes[0] == 1:
+                    # Only class 1 present, probability of class 1 is 1
+                    proba_array[:, i] = 1.0
+                else:
+                    # Fallback (shouldn't happen)
+                    proba_array[:, i] = probs.ravel()
+            else:
+                # Fallback if class info not available
+                proba_array[:, i] = probs.ravel()
         else:
             proba_array[:, i] = probs.ravel()
     
@@ -171,9 +190,28 @@ def main():
     n_labels = Y_test.shape[1]
     y_proba = np.zeros((n_samples, n_labels))
     
+    # Access the underlying classifier to get class information
+    clf = model.named_steps['clf']
+    
     for i, probs in enumerate(y_proba_list):
         if probs.ndim == 2 and probs.shape[1] == 2:
             y_proba[:, i] = probs[:, 1]
+        elif probs.ndim == 2 and probs.shape[1] == 1:
+            # Single class present - check which class it is
+            if hasattr(clf, 'classes_') and i < len(clf.classes_):
+                classes = clf.classes_[i]
+                if len(classes) == 1 and classes[0] == 0:
+                    # Only class 0 present, probability of class 1 is 0
+                    y_proba[:, i] = 0.0
+                elif len(classes) == 1 and classes[0] == 1:
+                    # Only class 1 present, probability of class 1 is 1
+                    y_proba[:, i] = 1.0
+                else:
+                    # Fallback (shouldn't happen)
+                    y_proba[:, i] = probs.ravel()
+            else:
+                # Fallback if class info not available
+                y_proba[:, i] = probs.ravel()
         else:
             y_proba[:, i] = probs.ravel()
     

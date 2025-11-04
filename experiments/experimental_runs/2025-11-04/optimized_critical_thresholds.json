@@ -1,8 +1,8 @@
 {
   "metadata": {
-    "created": "2025-11-04T21:00:36.758150",
+    "created": "2025-11-04T21:19:34.629475",
     "model": "experiments/experimental_runs/2025-11-04/lr_baseline_model.pkl",
-    "target_recall": 0.62,
+    "target_recall": 0.65,
     "optimization_method": "precision_recall_curve"
   },
   "thresholds": {
@@ -10,15 +10,15 @@
     "request": 0.5,
     "offer": 0.5,
     "aid_related": 0.5,
-    "medical_help": 0.14131195924024245,
-    "medical_products": 0.10916816635101648,
-    "search_and_rescue": 0.0351487069560599,
-    "security": 0.020151169797881896,
+    "medical_help": 0.12373397815606363,
+    "medical_products": 0.09541618995744851,
+    "search_and_rescue": 0.03300545308667555,
+    "security": 0.019628053754261417,
     "military": 0.5,
     "child_alone": 0.5,
-    "water": 0.39579782614205505,
-    "food": 0.47349385623090506,
-    "shelter": 0.27395376866006593,
+    "water": 0.362161404322609,
+    "food": 0.4312675725503747,
+    "shelter": 0.24002223312737844,
     "clothing": 0.5,
     "money": 0.5,
     "missing_people": 0.5,
@@ -30,7 +30,7 @@
     "buildings": 0.5,
     "electricity": 0.5,
     "tools": 0.5,
-    "hospitals": 0.014311790429425002,
+    "hospitals": 0.01401624537547394,
     "shops": 0.5,
     "aid_centers": 0.5,
     "other_infrastructure": 0.5,
@@ -44,14 +44,14 @@
     "direct_report": 0.5
   },
   "critical_only": {
-    "security": 0.020151169797881896,
-    "hospitals": 0.014311790429425002,
-    "search_and_rescue": 0.0351487069560599,
-    "water": 0.39579782614205505,
-    "medical_help": 0.14131195924024245,
-    "shelter": 0.27395376866006593,
-    "food": 0.47349385623090506,
-    "medical_products": 0.10916816635101648
+    "search_and_rescue": 0.03300545308667555,
+    "medical_help": 0.12373397815606363,
+    "food": 0.4312675725503747,
+    "medical_products": 0.09541618995744851,
+    "hospitals": 0.01401624537547394,
+    "security": 0.019628053754261417,
+    "water": 0.362161404322609,
+    "shelter": 0.24002223312737844
   },
   "performance": {
     "baseline": {
@@ -59,14 +59,14 @@
       "critical_recall_mean": 0.2338515851108734
     },
     "optimized": {
-      "f1_weighted": 0.9009079947412029,
-      "critical_recall_mean": 0.6207571885871047
+      "f1_weighted": 0.9263870305569046,
+      "critical_recall_mean": 0.6496643853081014
     },
     "delta": {
-      "f1_weighted": -0.03613389519211829,
-      "f1_weighted_pct": -3.8561664724177422,
-      "critical_recall": 0.3869056034762313,
-      "critical_recall_pct": 165.4492114273214
+      "f1_weighted": -0.010654859376416526,
+      "f1_weighted_pct": -1.1370739655166018,
+      "critical_recall": 0.41581280019722805,
+      "critical_recall_pct": 177.8105545019434
     }
   }
 }
