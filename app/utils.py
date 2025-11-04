@@ -127,20 +127,36 @@ class MockModelService:
 
 def setup_logging(app: Flask) -> None:
     """Setup application logging."""
+    # Check if already configured for this app instance
+    if hasattr(app, '_logging_configured'):
+        return
+    
     if not app.debug:
-        # Create logs directory if it doesn't exist
+        # Check if file handler already exists to prevent duplicates
         log_file = app.config['LOG_FILE']
-        log_file.parent.mkdir(parents=True, exist_ok=True)
+        log_file_path = str(log_file.resolve())
+        existing_file_handlers = [
+            h for h in app.logger.handlers
+            if isinstance(h, logging.FileHandler) and h.baseFilename == log_file_path
+        ]
         
-        # Configure file logging
-        file_handler = logging.FileHandler(log_file)
-        file_handler.setFormatter(logging.Formatter(
-            '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
-        ))
-        file_handler.setLevel(getattr(logging, app.config['LOG_LEVEL']))
-        app.logger.addHandler(file_handler)
+        if not existing_file_handlers:
+            # Create logs directory if it doesn't exist
+            log_file.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Configure file logging
+            file_handler = logging.FileHandler(log_file)
+            file_handler.setFormatter(logging.Formatter(
+                '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+            ))
+            file_handler.setLevel(getattr(logging, app.config['LOG_LEVEL']))
+            app.logger.addHandler(file_handler)
+        
         app.logger.setLevel(getattr(logging, app.config['LOG_LEVEL']))
-        app.logger.info('Disaster Response application startup')
+    
+    # Mark as configured and log startup once
+    app._logging_configured = True
+    app.logger.info('Disaster Response application startup')
 
 
 def init_services(app: Flask) -> None:

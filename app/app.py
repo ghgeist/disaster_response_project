@@ -24,49 +24,78 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
     
+    # Check if this app instance has already been initialized
+    # (prevents re-initialization if app is somehow reused)
+    if hasattr(app, '_initialized') and app._initialized:
+        return app
+    
     # Setup logging
     setup_logging(app)
     
     # Setup NLTK resources at startup for performance optimization
-    try:
-        app.logger.info("Setting up NLTK resources...")
-        nltk_setup_results = setup_nltk_resources()
-        
-        if nltk_setup_results["success"]:
-            app.logger.info(f"NLTK setup completed successfully in {nltk_setup_results['setup_time_ms']}ms")
-            app.logger.info(f"Loaded resources: {[r['name'] for r in nltk_setup_results['resources_loaded']]}")
-        else:
-            app.logger.warning(f"NLTK setup completed with warnings in {nltk_setup_results['setup_time_ms']}ms")
-            for error in nltk_setup_results["errors"]:
-                app.logger.warning(f"NLTK setup warning: {error}")
-        
-        # Store NLTK setup results in app config for monitoring
-        app.config['NLTK_SETUP_RESULTS'] = nltk_setup_results
-        
-    except NLTKSetupError as e:
-        app.logger.error(f"Critical NLTK setup failure: {e}")
-        app.logger.error("Application will continue but may experience performance issues")
-        # Don't fail startup, but log the error
-        app.config['NLTK_SETUP_RESULTS'] = {
-            "success": False,
-            "error": str(e),
-            "setup_time_ms": 0
-        }
-    except Exception as e:
-        app.logger.error(f"Unexpected error during NLTK setup: {e}")
-        app.logger.error("Application will continue but may experience performance issues")
-        app.config['NLTK_SETUP_RESULTS'] = {
-            "success": False,
-            "error": str(e),
-            "setup_time_ms": 0
-        }
+    # Check if NLTK has already been set up (module-level cache)
+    if not hasattr(setup_nltk_resources, '_setup_completed'):
+        try:
+            app.logger.info("Setting up NLTK resources...")
+            nltk_setup_results = setup_nltk_resources()
+            
+            if nltk_setup_results["success"]:
+                app.logger.info(f"NLTK setup completed successfully in {nltk_setup_results['setup_time_ms']}ms")
+                app.logger.info(f"Loaded resources: {[r['name'] for r in nltk_setup_results['resources_loaded']]}")
+            else:
+                app.logger.warning(f"NLTK setup completed with warnings in {nltk_setup_results['setup_time_ms']}ms")
+                for error in nltk_setup_results["errors"]:
+                    app.logger.warning(f"NLTK setup warning: {error}")
+            
+            # Mark NLTK setup as completed
+            setup_nltk_resources._setup_completed = True
+            setup_nltk_resources._setup_results = nltk_setup_results
+            
+        except NLTKSetupError as e:
+            app.logger.error(f"Critical NLTK setup failure: {e}")
+            app.logger.error("Application will continue but may experience performance issues")
+            setup_nltk_resources._setup_completed = True
+            setup_nltk_resources._setup_results = {
+                "success": False,
+                "error": str(e),
+                "setup_time_ms": 0
+            }
+        except Exception as e:
+            app.logger.error(f"Unexpected error during NLTK setup: {e}")
+            app.logger.error("Application will continue but may experience performance issues")
+            setup_nltk_resources._setup_completed = True
+            setup_nltk_resources._setup_results = {
+                "success": False,
+                "error": str(e),
+                "setup_time_ms": 0
+            }
+    else:
+        # NLTK already set up, use cached results
+        nltk_setup_results = getattr(setup_nltk_resources, '_setup_results', {})
+        app.logger.debug("NLTK resources already configured (using cached setup)")
+    
+    # Store NLTK setup results in app config for monitoring
+    app.config['NLTK_SETUP_RESULTS'] = nltk_setup_results
     
     # Validate environment configuration
     validation_results = validate_environment(config_class)
     
-    # Log validation results
-    for info_msg in validation_results.get('info', []):
-        app.logger.info(f"Config validation: {info_msg}")
+    # Log validation results - consolidate info messages in production, detailed in debug
+    if app.debug:
+        # In debug mode, log all validation details
+        for info_msg in validation_results.get('info', []):
+            app.logger.info(f"Config validation: {info_msg}")
+    else:
+        # In production, log a summary unless there are issues
+        if validation_results['info']:
+            info_count = len(validation_results['info'])
+            app.logger.info(f"Config validation: {info_count} checks passed")
+            # Log summary of what was validated
+            key_validations = [msg for msg in validation_results['info'] if any(
+                key in msg.lower() for key in ['directory', 'file', 'database', 'model']
+            )]
+            if key_validations:
+                app.logger.debug(f"Validation details: {', '.join(key_validations[:3])}")
     
     for warning_msg in validation_results.get('warnings', []):
         app.logger.warning(f"Config validation: {warning_msg}")
@@ -142,6 +171,8 @@ def create_app(config_class=Config):
             pass
         return response
     
+    # Mark as initialized and log startup completion
+    app._initialized = True
     app.logger.info('Disaster Response application started')
     return app
 
