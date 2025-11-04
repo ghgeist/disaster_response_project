@@ -45,6 +45,8 @@ def create_app(config_class=Config):
     
     # Setup NLTK resources at startup for performance optimization
     # Check if NLTK has already been set up (module-level cache)
+    # Initialize nltk_setup_results to ensure it's always defined, even if exception handlers fail
+    nltk_setup_results = {}
     if not hasattr(setup_nltk_resources, '_setup_completed'):
         try:
             # Only log "Setting up..." on first initialization

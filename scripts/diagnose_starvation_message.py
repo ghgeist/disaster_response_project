@@ -77,19 +77,23 @@ def diagnose_message(message: str):
     
     # Check thresholds
     print("\n🎯 THRESHOLDS:")
-    thresholds = model_service._get_thresholds_map()
-    print(f"  Using model service thresholds: {len(thresholds)} thresholds loaded")
+    service_thresholds = model_service.get_thresholds_map()
+    print(f"  Model service thresholds loaded: {len(service_thresholds)} thresholds")
     for category in relevant_categories:
-        if category in thresholds:
-            print(f"  {category:20s} | Threshold: {thresholds[category]:.4f}")
+        if category in service_thresholds:
+            print(f"  {category:20s} | Threshold: {service_thresholds[category]:.4f}")
     
     # Apply hierarchy processing (like the route does)
-    print("\n🔄 APPLYING HIERARCHY PROCESSING:")
+    print("\n🔄 APPLYING HIERARCHY PROCESSING (matching /classify route):")
     print("-" * 80)
     
-    # Use default thresholds (0.5) like the route does
-    route_thresholds = {label: 0.5 for label in raw_probabilities.keys()}
-    print(f"  Using route thresholds (0.5 for all): {len(route_thresholds)} labels")
+    # Get thresholds from model service (includes optimized thresholds if available)
+    # Fallback to 0.5 for any missing labels - this matches the route behavior
+    route_thresholds = {
+        label: service_thresholds.get(label, 0.5) 
+        for label in raw_probabilities.keys()
+    }
+    print(f"  Using model service thresholds with 0.5 fallback: {len(route_thresholds)} labels")
     
     fixed_probabilities, fixed_labels = apply_hierarchy(
         probs=raw_probabilities,
