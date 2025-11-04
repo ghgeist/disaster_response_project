@@ -188,7 +188,9 @@ CRITICAL_LABELS = {
     "search_and_rescue",
     "water",
     "food",
+    "shelter",
     "security",
+    "hospitals"
 }
 
 # Labels excluded from hierarchy constraints (documented data limitations)

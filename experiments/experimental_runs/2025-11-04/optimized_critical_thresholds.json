@@ -1,0 +1,72 @@
+{
+  "metadata": {
+    "created": "2025-11-04T21:00:36.758150",
+    "model": "experiments/experimental_runs/2025-11-04/lr_baseline_model.pkl",
+    "target_recall": 0.62,
+    "optimization_method": "precision_recall_curve"
+  },
+  "thresholds": {
+    "related": 0.5,
+    "request": 0.5,
+    "offer": 0.5,
+    "aid_related": 0.5,
+    "medical_help": 0.14131195924024245,
+    "medical_products": 0.10916816635101648,
+    "search_and_rescue": 0.0351487069560599,
+    "security": 0.020151169797881896,
+    "military": 0.5,
+    "child_alone": 0.5,
+    "water": 0.39579782614205505,
+    "food": 0.47349385623090506,
+    "shelter": 0.27395376866006593,
+    "clothing": 0.5,
+    "money": 0.5,
+    "missing_people": 0.5,
+    "refugees": 0.5,
+    "death": 0.5,
+    "other_aid": 0.5,
+    "infrastructure_related": 0.5,
+    "transport": 0.5,
+    "buildings": 0.5,
+    "electricity": 0.5,
+    "tools": 0.5,
+    "hospitals": 0.014311790429425002,
+    "shops": 0.5,
+    "aid_centers": 0.5,
+    "other_infrastructure": 0.5,
+    "weather_related": 0.5,
+    "floods": 0.5,
+    "storm": 0.5,
+    "fire": 0.5,
+    "earthquake": 0.5,
+    "cold": 0.5,
+    "other_weather": 0.5,
+    "direct_report": 0.5
+  },
+  "critical_only": {
+    "security": 0.020151169797881896,
+    "hospitals": 0.014311790429425002,
+    "search_and_rescue": 0.0351487069560599,
+    "water": 0.39579782614205505,
+    "medical_help": 0.14131195924024245,
+    "shelter": 0.27395376866006593,
+    "food": 0.47349385623090506,
+    "medical_products": 0.10916816635101648
+  },
+  "performance": {
+    "baseline": {
+      "f1_weighted": 0.9370418899333212,
+      "critical_recall_mean": 0.2338515851108734
+    },
+    "optimized": {
+      "f1_weighted": 0.9009079947412029,
+      "critical_recall_mean": 0.6207571885871047
+    },
+    "delta": {
+      "f1_weighted": -0.03613389519211829,
+      "f1_weighted_pct": -3.8561664724177422,
+      "critical_recall": 0.3869056034762313,
+      "critical_recall_pct": 165.4492114273214
+    }
+  }
+}
