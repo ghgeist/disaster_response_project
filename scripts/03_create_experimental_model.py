@@ -211,7 +211,30 @@ def _compute_f2_thresholds_for_labels(model, X_eval, Y_eval, labels, all_categor
         try:
             probs = proba_list[idx]
             # shape (n_samples, 2) -> class 1
-            p = probs[:, 1] if probs.ndim == 2 and probs.shape[1] > 1 else probs.ravel()
+            if probs.ndim == 2 and probs.shape[1] == 2:
+                # Normal binary classifier with both classes
+                p = probs[:, 1]
+            elif probs.ndim == 2 and probs.shape[1] == 1:
+                # Single class present - check which class it is
+                # Access the underlying classifier to get class information
+                clf = model.named_steps['clf']
+                if hasattr(clf, 'classes_') and idx < len(clf.classes_):
+                    classes = clf.classes_[idx]
+                    if len(classes) == 1 and classes[0] == 0:
+                        # Only class 0 present, probability of class 1 is 0
+                        p = np.zeros(probs.shape[0])
+                    elif len(classes) == 1 and classes[0] == 1:
+                        # Only class 1 present, probability of class 1 is 1
+                        p = np.ones(probs.shape[0])
+                    else:
+                        # Fallback (shouldn't happen)
+                        p = probs.ravel()
+                else:
+                    # Fallback if class info not available
+                    p = probs.ravel()
+            else:
+                # Fallback for unexpected shapes
+                p = probs.ravel()
         except Exception:
             thresholds[name] = 0.5
             sources[name] = "default"

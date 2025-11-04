@@ -326,15 +326,29 @@ class ModelService:
 
                     for idx, p in enumerate(proba):
                         if p.shape[1] == 1:
-                            # Single column: degenerate classifier (only negative class learned)
-                            # The single probability represents P(negative_class), so P(positive_class) = 0
-                            prob_val = 0.0  # Force positive class probability to 0 for degenerate classifiers
+                            # Single column: degenerate classifier (only one class learned)
+                            # Check which class is present to determine correct probability
+                            if hasattr(clf, 'classes_') and idx < len(clf.classes_):
+                                classes = clf.classes_[idx]
+                                if len(classes) == 1 and classes[0] == 0:
+                                    # Only class 0 present, probability of class 1 is 0
+                                    prob_val = 0.0
+                                elif len(classes) == 1 and classes[0] == 1:
+                                    # Only class 1 present, probability of class 1 is 1
+                                    prob_val = 1.0
+                                else:
+                                    # Fallback (shouldn't happen)
+                                    prob_val = 0.0
+                            else:
+                                # Fallback if class info not available (assume class 0)
+                                prob_val = 0.0
                             probs.append(prob_val)
                             category_name = active_categories[idx] if idx < len(active_categories) else f"unknown_{idx}"
                             logger.debug(
-                                "Label %d (%s): degenerate classifier detected, setting positive prob to 0.0",
+                                "Label %d (%s): degenerate classifier detected, positive prob set to %.1f",
                                 idx,
                                 category_name,
+                                prob_val,
                             )
                         elif p.shape[1] == 2:
                             # Two columns: assume class 1 is positive (standard binary classification)
