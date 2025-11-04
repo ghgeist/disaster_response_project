@@ -5,6 +5,7 @@ application startup to avoid per-request performance issues. All NLTK
 resources are pre-loaded and validated once at startup.
 """
 import logging
+import threading
 import time
 from typing import Dict, List, Tuple, Optional
 import nltk
@@ -12,17 +13,24 @@ from nltk.corpus import stopwords, wordnet
 
 logger = logging.getLogger(__name__)
 
+# Module-level caching state (thread-safe)
+_setup_lock = threading.Lock()
+_setup_completed = False
+_setup_results = None
+
 # NLTK resources required for the application
+# Note: punkt_tab is required by newer NLTK versions (replaces punkt)
 REQUIRED_RESOURCES = {
     "corpora": ["stopwords", "wordnet"],
-    "tokenizers": ["punkt"]
+    "tokenizers": ["punkt", "punkt_tab"]
 }
 
 # Resource validation functions
 RESOURCE_VALIDATORS = {
     "stopwords": lambda: len(stopwords.words("english")) > 0,
     "wordnet": lambda: len(list(wordnet.synsets("test"))) > 0,
-    "punkt": lambda: nltk.data.find("tokenizers/punkt") is not None
+    "punkt": lambda: nltk.data.find("tokenizers/punkt") is not None,
+    "punkt_tab": lambda: nltk.data.find("tokenizers/punkt_tab") is not None
 }
 
 
@@ -35,6 +43,9 @@ def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
     """
     Download and validate NLTK resources once at startup.
     
+    Note: Failed setups are cached to prevent repeated expensive attempts.
+    Use force_download=True to retry after fixing NLTK installation issues.
+    
     Args:
         force_download: If True, force download even if resources exist
         
@@ -44,6 +55,14 @@ def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
     Raises:
         NLTKSetupError: If critical resources cannot be loaded
     """
+    global _setup_completed, _setup_results
+    
+    # Return cached results if already completed (unless force download requested)
+    with _setup_lock:
+        if _setup_completed and not force_download:
+            logger.debug("Returning cached NLTK setup results")
+            return _setup_results
+    
     start_time = time.time()
     setup_results = {
         "success": True,
@@ -107,14 +126,21 @@ def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
                     logger.error("✗ %s", error_msg)
         
         # Check if critical resources are available
-        critical_resources = ["stopwords", "punkt"]
-        missing_critical = [
-            r["name"] for r in setup_results["resources_failed"] 
-            if r["name"] in critical_resources
-        ]
+        # punkt_tab is critical for newer NLTK versions, punkt for older ones
+        # At least one tokenizer (punkt or punkt_tab) must be available
+        failed_resources = [r["name"] for r in setup_results["resources_failed"]]
         
-        if missing_critical:
-            error_msg = f"Critical NLTK resources missing: {missing_critical}"
+        # Stopwords is always required
+        if "stopwords" in failed_resources:
+            error_msg = "Critical NLTK resource missing: stopwords"
+            setup_results["success"] = False
+            setup_results["errors"].append(error_msg)
+            logger.error(error_msg)
+            raise NLTKSetupError(error_msg)
+        
+        # At least one tokenizer must be available (punkt or punkt_tab)
+        if "punkt" in failed_resources and "punkt_tab" in failed_resources:
+            error_msg = "Critical NLTK resources missing: at least one of punkt or punkt_tab is required"
             setup_results["success"] = False
             setup_results["errors"].append(error_msg)
             logger.error(error_msg)
@@ -141,6 +167,11 @@ def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
                 "NLTK setup completed with warnings in %sms",
                 setup_results["setup_time_ms"],
             )
+        
+        # Cache the results for future calls
+        with _setup_lock:
+            _setup_completed = True
+            _setup_results = setup_results
             
         return setup_results
         
@@ -149,6 +180,12 @@ def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
         setup_results["setup_time_ms"] = round((time.time() - start_time) * 1000, 2)
         setup_results["errors"].append(f"Setup failed: {e}")
         logger.error("NLTK setup failed: %s", e)
+        
+        # Cache the failed result to prevent repeated attempts
+        with _setup_lock:
+            _setup_completed = True
+            _setup_results = setup_results
+        
         raise NLTKSetupError(f"NLTK setup failed: {e}") from e
 
 
@@ -260,3 +297,11 @@ def get_nltk_status() -> Dict[str, any]:
             "error": str(e),
             "nltk_version": getattr(nltk, '__version__', 'Unknown')
         }
+
+
+def reset_nltk_cache():
+    """Reset NLTK setup cache. Useful for testing."""
+    global _setup_completed, _setup_results
+    with _setup_lock:
+        _setup_completed = False
+        _setup_results = None

@@ -414,8 +414,13 @@ def register_routes(app):
             if not raw_probabilities and raw_labels:
                 raw_probabilities = {k: 1.0 if v == 1 else 0.0 for k, v in raw_labels.items()}
 
-            # Default thresholds (0.5 for all labels)
-            thresholds = {label: 0.5 for label in raw_probabilities.keys()}
+            # Get thresholds from model service (includes optimized thresholds if available)
+            # Fallback to 0.5 for any missing labels
+            service_thresholds = model_service.get_thresholds_map()
+            thresholds = {
+                label: service_thresholds.get(label, 0.5) 
+                for label in raw_probabilities.keys()
+            }
 
             # Compute violations in raw predictions
             violations = compute_violations(raw_probabilities, TAXONOMY, EXCLUDE_FROM_CONSTRAINTS)
