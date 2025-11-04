@@ -111,7 +111,7 @@ class WeightedMultiOutputClassifier(MultiOutputClassifier):
         from sklearn.utils.validation import check_array
         
         # Validate input
-        X = check_array(X, accept_sparse=True, force_all_finite=False)
+        X = check_array(X, accept_sparse=True, ensure_all_finite=False)
         # Ensure y is 2D array for multi-output
         y = np.asarray(y)
         if y.ndim == 1:
