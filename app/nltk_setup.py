@@ -13,16 +13,18 @@ from nltk.corpus import stopwords, wordnet
 logger = logging.getLogger(__name__)
 
 # NLTK resources required for the application
+# Note: punkt_tab is required by newer NLTK versions (replaces punkt)
 REQUIRED_RESOURCES = {
     "corpora": ["stopwords", "wordnet"],
-    "tokenizers": ["punkt"]
+    "tokenizers": ["punkt", "punkt_tab"]
 }
 
 # Resource validation functions
 RESOURCE_VALIDATORS = {
     "stopwords": lambda: len(stopwords.words("english")) > 0,
     "wordnet": lambda: len(list(wordnet.synsets("test"))) > 0,
-    "punkt": lambda: nltk.data.find("tokenizers/punkt") is not None
+    "punkt": lambda: nltk.data.find("tokenizers/punkt") is not None,
+    "punkt_tab": lambda: nltk.data.find("tokenizers/punkt_tab") is not None
 }
 
 
@@ -107,7 +109,8 @@ def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
                     logger.error("✗ %s", error_msg)
         
         # Check if critical resources are available
-        critical_resources = ["stopwords", "punkt"]
+        # punkt_tab is critical for newer NLTK versions, punkt for older ones
+        critical_resources = ["stopwords", "punkt_tab"]
         missing_critical = [
             r["name"] for r in setup_results["resources_failed"] 
             if r["name"] in critical_resources
