@@ -127,8 +127,12 @@ class MockModelService:
 
 def setup_logging(app: Flask) -> None:
     """Setup application logging."""
-    # Check if already configured for this app instance
-    if hasattr(app, '_logging_configured'):
+    global _logging_configured, _logging_startup_logged
+    
+    # Check if logging has already been configured in this process
+    if _logging_configured:
+        # Already configured, just set the level for this app instance
+        app.logger.setLevel(getattr(logging, app.config['LOG_LEVEL']))
         return
     
     if not app.debug:
@@ -154,13 +158,43 @@ def setup_logging(app: Flask) -> None:
         
         app.logger.setLevel(getattr(logging, app.config['LOG_LEVEL']))
     
-    # Mark as configured and log startup once
-    app._logging_configured = True
-    app.logger.info('Disaster Response application startup')
+    # Mark as configured
+    _logging_configured = True
+    
+    # Log startup message only once per process
+    if not _logging_startup_logged:
+        app.logger.info('Disaster Response application startup')
+        _logging_startup_logged = True
+
+
+# Module-level service initialization tracking
+_services_initialized = False
 
 
 def init_services(app: Flask) -> None:
     """Initialize application services."""
+    global _services_initialized
+    
+    # Check if services have already been initialized in this process
+    if _services_initialized:
+        # Reuse existing services if they exist on a previous app instance
+        # For new app instances, we still need to attach services
+        if not hasattr(app, 'data_service') or not hasattr(app, 'model_service'):
+            try:
+                if app.config.get('TESTING'):
+                    app.data_service = MockDataService(app.config['DATABASE_URL'])
+                    app.model_service = MockModelService()
+                else:
+                    app.data_service = DataService(app.config['DATABASE_URL'])
+                    app.model_service = ModelService(
+                        model_path=app.config['MODEL_PATH'],
+                        gdrive_model_id=app.config['GDRIVE_MODEL_ID']
+                    )
+            except Exception as e:
+                app.logger.error('Failed to initialize services: %s', e)
+                raise
+        return
+    
     try:
         # Initialize services (use mocks for testing)
         if app.config.get('TESTING'):
@@ -173,6 +207,7 @@ def init_services(app: Flask) -> None:
                 gdrive_model_id=app.config['GDRIVE_MODEL_ID']
             )
 
+        _services_initialized = True
         app.logger.info('Services initialized successfully')
 
     except Exception as e:
