@@ -44,57 +44,39 @@ def create_app(config_class=Config):
             _app_initialization_count += 1
     
     # Setup NLTK resources at startup for performance optimization
-    # Check if NLTK has already been set up (module-level cache)
-    # Initialize nltk_setup_results to ensure it's always defined, even if exception handlers fail
-    nltk_setup_results = {}
-    if not hasattr(setup_nltk_resources, '_setup_completed'):
-        try:
-            # Only log "Setting up..." on first initialization
-            if is_first_init:
-                app.logger.info("Setting up NLTK resources...")
-            nltk_setup_results = setup_nltk_resources()
-            
-            # Only log NLTK setup results on first initialization
-            if is_first_init:
-                if nltk_setup_results["success"]:
-                    app.logger.info(f"NLTK setup completed successfully in {nltk_setup_results['setup_time_ms']}ms")
-                    app.logger.info(f"Loaded resources: {[r['name'] for r in nltk_setup_results['resources_loaded']]}")
-                else:
-                    app.logger.warning(f"NLTK setup completed with warnings in {nltk_setup_results['setup_time_ms']}ms")
-                    for error in nltk_setup_results["errors"]:
-                        app.logger.warning(f"NLTK setup warning: {error}")
-            
-            # Mark NLTK setup as completed
-            setup_nltk_resources._setup_completed = True
-            setup_nltk_resources._setup_results = nltk_setup_results
-            
-        except NLTKSetupError as e:
-            # Always log errors, but only log detailed messages on first init
+    # The setup_nltk_resources() function handles its own caching and thread safety
+    try:
+        nltk_setup_results = setup_nltk_resources()
+        
+        # Only log NLTK setup results on first initialization to prevent duplicate logs
+        if is_first_init and nltk_setup_results["success"]:
+            app.logger.info(f"NLTK setup completed successfully in {nltk_setup_results['setup_time_ms']}ms")
+            app.logger.info(f"Loaded resources: {[r['name'] for r in nltk_setup_results['resources_loaded']]}")
+        elif is_first_init:
+            app.logger.warning(f"NLTK setup completed with warnings in {nltk_setup_results['setup_time_ms']}ms")
+            for error in nltk_setup_results.get("errors", []):
+                app.logger.warning(f"NLTK setup warning: {error}")
+                
+    except NLTKSetupError as e:
+        # Critical NLTK setup failure
+        if is_first_init:
             app.logger.error(f"Critical NLTK setup failure: {e}")
-            if is_first_init:
-                app.logger.error("Application will continue but may experience performance issues")
-            nltk_setup_results = {
-                "success": False,
-                "error": str(e),
-                "setup_time_ms": 0
-            }
-            setup_nltk_resources._setup_completed = True
-            setup_nltk_resources._setup_results = nltk_setup_results
-        except Exception as e:
+            app.logger.error("Application will continue but may experience performance issues")
+        nltk_setup_results = {
+            "success": False,
+            "error": str(e),
+            "setup_time_ms": 0
+        }
+    except Exception as e:
+        # Unexpected error during NLTK setup
+        if is_first_init:
             app.logger.error(f"Unexpected error during NLTK setup: {e}")
-            if is_first_init:
-                app.logger.error("Application will continue but may experience performance issues")
-            nltk_setup_results = {
-                "success": False,
-                "error": str(e),
-                "setup_time_ms": 0
-            }
-            setup_nltk_resources._setup_completed = True
-            setup_nltk_resources._setup_results = nltk_setup_results
-    else:
-        # NLTK already set up, use cached results
-        nltk_setup_results = getattr(setup_nltk_resources, '_setup_results', {})
-        app.logger.debug("NLTK resources already configured (using cached setup)")
+            app.logger.error("Application will continue but may experience performance issues")
+        nltk_setup_results = {
+            "success": False,
+            "error": str(e),
+            "setup_time_ms": 0
+        }
     
     # Store NLTK setup results in app config for monitoring
     app.config['NLTK_SETUP_RESULTS'] = nltk_setup_results
