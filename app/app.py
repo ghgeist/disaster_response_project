@@ -70,22 +70,24 @@ def create_app(config_class=Config):
             app.logger.error(f"Critical NLTK setup failure: {e}")
             if is_first_init:
                 app.logger.error("Application will continue but may experience performance issues")
-            setup_nltk_resources._setup_completed = True
-            setup_nltk_resources._setup_results = {
+            nltk_setup_results = {
                 "success": False,
                 "error": str(e),
                 "setup_time_ms": 0
             }
+            setup_nltk_resources._setup_completed = True
+            setup_nltk_resources._setup_results = nltk_setup_results
         except Exception as e:
             app.logger.error(f"Unexpected error during NLTK setup: {e}")
             if is_first_init:
                 app.logger.error("Application will continue but may experience performance issues")
-            setup_nltk_resources._setup_completed = True
-            setup_nltk_resources._setup_results = {
+            nltk_setup_results = {
                 "success": False,
                 "error": str(e),
                 "setup_time_ms": 0
             }
+            setup_nltk_resources._setup_completed = True
+            setup_nltk_resources._setup_results = nltk_setup_results
     else:
         # NLTK already set up, use cached results
         nltk_setup_results = getattr(setup_nltk_resources, '_setup_results', {})
