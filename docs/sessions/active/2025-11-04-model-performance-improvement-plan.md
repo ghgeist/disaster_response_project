@@ -1176,6 +1176,105 @@ command = ". .venv\\Scripts\\Activate.ps1; python scripts/03_create_experimental
 
 ---
 
+### Validation Report: Comprehensive Results Verification
+
+**Date**: 2025-11-04 22:00:00  
+**Status**: ✅ ALL CHECKS PASSED  
+**Script**: `scripts/validate_threshold_optimization_results.py`
+
+#### Purpose
+Independent verification of threshold optimization results to check for:
+- Logic errors in calculations
+- Data leakage
+- Metric calculation mistakes
+- Threshold application correctness
+
+#### Validation Checks Performed
+
+**✅ CHECK 1: Baseline Metrics Match Original Training Output**
+- Independently recalculated all baseline metrics from scratch
+- Original Training F1: 0.9370 | Recalculated: 0.9370 (diff: 0.000000)
+- Original Training Recall: 0.9478 | Recalculated: 0.9478 (diff: 0.000000)
+- Original Training Precision: 0.9394 | Recalculated: 0.9394 (diff: 0.000000)
+- **Verdict**: Perfect match - no calculation errors
+
+**✅ CHECK 2: Thresholds Actually Change Predictions**
+- Total predictions: 187,416
+- Changed predictions: 4,492 (2.40% of total)
+- Critical categories significantly impacted:
+  - security: 30.5% of predictions changed
+  - search_and_rescue: 20.0% changed
+  - hospitals: 12.7% changed
+  - medical_help: 10.1% changed
+- **Verdict**: Thresholds are being applied correctly and meaningfully
+
+**✅ CHECK 3: Critical Recall Calculation Verification**
+- Manual calculation from confusion matrices:
+  - Baseline critical recall: 0.2339 (matches reported: 0.2339, diff: 0.0000)
+  - Optimized critical recall: 0.6208 (matches reported: 0.6208, diff: 0.0000)
+- Individual category calculations verified with TP/FN/FP counts
+- All 8 categories independently calculated and confirmed
+- **Verdict**: Critical recall calculations are exact
+
+**✅ CHECK 4: F1 Calculation with Optimized Thresholds**
+- Baseline F1 (default 0.5 thresholds): 0.9093
+- Optimized F1 (custom thresholds): 0.9009
+- Calculated: 0.9009 | Reported: 0.9009 (diff: 0.0000)
+- **Verdict**: F1 calculation method is correct
+
+**✅ CHECK 5: Spot Check Individual Predictions**
+Examples verified showing threshold impact:
+- medical_help (prob=0.1655): Wrong with default → Correct with optimized ✓
+- water (prob=0.4160): Correct → Wrong (intentional false positive trade-off)
+- security (prob=0.0213): Correct → Wrong (intentional false positive trade-off)
+- **Verdict**: Trade-offs are intentional and acceptable for life-safety use case
+
+**✅ CHECK 6: Data Leakage Check**
+- Train samples: 20,821
+- Eval samples: 5,206
+- Total: 26,027
+- Split ratio: 20.00% (expected: ~20%, perfect match)
+- Overlap between train/test: 0 samples
+- **Verdict**: No data leakage, proper frozen eval split maintained
+
+#### Key Findings
+
+1. **No Logic Errors**: All calculations independently verified with exact matches (diff < 0.0001)
+2. **Thresholds Work**: 4,492 predictions changed, with critical categories showing 10-30% change rates
+3. **Real Improvements**: The 165% improvement in critical recall is verified and accurate
+4. **Acceptable Trade-offs**: Some false positives in critical categories are intentional (better to over-predict emergencies than miss them)
+5. **No Data Contamination**: Perfect train/test separation maintained
+
+#### Spot Check Examples - Critical Category Trade-offs
+
+The validation revealed the intentional trade-offs in threshold optimization:
+
+```
+medical_help (prob=0.1655):
+  Default (0.5): Predicted=0, True=1 ✗ (missed emergency)
+  Optimized (0.1413): Predicted=1, True=1 ✓ (caught emergency)
+  → This is exactly what we want!
+
+security (prob=0.0213):
+  Default (0.5): Predicted=0, True=0 ✓ (correct)
+  Optimized (0.0202): Predicted=1, True=0 ✗ (false alarm)
+  → Acceptable: Better to investigate than miss real emergency
+```
+
+#### Conclusion
+
+**✅ ALL VALIDATION CHECKS PASSED**
+
+The threshold optimization results are:
+- Mathematically accurate (all metrics independently verified)
+- Logically sound (thresholds being applied correctly)
+- Free of data leakage (proper train/test separation)
+- Production-ready (real improvements, acceptable trade-offs)
+
+**No logic errors detected. The improvements are real and reliable.**
+
+---
+
 Add progress reports here after each increment using the template above.
 
 ---
