@@ -147,8 +147,25 @@ def evaluate_model_to_model_folder(model, X_test, Y_test, category_names, model_
                 for label_idx, label_name in enumerate(category_names):
                     try:
                         proba_array = proba_list[label_idx]
-                        if proba_array.ndim == 2 and proba_array.shape[1] > 1:
+                        if proba_array.ndim == 2 and proba_array.shape[1] == 2:
                             prob = proba_array[sample_idx, 1]  # Positive class probability
+                        elif proba_array.ndim == 2 and proba_array.shape[1] == 1:
+                            # Single class present - check which class it is
+                            clf = model.named_steps['clf']
+                            if hasattr(clf, 'classes_') and label_idx < len(clf.classes_):
+                                classes = clf.classes_[label_idx]
+                                if len(classes) == 1 and classes[0] == 0:
+                                    # Only class 0 present, probability of class 1 is 0
+                                    prob = 0.0
+                                elif len(classes) == 1 and classes[0] == 1:
+                                    # Only class 1 present, probability of class 1 is 1
+                                    prob = 1.0
+                                else:
+                                    # Fallback
+                                    prob = proba_array[sample_idx]
+                            else:
+                                # Fallback if class info not available
+                                prob = proba_array[sample_idx]
                         else:
                             prob = proba_array[sample_idx]
                         probs[label_name] = float(prob)
