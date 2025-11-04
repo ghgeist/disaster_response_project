@@ -1,0 +1,10 @@
+{
+  "medical_help": 0.1021,
+  "search_and_rescue": 0.0552,
+  "water": 0.1258,
+  "food": 0.1777,
+  "shelter": 0.1459,
+  "hospitals": 0.0181,
+  "security": 0.0244,
+  "weather_related": 0.2482
+}

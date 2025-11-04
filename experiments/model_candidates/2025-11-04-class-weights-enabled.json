@@ -1,0 +1,14 @@
+{
+  "metadata": {
+    "model_name": "disaster_classifier_with_class_weights",
+    "version": "1.0.0",
+    "created_date": "2025-11-04",
+    "description": "Class weighting configuration enabled for handling imbalanced labels",
+    "last_modified": "2025-11-04"
+  },
+  "class_weights": {
+    "enabled": true,
+    "strategy": "balanced"
+  }
+}
+

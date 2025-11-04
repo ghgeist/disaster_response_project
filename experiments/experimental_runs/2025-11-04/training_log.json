@@ -1,0 +1,41 @@
+{
+  "timestamp": "2025-11-04T19:14:00.178091",
+  "model_path": "experiments\\experimental_runs\\2025-11-04\\2025-11-04-logistic-regression-baseline-hyperparameters-model.pkl",
+  "training_time_seconds": 55.4030065536499,
+  "configuration": {
+    "hyperparameters": {
+      "vect__ngram_range": [
+        1,
+        2
+      ]
+    },
+    "class_weighting": {
+      "enabled": false,
+      "strategy": null
+    },
+    "data_split": {
+      "test_size": 0.2,
+      "random_seed": 42,
+      "train_samples": 20821,
+      "test_samples": 5206,
+      "mode": "frozen_eval",
+      "eval_ids_file": "experiments/experimental_configs/eval_sets/eval_ids.json",
+      "eval_uid_count": 5206
+    },
+    "target_labels": 36
+  },
+  "performance": {
+    "overall_precision": 0.9394299828023102,
+    "overall_recall": 0.9478166218465872,
+    "overall_f1": 0.9370418899333212,
+    "positive_class_precision": 0.574881744408865,
+    "positive_class_recall": 0.2231321017137127,
+    "positive_class_f1": 0.2763690745247488,
+    "micro_f1": 0.6545634359988698,
+    "samples_f1": 0.5237173619333173,
+    "total_categories": 36,
+    "test_samples": 5206
+  },
+  "version": "0.1-exp",
+  "status": "experimental"
+}

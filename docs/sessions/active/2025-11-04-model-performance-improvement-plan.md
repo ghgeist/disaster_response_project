@@ -7,6 +7,7 @@ author: "Planning Agent"
 reviewed_by: "Claude Opus"
 related: ["docs/dev_notes/2025-09-17.md", "docs/sessions/completed/2025-09-03-execute-ml-optimization-COMPLETED.md", "docs/sessions/active/2025-11-04-ml-plan-critical-review.md"]
 execution_mode: "autonomous-overnight"
+execution_environment: "local-windows"
 revision: "2.0 - Opus Critical Review Applied"
 ---
 
@@ -18,6 +19,13 @@ revision: "2.0 - Opus Critical Review Applied"
 - Added comprehensive pre-execution validation
 - Added strict stop conditions and resource monitoring
 - Made eval_ids.csv REQUIRED, not optional
+
+**💻 EXECUTION ENVIRONMENT**: Local Windows machine with PowerShell
+- **Shell**: PowerShell 7 (`pwsh.exe`)
+- **Virtual Environment**: `.venv` (must be activated before all Python commands)
+- **Resource Requirements**: 16GB RAM recommended (8GB minimum), 20GB free disk space
+- **Expected Duration**: 4-5 hours total (Inc 0: 30min, Inc 1: 1h, Inc 2: 2h, Inc 3: 1h)
+- **Resource Usage**: LR training uses 2-4GB RAM, RF training (deferred) uses 6-8GB RAM
 
 ---
 
@@ -118,18 +126,30 @@ def validate_environment():
     checks['venv_active'] = sys.prefix != sys.base_prefix
     checks['python_version'] = sys.version_info >= (3, 12)
     
-    # Resources
+    # Resources (adjusted for local execution)
     disk_free_gb = shutil.disk_usage('.').free / (1024**3)
-    checks['disk_space_gb'] = disk_free_gb > 15
+    checks['disk_space_gb'] = disk_free_gb > 20
+    print(f"Disk space available: {disk_free_gb:.1f}GB (need 20GB+)")
     
-    # Try to import memory check (may not be available)
+    # Memory check (critical for local execution)
     try:
         import psutil
-        mem_free_gb = psutil.virtual_memory().available / (1024**3)
-        checks['memory_available_gb'] = mem_free_gb > 8
+        total_ram_gb = psutil.virtual_memory().total / (1024**3)
+        available_ram_gb = psutil.virtual_memory().available / (1024**3)
+        
+        # Minimum 8GB total, but warn if less than 16GB
+        checks['memory_available_gb'] = total_ram_gb >= 8
+        
+        print(f"Total RAM: {total_ram_gb:.1f}GB, Available: {available_ram_gb:.1f}GB")
+        if total_ram_gb < 16:
+            print("⚠️ WARNING: Less than 16GB RAM - may be slow or fail on large models")
+            print("   Recommend: Skip Increment 4 (RandomForest) if attempted")
+        if available_ram_gb < 4:
+            print("⚠️ WARNING: Less than 4GB available RAM - close other applications")
     except ImportError:
         print("WARNING: psutil not available, skipping memory check")
-        checks['memory_available_gb'] = True  # Assume OK
+        print("   Install with: pip install psutil")
+        checks['memory_available_gb'] = True  # Assume OK but risky
     
     # Required scripts
     checks['required_scripts'] = all([
@@ -249,9 +269,19 @@ if __name__ == '__main__':
     print(f"   Experiment dir: {exp_dir}")
 ```
 
-2. **Run validation**:
-```bash
+2. **Run validation** (with venv activated):
+```powershell
+# Activate virtual environment first
+.\.venv\Scripts\Activate.ps1
+
+# Then run validation
 python scripts/validate_ml_execution_environment.py
+```
+
+**Note for Agent**: Use `run_terminal_cmd` with proper venv activation:
+```python
+# Example: Activate venv before running Python commands
+command = ". .venv\\Scripts\\Activate.ps1; python scripts/validate_ml_execution_environment.py"
 ```
 
 ### Success Criteria
@@ -350,10 +380,14 @@ else:
 
 5. **Train experimental model**:
 
-```bash
-python scripts/03_create_experimental_model.py \
-  --algorithm logistic_regression \
-  --eval-ids data/04_fct/eval_ids.csv
+```powershell
+# With venv activated
+python scripts/03_create_experimental_model.py --algorithm logistic_regression --eval-ids data/04_fct/eval_ids.csv
+```
+
+**Note for Agent**: Ensure venv is activated in the same command:
+```python
+command = ". .venv\\Scripts\\Activate.ps1; python scripts/03_create_experimental_model.py --algorithm logistic_regression --eval-ids data/04_fct/eval_ids.csv"
 ```
 
 ### Validation Steps
@@ -540,11 +574,14 @@ if args.algorithm == 'logistic_regression' and args.class_weights_file:
 
 4. **Train experimental model**:
 
-```bash
-python scripts/03_create_experimental_model.py \
-  --algorithm logistic_regression \
-  --class-weights experiments/model_candidates/class_weights_enabled.json \
-  --eval-ids data/04_fct/eval_ids.csv
+```powershell
+# With venv activated
+python scripts/03_create_experimental_model.py --algorithm logistic_regression --class-weights experiments/model_candidates/class_weights_enabled.json --eval-ids data/04_fct/eval_ids.csv
+```
+
+**Note for Agent**: Inline venv activation:
+```python
+command = ". .venv\\Scripts\\Activate.ps1; python scripts/03_create_experimental_model.py --algorithm logistic_regression --class-weights experiments/model_candidates/class_weights_enabled.json --eval-ids data/04_fct/eval_ids.csv"
 ```
 
 ### Validation Steps
@@ -626,12 +663,9 @@ CRITICAL_LABELS = {
 
 3. **Train with threshold optimization**:
 
-```bash
-python scripts/03_create_experimental_model.py \
-  --algorithm logistic_regression \
-  --class-weights experiments/model_candidates/class_weights_enabled.json \
-  --optimize-thresholds \
-  --eval-ids data/04_fct/eval_ids.csv
+```powershell
+# With venv activated
+python scripts/03_create_experimental_model.py --algorithm logistic_regression --class-weights experiments/model_candidates/class_weights_enabled.json --optimize-thresholds --eval-ids data/04_fct/eval_ids.csv
 ```
 
 ### Success Criteria
@@ -688,33 +722,36 @@ def get_multilabel_class_weights(y_train, label_names):
 
 ### Experimental Model Commands
 
+**IMPORTANT**: All commands must run with virtual environment activated.
+
+**Increment 0 (Pre-Execution Validation)**:
+```powershell
+python scripts/validate_ml_execution_environment.py
+```
+
 **Increment 1 (LR Baseline)**:
-```bash
-python scripts/03_create_experimental_model.py \
-  --algorithm logistic_regression \
-  --eval-ids data/04_fct/eval_ids.csv
+```powershell
+python scripts/03_create_experimental_model.py --algorithm logistic_regression --eval-ids data/04_fct/eval_ids.csv
 ```
 
 **Increment 2 (LR + Weights)**:
-```bash
-python scripts/03_create_experimental_model.py \
-  --algorithm logistic_regression \
-  --class-weights experiments/model_candidates/class_weights_enabled.json \
-  --eval-ids data/04_fct/eval_ids.csv
+```powershell
+python scripts/03_create_experimental_model.py --algorithm logistic_regression --class-weights experiments/model_candidates/class_weights_enabled.json --eval-ids data/04_fct/eval_ids.csv
 ```
 
 **Increment 3 (Thresholds)**:
-```bash
-python scripts/03_create_experimental_model.py \
-  --algorithm logistic_regression \
-  --class-weights experiments/model_candidates/class_weights_enabled.json \
-  --optimize-thresholds \
-  --eval-ids data/04_fct/eval_ids.csv
+```powershell
+python scripts/03_create_experimental_model.py --algorithm logistic_regression --class-weights experiments/model_candidates/class_weights_enabled.json --optimize-thresholds --eval-ids data/04_fct/eval_ids.csv
 ```
 
-**Validation**:
-```bash
+**Validation (after each increment)**:
+```powershell
 python scripts/compare_models.py
+```
+
+**For Agent Execution**: Inline venv activation in each command:
+```python
+command = ". .venv\\Scripts\\Activate.ps1; python scripts/03_create_experimental_model.py <args>"
 ```
 
 ### Artifact Locations

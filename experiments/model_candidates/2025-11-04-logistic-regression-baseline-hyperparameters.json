@@ -1,0 +1,15 @@
+{
+  "metadata": {
+    "model_name": "logistic_regression_baseline",
+    "version": "1.0.0",
+    "created_date": "2025-11-04",
+    "description": "Baseline LogisticRegression with minimal hyperparameters",
+    "model_type": "LogisticRegression with CountVectorizer+TfidfTransformer",
+    "last_modified": "2025-11-04",
+    "experiment_id": "lr_baseline_2025-11-04"
+  },
+  "parameters": {
+    "vect__ngram_range": [1, 2]
+  }
+}
+
