@@ -8,6 +8,10 @@ from flask import Flask, g, has_request_context, request
 
 from .services import DataService, ModelService
 
+# Module-level logging state to prevent duplicate handlers and startup messages
+_logging_configured = False
+_logging_startup_logged = False
+
 
 class MockDataService:
     """Mock data service for testing."""
