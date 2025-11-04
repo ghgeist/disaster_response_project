@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "created": "2025-11-04T21:19:34.629475",
+    "created": "2025-11-04T21:39:20.384846",
     "model": "experiments/experimental_runs/2025-11-04/lr_baseline_model.pkl",
     "target_recall": 0.65,
     "optimization_method": "precision_recall_curve"
@@ -44,14 +44,14 @@
     "direct_report": 0.5
   },
   "critical_only": {
-    "search_and_rescue": 0.03300545308667555,
     "medical_help": 0.12373397815606363,
-    "food": 0.4312675725503747,
-    "medical_products": 0.09541618995744851,
-    "hospitals": 0.01401624537547394,
     "security": 0.019628053754261417,
     "water": 0.362161404322609,
-    "shelter": 0.24002223312737844
+    "shelter": 0.24002223312737844,
+    "hospitals": 0.01401624537547394,
+    "medical_products": 0.09541618995744851,
+    "food": 0.4312675725503747,
+    "search_and_rescue": 0.03300545308667555
   },
   "performance": {
     "baseline": {
