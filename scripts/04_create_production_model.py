@@ -378,7 +378,16 @@ def _compute_f2_thresholds_for_labels(model, X_eval, Y_eval, labels, all_categor
             continue
         try:
             probs = proba_list[idx]
-            p = probs[:, 1] if probs.ndim == 2 and probs.shape[1] > 1 else probs.ravel()
+            if probs.ndim == 2 and probs.shape[1] == 2:
+                # Normal binary classifier with both classes
+                p = probs[:, 1]
+            elif probs.ndim == 2 and probs.shape[1] == 1:
+                # Single-class label (DummyClassifier): only class 0 present
+                # Probability of class 1 is 0 (label never appears in training)
+                p = np.zeros(probs.shape[0])
+            else:
+                # Fallback for unexpected shapes
+                p = probs.ravel()
         except Exception:
             thresholds[name] = 0.5
             sources[name] = "default"
