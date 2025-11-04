@@ -2,6 +2,7 @@
 Flask application for Disaster Response message classification.
 A clean, scalable portfolio project.
 """
+import threading
 from flask import Flask, render_template, request
 from flask_wtf.csrf import CSRFProtect, CSRFError
 
@@ -12,7 +13,7 @@ from .nltk_setup import setup_nltk_resources, NLTKSetupError
 
 # Module-level initialization tracking to prevent duplicate startup messages
 # across multiple app instances in the same process
-_app_initialization_lock = False
+_app_initialization_lock = threading.Lock()
 _app_initialization_count = 0
 
 
@@ -31,16 +32,16 @@ def create_app(config_class=Config):
     
     # Use module-level tracking to prevent duplicate logging of expensive operations
     # This handles cases where create_app() is called multiple times in the same process
-    global _app_initialization_lock, _app_initialization_count
+    global _app_initialization_count
     
     # Setup logging first (this will check its own module-level state)
     setup_logging(app)
     
-    # Track if this is the first initialization in this process
-    is_first_init = not _app_initialization_lock
-    if is_first_init:
-        _app_initialization_lock = True
-        _app_initialization_count += 1
+    # Track if this is the first initialization in this process (thread-safe)
+    with _app_initialization_lock:
+        is_first_init = (_app_initialization_count == 0)
+        if is_first_init:
+            _app_initialization_count += 1
     
     # Setup NLTK resources at startup for performance optimization
     # Check if NLTK has already been set up (module-level cache)
@@ -144,11 +145,13 @@ def create_app(config_class=Config):
     @app.before_request
     def ensure_session():
         """Ensure session is initialized for CSRF token support."""
-        from flask import session
-        # Touch session to initialize it (Flask sessions are lazy)
-        session.permanent = True
-        if 'init' not in session:
-            session['init'] = True
+        # Only initialize session for routes that render forms or submit forms (need CSRF)
+        if request.endpoint in ('index', 'go', 'classify'):
+            from flask import session
+            # Touch session to initialize it (Flask sessions are lazy)
+            session.permanent = True
+            if 'init' not in session:
+                session['init'] = True
 
     # CSRF error handler for better diagnostics and UX
     @app.errorhandler(CSRFError)

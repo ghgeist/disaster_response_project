@@ -473,7 +473,7 @@ class ModelService:
             'direct_report'
         ]
 
-    def _get_thresholds_map(self) -> dict:
+    def get_thresholds_map(self) -> dict:
         """Return thresholds map; if missing, return defaults for 8 high-impact labels at 0.5."""
         # Default thresholds map
         default = {}
@@ -554,7 +554,7 @@ class ModelService:
             - final_labels: Classification labels for all expected categories
             - final_probs: Probabilities for all expected categories
         """
-        thresholds = self._get_thresholds_map()
+        thresholds = self.get_thresholds_map()
         final_labels = []
         final_probs = {}
         

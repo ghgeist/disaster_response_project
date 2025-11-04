@@ -3,12 +3,14 @@ Utility functions for the Disaster Response application.
 """
 import re
 import logging
+import threading
 from typing import Optional, Tuple
 from flask import Flask, g, has_request_context, request
 
 from .services import DataService, ModelService
 
 # Module-level logging state to prevent duplicate handlers and startup messages
+_logging_lock = threading.Lock()
 _logging_configured = False
 _logging_startup_logged = False
 
@@ -133,12 +135,17 @@ def setup_logging(app: Flask) -> None:
     """Setup application logging."""
     global _logging_configured, _logging_startup_logged
     
-    # Check if logging has already been configured in this process
-    if _logging_configured:
-        # Already configured, just set the level for this app instance
-        app.logger.setLevel(getattr(logging, app.config['LOG_LEVEL']))
-        return
+    # Check if logging has already been configured in this process (thread-safe)
+    with _logging_lock:
+        if _logging_configured:
+            # Already configured, just set the level for this app instance
+            app.logger.setLevel(getattr(logging, app.config['LOG_LEVEL']))
+            return
+        
+        # Mark as configured before proceeding to avoid race conditions
+        _logging_configured = True
     
+    # Perform logging configuration outside the lock to avoid holding it during I/O
     if not app.debug:
         # Check if file handler already exists to prevent duplicates
         log_file = app.config['LOG_FILE']
@@ -162,13 +169,11 @@ def setup_logging(app: Flask) -> None:
         
         app.logger.setLevel(getattr(logging, app.config['LOG_LEVEL']))
     
-    # Mark as configured
-    _logging_configured = True
-    
-    # Log startup message only once per process
-    if not _logging_startup_logged:
-        app.logger.info('Disaster Response application startup')
-        _logging_startup_logged = True
+    # Log startup message only once per process (thread-safe)
+    with _logging_lock:
+        if not _logging_startup_logged:
+            app.logger.info('Disaster Response application startup')
+            _logging_startup_logged = True
 
 
 # Module-level service initialization tracking

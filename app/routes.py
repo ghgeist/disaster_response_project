@@ -416,7 +416,7 @@ def register_routes(app):
 
             # Get thresholds from model service (includes optimized thresholds if available)
             # Fallback to 0.5 for any missing labels
-            service_thresholds = model_service._get_thresholds_map()
+            service_thresholds = model_service.get_thresholds_map()
             thresholds = {
                 label: service_thresholds.get(label, 0.5) 
                 for label in raw_probabilities.keys()
