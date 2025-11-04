@@ -84,6 +84,7 @@ def predict_with_thresholds(model, X, thresholds, category_names):
                 # Fallback if class info not available
                 proba_array[:, i] = probs.ravel()
         else:
+            # Fallback for unexpected shapes
             proba_array[:, i] = probs.ravel()
     
     # Apply thresholds
@@ -213,6 +214,7 @@ def main():
                 # Fallback if class info not available
                 y_proba[:, i] = probs.ravel()
         else:
+            # Fallback for unexpected shapes
             y_proba[:, i] = probs.ravel()
     
     # Try multiple target recall levels to find optimal balance

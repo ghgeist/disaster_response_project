@@ -103,6 +103,7 @@ def get_proba_array(model, X):
                 # Fallback if class info not available
                 y_proba[:, i] = probs.ravel()
         else:
+            # Fallback for unexpected shapes
             y_proba[:, i] = probs.ravel()
     
     return y_proba
@@ -362,33 +363,33 @@ def main():
     print(f"Eval samples: {len(X_test)}")
     print(f"Total: {len(X)}")
     print(f"Split ratio: {len(X_test)/len(X):.2%} (expected: ~20%)")
-    
+
     # Verify no overlap - compute UIDs from original dataset using original indices
     # (same logic as load_eval_split to ensure consistency)
-    def _compute_uids(messages):
-        uids = []
-        for idx, msg in enumerate(messages):
-            text = '' if msg is None else str(msg)
-            uid_src = f"{text}|{idx}"
-            uids.append(hashlib.sha1(uid_src.encode('utf-8')).hexdigest())
-        return uids
-    
-    # Compute UIDs from original full dataset
-    all_uids = _compute_uids(X)
-    
-    # Load eval UIDs to determine which belong to test set
     with open(eval_ids_path, 'r') as f:
         eval_data = json.load(f)
-    eval_uids = set(eval_data['eval_ids'])
+    eval_uids_set = set(eval_data['eval_ids'])
     
-    # Map UIDs to train/test sets
-    uid_series = pd.Series(all_uids)
-    is_eval = uid_series.isin(eval_uids).values
+    # Compute UIDs for full dataset (same as load_eval_split does)
+    all_uids = []
+    for idx, msg in enumerate(X):
+        text = '' if msg is None else str(msg)
+        uid_src = f"{text}|{idx}"
+        all_uids.append(hashlib.sha1(uid_src.encode('utf-8')).hexdigest())
     
-    train_uids = set(all_uids[i] for i in range(len(all_uids)) if not is_eval[i])
-    test_uids = set(all_uids[i] for i in range(len(all_uids)) if is_eval[i])
-    overlap = train_uids & test_uids
+    # Find which full-dataset UIDs are in train vs test
+    train_uids_from_full = set()
+    test_uids_from_full = set()
+    for uid in all_uids:
+        if uid in eval_uids_set:
+            test_uids_from_full.add(uid)
+        else:
+            train_uids_from_full.add(uid)
     
+    overlap = train_uids_from_full & test_uids_from_full
+    
+    print(f"Train UIDs: {len(train_uids_from_full)}")
+    print(f"Test UIDs: {len(test_uids_from_full)}")
     print(f"Overlap between train/test: {len(overlap)} samples {'✅' if len(overlap) == 0 else '❌'}")
     
     check6_pass = len(overlap) == 0 and 0.15 < len(X_test)/len(X) < 0.25
