@@ -43,6 +43,9 @@ def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
     """
     Download and validate NLTK resources once at startup.
     
+    Note: Failed setups are cached to prevent repeated expensive attempts.
+    Use force_download=True to retry after fixing NLTK installation issues.
+    
     Args:
         force_download: If True, force download even if resources exist
         
@@ -294,3 +297,11 @@ def get_nltk_status() -> Dict[str, any]:
             "error": str(e),
             "nltk_version": getattr(nltk, '__version__', 'Unknown')
         }
+
+
+def reset_nltk_cache():
+    """Reset NLTK setup cache. Useful for testing."""
+    global _setup_completed, _setup_results
+    with _setup_lock:
+        _setup_completed = False
+        _setup_results = None
