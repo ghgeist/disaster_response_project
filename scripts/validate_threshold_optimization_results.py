@@ -83,7 +83,12 @@ def get_proba_array(model, X):
     for i, probs in enumerate(y_proba_list):
         if probs.ndim == 2 and probs.shape[1] == 2:
             y_proba[:, i] = probs[:, 1]  # Probability of class 1
+        elif probs.ndim == 2 and probs.shape[1] == 1:
+            # Single-class label (DummyClassifier): only class 0 present
+            # Probability of class 1 is 0 (label never appears)
+            y_proba[:, i] = 0.0
         else:
+            # Fallback for unexpected shapes
             y_proba[:, i] = probs.ravel()
     
     return y_proba
@@ -344,11 +349,32 @@ def main():
     print(f"Total: {len(X)}")
     print(f"Split ratio: {len(X_test)/len(X):.2%} (expected: ~20%)")
     
-    # Verify no overlap
-    train_uids = set(hashlib.sha1(f"{msg}|{i}".encode()).hexdigest() for i, msg in enumerate(X_train))
-    test_uids = set(hashlib.sha1(f"{msg}|{i}".encode()).hexdigest() for i, msg in enumerate(X_test))
-    overlap = train_uids & test_uids
+    # Verify no overlap - use original dataset indices, not post-split local indices
+    # Need to reconstruct which original indices map to train/test
+    with open(eval_ids_path, 'r') as f:
+        eval_data = json.load(f)
+    eval_uids_set = set(eval_data['eval_ids'])
     
+    # Compute UIDs for full dataset (same as load_eval_split does)
+    all_uids = []
+    for idx, msg in enumerate(X):
+        text = '' if msg is None else str(msg)
+        uid_src = f"{text}|{idx}"
+        all_uids.append(hashlib.sha1(uid_src.encode('utf-8')).hexdigest())
+    
+    # Find which full-dataset UIDs are in train vs test
+    train_uids_from_full = set()
+    test_uids_from_full = set()
+    for uid in all_uids:
+        if uid in eval_uids_set:
+            test_uids_from_full.add(uid)
+        else:
+            train_uids_from_full.add(uid)
+    
+    overlap = train_uids_from_full & test_uids_from_full
+    
+    print(f"Train UIDs: {len(train_uids_from_full)}")
+    print(f"Test UIDs: {len(test_uids_from_full)}")
     print(f"Overlap between train/test: {len(overlap)} samples {'✅' if len(overlap) == 0 else '❌'}")
     
     check6_pass = len(overlap) == 0 and 0.15 < len(X_test)/len(X) < 0.25

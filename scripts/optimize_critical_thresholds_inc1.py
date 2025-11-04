@@ -64,7 +64,12 @@ def predict_with_thresholds(model, X, thresholds, category_names):
     for i, probs in enumerate(y_proba):
         if probs.ndim == 2 and probs.shape[1] == 2:
             proba_array[:, i] = probs[:, 1]  # Probability of class 1
+        elif probs.ndim == 2 and probs.shape[1] == 1:
+            # Single-class label (DummyClassifier): only class 0 present
+            # Probability of class 1 is 0 (label never appears)
+            proba_array[:, i] = 0.0
         else:
+            # Fallback for unexpected shapes
             proba_array[:, i] = probs.ravel()
     
     # Apply thresholds
@@ -174,7 +179,12 @@ def main():
     for i, probs in enumerate(y_proba_list):
         if probs.ndim == 2 and probs.shape[1] == 2:
             y_proba[:, i] = probs[:, 1]
+        elif probs.ndim == 2 and probs.shape[1] == 1:
+            # Single-class label (DummyClassifier): only class 0 present
+            # Probability of class 1 is 0 (label never appears)
+            y_proba[:, i] = 0.0
         else:
+            # Fallback for unexpected shapes
             y_proba[:, i] = probs.ravel()
     
     # Try multiple target recall levels to find optimal balance
