@@ -112,6 +112,16 @@ def create_app(config_class=Config):
     # Initialize Flask-WTF CSRF protection
     CSRFProtect(app)
 
+    # Ensure session is initialized for CSRF token support
+    @app.before_request
+    def ensure_session():
+        """Ensure session is initialized for CSRF token support."""
+        from flask import session
+        # Touch session to initialize it (Flask sessions are lazy)
+        session.permanent = True
+        if 'init' not in session:
+            session['init'] = True
+
     # CSRF error handler for better diagnostics and UX
     @app.errorhandler(CSRFError)
     def handle_csrf_error(e):
