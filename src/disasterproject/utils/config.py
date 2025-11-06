@@ -158,6 +158,7 @@ TAXONOMY = {
         "medical_help",
         "medical_products",
         "search_and_rescue",
+        "security",
         "water",
         "food",
         "shelter",
