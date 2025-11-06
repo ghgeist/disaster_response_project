@@ -168,10 +168,7 @@ def evaluate_model_to_model_folder(model, X_test, Y_test, category_names, model_
                                 prob = proba_array[sample_idx, 0]
                         else:
                             # Handle other shapes (1D or unexpected)
-                            if proba_array.ndim == 2 and proba_array.shape[1] == 1:
-                                prob = proba_array[sample_idx, 0]
-                            else:
-                                prob = proba_array[sample_idx]
+                            prob = proba_array[sample_idx]
                         probs[label_name] = float(prob)
                     except Exception:
                         # Mark as incomplete and avoid mixing hard labels with probabilities
