@@ -324,12 +324,17 @@ class ModelService:
                         active_categories = category_names
                         category_mapping = {i: i for i in range(len(category_names))}
 
+                    # Get the MultiOutputClassifier from the pipeline to access classes
+                    multi_output_clf = None
+                    if hasattr(self._model, 'named_steps') and 'clf' in self._model.named_steps:
+                        multi_output_clf = self._model.named_steps['clf']
+                    
                     for idx, p in enumerate(proba):
                         if p.shape[1] == 1:
                             # Single column: degenerate classifier (only one class learned)
                             # Check which class is present to determine correct probability
-                            if hasattr(clf, 'classes_') and idx < len(clf.classes_):
-                                classes = clf.classes_[idx]
+                            if multi_output_clf is not None and hasattr(multi_output_clf, 'classes_') and idx < len(multi_output_clf.classes_):
+                                classes = multi_output_clf.classes_[idx]
                                 if len(classes) == 1 and classes[0] == 0:
                                     # Only class 0 present, probability of class 1 is 0
                                     prob_val = 0.0
