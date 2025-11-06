@@ -546,11 +546,19 @@ def main():
         pass
 
     # Compute thresholds for selected labels and save artifacts to experiment folder
+    # Note: Experimental models save to experiment_dir, not model_dir, so use descriptive name
     selected_labels = ['medical_help', 'search_and_rescue', 'water', 'food', 'shelter', 'hospitals', 'security', 'weather_related']
     thresholds_map, threshold_sources = _compute_f2_thresholds_for_labels(model, X_test, Y_test, selected_labels, TARGET_COLUMNS)
     label_order = list(TARGET_COLUMNS)
     try:
-        with open(os.path.join(experiment_dir, 'thresholds.json'), 'w', encoding='utf-8') as f:
+        # Use standard naming if model path is known, otherwise use descriptive name
+        model_stem = os.path.splitext(os.path.basename(args.model_out))[0] if args.model_out else None
+        if model_stem:
+            thresholds_file = os.path.join(experiment_dir, f'{model_stem}_thresholds.json')
+        else:
+            thresholds_file = os.path.join(experiment_dir, 'thresholds.json')  # Fallback for unknown model name
+        
+        with open(thresholds_file, 'w', encoding='utf-8') as f:
             json.dump(thresholds_map, f, indent=2)
         with open(os.path.join(experiment_dir, 'label_order.json'), 'w', encoding='utf-8') as f:
             json.dump(label_order, f, indent=2)

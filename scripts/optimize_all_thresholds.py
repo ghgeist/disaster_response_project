@@ -341,7 +341,10 @@ def main():
     print(top_changed[['category', 'threshold', 'actual_recall', 'precision', 'f1']].to_string(index=False))
     
     # Save optimized thresholds
-    threshold_output = os.path.join(output_dir, 'optimized_all_thresholds.json')
+    # Standard naming: {model_stem}_thresholds.json (also save legacy name for compatibility)
+    model_stem = os.path.splitext(os.path.basename(model_path))[0]
+    threshold_output_standard = os.path.join(output_dir, f'{model_stem}_thresholds.json')
+    threshold_output_legacy = os.path.join(output_dir, 'optimized_all_thresholds.json')
     threshold_data = {
         'metadata': {
             'created': datetime.now().isoformat(),
@@ -368,10 +371,15 @@ def main():
         }
     }
     
-    with open(threshold_output, 'w') as f:
+    # Save with standard name
+    with open(threshold_output_standard, 'w') as f:
         json.dump(threshold_data, f, indent=2)
+    print(f"\n✓ Optimized thresholds saved to: {threshold_output_standard}")
     
-    print(f"\n✓ Optimized thresholds saved to: {threshold_output}")
+    # Also save legacy name for backward compatibility
+    with open(threshold_output_legacy, 'w') as f:
+        json.dump(threshold_data, f, indent=2)
+    print(f"  (Also saved as: {os.path.basename(threshold_output_legacy)} for compatibility)")
     
     # Verdict
     print("\n" + "="*70)

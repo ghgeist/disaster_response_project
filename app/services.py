@@ -439,12 +439,13 @@ class ModelService:
             model_dir = self.model_path.parent
             model_stem = self.model_path.stem  # Get filename without .pkl extension
             
-            # Try standardized naming first, then fall back to legacy naming
-            # Priority: optimized_critical_thresholds.json (from optimization script) > standardized > legacy
+            # Standard naming: {model_stem}_thresholds.json
+            # Fallback to legacy names for backward compatibility
             thresholds_candidates = [
-                model_dir / "optimized_critical_thresholds.json",  # Optimized thresholds (precision_recall_curve)
-                model_dir / f"{model_stem}_thresholds.json",       # Standardized
-                model_dir / "thresholds.json"                       # Legacy (F2-optimized)
+                model_dir / f"{model_stem}_thresholds.json",       # Standardized (preferred)
+                model_dir / "optimized_critical_thresholds.json",  # Legacy: optimized critical thresholds
+                model_dir / "optimized_all_thresholds.json",        # Legacy: optimized all thresholds
+                model_dir / "thresholds.json"                       # Legacy: F2-optimized thresholds
             ]
             
             label_order_candidates = [
