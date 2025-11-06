@@ -146,7 +146,7 @@ class WeightedMultiOutputClassifier(MultiOutputClassifier):
         return self
 
 
-def create_pipeline_logistic_regression(use_ngrams=True):
+def create_pipeline_logistic_regression(use_ngrams=True, max_features=None, min_df=1, max_df=1.0):
     """
     Create text processing pipeline with LogisticRegression classifier.
     
@@ -155,6 +155,9 @@ def create_pipeline_logistic_regression(use_ngrams=True):
     
     Args:
         use_ngrams (bool): Whether to use bigrams (1,2) or unigrams only (1,1)
+        max_features (int or None): Maximum number of features to keep (None = no limit)
+        min_df (int or float): Minimum document frequency for terms (int = count, float = proportion)
+        max_df (int or float): Maximum document frequency for terms (int = count, float = proportion)
     
     Returns:
         Pipeline: Configured sklearn pipeline with LogisticRegression
@@ -171,17 +174,29 @@ def create_pipeline_logistic_regression(use_ngrams=True):
     pipeline = Pipeline([
         ('vect', CountVectorizer(
             tokenizer=tokenize,
-            ngram_range=(1, 2) if use_ngrams else (1, 1)
+            ngram_range=(1, 2) if use_ngrams else (1, 1),
+            max_features=max_features,
+            min_df=min_df,
+            max_df=max_df
         )),
         ('tfidf', TfidfTransformer()),
         ('clf', WeightedMultiOutputClassifier(lr, class_weights_list=None, n_jobs=-1))
     ])
     
-    logger.info("Created LogisticRegression pipeline with ngrams=%s", use_ngrams)
+    vocab_info = []
+    if max_features is not None:
+        vocab_info.append(f"max_features={max_features:,}")
+    if min_df != 1:
+        vocab_info.append(f"min_df={min_df}")
+    if max_df != 1.0:
+        vocab_info.append(f"max_df={max_df}")
+    
+    vocab_str = f" ({', '.join(vocab_info)})" if vocab_info else ""
+    logger.info("Created LogisticRegression pipeline with ngrams=%s%s", use_ngrams, vocab_str)
     return pipeline
 
 
-def create_pipeline_logistic_regression_weighted(class_weights_list=None, use_ngrams=True):
+def create_pipeline_logistic_regression_weighted(class_weights_list=None, use_ngrams=True, max_features=None, min_df=1, max_df=1.0):
     """
     Create text processing pipeline with weighted LogisticRegression.
     
@@ -191,6 +206,12 @@ def create_pipeline_logistic_regression_weighted(class_weights_list=None, use_ng
         Per-label class weights. Format: [{0: 1.0, 1: 2.5}, ...]
     use_ngrams : bool
         Whether to use bigrams
+    max_features : int or None
+        Maximum number of features to keep (None = no limit)
+    min_df : int or float
+        Minimum document frequency for terms (int = count, float = proportion)
+    max_df : int or float
+        Maximum document frequency for terms (int = count, float = proportion)
     
     Returns:
         Pipeline: Configured sklearn pipeline with weighted LogisticRegression
@@ -206,7 +227,10 @@ def create_pipeline_logistic_regression_weighted(class_weights_list=None, use_ng
     pipeline = Pipeline([
         ('vect', CountVectorizer(
             tokenizer=tokenize,
-            ngram_range=(1, 2) if use_ngrams else (1, 1)
+            ngram_range=(1, 2) if use_ngrams else (1, 1),
+            max_features=max_features,
+            min_df=min_df,
+            max_df=max_df
         )),
         ('tfidf', TfidfTransformer()),
         ('clf', WeightedMultiOutputClassifier(
@@ -216,6 +240,15 @@ def create_pipeline_logistic_regression_weighted(class_weights_list=None, use_ng
         ))
     ])
     
-    logger.info("Created weighted LogisticRegression pipeline with %s labels", 
-                len(class_weights_list) if class_weights_list else 0)
+    vocab_info = []
+    if max_features is not None:
+        vocab_info.append(f"max_features={max_features:,}")
+    if min_df != 1:
+        vocab_info.append(f"min_df={min_df}")
+    if max_df != 1.0:
+        vocab_info.append(f"max_df={max_df}")
+    
+    vocab_str = f" ({', '.join(vocab_info)})" if vocab_info else ""
+    logger.info("Created weighted LogisticRegression pipeline with %s labels%s", 
+                len(class_weights_list) if class_weights_list else 0, vocab_str)
     return pipeline

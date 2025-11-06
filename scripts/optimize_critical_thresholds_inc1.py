@@ -136,18 +136,56 @@ def evaluate_with_thresholds(Y_true, Y_pred, category_names, critical_labels):
     }
 
 def main():
+    import argparse
+    
+    parser = argparse.ArgumentParser(
+        description='Optimize thresholds for critical categories on a trained model'
+    )
+    parser.add_argument(
+        '--model-path',
+        default='experiments/experimental_runs/2025-11-04/lr_baseline_model.pkl',
+        help='Path to trained model pickle file'
+    )
+    parser.add_argument(
+        '--output-dir',
+        default=None,
+        help='Output directory for thresholds (default: same directory as model)'
+    )
+    parser.add_argument(
+        '--db-path',
+        default='data/02_stg/stg_disaster_response.db',
+        help='Path to database file'
+    )
+    parser.add_argument(
+        '--eval-ids',
+        default='experiments/experimental_configs/eval_sets/eval_ids.json',
+        help='Path to eval IDs file'
+    )
+    
+    args = parser.parse_args()
+    
     setup_logging()
     
     # Paths
-    model_path = 'experiments/experimental_runs/2025-11-04/lr_baseline_model.pkl'
-    db_path = 'data/02_stg/stg_disaster_response.db'
-    eval_ids_path = 'experiments/experimental_configs/eval_sets/eval_ids.json'
-    output_dir = 'experiments/experimental_runs/2025-11-04'
+    model_path = args.model_path
+    db_path = args.db_path
+    eval_ids_path = args.eval_ids
+    
+    # Determine output directory
+    if args.output_dir:
+        output_dir = args.output_dir
+    else:
+        # Default to same directory as model
+        output_dir = os.path.dirname(model_path) or '.'
+    
+    # Ensure output directory exists
+    os.makedirs(output_dir, exist_ok=True)
     
     print("\n" + "="*70)
-    print("THRESHOLD OPTIMIZATION FOR CRITICAL CATEGORIES - INCREMENT 3")
+    print("THRESHOLD OPTIMIZATION FOR CRITICAL CATEGORIES")
     print("="*70)
     print(f"Model: {model_path}")
+    print(f"Output: {output_dir}")
     print(f"Critical Labels: {', '.join(sorted(CRITICAL_LABELS))}")
     print("="*70 + "\n")
     

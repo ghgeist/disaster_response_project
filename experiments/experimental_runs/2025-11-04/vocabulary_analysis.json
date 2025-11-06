@@ -1,0 +1,90 @@
+{
+  "vocabulary_size": 230135,
+  "unigrams": 30744,
+  "bigrams": 199391,
+  "critical_terms_found": 13,
+  "critical_terms_missing": [],
+  "recommendations": {
+    "min_df": 2,
+    "max_df": 0.95,
+    "max_features_options": [
+      15000,
+      20000,
+      25000,
+      30000
+    ]
+  },
+  "frequency_stats": {
+    "mean_df": 3.4205657505423206,
+    "median_df": 1.4974546153107302,
+    "min_df": 1.4974546153107302,
+    "max_df": 4829.077226010948,
+    "terms_with_df_ge_2": 44721,
+    "terms_with_df_ge_3": 21682,
+    "terms_with_df_pct_le_95": 230135,
+    "terms_with_df_pct_le_90": 230135
+  },
+  "percentiles": {
+    "p10": 1.4974546153107302,
+    "p25": 1.4974546153107302,
+    "p50": 1.4974546153107302,
+    "p75": 1.4974546153107302,
+    "p90": 2.7461819229660933,
+    "p95": 5.24363653827682,
+    "p99": 31.466909999039487
+  },
+  "critical_term_ranks": {
+    "aid": {
+      "rank": 161219,
+      "percentile": 29.945901318791147
+    },
+    "shelter": {
+      "rank": 159958,
+      "percentile": 30.49384057183827
+    },
+    "hospital": {
+      "rank": 162446,
+      "percentile": 29.412736002780974
+    },
+    "food": {
+      "rank": 37971,
+      "percentile": 83.50055402263888
+    },
+    "help": {
+      "rank": 161260,
+      "percentile": 29.928085688834816
+    },
+    "water": {
+      "rank": 38145,
+      "percentile": 83.42494622721446
+    },
+    "rescue": {
+      "rank": 162523,
+      "percentile": 29.37927738066787
+    },
+    "security": {
+      "rank": 160497,
+      "percentile": 30.259630217046517
+    },
+    "search": {
+      "rank": 154962,
+      "percentile": 32.66474026115107
+    },
+    "need": {
+      "rank": 161802,
+      "percentile": 29.692571751363328
+    },
+    "urgent": {
+      "rank": 164999,
+      "percentile": 28.303387142329502
+    },
+    "emergency": {
+      "rank": 161128,
+      "percentile": 29.985443326743
+    },
+    "medical": {
+      "rank": 161798,
+      "percentile": 29.694309861602974
+    }
+  }
+}
