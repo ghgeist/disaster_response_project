@@ -1,0 +1,56 @@
+MODEL COMPARISON: 2025-11-04 Baseline Model vs disaster_rf_v25-09-16 Production (2025-09-19)
+================================================================================
+Comparison Date: 2025-11-04 20:48:55
+
+Production Model: disaster_rf_v25-09-16 Production (2025-09-19)
+Experimental Model: 2025-11-04 Baseline Model
+Experiment Date: 2025-11-04
+Sampling Strategy: No Sampling
+
+PERFORMANCE COMPARISON:
+--------------------------------------------------
+PRODUCTION (disaster_rf_v25-09-16 Production (2025-09-19)):
+   F1-Score:   0.9007
+   Precision:  0.9108
+   Recall:     0.9297
+   Model Size: 915.2 MB
+
+EXPERIMENTAL (2025-11-04 Baseline Model):
+   F1-Score:   0.8111
+   Precision:  0.9159
+   Recall:     0.7685
+   Model Size: 67.7 MB
+
+PERFORMANCE CHANGES:
+------------------------------
+   F1-Score:   -9.95%
+   Precision:  +0.56%
+   Recall:     -17.34%
+
+VERDICT:
+   Experimental model shows decline
+
+============================================================
+
+DETAILED CATEGORY COMPARISON
+============================================================
+Production Model: disaster_rf_v25-09-16 Production (2025-09-19)
+Experimental Model: 2025-11-04 Baseline Model
+
+Categories with biggest improvements:
+----------------------------------------
+? weather_related      +30.6% F1 improvement
+? related              +24.4% F1 improvement
+? aid_related          +20.1% F1 improvement
+? request              +15.5% F1 improvement
+? direct_report        +14.7% F1 improvement
+
+Categories with biggest declines:
+----------------------------------------
+? death                -2.8% F1 decline
+? buildings            -3.3% F1 decline
+? medical_help         -5.4% F1 decline
+? military             -6.2% F1 decline
+? missing_people       -7.6% F1 decline
+
+📄 Full comparison report saved to: experiments/comparisons/2025-11-04_204855_model_comparison.txt

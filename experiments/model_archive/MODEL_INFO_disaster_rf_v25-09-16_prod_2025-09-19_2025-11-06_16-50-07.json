@@ -1,0 +1,21 @@
+{
+  "sha256": "d790ccd6ab52c521fea635b2122df3257ff768cd7e2a19a9b0edb5af23ddeabe",
+  "promoted_from": "experiments\\experimental_runs\\2025-09-16",
+  "promotion_timestamp": "2025-09-19T14:29:06.366849",
+  "model_size_mb": 915.1505317687988,
+  "validation_results": {
+    "model_path": "experiments\\experimental_runs\\2025-09-16\\2025-09-16-comprehensive-grid-search-optimized-model.pkl",
+    "model_size_mb": 915.1505317687988,
+    "f1_weighted": 0.9366007662843541,
+    "f1_micro": 0.9366007662843541,
+    "model_hash": "d790ccd6ab52c521fea635b2122df3257ff768cd7e2a19a9b0edb5af23ddeabe",
+    "validation_passed": true,
+    "validation_errors": []
+  },
+  "performance": {
+    "f1_weighted": 0.9366007662843541,
+    "f1_micro": 0.9366007662843541
+  },
+  "version": "v25-09-16",
+  "status": "production"
+}

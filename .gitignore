@@ -5,7 +5,16 @@ __pycache__
 
 # Machine learning model files
 *.pkl.gz
+
+# Ignore experimental models (can be large)
 *.pkl
+
+# BUT: Track production models (small, important for reproducibility)
+# Production models are named: *_prod_*.pkl
+!model/*_prod_*.pkl
+
+# Also track production threshold files (small JSON, critical for deployment)
+!model/*_prod_*_thresholds.json
 
 # Logging files
 *.log

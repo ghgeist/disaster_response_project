@@ -147,9 +147,27 @@ def evaluate_model_to_model_folder(model, X_test, Y_test, category_names, model_
                 for label_idx, label_name in enumerate(category_names):
                     try:
                         proba_array = proba_list[label_idx]
-                        if proba_array.ndim == 2 and proba_array.shape[1] > 1:
+                        if proba_array.ndim == 2 and proba_array.shape[1] == 2:
                             prob = proba_array[sample_idx, 1]  # Positive class probability
+                        elif proba_array.ndim == 2 and proba_array.shape[1] == 1:
+                            # Single class present - check which class it is
+                            clf = model.named_steps['clf']
+                            if hasattr(clf, 'classes_') and label_idx < len(clf.classes_):
+                                classes = clf.classes_[label_idx]
+                                if len(classes) == 1 and classes[0] == 0:
+                                    # Only class 0 present, probability of class 1 is 0
+                                    prob = 0.0
+                                elif len(classes) == 1 and classes[0] == 1:
+                                    # Only class 1 present, probability of class 1 is 1
+                                    prob = 1.0
+                                else:
+                                    # Fallback
+                                    prob = proba_array[sample_idx, 0]
+                            else:
+                                # Fallback if class info not available
+                                prob = proba_array[sample_idx, 0]
                         else:
+                            # Handle other shapes (1D or unexpected)
                             prob = proba_array[sample_idx]
                         probs[label_name] = float(prob)
                     except Exception:
@@ -378,7 +396,30 @@ def _compute_f2_thresholds_for_labels(model, X_eval, Y_eval, labels, all_categor
             continue
         try:
             probs = proba_list[idx]
-            p = probs[:, 1] if probs.ndim == 2 and probs.shape[1] > 1 else probs.ravel()
+            if probs.ndim == 2 and probs.shape[1] == 2:
+                # Normal binary classifier with both classes
+                p = probs[:, 1]
+            elif probs.ndim == 2 and probs.shape[1] == 1:
+                # Single class present - check which class it is
+                # Access the underlying classifier to get class information
+                clf = model.named_steps['clf']
+                if hasattr(clf, 'classes_') and idx < len(clf.classes_):
+                    classes = clf.classes_[idx]
+                    if len(classes) == 1 and classes[0] == 0:
+                        # Only class 0 present, probability of class 1 is 0
+                        p = np.zeros(probs.shape[0])
+                    elif len(classes) == 1 and classes[0] == 1:
+                        # Only class 1 present, probability of class 1 is 1
+                        p = np.ones(probs.shape[0])
+                    else:
+                        # Fallback (shouldn't happen)
+                        p = probs.ravel()
+                else:
+                    # Fallback if class info not available
+                    p = probs.ravel()
+            else:
+                # Fallback for unexpected shapes
+                p = probs.ravel()
         except Exception:
             thresholds[name] = 0.5
             sources[name] = "default"

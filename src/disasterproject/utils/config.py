@@ -158,6 +158,7 @@ TAXONOMY = {
         "medical_help",
         "medical_products",
         "search_and_rescue",
+        "security",
         "water",
         "food",
         "shelter",
@@ -188,7 +189,9 @@ CRITICAL_LABELS = {
     "search_and_rescue",
     "water",
     "food",
+    "shelter",
     "security",
+    "hospitals"
 }
 
 # Labels excluded from hierarchy constraints (documented data limitations)

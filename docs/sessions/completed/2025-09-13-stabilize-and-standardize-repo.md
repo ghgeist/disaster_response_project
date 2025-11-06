@@ -2,7 +2,7 @@
 
 title: "Ship-First Planning Agent: Stabilize and standardize the `disasterproject` repo"
 date: "2025-09-13"
-status: "active"
+status: "completed"
 tags: \["planning", "ML", "Flask", "refactor", "shipping"]
 author: "runner"
 related: \[]

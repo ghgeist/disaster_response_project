@@ -1,7 +1,7 @@
 ---
 title: "Planning Agent: Template Refactoring for Separation of Concerns"
 date: "2025-09-12"
-status: "active"
+status: "completed"
 tags: ["documentation", "instruction", "template-refactoring", "flask", "separation-of-concerns"]
 author: "runner"
 related: []

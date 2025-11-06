@@ -1,0 +1,35 @@
+MODEL COMPARISON: 2025-11-04 Baseline Model vs disaster_rf_v25-09-16 Production (2025-09-19)
+================================================================================
+Comparison Date: 2025-11-04 19:14:32
+
+Production Model: disaster_rf_v25-09-16 Production (2025-09-19)
+Experimental Model: 2025-11-04 Baseline Model
+Experiment Date: 2025-11-04
+Sampling Strategy: No Sampling
+
+PERFORMANCE COMPARISON:
+--------------------------------------------------
+PRODUCTION (disaster_rf_v25-09-16 Production (2025-09-19)):
+   F1-Score:   0.9007
+   Precision:  0.9108
+   Recall:     0.9297
+   Model Size: 915.2 MB
+
+EXPERIMENTAL (2025-11-04 Baseline Model):
+   F1-Score:   0.9370
+   Precision:  0.9394
+   Recall:     0.9478
+   Model Size: 67.7 MB
+
+PERFORMANCE CHANGES:
+------------------------------
+   F1-Score:   +4.04%
+   Precision:  +3.15%
+   Recall:     +1.94%
+
+VERDICT:
+   Experimental model shows improvement!
+
+============================================================
+
+📄 Full comparison report saved to: experiments/comparisons/2025-11-04_191432_model_comparison.txt

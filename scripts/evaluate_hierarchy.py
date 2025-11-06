@@ -128,11 +128,37 @@ class HierarchyEvaluator:
         if hasattr(self.model, 'predict_proba'):
             # MultiOutputClassifier returns list of arrays
             proba_list = self.model.predict_proba(self.X_test)
+            
             # Extract positive class probabilities
-            raw_probs = np.column_stack([
-                proba[:, 1] if proba.ndim == 2 and proba.shape[1] > 1 else proba.ravel()
-                for proba in proba_list
-            ])
+            # Access the underlying classifier to get class information
+            clf = self.model.named_steps['clf']
+            raw_probs_list = []
+            
+            for i, proba in enumerate(proba_list):
+                if proba.ndim == 2 and proba.shape[1] == 2:
+                    # Normal binary classifier with both classes
+                    raw_probs_list.append(proba[:, 1])
+                elif proba.ndim == 2 and proba.shape[1] == 1:
+                    # Single class present - check which class it is
+                    if hasattr(clf, 'classes_') and i < len(clf.classes_):
+                        classes = clf.classes_[i]
+                        if len(classes) == 1 and classes[0] == 0:
+                            # Only class 0 present, probability of class 1 is 0
+                            raw_probs_list.append(np.zeros(proba.shape[0]))
+                        elif len(classes) == 1 and classes[0] == 1:
+                            # Only class 1 present, probability of class 1 is 1
+                            raw_probs_list.append(np.ones(proba.shape[0]))
+                        else:
+                            # Fallback (shouldn't happen)
+                            raw_probs_list.append(proba.ravel())
+                    else:
+                        # Fallback if class info not available
+                        raw_probs_list.append(proba.ravel())
+                else:
+                    # Fallback for unexpected shapes
+                    raw_probs_list.append(proba.ravel())
+            
+            raw_probs = np.column_stack(raw_probs_list)
         else:
             # Fallback to decision_function if available
             raw_probs = self.model.decision_function(self.X_test)

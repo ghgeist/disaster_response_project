@@ -1,0 +1,17 @@
+{
+  "metadata": {
+    "model_name": "vocab_baseline_filters",
+    "version": "1.0.0",
+    "created_date": "2025-11-06",
+    "description": "Baseline with min_df/max_df filters only (no max_features limit)",
+    "model_type": "LogisticRegression with vocabulary frequency filters",
+    "last_modified": "2025-11-06",
+    "experiment_id": "vocab_baseline_filters_2025-11-06"
+  },
+  "parameters": {
+    "vect__ngram_range": [1, 2],
+    "vect__min_df": 2,
+    "vect__max_df": 0.95
+  }
+}
+

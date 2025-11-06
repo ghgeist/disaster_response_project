@@ -1,7 +1,7 @@
 ---
 title: "ML Optimization: Negations, RF Downsizing, Thresholding"
 date: "2025-09-03"
-status: "active"
+status: "completed"
 session_type: "execute"
 tags: ["ml", "nlp", "preprocessing", "modeling", "thresholding"]
 author: "runner"

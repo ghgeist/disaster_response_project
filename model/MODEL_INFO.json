@@ -1,21 +1,21 @@
 {
-  "sha256": "d790ccd6ab52c521fea635b2122df3257ff768cd7e2a19a9b0edb5af23ddeabe",
-  "promoted_from": "experiments\\experimental_runs\\2025-09-16",
-  "promotion_timestamp": "2025-09-19T14:29:06.366849",
-  "model_size_mb": 915.1505317687988,
+  "sha256": "9438334f2d3884dd9e475aabb32ab50032cb49b0b2fd0c61756b60acf7c70a90",
+  "promoted_from": "experiments\\experimental_runs\\2025-11-06-vocab15k-promotion",
+  "promotion_timestamp": "2025-11-06T16:50:09.379579",
+  "model_size_mb": 4.5292463302612305,
   "validation_results": {
-    "model_path": "experiments\\experimental_runs\\2025-09-16\\2025-09-16-comprehensive-grid-search-optimized-model.pkl",
-    "model_size_mb": 915.1505317687988,
-    "f1_weighted": 0.9366007662843541,
-    "f1_micro": 0.9366007662843541,
-    "model_hash": "d790ccd6ab52c521fea635b2122df3257ff768cd7e2a19a9b0edb5af23ddeabe",
+    "model_path": "experiments\\experimental_runs\\2025-11-06-vocab15k-promotion\\lr_vocab15k_model.pkl",
+    "model_size_mb": 4.5292463302612305,
+    "f1_weighted": 0.9378885556731942,
+    "f1_micro": 0.650175654630401,
+    "model_hash": "9438334f2d3884dd9e475aabb32ab50032cb49b0b2fd0c61756b60acf7c70a90",
     "validation_passed": true,
     "validation_errors": []
   },
   "performance": {
-    "f1_weighted": 0.9366007662843541,
-    "f1_micro": 0.9366007662843541
+    "f1_weighted": 0.9378885556731942,
+    "f1_micro": 0.650175654630401
   },
-  "version": "v25-09-16",
+  "version": "v25-11-06",
   "status": "production"
 }

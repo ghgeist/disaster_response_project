@@ -1,0 +1,14 @@
+{
+  "metadata": {
+    "model_name": "class_weights_disabled",
+    "version": "1.0.0",
+    "created_date": "2025-11-06",
+    "description": "Class weights disabled for vocabulary optimization experiments",
+    "last_modified": "2025-11-06"
+  },
+  "class_weights": {
+    "enabled": false,
+    "strategy": "balanced"
+  }
+}
+

@@ -1,0 +1,18 @@
+{
+  "metadata": {
+    "model_name": "vocab_25k",
+    "version": "1.0.0",
+    "created_date": "2025-11-06",
+    "description": "Moderate-conservative vocabulary limit: 25K features with frequency filters",
+    "model_type": "LogisticRegression with vocabulary optimization",
+    "last_modified": "2025-11-06",
+    "experiment_id": "vocab_25k_2025-11-06"
+  },
+  "parameters": {
+    "vect__ngram_range": [1, 2],
+    "vect__max_features": 25000,
+    "vect__min_df": 2,
+    "vect__max_df": 0.95
+  }
+}
+

@@ -1,0 +1,72 @@
+{
+  "metadata": {
+    "created": "2025-11-06T15:52:02.825092",
+    "model": "experiments/experimental_runs/2025-11-06/lr_vocab30k_model.pkl",
+    "target_recall": 0.65,
+    "optimization_method": "precision_recall_curve"
+  },
+  "thresholds": {
+    "related": 0.5,
+    "request": 0.5,
+    "offer": 0.5,
+    "aid_related": 0.5,
+    "medical_help": 0.12547701964658095,
+    "medical_products": 0.09286483708251386,
+    "search_and_rescue": 0.032391849534442844,
+    "security": 0.018531036504344997,
+    "military": 0.5,
+    "child_alone": 0.5,
+    "water": 0.30638821273616756,
+    "food": 0.38126302247110233,
+    "shelter": 0.22627853511861398,
+    "clothing": 0.5,
+    "money": 0.5,
+    "missing_people": 0.5,
+    "refugees": 0.5,
+    "death": 0.5,
+    "other_aid": 0.5,
+    "infrastructure_related": 0.5,
+    "transport": 0.5,
+    "buildings": 0.5,
+    "electricity": 0.5,
+    "tools": 0.5,
+    "hospitals": 0.01340688157474761,
+    "shops": 0.5,
+    "aid_centers": 0.5,
+    "other_infrastructure": 0.5,
+    "weather_related": 0.5,
+    "floods": 0.5,
+    "storm": 0.5,
+    "fire": 0.5,
+    "earthquake": 0.5,
+    "cold": 0.5,
+    "other_weather": 0.5,
+    "direct_report": 0.5
+  },
+  "critical_only": {
+    "search_and_rescue": 0.032391849534442844,
+    "water": 0.30638821273616756,
+    "shelter": 0.22627853511861398,
+    "hospitals": 0.01340688157474761,
+    "security": 0.018531036504344997,
+    "medical_help": 0.12547701964658095,
+    "food": 0.38126302247110233,
+    "medical_products": 0.09286483708251386
+  },
+  "performance": {
+    "baseline": {
+      "f1_weighted": 0.9376142704892568,
+      "critical_recall_mean": 0.22443287533790482
+    },
+    "optimized": {
+      "f1_weighted": 0.9276281794417817,
+      "critical_recall_mean": 0.6496643853081014
+    },
+    "delta": {
+      "f1_weighted": -0.009986091047475165,
+      "f1_weighted_pct": -1.065053227300425,
+      "critical_recall": 0.42523150997019665,
+      "critical_recall_pct": 189.4693499470479
+    }
+  }
+}

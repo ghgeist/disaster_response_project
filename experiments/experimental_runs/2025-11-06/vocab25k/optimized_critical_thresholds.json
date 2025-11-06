@@ -1,0 +1,72 @@
+{
+  "metadata": {
+    "created": "2025-11-06T15:53:24.590502",
+    "model": "experiments/experimental_runs/2025-11-06/lr_vocab25k_model.pkl",
+    "target_recall": 0.65,
+    "optimization_method": "precision_recall_curve"
+  },
+  "thresholds": {
+    "related": 0.5,
+    "request": 0.5,
+    "offer": 0.5,
+    "aid_related": 0.5,
+    "medical_help": 0.12670871363915542,
+    "medical_products": 0.09371293973672232,
+    "search_and_rescue": 0.0324724549301762,
+    "security": 0.018358683304109,
+    "military": 0.5,
+    "child_alone": 0.5,
+    "water": 0.29982817091621417,
+    "food": 0.3836627594821337,
+    "shelter": 0.22812780460162022,
+    "clothing": 0.5,
+    "money": 0.5,
+    "missing_people": 0.5,
+    "refugees": 0.5,
+    "death": 0.5,
+    "other_aid": 0.5,
+    "infrastructure_related": 0.5,
+    "transport": 0.5,
+    "buildings": 0.5,
+    "electricity": 0.5,
+    "tools": 0.5,
+    "hospitals": 0.013342049541560047,
+    "shops": 0.5,
+    "aid_centers": 0.5,
+    "other_infrastructure": 0.5,
+    "weather_related": 0.5,
+    "floods": 0.5,
+    "storm": 0.5,
+    "fire": 0.5,
+    "earthquake": 0.5,
+    "cold": 0.5,
+    "other_weather": 0.5,
+    "direct_report": 0.5
+  },
+  "critical_only": {
+    "shelter": 0.22812780460162022,
+    "security": 0.018358683304109,
+    "food": 0.3836627594821337,
+    "medical_products": 0.09371293973672232,
+    "water": 0.29982817091621417,
+    "hospitals": 0.013342049541560047,
+    "medical_help": 0.12670871363915542,
+    "search_and_rescue": 0.0324724549301762
+  },
+  "performance": {
+    "baseline": {
+      "f1_weighted": 0.9375884329800095,
+      "critical_recall_mean": 0.22308256669592952
+    },
+    "optimized": {
+      "f1_weighted": 0.9276790866811729,
+      "critical_recall_mean": 0.6496643853081014
+    },
+    "delta": {
+      "f1_weighted": -0.009909346298836552,
+      "f1_weighted_pct": -1.056897242998286,
+      "critical_recall": 0.4265818186121719,
+      "critical_recall_pct": 191.22149477221143
+    }
+  }
+}

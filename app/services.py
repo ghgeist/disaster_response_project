@@ -324,17 +324,36 @@ class ModelService:
                         active_categories = category_names
                         category_mapping = {i: i for i in range(len(category_names))}
 
+                    # Get the MultiOutputClassifier from the pipeline to access classes
+                    multi_output_clf = None
+                    if hasattr(self._model, 'named_steps') and 'clf' in self._model.named_steps:
+                        multi_output_clf = self._model.named_steps['clf']
+                    
                     for idx, p in enumerate(proba):
                         if p.shape[1] == 1:
-                            # Single column: degenerate classifier (only negative class learned)
-                            # The single probability represents P(negative_class), so P(positive_class) = 0
-                            prob_val = 0.0  # Force positive class probability to 0 for degenerate classifiers
+                            # Single column: degenerate classifier (only one class learned)
+                            # Check which class is present to determine correct probability
+                            if multi_output_clf is not None and hasattr(multi_output_clf, 'classes_') and idx < len(multi_output_clf.classes_):
+                                classes = multi_output_clf.classes_[idx]
+                                if len(classes) == 1 and classes[0] == 0:
+                                    # Only class 0 present, probability of class 1 is 0
+                                    prob_val = 0.0
+                                elif len(classes) == 1 and classes[0] == 1:
+                                    # Only class 1 present, probability of class 1 is 1
+                                    prob_val = 1.0
+                                else:
+                                    # Fallback (shouldn't happen)
+                                    prob_val = 0.0
+                            else:
+                                # Fallback if class info not available (assume class 0)
+                                prob_val = 0.0
                             probs.append(prob_val)
                             category_name = active_categories[idx] if idx < len(active_categories) else f"unknown_{idx}"
                             logger.debug(
-                                "Label %d (%s): degenerate classifier detected, setting positive prob to 0.0",
+                                "Label %d (%s): degenerate classifier detected, positive prob set to %.1f",
                                 idx,
                                 category_name,
+                                prob_val,
                             )
                         elif p.shape[1] == 2:
                             # Two columns: assume class 1 is positive (standard binary classification)
@@ -425,10 +444,13 @@ class ModelService:
             model_dir = self.model_path.parent
             model_stem = self.model_path.stem  # Get filename without .pkl extension
             
-            # Try standardized naming first, then fall back to legacy naming
+            # Standard naming: {model_stem}_thresholds.json
+            # Fallback to legacy names for backward compatibility
             thresholds_candidates = [
-                model_dir / f"{model_stem}_thresholds.json",  # Standardized
-                model_dir / "thresholds.json"                 # Legacy
+                model_dir / f"{model_stem}_thresholds.json",       # Standardized (preferred)
+                model_dir / "optimized_critical_thresholds.json",  # Legacy: optimized critical thresholds
+                model_dir / "optimized_all_thresholds.json",        # Legacy: optimized all thresholds
+                model_dir / "thresholds.json"                       # Legacy: F2-optimized thresholds
             ]
             
             label_order_candidates = [
@@ -441,8 +463,20 @@ class ModelService:
             for thresholds_path in thresholds_candidates:
                 if thresholds_path.exists():
                     with open(thresholds_path, "r", encoding="utf-8") as f:
-                        self._thresholds = json.load(f)
-                    logger.info("Loaded thresholds from %s", thresholds_path.name)
+                        loaded_data = json.load(f)
+                    
+                    # Handle nested structure from optimized_critical_thresholds.json
+                    # Format: {"thresholds": {...}, "critical_only": {...}, "metadata": {...}}
+                    if isinstance(loaded_data, dict) and "thresholds" in loaded_data:
+                        # Extract the thresholds dict from nested structure
+                        self._thresholds = loaded_data["thresholds"]
+                        logger.info("Loaded optimized thresholds from %s (target recall: %s)", 
+                                  thresholds_path.name,
+                                  loaded_data.get("metadata", {}).get("target_recall", "unknown"))
+                    else:
+                        # Flat structure (legacy format)
+                        self._thresholds = loaded_data
+                        logger.info("Loaded thresholds from %s", thresholds_path.name)
                     break
                     
             # Load label order
@@ -474,17 +508,42 @@ class ModelService:
         ]
 
     def get_thresholds_map(self) -> dict:
-        """Return thresholds map; if missing, return defaults for 8 high-impact labels at 0.5."""
-        # Default thresholds map
-        default = {}
-        target_labels = {
-            'medical_help', 'search_and_rescue', 'water', 'food', 'shelter',
-            'hospitals', 'security', 'weather_related'
+        """
+        Return thresholds map; if missing, return smart defaults based on category type.
+        
+        Default thresholds are optimized based on category importance:
+        - Critical categories: Lower thresholds (0.01-0.43) for better recall
+        - Non-critical categories: Standard 0.5 threshold
+        
+        These defaults are based on optimization results from 2025-11-04 session.
+        """
+        from disasterproject.utils.config import CRITICAL_LABELS
+        
+        # Smart defaults based on optimization results (2025-11-04)
+        # Critical categories need much lower thresholds to achieve good recall
+        critical_defaults = {
+            'hospitals': 0.014,           # 1.4% - extremely low for life-safety
+            'security': 0.020,            # 2.0% - very low for emergencies
+            'search_and_rescue': 0.033,   # 3.3% - low for urgent needs
+            'medical_products': 0.095,   # 9.5% - low for medical supplies
+            'medical_help': 0.124,        # 12.4% - low for medical emergencies
+            'shelter': 0.240,             # 24.0% - moderate for shelter needs
+            'water': 0.362,               # 36.2% - moderate for water needs
+            'food': 0.431,                # 43.1% - moderate-high for food needs
         }
+        
+        # Build default map
+        default = {}
         for name in self._get_label_order():
-            default[name] = 0.5 if name in target_labels else 0.5
+            if name in CRITICAL_LABELS and name in critical_defaults:
+                # Use optimized default for critical categories
+                default[name] = critical_defaults[name]
+            else:
+                # Standard 0.5 for non-critical categories
+                default[name] = 0.5
+        
+        # Merge with loaded thresholds (loaded thresholds take priority)
         if isinstance(self._thresholds, dict) and self._thresholds:
-            # Merge, favoring stored thresholds
             merged = {**default, **self._thresholds}
             return merged
         return default

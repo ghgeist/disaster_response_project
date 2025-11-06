@@ -110,25 +110,54 @@ class MockModelService:
 
         # Mock some positive predictions based on keywords
         predictions = {}
+        probabilities = {}
         text_lower = text.lower()
 
         for category in categories:
             # Simple keyword-based mock predictions
             if category == 'related':
                 # Only mark as related if message contains disaster-related keywords
-                disaster_keywords = ['help', 'emergency', 'disaster', 'flood', 'fire', 'earthquake', 'storm', 'medical', 'water', 'food', 'shelter']
-                predictions[category] = 1 if any(keyword in text_lower for keyword in disaster_keywords) else 0
+                disaster_keywords = ['help', 'emergency', 'disaster', 'flood', 'fire', 'earthquake', 'storm', 'medical', 'water', 'food', 'shelter', 'starvation', 'dying', 'child']
+                is_related = any(keyword in text_lower for keyword in disaster_keywords)
+                predictions[category] = 1 if is_related else 0
+                probabilities[category] = 0.9 if is_related else 0.1
             elif category == 'water' and 'water' in text_lower:
                 predictions[category] = 1
-            elif category == 'food' and 'food' in text_lower:
+                probabilities[category] = 0.7
+            elif category == 'food' and ('food' in text_lower or 'starvation' in text_lower):
                 predictions[category] = 1
-            elif category == 'medical_help' and ('medical' in text_lower or 'help' in text_lower):
+                probabilities[category] = 0.8
+            elif category == 'aid_related' and ('aid' in text_lower or 'help' in text_lower or 'need' in text_lower):
                 predictions[category] = 1
+                probabilities[category] = 0.75
+            elif category == 'request' and ('need' in text_lower or 'request' in text_lower or 'received nothing' in text_lower):
+                predictions[category] = 1
+                probabilities[category] = 0.7
+            elif category == 'medical_help' and ('medical' in text_lower or 'help' in text_lower or 'dying' in text_lower):
+                predictions[category] = 1
+                probabilities[category] = 0.6
+            elif category == 'direct_report' and ('received' in text_lower or 'nothing' in text_lower):
+                predictions[category] = 1
+                probabilities[category] = 0.65
             else:
                 predictions[category] = 0
+                probabilities[category] = 0.1
 
         # Return in same format as real ModelService for consistency
-        return {"labels": predictions, "probabilities": {}}
+        return {"labels": predictions, "probabilities": probabilities}
+    
+    def get_thresholds_map(self) -> dict:
+        """Mock thresholds map for testing."""
+        # Return default thresholds similar to real ModelService
+        return {
+            'related': 0.5,
+            'request': 0.5,
+            'aid_related': 0.5,
+            'medical_help': 0.5,
+            'food': 0.5,
+            'water': 0.5,
+            'direct_report': 0.5,
+        }
 
 
 def setup_logging(app: Flask) -> None:

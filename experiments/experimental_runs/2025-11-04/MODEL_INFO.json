@@ -1,0 +1,56 @@
+{
+  "sha256": "d1d95aa600c6f047c5b16dac8f75569d581c940d2d81bda8a4e90dc5eb6f9791",
+  "rf_params": {
+    "C": 1.0,
+    "class_weight": null,
+    "dual": false,
+    "fit_intercept": true,
+    "intercept_scaling": 1,
+    "l1_ratio": null,
+    "max_iter": 5000,
+    "multi_class": "deprecated",
+    "n_jobs": -1,
+    "penalty": "l2",
+    "random_state": 42,
+    "solver": "saga",
+    "tol": 0.0001,
+    "verbose": 0,
+    "warm_start": false
+  },
+  "vectorizer_params": {
+    "analyzer": "word",
+    "binary": false,
+    "decode_error": "strict",
+    "dtype": "<function:int64>",
+    "encoding": "utf-8",
+    "input": "content",
+    "lowercase": true,
+    "max_df": 1.0,
+    "max_features": null,
+    "min_df": 1,
+    "ngram_range": [
+      1,
+      2
+    ],
+    "preprocessor": null,
+    "stop_words": null,
+    "strip_accents": null,
+    "token_pattern": "(?u)\\b\\w\\w+\\b",
+    "tokenizer": "<function:tokenize>",
+    "vocabulary": null
+  },
+  "label_order_hash": "ce03e505f9fa17f5cd078048b59a6764e48a6b00",
+  "fit_time_seconds": 50.27457809448242,
+  "model_size_mb": 67.69432640075684,
+  "cold_load_seconds": 1.1325485706329346,
+  "threshold_sources": {
+    "medical_help": "optimized",
+    "search_and_rescue": "optimized",
+    "water": "optimized",
+    "food": "optimized",
+    "shelter": "optimized",
+    "hospitals": "optimized",
+    "security": "optimized",
+    "weather_related": "optimized"
+  }
+}

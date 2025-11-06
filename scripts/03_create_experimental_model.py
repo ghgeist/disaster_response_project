@@ -183,7 +183,13 @@ def save_training_log(experiment_dir, config, performance_summary, training_time
 
 
 def _compute_f2_thresholds_for_labels(model, X_eval, Y_eval, labels, all_category_names):
-    """Compute F2-optimized thresholds for the selected labels; fallback to 0.5 when unreliable."""
+    """
+    Compute F2-optimized thresholds for the selected labels; fallback to 0.5 when unreliable.
+    
+    Note: This uses F2 score (beta=2.0) which emphasizes recall over precision.
+    For production use, consider using optimize_critical_thresholds() which uses
+    precision_recall_curve with target recall instead (see optimize_critical_thresholds_inc1.py).
+    """
     try:
         proba_list = model.predict_proba(X_eval)
     except Exception as e:
@@ -211,7 +217,30 @@ def _compute_f2_thresholds_for_labels(model, X_eval, Y_eval, labels, all_categor
         try:
             probs = proba_list[idx]
             # shape (n_samples, 2) -> class 1
-            p = probs[:, 1] if probs.ndim == 2 and probs.shape[1] > 1 else probs.ravel()
+            if probs.ndim == 2 and probs.shape[1] == 2:
+                # Normal binary classifier with both classes
+                p = probs[:, 1]
+            elif probs.ndim == 2 and probs.shape[1] == 1:
+                # Single class present - check which class it is
+                # Access the underlying classifier to get class information
+                clf = model.named_steps['clf']
+                if hasattr(clf, 'classes_') and idx < len(clf.classes_):
+                    classes = clf.classes_[idx]
+                    if len(classes) == 1 and classes[0] == 0:
+                        # Only class 0 present, probability of class 1 is 0
+                        p = np.zeros(probs.shape[0])
+                    elif len(classes) == 1 and classes[0] == 1:
+                        # Only class 1 present, probability of class 1 is 1
+                        p = np.ones(probs.shape[0])
+                    else:
+                        # Fallback (shouldn't happen)
+                        p = probs.ravel()
+                else:
+                    # Fallback if class info not available
+                    p = probs.ravel()
+            else:
+                # Fallback for unexpected shapes
+                p = probs.ravel()
         except Exception:
             thresholds[name] = 0.5
             sources[name] = "default"
@@ -285,6 +314,10 @@ def main():
                        help='Path to eval UIDs file (JSON or CSV); if not provided, defaults to experiments/experimental_configs/eval_sets/eval_ids.json if present')
     parser.add_argument('--no-frozen-eval', dest='no_frozen_eval', action='store_true',
                        help='Force random split even if an eval IDs file exists')
+    parser.add_argument('--algorithm', dest='algorithm',
+                       choices=['random_forest', 'logistic_regression'],
+                       default='random_forest',
+                       help='Algorithm to use (default: random_forest)')
 
     args = parser.parse_args()
 
@@ -378,6 +411,20 @@ def main():
         logging.error(f'Failed to load hyperparameters from {args.params_path}. Exiting.')
         sys.exit(1)
 
+    # Filter parameters for LogisticRegression (remove RF-specific params)
+    if args.algorithm == 'logistic_regression':
+        rf_params = [
+            'clf__estimator__n_estimators', 
+            'clf__estimator__max_depth',
+            'clf__estimator__min_samples_leaf', 
+            'clf__estimator__min_samples_split'
+        ]
+        original_params = parameters.copy()
+        parameters = {k: v for k, v in parameters.items() if k not in rf_params}
+        removed = [k for k in original_params if k not in parameters]
+        if removed:
+            logging.info(f'Filtered RF-specific params for LR: {removed}')
+
     # Load class weights configuration
     logging.info(f'Loading class weights configuration from {args.class_weights_path}')
     class_weights_config = load_class_weights_config(args.class_weights_path)
@@ -388,19 +435,36 @@ def main():
     # Determine if class weighting is enabled
     class_weights_enabled = class_weights_config.get('class_weights', {}).get('enabled', False)
 
-    # Create pipeline based on class weights configuration
-    if class_weights_enabled:
-        logging.info('Creating pipeline with class weighting enabled...')
+    # Import appropriate pipeline functions
+    from disasterproject.models.pipeline import (
+        create_pipeline_logistic_regression,
+        create_pipeline_logistic_regression_weighted
+    )
 
-        # Calculate class weights
-        class_weights = get_multilabel_class_weights(Y_train, strategy='balanced')
-        if class_weights:
-            logging.info(f'Calculated class weights for {len(class_weights)} labels')
-
-        pipeline = create_pipeline_with_custom_weights()
+    # Create pipeline based on algorithm and class weights configuration
+    if args.algorithm == 'logistic_regression':
+        if class_weights_enabled:
+            logging.info('Creating weighted LogisticRegression pipeline...')
+            # Calculate class weights
+            class_weights_list = get_multilabel_class_weights(Y_train, strategy='balanced')
+            if class_weights_list:
+                logging.info(f'Calculated class weights for {len(class_weights_list)} labels')
+            pipeline = create_pipeline_logistic_regression_weighted(class_weights_list=class_weights_list)
+        else:
+            logging.info('Creating LogisticRegression pipeline (no class weights)...')
+            pipeline = create_pipeline_logistic_regression()
     else:
-        logging.info('Creating pipeline without class weighting (default)...')
-        pipeline = create_pipeline(use_class_weights=False)
+        # RandomForest (original behavior)
+        if class_weights_enabled:
+            logging.info('Creating pipeline with class weighting enabled...')
+            # Calculate class weights
+            class_weights = get_multilabel_class_weights(Y_train, strategy='balanced')
+            if class_weights:
+                logging.info(f'Calculated class weights for {len(class_weights)} labels')
+            pipeline = create_pipeline_with_custom_weights()
+        else:
+            logging.info('Creating pipeline without class weighting (default)...')
+            pipeline = create_pipeline(use_class_weights=False)
 
     if pipeline is None:
         logging.error('Failed to create pipeline. Exiting.')
@@ -482,11 +546,19 @@ def main():
         pass
 
     # Compute thresholds for selected labels and save artifacts to experiment folder
+    # Note: Experimental models save to experiment_dir, not model_dir, so use descriptive name
     selected_labels = ['medical_help', 'search_and_rescue', 'water', 'food', 'shelter', 'hospitals', 'security', 'weather_related']
     thresholds_map, threshold_sources = _compute_f2_thresholds_for_labels(model, X_test, Y_test, selected_labels, TARGET_COLUMNS)
     label_order = list(TARGET_COLUMNS)
     try:
-        with open(os.path.join(experiment_dir, 'thresholds.json'), 'w', encoding='utf-8') as f:
+        # Use standard naming if model path is known, otherwise use descriptive name
+        model_stem = os.path.splitext(os.path.basename(args.model_out))[0] if args.model_out else None
+        if model_stem:
+            thresholds_file = os.path.join(experiment_dir, f'{model_stem}_thresholds.json')
+        else:
+            thresholds_file = os.path.join(experiment_dir, 'thresholds.json')  # Fallback for unknown model name
+        
+        with open(thresholds_file, 'w', encoding='utf-8') as f:
             json.dump(thresholds_map, f, indent=2)
         with open(os.path.join(experiment_dir, 'label_order.json'), 'w', encoding='utf-8') as f:
             json.dump(label_order, f, indent=2)
