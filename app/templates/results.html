@@ -37,12 +37,18 @@
             <h4 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Category Analysis</h4>
             <div id="category-chips">
                 {% if use_hierarchy %}
-                    {% set display_predictions = fixed.predictions if fixed else raw.predictions %}
+                    {% if fixed and fixed.predictions and fixed.predictions|length > 0 %}
+                        {% set display_predictions = fixed.predictions %}
+                    {% elif raw and raw.predictions and raw.predictions|length > 0 %}
+                        {% set display_predictions = raw.predictions %}
+                    {% else %}
+                        {% set display_predictions = [] %}
+                    {% endif %}
                 {% else %}
-                    {% set display_predictions = sorted_predictions %}
+                    {% set display_predictions = sorted_predictions if sorted_predictions else [] %}
                 {% endif %}
 
-                {% if display_predictions %}
+                {% if display_predictions and display_predictions|length > 0 %}
                     {% for prediction in display_predictions %}
                         <span class="chip bg-brand-accent-amber text-gray-900 text-sm font-semibold shadow" title="Match strength: {{ (prediction.confidence * 100)|round(1) }}%">
                             {{ prediction.category.replace('_', ' ')|title }}
@@ -50,9 +56,9 @@
                     {% endfor %}
                 {% else %}
                     {% if use_hierarchy %}
-                        {% set display_probs = fixed.probabilities if fixed else raw.probabilities %}
+                        {% set display_probs = fixed.probabilities if (fixed and fixed.probabilities) else (raw.probabilities if (raw and raw.probabilities) else {}) %}
                     {% else %}
-                        {% set display_probs = probabilities %}
+                        {% set display_probs = probabilities if probabilities else {} %}
                     {% endif %}
 
                     {% if display_probs and display_probs.get('related', 0) > 0.5 %}
