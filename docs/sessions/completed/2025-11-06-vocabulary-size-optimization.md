@@ -1,10 +1,10 @@
 ---
 title: "Vocabulary Size Optimization"
 date: "2025-11-06"
-status: "active"
+status: "completed"
 tags: ["ml", "optimization", "vocabulary", "model-size", "production"]
 author: "ML Engineer Agent"
-related: ["docs/sessions/active/2025-11-04-model-performance-improvement-plan.md"]
+related: ["docs/sessions/completed/2025-11-04-model-performance-improvement-plan.md"]
 execution_mode: "autonomous"
 execution_environment: "local-windows"
 ---

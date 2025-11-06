@@ -183,7 +183,13 @@ def save_training_log(experiment_dir, config, performance_summary, training_time
 
 
 def _compute_f2_thresholds_for_labels(model, X_eval, Y_eval, labels, all_category_names):
-    """Compute F2-optimized thresholds for the selected labels; fallback to 0.5 when unreliable."""
+    """
+    Compute F2-optimized thresholds for the selected labels; fallback to 0.5 when unreliable.
+    
+    Note: This uses F2 score (beta=2.0) which emphasizes recall over precision.
+    For production use, consider using optimize_critical_thresholds() which uses
+    precision_recall_curve with target recall instead (see optimize_critical_thresholds_inc1.py).
+    """
     try:
         proba_list = model.predict_proba(X_eval)
     except Exception as e:

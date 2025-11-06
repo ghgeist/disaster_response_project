@@ -1,7 +1,7 @@
 ---
 title: "ML Refactoring Agent: Portfolio-Ready Disaster Response Classification"
 date: "2025-09-02"
-status: "active"
+status: "completed"
 tags: ["ml-engineering", "refactoring", "portfolio", "experiment-tracking"]
 author: "runner"
 related: []

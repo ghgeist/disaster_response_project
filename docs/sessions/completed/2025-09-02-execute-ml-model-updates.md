@@ -197,7 +197,7 @@ The `scripts/01_test_sampling_strategies.py` script contained significant bloat 
 ---
 title: "Update ML Models"
 date: "2025-09-02"
-status: "active"
+status: "completed"
 tags: ["documentation", "instruction"]
 author: "runner"
 related: []
