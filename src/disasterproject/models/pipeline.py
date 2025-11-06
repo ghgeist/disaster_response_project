@@ -117,6 +117,9 @@ class WeightedMultiOutputClassifier(MultiOutputClassifier):
         if y.ndim == 1:
             y = y.reshape(-1, 1)
         
+        # Set n_outputs_ required by base class for predict/predict_proba
+        self.n_outputs_ = y.shape[1]
+        
         # Always use custom fitting to handle single-class labels
         self.estimators_ = []
         self.classes_ = []

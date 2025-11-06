@@ -34,7 +34,22 @@
     "micro_f1": 0.6545634359988698,
     "samples_f1": 0.5237173619333173,
     "total_categories": 36,
-    "test_samples": 5206
+    "test_samples": 5206,
+    "note": "Baseline metrics with default 0.5 thresholds"
+  },
+  "optimized_performance": {
+    "overall_f1": 0.9263870305569046,
+    "critical_recall_mean": 0.6496643853081014,
+    "thresholds_file": "experiments/experimental_runs/2025-11-04/optimized_critical_thresholds.json",
+    "optimization_timestamp": "2025-11-04T21:39:20.384846",
+    "target_recall": 0.65,
+    "delta": {
+      "f1_weighted": -0.010654859376416526,
+      "f1_weighted_pct": -1.1370739655166018,
+      "critical_recall": 0.41581280019722805,
+      "critical_recall_pct": 177.8105545019434
+    },
+    "note": "Post-bugfix metrics with optimized thresholds (target recall 65%). Bug fix corrected single-class probability handling, improving F1 from initially reported 0.9009 to 0.9264."
   },
   "version": "0.1-exp",
   "status": "experimental"

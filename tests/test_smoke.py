@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import pytest
 
+from tests.conftest import skip_if_no_model
+
 pytestmark = pytest.mark.integration
 
 
@@ -31,3 +33,21 @@ def test_homepage_displays_branding(client) -> None:
     response = client.get("/")
     assert response.status_code == 200, "Homepage should render successfully"
     assert b"Signal Storm" in response.data, "Homepage is missing the Signal Storm header"
+
+
+def test_model_can_load_and_predict(client) -> None:
+    """Verify the production model can be loaded and used for prediction."""
+    from app.config import Config
+    from pathlib import Path
+    import joblib
+    
+    skip_if_no_model(Config, reason="Production model required for smoke test")
+    
+    model_path = Path(Config.MODEL_PATH)
+    model = joblib.load(model_path)
+    
+    # Test that model can make predictions
+    test_text = "Need clean water near the river"
+    predictions = model.predict([test_text])
+    assert predictions is not None, "Model should return predictions"
+    assert predictions.shape[0] == 1, "Should return one prediction per input"
