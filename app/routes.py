@@ -509,7 +509,16 @@ def register_routes(app):
     @app.route('/health')
     def health_check():
         """
-        Health check endpoint for monitoring with performance timing.
+        Lightweight health check endpoint for deployment monitoring (e.g., Replit).
+        Returns quickly without loading models or querying databases.
+        """
+        return {'status': 'ok'}, 200
+
+    @app.route('/health/detailed')
+    def health_check_detailed():
+        """
+        Detailed health check endpoint for monitoring with performance timing.
+        Checks data service, model service, and returns comprehensive diagnostics.
         """
         import time
         start_time = time.time()

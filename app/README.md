@@ -60,7 +60,8 @@ The app uses environment-based configuration:
 
 - `GET /`: Main page with visualizations and classification form
 - `GET /go`: Message classification results
-- `GET /health`: Health check endpoint
+- `GET /health`: Lightweight health check endpoint (for deployment monitoring, e.g., Replit)
+- `GET /health/detailed`: Detailed health check with service diagnostics and performance metrics
 - `GET /favicon.ico`: Application favicon
 
 ## Adding New Features

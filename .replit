@@ -7,8 +7,16 @@ pkgs = ["file", "python312Packages.pylint", "stdenv.cc.cc.lib", "zlib"]
 packages = ["imagemagick_light"]
 
 [deployment]
-build = ["sh", "-c", "pip install -r requirements.txt && python -m nltk.downloader -d /home/runner/nltk_data stopwords punkt wordnet punkt_tab"]
-run = ["sh", "-c", "gunicorn --bind 0.0.0.0:5000 --workers 1 --timeout 120 --preload wsgi:application"]
+build = [
+  "sh",
+  "-c",
+  "pip install -r requirements.txt && python -m nltk.downloader -d /home/runner/nltk_data stopwords punkt wordnet punkt_tab",
+]
+run = [
+  "sh",
+  "-c",
+  "gunicorn --bind 0.0.0.0:5000 --workers 1 --timeout 120 --preload wsgi:application",
+]
 deploymentTarget = "autoscale"
 
 
@@ -40,5 +48,5 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "gunicorn --bind 0.0.0.0:5000 --workers 2 --timeout 120 wsgi:application"
+args = "gunicorn --bind 0.0.0.0:5000 --workers 1 --timeout 120 wsgi:application"
 waitForPort = 5000
