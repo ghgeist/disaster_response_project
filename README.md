@@ -461,6 +461,10 @@ pytest -q                                            # entire suite
 
 Marks (`gdrive`, `perf`, `slow`, etc.) keep the default CI lane fast while leaving opt-in coverage for deployment scenarios. Tests that require optional artifacts use descriptive skips so the signal stays clear even when resources are unavailable.
 
+### To Do
+
+- Fix pytest warnings: Refactor test functions in `app/test_refactored_app.py` and `scripts/test_deployment_scenarios.py` to follow pytest conventions (use `assert` statements instead of returning `True`/`False`). Tests currently work but generate `PytestReturnNotNoneWarning` warnings because they return boolean values instead of `None`.
+
 ## 📁 Project Structure
 
 ```

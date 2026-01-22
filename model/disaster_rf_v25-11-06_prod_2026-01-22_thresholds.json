@@ -4,7 +4,8 @@
     "model": "model/disaster_rf_v25-11-06_prod_2026-01-22.pkl",
     "critical_target_recall": 0.65,
     "non_critical_target_recall": 0.6,
-    "optimization_method": "precision_recall_curve"
+    "optimization_method": "precision_recall_curve",
+    "target_recall": 0.65
   },
   "thresholds": {
     "related": 0.7705891532373438,
@@ -409,15 +410,29 @@
   "performance": {
     "baseline": {
       "f1_weighted": 0.9006784722477155,
-      "f1_micro": 0.4224746699416641
+      "f1_micro": 0.4224746699416641,
+      "critical_recall_mean": 0.0
     },
     "optimized": {
       "f1_weighted": 0.886878347543719,
-      "f1_micro": 0.4269715057051863
+      "f1_micro": 0.4269715057051863,
+      "critical_recall_mean": 0.6496643853081016
     },
     "delta": {
       "f1_weighted": -0.013800124703996497,
-      "f1_weighted_pct": -1.5321921339539932
+      "f1_weighted_pct": -1.5321921339539932,
+      "critical_recall": 0.6496643853081016,
+      "critical_recall_pct": 0.0
     }
+  },
+  "critical_only": {
+    "medical_help": 0.10836072013307799,
+    "medical_products": 0.08193954938247403,
+    "search_and_rescue": 0.025822199306403348,
+    "security": 0.01484197605217096,
+    "water": 0.15671061211895543,
+    "food": 0.20162975994700652,
+    "shelter": 0.163297782760885,
+    "hospitals": 0.01363821713498782
   }
 }
