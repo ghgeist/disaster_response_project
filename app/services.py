@@ -1,6 +1,7 @@
 """
 Services for data and model management.
 """
+import hashlib
 import json
 import logging
 import os
@@ -191,6 +192,7 @@ class ModelService:
             
             # Attempt to load thresholds and label order co-located with model
             self._load_artifacts()
+            self._log_model_diagnostics()
             return self._model
             
         except (FileNotFoundError, OSError) as error:
@@ -311,6 +313,38 @@ class ModelService:
                 )
 
         return model
+
+    def _log_model_diagnostics(self) -> None:
+        """Log model metadata and fitted-vectorizer checks for debugging."""
+        try:
+            model_size_bytes = self.model_path.stat().st_size
+        except OSError:
+            model_size_bytes = None
+
+        model_sha256 = None
+        try:
+            with open(self.model_path, "rb") as f:
+                model_sha256 = hashlib.sha256(f.read()).hexdigest()
+        except OSError as error:
+            logger.warning("Failed to read model file for hash: %s", error)
+
+        tfidf_fitted = None
+        try:
+            tfidf = None
+            if hasattr(self._model, "named_steps"):
+                tfidf = self._model.named_steps.get("tfidf")
+            if tfidf is not None:
+                tfidf_fitted = hasattr(tfidf, "idf_")
+        except Exception as error:
+            logger.warning("Failed to inspect tfidf fitted state: %s", error)
+
+        logger.info(
+            "Model diagnostics: path=%s size_bytes=%s sha256=%s tfidf_fitted=%s",
+            self.model_path,
+            model_size_bytes,
+            model_sha256,
+            tfidf_fitted,
+        )
     
     def predict(self, text: str) -> dict:
         """Make a prediction on the given text using per-label thresholds when available."""
