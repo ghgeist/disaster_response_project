@@ -15,7 +15,7 @@ build = [
 run = [
   "sh",
   "-c",
-  "gunicorn --bind 0.0.0.0:5000 --workers 1 --timeout 120 --preload wsgi:application",
+  "gunicorn --bind 0.0.0.0:5000 --workers 1 --timeout 120 --max-requests 100 --max-requests-jitter 20 wsgi:application",
 ]
 deploymentTarget = "autoscale"
 
@@ -48,5 +48,5 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "gunicorn --bind 0.0.0.0:5000 --workers 1 --timeout 120 wsgi:application"
+args = "gunicorn --bind 0.0.0.0:5000 --workers 1 --timeout 120 --max-requests 100 --max-requests-jitter 20 wsgi:application"
 waitForPort = 5000
