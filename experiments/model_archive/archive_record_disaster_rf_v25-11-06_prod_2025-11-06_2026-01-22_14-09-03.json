@@ -1,0 +1,11 @@
+{
+  "archived_model": "/home/runner/workspace/model/disaster_rf_v25-11-06_prod_2025-11-06.pkl",
+  "archive_timestamp": "2026-01-22_14-09-03",
+  "model_size_mb": 31.343624114990234,
+  "model_hash": "acd54433a6d7f31e44a7dc2e529c5b8a5792268553f4cf95d0b68dad8d5b0aa3",
+  "archived_metadata": {
+    "_thresholds.json": "/home/runner/workspace/experiments/model_archive/disaster_rf_v25-11-06_prod_2025-11-06_2026-01-22_14-09-03_thresholds.json",
+    "model_info": "/home/runner/workspace/experiments/model_archive/MODEL_INFO_disaster_rf_v25-11-06_prod_2025-11-06_2026-01-22_14-09-03.json"
+  },
+  "status": "archived"
+}
