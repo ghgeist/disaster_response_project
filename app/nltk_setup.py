@@ -143,7 +143,6 @@ def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
         if "stopwords" in failed_resources:
             error_msg = "Critical NLTK resources missing: stopwords"
             setup_results["success"] = False
-            setup_results["errors"].append(error_msg)
             logger.error(error_msg)
             raise NLTKSetupError(error_msg)
         
@@ -151,7 +150,6 @@ def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
         if "punkt" in failed_resources and "punkt_tab" in failed_resources:
             error_msg = "Critical NLTK resources missing: at least one of punkt or punkt_tab is required"
             setup_results["success"] = False
-            setup_results["errors"].append(error_msg)
             logger.error(error_msg)
             raise NLTKSetupError(error_msg)
         
