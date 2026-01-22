@@ -12,7 +12,7 @@ def _discover_latest_model(models_dir: Path) -> str:
         return 'disaster_rf_v25-09-16_prod_2025-09-19.pkl'
     
     # Find all production model files matching the pattern (any algorithm type)
-    pattern = 'disaster_*prod*.pkl'
+    pattern = 'disaster_*_prod_*.pkl'
     model_files = list(models_dir.glob(pattern))
     
     if not model_files:
@@ -63,7 +63,7 @@ class Config:
         # Use explicit filename from environment if provided
         MODEL_FILENAME = _MODEL_FILENAME
     else:
-        # Auto-discover latest production model matching pattern: disaster_*prod*.pkl
+        # Auto-discover latest production model matching pattern: disaster_*_prod_*.pkl
         # MODELS_DIR is defined above, so it's available at class definition time
         MODEL_FILENAME = _discover_latest_model(MODELS_DIR)
     

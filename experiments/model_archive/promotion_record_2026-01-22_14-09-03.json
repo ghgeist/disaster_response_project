@@ -1,6 +1,6 @@
 {
   "promotion": {
-    "promoted_model": "/home/runner/workspace/model/disaster_rf_v25-11-06_prod_2026-01-22.pkl",
+  "promoted_model": "/home/runner/workspace/model/disaster_rf_prod_2026-01-22.pkl",
     "source_candidate": "experiments/experimental_runs/2025-11-06-vocab15k-promotion",
     "promotion_timestamp": "2026-01-22T14:09:03.073757",
     "version": "v25-11-06",

@@ -1,7 +1,7 @@
 {
   "metadata": {
     "created": "2026-01-22T14:28:35.394738",
-    "model": "model/disaster_rf_v25-11-06_prod_2026-01-22.pkl",
+    "model": "model/disaster_rf_prod_2026-01-22.pkl",
     "critical_target_recall": 0.65,
     "non_critical_target_recall": 0.6,
     "optimization_method": "precision_recall_curve",

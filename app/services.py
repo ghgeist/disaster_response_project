@@ -6,6 +6,7 @@ import logging
 import os
 import pickle
 import time
+import warnings
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -14,6 +15,7 @@ import joblib
 import pandas as pd
 import requests
 import sqlalchemy.exc
+from sklearn.exceptions import InconsistentVersionWarning
 from sqlalchemy import create_engine
 
 from disasterproject.utils.config import (
@@ -184,7 +186,7 @@ class ModelService:
                         raise
             
             # Try standard loading first
-            self._model = joblib.load(self.model_path)
+            self._model = self._load_model_with_version_check(self.model_path)
             logger.info("Model loaded successfully from %s", self.model_path)
             
             # Attempt to load thresholds and label order co-located with model
@@ -263,8 +265,12 @@ class ModelService:
             raise ModelServiceError("Downloaded model file is too small.")
 
         try:
-            test_model = joblib.load(temp_path)
+            test_model = self._load_model_with_version_check(Path(temp_path))
             del test_model  # Clean up test load
+        except ModelServiceError as error:
+            raise ModelServiceError(
+                "Downloaded model was trained with an incompatible scikit-learn version."
+            ) from error
         except Exception as error:
             raise ModelServiceError("Downloaded model file is corrupted.") from error
     
@@ -289,6 +295,22 @@ class ModelService:
         if "corrupted" in error_str:
             raise ModelServiceError("Downloaded model file is corrupted.") from error
         raise ModelServiceError("Failed to download model from Google Drive.") from error
+
+    def _load_model_with_version_check(self, file_path: Path) -> Any:
+        """Load a model and raise if scikit-learn version mismatch is detected."""
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always", InconsistentVersionWarning)
+            model = joblib.load(file_path)
+
+        for warning in caught:
+            if issubclass(warning.category, InconsistentVersionWarning):
+                logger.error("scikit-learn version mismatch detected: %s", warning.message)
+                raise ModelServiceError(
+                    "Model was trained with a different scikit-learn version. "
+                    "Retrain the model or install a matching scikit-learn version."
+                )
+
+        return model
     
     def predict(self, text: str) -> dict:
         """Make a prediction on the given text using per-label thresholds when available."""
