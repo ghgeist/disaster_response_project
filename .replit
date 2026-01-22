@@ -8,7 +8,7 @@ packages = ["imagemagick_light"]
 
 [deployment]
 run = ["sh", "-c", "python run.py"]
-deploymentTarget = "gce"
+deploymentTarget = "cloudrun"
 
 [agent]
 expertMode = true
