@@ -185,7 +185,18 @@ def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
             
         return setup_results
         
-    except NLTKSetupError:
+    except NLTKSetupError as error:
+        setup_results["success"] = False
+        setup_results["setup_time_ms"] = round((time.time() - start_time) * 1000, 2)
+        setup_results["errors"].append(str(error))
+        logger.error("NLTK setup failed: %s", error)
+
+        # Cache the failed result to prevent repeated attempts
+        with _setup_lock:
+            _setup_completed = True
+            _setup_results = setup_results
+            _validators_signature = current_signature
+
         raise
     except Exception as e:
         setup_results["success"] = False
