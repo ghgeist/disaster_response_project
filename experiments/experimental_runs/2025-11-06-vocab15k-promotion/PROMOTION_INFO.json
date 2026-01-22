@@ -10,9 +10,9 @@
     "critical_recall": 0.6497,
     "model_size_mb": 4.53
   },
-  "prepared_at": "2025-11-06T16:47:16.795524",
+  "prepared_at": "2026-01-22T14:08:54.824116",
   "source": {
-    "experiment_dir": "C:\\Users\\grant\\OneDrive\\Documents\\udacity_data_science_program\\05_disaster_response_project\\experiments\\experimental_runs\\2025-11-06",
-    "thresholds_source": "C:\\Users\\grant\\OneDrive\\Documents\\udacity_data_science_program\\05_disaster_response_project\\experiments\\experimental_runs\\2025-11-06\\vocab15k\\optimized_critical_thresholds.json"
+    "experiment_dir": "/home/runner/workspace/experiments/experimental_runs/2025-11-06",
+    "thresholds_source": "/home/runner/workspace/experiments/experimental_runs/2025-11-06/vocab15k/optimized_critical_thresholds.json"
   }
 }

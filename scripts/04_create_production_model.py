@@ -2,14 +2,22 @@
 """
 Create a production disaster response classification model.
 
+⚠️ IMPORTANT (2026-01-22): This script requires --params and --class-weights arguments.
+The default files (model/parameters.json, model/class_weights.json) were removed.
+These defaults were for RandomForest models only.
+
+Current production models use LogisticRegression and are created via:
+  scripts/03_create_experimental_model.py --algorithm logistic_regression
+
 This script creates a production model and saves results in a clean, obvious structure:
 - model/disaster_rf_v1-2-0_prod_2025-09-11.pkl (the current production model)
 - model/performance_metrics.csv (current model performance)
 - model/training_log.json (training metadata)
 
 Usage:
-    python scripts/create_model.py
-    python scripts/create_model.py --output model/disaster_response_classifier.pkl
+    python scripts/04_create_production_model.py \
+      --params experiments/model_candidates/vocab_15k.json \
+      --class-weights experiments/model_candidates/class_weights.json
 """
 
 import argparse
@@ -570,14 +578,28 @@ def main():
     logging.info(f'Loading hyperparameters from {args.params_path}')
     parameters = load_model_parameters(args.params_path)
     if parameters is None:
-        logging.error(f'Failed to load hyperparameters from {args.params_path}. Exiting.')
+        logging.error(f'Failed to load hyperparameters from {args.params_path}.')
+        if args.params_path == 'model/parameters.json':
+            logging.error('')
+            logging.error('Note: model/parameters.json was removed on 2026-01-22.')
+            logging.error('Please provide --params argument, e.g.:')
+            logging.error('  --params experiments/model_candidates/vocab_15k.json')
+            logging.error('')
+            logging.error('For LogisticRegression models, use scripts/03_create_experimental_model.py instead.')
         sys.exit(1)
 
     # Load class weights configuration
     logging.info(f'Loading class weights configuration from {args.class_weights_path}')
     class_weights_config = load_class_weights_config(args.class_weights_path)
     if class_weights_config is None:
-        logging.error(f'Failed to load class weights config from {args.class_weights_path}. Exiting.')
+        logging.error(f'Failed to load class weights config from {args.class_weights_path}.')
+        if args.class_weights_path == 'model/class_weights.json':
+            logging.error('')
+            logging.error('Note: model/class_weights.json was removed on 2026-01-22.')
+            logging.error('Please provide --class-weights argument, e.g.:')
+            logging.error('  --class-weights experiments/model_candidates/class_weights.json')
+            logging.error('')
+            logging.error('For LogisticRegression models, use scripts/03_create_experimental_model.py instead.')
         sys.exit(1)
 
     # Determine if class weighting is enabled

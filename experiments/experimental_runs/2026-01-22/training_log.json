@@ -1,0 +1,44 @@
+{
+  "timestamp": "2026-01-22T14:08:33.503891",
+  "model_path": "experiments/experimental_runs/2025-11-06/lr_vocab15k_model.pkl",
+  "training_time_seconds": 21.62366223335266,
+  "configuration": {
+    "hyperparameters": {
+      "vect__ngram_range": [
+        1,
+        2
+      ],
+      "vect__max_features": 15000,
+      "vect__min_df": 3,
+      "vect__max_df": 0.9
+    },
+    "class_weighting": {
+      "enabled": false,
+      "strategy": null
+    },
+    "data_split": {
+      "test_size": 0.2,
+      "random_seed": 42,
+      "train_samples": 20821,
+      "test_samples": 5206,
+      "mode": "frozen_eval",
+      "eval_ids_file": "experiments/experimental_configs/eval_sets/eval_ids.json",
+      "eval_uid_count": 5206
+    },
+    "target_labels": 36
+  },
+  "performance": {
+    "overall_precision": 0.941055057047255,
+    "overall_recall": 0.9485369445511588,
+    "overall_f1": 0.9379433774685962,
+    "positive_class_precision": 0.6377256723353691,
+    "positive_class_recall": 0.22677207369617713,
+    "positive_class_f1": 0.29385267547831884,
+    "micro_f1": 0.6504801594491756,
+    "samples_f1": 0.5168173100005,
+    "total_categories": 36,
+    "test_samples": 5206
+  },
+  "version": "0.1-exp",
+  "status": "experimental"
+}
