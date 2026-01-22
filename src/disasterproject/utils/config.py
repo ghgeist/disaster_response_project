@@ -127,7 +127,10 @@ TARGET_COLUMNS = [
 # aren't available (e.g., fresh environments before `nltk_setup`).
 try:  # Prefer full set when resources are available
     STOPWORDS_SET = set(stopwords.words("english"))
-except Exception as exc:  # LookupError, OSError, etc.
+except LookupError:  # NLTK data missing; avoid noisy downloader hint in logs
+    logger.warning("NLTK stopwords unavailable; using empty fallback set")
+    STOPWORDS_SET = set()
+except Exception as exc:  # Other errors should still be visible
     logger.warning("NLTK stopwords unavailable (%s); using empty fallback set", exc)
     STOPWORDS_SET = set()
 
