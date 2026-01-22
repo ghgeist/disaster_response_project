@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 _setup_lock = threading.Lock()
 _setup_completed = False
 _setup_results = None
+_validators_signature = None
 
 # NLTK resources required for the application
 # Note: punkt_tab is required by newer NLTK versions (replaces punkt)
@@ -39,6 +40,13 @@ class NLTKSetupError(Exception):
     pass
 
 
+def _get_validators_signature() -> Tuple[str, ...]:
+    """
+    Create a signature of the current validators to detect changes.
+    """
+    return tuple(f"{key}:{id(value)}" for key, value in sorted(RESOURCE_VALIDATORS.items()))
+
+
 def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
     """
     Download and validate NLTK resources once at startup.
@@ -55,11 +63,12 @@ def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
     Raises:
         NLTKSetupError: If critical resources cannot be loaded
     """
-    global _setup_completed, _setup_results
+    global _setup_completed, _setup_results, _validators_signature
     
-    # Return cached results if already completed (unless force download requested)
+    # Return cached results if already completed and validators are unchanged
+    current_signature = _get_validators_signature()
     with _setup_lock:
-        if _setup_completed and not force_download:
+        if _setup_completed and not force_download and _validators_signature == current_signature:
             logger.debug("Returning cached NLTK setup results")
             return _setup_results
     
@@ -132,9 +141,8 @@ def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
         
         # Stopwords is always required
         if "stopwords" in failed_resources:
-            error_msg = "Critical NLTK resource missing: stopwords"
+            error_msg = "Critical NLTK resources missing: stopwords"
             setup_results["success"] = False
-            setup_results["errors"].append(error_msg)
             logger.error(error_msg)
             raise NLTKSetupError(error_msg)
         
@@ -142,7 +150,6 @@ def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
         if "punkt" in failed_resources and "punkt_tab" in failed_resources:
             error_msg = "Critical NLTK resources missing: at least one of punkt or punkt_tab is required"
             setup_results["success"] = False
-            setup_results["errors"].append(error_msg)
             logger.error(error_msg)
             raise NLTKSetupError(error_msg)
         
@@ -172,9 +179,23 @@ def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
         with _setup_lock:
             _setup_completed = True
             _setup_results = setup_results
+            _validators_signature = current_signature
             
         return setup_results
         
+    except NLTKSetupError as error:
+        setup_results["success"] = False
+        setup_results["setup_time_ms"] = round((time.time() - start_time) * 1000, 2)
+        setup_results["errors"].append(str(error))
+        logger.error("NLTK setup failed: %s", error)
+
+        # Cache the failed result to prevent repeated attempts
+        with _setup_lock:
+            _setup_completed = True
+            _setup_results = setup_results
+            _validators_signature = current_signature
+
+        raise
     except Exception as e:
         setup_results["success"] = False
         setup_results["setup_time_ms"] = round((time.time() - start_time) * 1000, 2)
@@ -185,6 +206,7 @@ def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
         with _setup_lock:
             _setup_completed = True
             _setup_results = setup_results
+            _validators_signature = current_signature
         
         raise NLTKSetupError(f"NLTK setup failed: {e}") from e
 
@@ -301,7 +323,8 @@ def get_nltk_status() -> Dict[str, any]:
 
 def reset_nltk_cache():
     """Reset NLTK setup cache. Useful for testing."""
-    global _setup_completed, _setup_results
+    global _setup_completed, _setup_results, _validators_signature
     with _setup_lock:
         _setup_completed = False
         _setup_results = None
+        _validators_signature = None

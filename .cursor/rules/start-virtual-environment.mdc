@@ -1,5 +1,0 @@
----
-description: running commends in the terminal
-alwaysApply: false
----
-Make sure the virtual environment is running before running any terminal commands. you can do this by running 'source .venv/Scripts/activate'
