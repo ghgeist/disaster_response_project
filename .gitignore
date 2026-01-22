@@ -29,5 +29,8 @@ cookies.txt
 *.session
 *.sess
 
+# Backup files (generated during model promotion)
+*.bak
+
 # --- Catch accidental weird files
 =*
