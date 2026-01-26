@@ -3,15 +3,90 @@ description: when creating, adding or modify dates in documents
 alwaysApply: false
 ---
 ## Date and Time Generation
-- Use terminal `date` command for generating current dates (MCP time server not available)
-- Use format: YYYY-MM-DD for all document filenames
-- Current date context: Use `date` command to get accurate timestamps
-- For session notes, use format: YYYY-MM-DD-session-description.md
-- For code improvement logs, use format: YYYY-MM-DD-improvement-description.md
 
+### Core Principle
+**Always use the terminal `date` command to get the current date** (MCP time server not available). Never hardcode dates or timestamps.
 
-## Time Server Usage
-- Query the terminal `date` command for current date/time when generating filenames
-- Use UTC timestamps for consistency (`date -u` for UTC, `date` for local time)
-- Format dates as YYYY-MM-DD for file naming
-s
+### Date Format Standard
+- **Format**: `YYYY-MM-DD` (ISO 8601 date format)
+- **Example**: `2026-01-26`
+- **Use for**: All document filenames, model artifacts, session files, and date references in documentation
+
+### Platform-Specific Commands
+
+**Windows (PowerShell):**
+```powershell
+# Local time (YYYY-MM-DD)
+Get-Date -Format "yyyy-MM-dd"
+
+# UTC time (YYYY-MM-DD)
+(Get-Date).ToUniversalTime().ToString("yyyy-MM-dd")
+```
+
+**Unix/Linux/macOS (Bash):**
+```bash
+# Local time (YYYY-MM-DD)
+date +"%Y-%m-%d"
+
+# UTC time (YYYY-MM-DD)
+date -u +"%Y-%m-%d"
+```
+
+**Python Code (when writing scripts):**
+```python
+from datetime import datetime
+# Local time
+date_str = datetime.now().strftime('%Y-%m-%d')
+# UTC time
+date_str = datetime.utcnow().strftime('%Y-%m-%d')
+```
+
+### File Naming Patterns
+
+**Session Files:**
+- Format: `YYYY-MM-DD-[agent-type]-[description].md`
+- Example: `2026-01-26-code-improvement-refactor-api.md`
+- Location: `docs/sessions/active/` or `docs/sessions/completed/`
+
+**Code Improvement Logs:**
+- Format: `YYYY-MM-DD-description.md`
+- Example: `2026-01-26-api-refactoring.md`
+- Location: `docs/code_improvement_log/`
+
+**Dev Notes:**
+- Format: `YYYY-MM-DD.md`
+- Example: `2026-01-26.md`
+- Location: `docs/dev_notes/`
+
+**Model Artifacts:**
+- Format: `[domain]_[algorithm]_v[version]_[env]_YYYY-MM-DD.pkl`
+- Example: `disaster_rf_v1-2-0_prod_2026-01-26.pkl`
+- Location: `model/`
+
+**Release Reports:**
+- Format: `YYYY-MM-DD-release-gate-report.md`
+- Example: `2026-01-26-release-gate-report.md`
+- Location: `docs/releases/`
+
+### When to Use UTC vs Local Time
+
+- **Use Local Time**: For session files, dev notes, and documentation (matches user's working context)
+- **Use UTC**: For model artifacts, experiment runs, and any timestamped data that needs cross-timezone consistency
+- **Default**: When in doubt, use local time for documentation, UTC for data/artifacts
+
+### Workflow
+
+1. **Before creating any date-stamped file:**
+   - Run the appropriate `date` command for your platform
+   - Use the output to construct the filename
+   - Never guess or hardcode the date
+
+2. **In Python scripts:**
+   - Use `datetime.now().strftime('%Y-%m-%d')` for local time
+   - Use `datetime.utcnow().strftime('%Y-%m-%d')` for UTC
+   - Never use `datetime.today()` or other ambiguous methods
+
+3. **In documentation:**
+   - Use `YYYY-MM-DD` format in all date references
+   - Include date in frontmatter: `date: "YYYY-MM-DD"`
+   - Use the terminal command to get the current date when writing
