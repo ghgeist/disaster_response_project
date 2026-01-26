@@ -215,14 +215,3 @@ def performance_diagnostics():
             'timestamp': pd.Timestamp.now().isoformat()
         }, 500
 
-
-@health_bp.errorhandler(404)
-def not_found(_error):
-    """Handle 404 errors."""
-    return render_template('error.html', message="Page not found"), 404
-
-
-@health_bp.errorhandler(500)
-def internal_error(_error):
-    """Handle 500 errors."""
-    return render_template('error.html', message="Internal server error"), 500

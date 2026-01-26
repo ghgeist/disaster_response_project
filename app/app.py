@@ -156,6 +156,17 @@ def create_app(config_class=Config):
         )
         return render_template('error.html', message="Your session expired or the form is invalid. Please refresh and try again."), 400
     
+    # Global error handlers for 404 and 500 errors
+    @app.errorhandler(404)
+    def not_found(_error):
+        """Handle 404 errors globally."""
+        return render_template('error.html', message="Page not found"), 404
+
+    @app.errorhandler(500)
+    def internal_error(_error):
+        """Handle 500 errors globally."""
+        return render_template('error.html', message="Internal server error"), 500
+    
     # Initialize services
     init_services(app)
     
