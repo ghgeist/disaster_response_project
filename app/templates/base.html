@@ -17,6 +17,9 @@
     <!-- Tailwind CSS - Static build for production -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
 
+    {% block head %}
+    {% endblock %}
+
     <!-- Custom styles for accessibility utilities -->
     <style>
         html {
@@ -76,6 +79,8 @@
             <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="{{ url_for('index') }}#performance">Performance</a>
             <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="https://www.linkedin.com/in/grantgeist/" target="_blank" rel="noopener noreferrer">Contact</a>
             <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="https://github.com/ghgeist/disaster_response_project" target="_blank" rel="noopener noreferrer">GitHub</a>
+            {% block nav_extra_desktop %}
+            {% endblock %}
         </div>
     </div>
     <!-- Mobile Menu -->
@@ -88,6 +93,8 @@
             <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="{{ url_for('index') }}#performance">Performance</a>
             <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="https://www.linkedin.com/in/grantgeist/" target="_blank" rel="noopener noreferrer">Contact</a>
             <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="https://github.com/ghgeist/disaster_response_project" target="_blank" rel="noopener noreferrer">GitHub</a>
+            {% block nav_extra_mobile %}
+            {% endblock %}
         </div>
     </div>
 </nav>

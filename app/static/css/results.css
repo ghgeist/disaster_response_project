@@ -1,0 +1,28 @@
+/* Results view layout and spacing */
+.results-stack > section + section {
+  margin-top: 28px;
+}
+
+@media (min-width: 768px) {
+  .results-stack > section + section {
+    margin-top: 36px;
+  }
+}
+
+#category-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 20px;
+}
+
+#category-chips .chip {
+  padding: 10px 16px;
+  border-radius: 9999px;
+  line-height: 1.35;
+  display: inline-flex;
+  align-items: center;
+}
+
+.status-bar {
+  padding: 24px;
+}

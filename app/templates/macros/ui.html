@@ -1,0 +1,56 @@
+{# Reusable UI macros for shared templates #}
+
+{% macro status_badge(status, text=None) %}
+    {% set normalized_status = (status or 'unknown')|lower %}
+    {% set badge_classes = {
+        'healthy': 'bg-green-600 text-white',
+        'unhealthy': 'bg-red-600 text-white',
+        'warning': 'bg-yellow-600 text-black',
+        'missing': 'bg-gray-600 text-white',
+        'unknown': 'bg-gray-600 text-white'
+    } %}
+    <span class="px-3 py-1 rounded-full text-sm font-medium {{ badge_classes.get(normalized_status, badge_classes['unknown']) }}" data-status-badge="true">
+        {{ text if text is not none else normalized_status|title }}
+    </span>
+{% endmacro %}
+
+{% macro metric_card(title, value=None, subtitle=None, value_class='text-brand-accent-blue') %}
+    <div class="bg-brand-slate rounded-lg p-4 shadow-lg">
+        <h3 class="text-lg font-semibold mb-2">{{ title }}</h3>
+        {% if value is not none %}
+            <div class="text-2xl font-bold {{ value_class }}">{{ value }}</div>
+        {% endif %}
+        {% if subtitle %}
+            <div class="text-sm text-gray-400">{{ subtitle }}</div>
+        {% endif %}
+        {% if caller %}
+            <div class="mt-2">
+                {{ caller() }}
+            </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{% macro hero_section(title, subtitle=None, icon=None, title_class='text-4xl md:text-5xl font-extrabold text-white', subtitle_class='text-lg text-gray-400 max-w-3xl mx-auto') %}
+    <div class="text-center">
+        <div class="flex items-center justify-center mb-3">
+            {% if icon %}
+                {{ icon|safe }}
+            {% endif %}
+            <h1 class="{{ title_class }}">{{ title }}</h1>
+        </div>
+        {% if caller %}
+            {{ caller() }}
+        {% endif %}
+        {% if subtitle %}
+            <p class="{{ subtitle_class }}">{{ subtitle }}</p>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{% macro category_chip(category, confidence=None) %}
+    <span class="chip bg-brand-accent-amber text-gray-900 text-sm font-semibold shadow"
+          {% if confidence is not none %}title="Match strength: {{ (confidence * 100)|round(1) }}%"{% endif %}>
+        {{ category.replace('_', ' ')|title }}
+    </span>
+{% endmacro %}
