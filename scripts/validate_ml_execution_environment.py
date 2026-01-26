@@ -7,6 +7,23 @@ import importlib.util
 import pandas as pd
 from pathlib import Path
 
+# Import environment detection utilities
+try:
+    from disasterproject.utils.env import is_replit, is_venv_required, check_venv_activation
+except ImportError:
+    # Fallback if package not installed - define minimal functions
+    def is_replit():
+        replit_indicators = ['REPLIT_DB_URL', 'REPL_ID', 'REPL_SLUG', 'REPL_OWNER', 'REPLIT_POD_ID']
+        return any(os.getenv(var) is not None for var in replit_indicators)
+    
+    def is_venv_required():
+        return not is_replit()
+    
+    def check_venv_activation():
+        if not is_venv_required():
+            return True
+        return sys.prefix != sys.base_prefix
+
 def validate_environment():
     """Run all pre-execution checks."""
     checks = {}
@@ -15,8 +32,21 @@ def validate_environment():
     checks['database_exists'] = os.path.exists('data/02_stg/stg_disaster_response.db')
     checks['production_model_exists'] = os.path.exists('model/disaster_rf_v25-09-16_prod_2025-09-19.pkl')
     
-    # Environment
-    checks['venv_active'] = sys.prefix != sys.base_prefix
+    # Environment - only check venv if required
+    if is_venv_required():
+        checks['venv_active'] = check_venv_activation()
+        if not checks['venv_active']:
+            print("⚠️ WARNING: Virtual environment not activated (required for local development)")
+            print("   Activate venv before running scripts:")
+            if sys.platform == 'win32':
+                print("     PowerShell: . .venv\\Scripts\\Activate.ps1")
+                print("     CMD: .venv\\Scripts\\activate.bat")
+            else:
+                print("     source .venv/bin/activate")
+    else:
+        checks['venv_active'] = True  # Not required in Replit
+        print("ℹ️ INFO: Running in Replit - virtual environment check skipped")
+    
     checks['python_version'] = sys.version_info >= (3, 12)
     
     # Resources (adjusted for local execution)

@@ -92,12 +92,14 @@ run.py                           # Application entry point
 ### Prerequisites
 
 - **Python**: 3.12.0 or higher
-- **Virtual Environment**: Recommended (activate before proceeding)
+- **Virtual Environment**: Required for local development, **not needed** when SSH'd into Replit
 
 ### Virtual Environment Setup
 
+**Note**: Virtual environment is required for local development but **not needed** when SSH'd into Replit. The project automatically detects the environment (using `REPLIT_DB_URL` or `REPL_ID` environment variables) and adjusts accordingly.
+
 ```bash
-# Create virtual environment
+# Create virtual environment (local development only)
 python -m venv venv
 
 # Activate virtual environment
