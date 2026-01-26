@@ -149,15 +149,6 @@ def find_experiment_artifacts() -> Optional[Dict[str, Optional[str]]]:
             "display_name": artifacts.display_name,
         }
 
-    # Legacy fallback: check experiments/results/performance_metrics.csv
-    legacy_results_path = Path("experiments/results/performance_metrics.csv")
-    if legacy_results_path.exists():
-        return {
-            "metrics_path": str(legacy_results_path),
-            "info_path": None,
-            "display_name": "experiments/results/performance_metrics.csv",
-        }
-
     return None
 
 
