@@ -68,7 +68,7 @@ class TestNLTKSetupModule:
             'wordnet': lambda: True,
             'punkt': lambda: True,
         }
-        with patch.dict('app.nltk_setup.RESOURCE_VALIDATORS', validator_overrides, clear=True):
+        with patch.dict('app.utils.nltk_setup.RESOURCE_VALIDATORS', validator_overrides, clear=True):
             result = setup_nltk_resources()
 
         assert result['success'] is True
@@ -88,7 +88,7 @@ class TestNLTKSetupModule:
             'punkt': lambda: False,
             'wordnet': lambda: True,
         }
-        with patch.dict('app.nltk_setup.RESOURCE_VALIDATORS', validator_overrides, clear=True):
+        with patch.dict('app.utils.nltk_setup.RESOURCE_VALIDATORS', validator_overrides, clear=True):
             with pytest.raises(NLTKSetupError, match='Critical NLTK resources missing'):
                 setup_nltk_resources()
 
@@ -102,7 +102,7 @@ class TestNLTKSetupModule:
                 'wordnet': lambda: True,
                 'punkt': lambda: True,
             }
-            with patch.dict('app.nltk_setup.RESOURCE_VALIDATORS', validator_overrides, clear=True):
+            with patch.dict('app.utils.nltk_setup.RESOURCE_VALIDATORS', validator_overrides, clear=True):
                 result = validate_nltk_resources()
 
         assert 'all_available' in result
@@ -112,7 +112,7 @@ class TestNLTKSetupModule:
 
     def test_get_nltk_status(self):
         """Test NLTK status retrieval."""
-        with patch('app.nltk_setup.validate_nltk_resources') as mock_validate:
+        with patch('app.utils.nltk_setup.validate_nltk_resources') as mock_validate:
             mock_validate.return_value = {
                 'all_available': True,
                 'available_resources': ['stopwords', 'wordnet'],
@@ -199,7 +199,7 @@ class TestPerformanceMonitoring:
 
     def test_routes_have_performance_timing(self):
         """Test that performance timing has been added to health check."""
-        routes_path = Path("app/routes.py")
+        routes_path = Path("app/routes/health.py")
         with open(routes_path, 'r') as f:
             content = f.read()
         
@@ -207,7 +207,7 @@ class TestPerformanceMonitoring:
 
     def test_routes_have_performance_diagnostics(self):
         """Test that performance diagnostics endpoint has been added."""
-        routes_path = Path("app/routes.py")
+        routes_path = Path("app/routes/health.py")
         with open(routes_path, 'r') as f:
             content = f.read()
         
@@ -215,7 +215,7 @@ class TestPerformanceMonitoring:
 
     def test_routes_have_nltk_status_monitoring(self):
         """Test that NLTK status monitoring has been added."""
-        routes_path = Path("app/routes.py")
+        routes_path = Path("app/routes/health.py")
         with open(routes_path, 'r') as f:
             content = f.read()
         
@@ -228,7 +228,7 @@ class TestOptimizationIntegration:
     def test_all_optimization_modules_available(self):
         """Test that all optimization modules are available."""
         # Test NLTK setup module
-        from app.nltk_setup import setup_nltk_resources
+        from app.utils.nltk_setup import setup_nltk_resources
         assert callable(setup_nltk_resources)
         
         # Note: app.compat module was removed - models now load directly with joblib
@@ -243,11 +243,11 @@ class TestOptimizationIntegration:
     def test_optimization_performance_benefits(self):
         """Test that optimizations provide expected performance benefits."""
         # Test that NLTK resources are loaded once (not per request)
-        with patch('app.nltk_setup.setup_nltk_resources') as mock_setup:
+        with patch('app.utils.nltk_setup.setup_nltk_resources') as mock_setup:
             mock_setup.return_value = {'success': True, 'setup_time_ms': 100}
             
             # Simulate multiple calls - should not call setup multiple times
-            from app.nltk_setup import setup_nltk_resources
+            from app.utils.nltk_setup import setup_nltk_resources
             setup_nltk_resources()
             setup_nltk_resources()
             
@@ -263,7 +263,7 @@ class TestOptimizationIntegration:
                 'punkt': lambda: False,
                 'wordnet': lambda: True,
             }
-            with patch.dict('app.nltk_setup.RESOURCE_VALIDATORS', validator_overrides, clear=True):
+            with patch.dict('app.utils.nltk_setup.RESOURCE_VALIDATORS', validator_overrides, clear=True):
                 with pytest.raises(NLTKSetupError):
                     setup_nltk_resources()
 

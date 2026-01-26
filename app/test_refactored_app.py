@@ -14,14 +14,14 @@ def run_app_creation_check():
     """Run app creation check and return success status."""
     try:
         from app import create_app
+        from app.config import TestConfig
 
         # Create app with testing configuration
-        app = create_app('testing')
+        app = create_app(TestConfig)
 
         # Basic checks
         assert app is not None
         assert app.config['TESTING'] is True
-        assert app.config['DEBUG'] is True
 
         print("✓ Application creation test passed")
         return True
@@ -33,17 +33,14 @@ def run_app_creation_check():
 def run_config_loading_check():
     """Run configuration loading check and return success status."""
     try:
-        from app.config import config, DevelopmentConfig, ProductionConfig, TestingConfig
+        from app.config import Config, TestConfig
 
         # Test configuration classes exist
-        assert DevelopmentConfig is not None
-        assert ProductionConfig is not None
-        assert TestingConfig is not None
+        assert Config is not None
+        assert TestConfig is not None
 
-        # Test configuration mapping
-        assert 'development' in config
-        assert 'production' in config
-        assert 'testing' in config
+        # Test that TestConfig inherits from Config
+        assert issubclass(TestConfig, Config)
 
         print("✓ Configuration loading test passed")
         return True
@@ -56,11 +53,15 @@ def run_blueprint_registration_check():
     """Run blueprint registration check and return success status."""
     try:
         from app import create_app
+        from app.config import TestConfig
 
-        app = create_app('testing')
+        app = create_app(TestConfig)
 
-        # Check that main blueprint is registered
-        assert 'main' in [bp.name for bp in app.blueprints.values()]
+        # Check that blueprints are registered (home, health, classification)
+        blueprint_names = [bp.name for bp in app.blueprints.values()]
+        assert 'home' in blueprint_names
+        assert 'health' in blueprint_names
+        assert 'classification' in blueprint_names
 
         print("✓ Blueprint registration test passed")
         return True
