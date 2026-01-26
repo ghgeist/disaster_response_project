@@ -15,7 +15,7 @@ For class weighting, use create_weighted_model.py instead.
 For sampling experiments, use test_sampling_strategies.py instead.
 
 Usage:
-    python scripts/02_test_hyperparameters.py data/02_stg/stg_disaster_response.db [model_output.pkl]
+    python scripts/02_training/02_test_hyperparameters.py data/02_stg/stg_disaster_response.db [model_output.pkl]
 """
 
 # Standard library imports
@@ -84,7 +84,7 @@ except Exception as e:
 
 # Experiment paths structure
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
+PROJECT_ROOT = os.path.dirname(os.path.dirname(SCRIPT_DIR))
 
 # Base experiment paths
 BASE_PARAMETERS = os.path.join(PROJECT_ROOT, "experiments", "model_candidates", "parameters.json")

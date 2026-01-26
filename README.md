@@ -60,21 +60,38 @@ src/disasterproject/          # Core ML package
     └── experiment_tracker.py    # Experiment management
 
 scripts/                          # Professional training and testing interface
-├── 01_test_sampling_strategies.py  # Sampling strategy testing
-├── 02_test_hyperparameters.py     # Hyperparameter optimization
-├── 03_create_experimental_model.py # Experimental model creation
-├── 04_create_production_model.py  # Production model creation
-├── compare_models.py            # Model comparison tool
-├── compare_child_alone.py       # Child alone label analysis
-├── evaluate_hierarchy.py        # Hierarchy constraint evaluation
-├── optimize_hierarchy_threshold_reduction.py  # Optimize hierarchy post-processing parameter
-├── optimize_per_category_thresholds.py        # Optimize individual category thresholds
-├── promote_model.py             # Model promotion utility
-├── test_experimental_model.py   # Experimental model testing
-├── validate_multilabel_sampling.py # Multilabel sampling validation
-├── system_validation.py         # System validation checks
-├── deployment_health_check.py   # Deployment health verification
-└── run_batch_experiments.py     # Batch experiment runner
+├── 01_data/                      # Data processing & preparation
+│   ├── process_data.py          # ETL pipeline
+│   └── create_frozen_eval_ids.py # Evaluation dataset creation
+├── 02_training/                  # Model training scripts
+│   ├── 01_test_sampling_strategies.py  # Sampling strategy testing
+│   ├── 02_test_hyperparameters.py     # Hyperparameter optimization
+│   ├── 03_create_experimental_model.py # Experimental model creation
+│   ├── 04_create_production_model.py  # Production model creation
+│   ├── run_batch_experiments.py       # Batch experiment runner
+│   └── test_experimental_model.py     # Experimental model testing
+├── 03_optimization/              # Model optimization
+│   ├── optimize_hierarchy_threshold_reduction.py  # Hierarchy parameter optimization
+│   └── optimize_per_category_thresholds.py        # Per-category threshold optimization
+├── 04_evaluation/                # Model evaluation & comparison
+│   ├── compare_models.py            # Model comparison tool
+│   ├── compare_vocabulary_models.py # Vocabulary comparison
+│   ├── compare_child_alone.py       # Child alone label analysis
+│   ├── evaluate_hierarchy.py        # Hierarchy constraint evaluation
+│   └── visualize_performance.py     # Performance visualizations
+├── 05_analysis/                   # Data & model analysis
+│   ├── analyze_vocabulary_distribution.py # Vocabulary analysis
+│   └── eda_functions.py              # EDA utilities
+├── 06_validation/                 # Validation & testing
+│   ├── system_validation.py         # System validation checks
+│   ├── validate_multilabel_sampling.py # Multilabel sampling validation
+│   └── deployment_health_check.py   # Deployment health verification
+├── 07_operations/                 # MLOps & model management
+│   ├── promote_model.py             # Model promotion utility
+│   └── model_naming_utility.py      # Model naming helpers
+└── utils/                          # Shared utilities
+    ├── ensure_venv.py              # Virtual environment checks
+    └── estimate_search_time.py     # Time estimation utilities
 
 experiments/                      # Organized experiment results
 └── results/                      # Dated CSVs (e.g., 2025-09-13_lightweight_metrics.csv)
@@ -128,9 +145,9 @@ source venv/bin/activate
    # Recommended - installs package in development mode
    pip install -e .
    # Or set PYTHONPATH per call (macOS/Linux)
-   PYTHONPATH=src python scripts/04_create_production_model.py
+   PYTHONPATH=src python scripts/02_training/04_create_production_model.py --params experiments/model_candidates/vocab_15k.json --class-weights experiments/model_candidates/class_weights.json
    # PowerShell
-   $env:PYTHONPATH = "src"; python scripts/04_create_production_model.py
+   $env:PYTHONPATH = "src"; python scripts/02_training/04_create_production_model.py --params experiments/model_candidates/vocab_15k.json --class-weights experiments/model_candidates/class_weights.json
    ```
 
 3. **Download NLTK resources** (handled automatically):
@@ -142,16 +159,16 @@ source venv/bin/activate
 
 1. **Process raw data**:
    ```bash
-   python scripts/process_data.py data/01_raw/disaster_messages.csv data/01_raw/disaster_categories.csv data/02_stg/stg_disaster_response.db
+   python scripts/01_data/process_data.py data/01_raw/disaster_messages.csv data/01_raw/disaster_categories.csv data/02_stg/stg_disaster_response.db
    ```
 
 2. **Train a model**:
    ```bash
    # Create production model
-   python scripts/04_create_production_model.py
+   python scripts/02_training/04_create_production_model.py --params experiments/model_candidates/vocab_15k.json --class-weights experiments/model_candidates/class_weights.json
    
    # Alternative: Create experimental model with custom parameters
-   python scripts/03_create_experimental_model.py
+   python scripts/02_training/03_create_experimental_model.py
    ```
 
 3. **Run the web application**:
@@ -245,22 +262,22 @@ The system supports organized experimentation with different sampling strategies
 ### Running Experiments
 ```bash
 # Test sampling strategies
-python scripts/01_test_sampling_strategies.py data/02_stg/stg_disaster_response.db
+python scripts/02_training/01_test_sampling_strategies.py data/02_stg/stg_disaster_response.db
 
 # Test hyperparameters
-python scripts/02_test_hyperparameters.py data/02_stg/stg_disaster_response.db
+python scripts/02_training/02_test_hyperparameters.py data/02_stg/stg_disaster_response.db
 
 # Create experimental model
-python scripts/03_create_experimental_model.py
+python scripts/02_training/03_create_experimental_model.py
 
 # Compare experiment results
-python scripts/compare_models.py
+python scripts/04_evaluation/compare_models.py
 
 # Additional analysis tools
-python scripts/evaluate_hierarchy.py
-python scripts/optimize_hierarchy_threshold_reduction.py  # Hierarchy parameter optimization
-python scripts/optimize_per_category_thresholds.py        # Per-category threshold optimization
-python scripts/test_experimental_model.py
+python scripts/04_evaluation/evaluate_hierarchy.py
+python scripts/03_optimization/optimize_hierarchy_threshold_reduction.py  # Hierarchy parameter optimization
+python scripts/03_optimization/optimize_per_category_thresholds.py        # Per-category threshold optimization
+python scripts/02_training/test_experimental_model.py
 ```
 
 ### Experiment Tracking
@@ -428,13 +445,13 @@ This design choice prioritizes model reliability by avoiding false positives in 
 ### Testing
 ```bash
 # Validate project structure
-python scripts/system_validation.py
+python scripts/06_validation/system_validation.py
 
 # Run batch experiments
-python scripts/run_batch_experiments.py
+python scripts/02_training/run_batch_experiments.py
 
 # Validate multilabel sampling
-python scripts/validate_multilabel_sampling.py
+python scripts/06_validation/validate_multilabel_sampling.py
 ```
 
 ### Contributing
@@ -516,13 +533,13 @@ For questions, issues, or contributions:
 **Model not found error:**
 ```bash
 # Ensure you've trained a model first
-python scripts/04_create_production_model.py
+python scripts/02_training/04_create_production_model.py --params experiments/model_candidates/vocab_15k.json --class-weights experiments/model_candidates/class_weights.json
 ```
 
 **Database connection issues:**
 ```bash
 # Verify database exists and is accessible
-python scripts/process_data.py data/01_raw/disaster_messages.csv data/01_raw/disaster_categories.csv data/02_stg/stg_disaster_response.db
+python scripts/01_data/process_data.py data/01_raw/disaster_messages.csv data/01_raw/disaster_categories.csv data/02_stg/stg_disaster_response.db
 ```
 
 **Port already in use:**
@@ -548,5 +565,5 @@ pip install -r requirements.txt
 # Install local package
 pip install -e .
 # Or set PYTHONPATH
-PYTHONPATH=src python scripts/04_create_production_model.py
+PYTHONPATH=src python scripts/02_training/04_create_production_model.py --params experiments/model_candidates/vocab_15k.json --class-weights experiments/model_candidates/class_weights.json
 ```

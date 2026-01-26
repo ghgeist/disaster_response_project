@@ -14,7 +14,7 @@ Use this script when you want to:
 For batch runs of multiple experiments, use run_batch_experiments.py instead.
 
 Usage:
-    python scripts/test_sampling_strategies.py [data/02_stg/stg_disaster_response.db] [model_output.pkl]
+    python scripts/02_training/01_test_sampling_strategies.py [data/02_stg/stg_disaster_response.db] [model_output.pkl]
     (DB path is optional; defaults to data/02_stg/stg_disaster_response.db)
     
 The script will prompt you to select from available sampling strategies and handle all the
@@ -30,7 +30,7 @@ from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 
 # Add src to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from disasterproject.utils.config import setup_logging, TARGET_COLUMNS, DEFAULT_TEST_SIZE, RANDOM_STATE
 from disasterproject.data.loader import load_data
@@ -345,7 +345,7 @@ def train_experiment(experiment_name: str, sampling_method: str,
     pipeline = create_pipeline()
     
     # Load production parameters for config
-    parameters_path = os.path.join(os.path.dirname(__file__), '..', 'model', 'parameters.json')
+    parameters_path = os.path.join(os.path.dirname(__file__), '..', '..', 'model', 'parameters.json')
     loaded_parameters = load_model_parameters(parameters_path)
     
     # Save experiment configuration

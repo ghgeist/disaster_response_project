@@ -11,7 +11,7 @@ category thresholds. For per-category threshold optimization, see
 optimize_per_category_thresholds.py.
 
 Usage:
-    python scripts/optimize_hierarchy_threshold_reduction.py
+    python scripts/03_optimization/optimize_hierarchy_threshold_reduction.py
 """
 
 import os
@@ -23,7 +23,7 @@ from datetime import datetime
 from typing import Dict, List, Tuple
 
 # Add src to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from disasterproject.utils.config import (
     setup_logging, TARGET_COLUMNS, TAXONOMY, CRITICAL_LABELS,

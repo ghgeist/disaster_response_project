@@ -6,7 +6,7 @@ Compares production model (model/) vs latest experimental run (experiments/exper
 by directly comparing performance metrics files.
 
 Usage:
-    python scripts/compare_models.py
+    python scripts/04_evaluation/compare_models.py
 """
 
 import os
@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 # Add src to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from disasterproject.utils.experimental_paths import ExperimentalPathManager
 import glob

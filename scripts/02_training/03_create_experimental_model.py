@@ -13,8 +13,8 @@ candidate configurations and stores outputs under the experiments folder:
     - training_log.json
 
 Usage:
-    python scripts/03_create_experimental_model.py
-    python scripts/03_create_experimental_model.py --output experiments/results/experimental_classifier.pkl
+    python scripts/02_training/03_create_experimental_model.py
+    python scripts/02_training/03_create_experimental_model.py --output experiments/results/experimental_classifier.pkl
 """
 
 import argparse
@@ -28,7 +28,7 @@ import hashlib
 import shutil
 
 # Add src to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from disasterproject.utils.config import setup_logging, TARGET_COLUMNS
 from disasterproject.utils.json_io import load_model_parameters

@@ -8,8 +8,8 @@ Evaluates the experimental model with and without hierarchy post-processing to m
 - Overall model performance impact
 
 Usage:
-    python scripts/evaluate_hierarchy.py
-    python scripts/evaluate_hierarchy.py --model-path experiments/experimental_runs/2025-09-16/2025-09-16-comprehensive-grid-search-optimized-model.pkl
+    python scripts/04_evaluation/evaluate_hierarchy.py
+    python scripts/04_evaluation/evaluate_hierarchy.py --model-path experiments/experimental_runs/2025-09-16/2025-09-16-comprehensive-grid-search-optimized-model.pkl
 """
 
 import argparse
@@ -25,7 +25,7 @@ import numpy as np
 import joblib
 
 # Add src to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from disasterproject.utils.config import (
     setup_logging, TARGET_COLUMNS, TAXONOMY, CRITICAL_LABELS,

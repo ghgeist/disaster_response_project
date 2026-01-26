@@ -13,10 +13,10 @@ Purpose:
 
 Usage:
     Run directly to check venv status:
-        python scripts/ensure_venv.py
+        python scripts/utils/ensure_venv.py
     
     Or import the function:
-        from scripts.ensure_venv import ensure_venv
+        from scripts.utils.ensure_venv import ensure_venv
         ensure_venv()
 
 Note:

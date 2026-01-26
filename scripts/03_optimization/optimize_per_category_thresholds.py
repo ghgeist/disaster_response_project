@@ -10,7 +10,7 @@ For hierarchy post-processing parameter optimization, see
 optimize_hierarchy_threshold_reduction.py.
 
 Usage:
-    python scripts/optimize_per_category_thresholds.py --model-path <model.pkl> --output-dir <output>
+    python scripts/03_optimization/optimize_per_category_thresholds.py --model-path <model.pkl> --output-dir <output>
 """
 
 import os
@@ -26,7 +26,7 @@ from sqlalchemy import create_engine
 from sklearn.metrics import classification_report, f1_score
 
 # Add src to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from disasterproject.utils.config import setup_logging, TARGET_COLUMNS, CRITICAL_LABELS
 from disasterproject.data.loader import load_data
