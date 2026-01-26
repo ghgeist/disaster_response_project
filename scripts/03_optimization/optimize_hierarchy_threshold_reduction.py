@@ -23,7 +23,7 @@ from datetime import datetime
 from typing import Dict, List, Tuple
 
 # Add src to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from disasterproject.utils.config import (
     setup_logging, TARGET_COLUMNS, TAXONOMY, CRITICAL_LABELS,

@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 # Add src to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from disasterproject.utils.experimental_paths import ExperimentalPathManager
 import glob
