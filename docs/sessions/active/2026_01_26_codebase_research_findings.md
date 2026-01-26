@@ -114,9 +114,9 @@ This document contains findings from systematic analysis of the codebase to iden
    - Purpose: Unknown
    - Status: Needs investigation
 
-3. **`optimize_critical_thresholds_inc1.py`** - ❓ **UNKNOWN** - Not documented
-   - Purpose: Unknown (name suggests incremental version)
-   - Status: Likely legacy/incremental work
+3. **`optimize_critical_thresholds_inc1.py`** - ✅ **ARCHIVED** 2026-01-26
+   - Purpose: Incremental threshold optimization for obsolete "Increment 1" model version
+   - Status: Archived to `scripts/archive/`
 
 **Recommendation**: Consolidate threshold optimization scripts. The "inc1" suffix suggests incremental work that may be obsolete.
 
@@ -162,8 +162,10 @@ This document contains findings from systematic analysis of the codebase to iden
 - `train_classifier_original.py` - Original training script
 - `train_classifier.py` - Legacy training script
 - `validate_structure.py` - Legacy structure validation
+- `prepare_15k_model_for_promotion.py` - ✅ Added 2026-01-26 (one-off completed task)
+- `optimize_critical_thresholds_inc1.py` - ✅ Added 2026-01-26 (incremental work for obsolete model)
 
-**Status**: ✅ **ALREADY ARCHIVED** - These are properly quarantined.
+**Status**: ✅ **PROPERLY QUARANTINED** - All legacy scripts archived.
 
 ### Legacy Path References
 
@@ -198,8 +200,8 @@ This document contains findings from systematic analysis of the codebase to iden
 9. `migrate_experimental_paths.py` - ⚠️ **TRANSITION** - Migration utility
 10. `model_naming_utility.py` - ❓ **UNKNOWN**
 11. `optimize_all_thresholds.py` - ❓ **UNKNOWN**
-12. `optimize_critical_thresholds_inc1.py` - ❓ **UNKNOWN**
-13. `prepare_15k_model_for_promotion.py` - ❓ **UNKNOWN** (name suggests one-off task)
+12. ~~`optimize_critical_thresholds_inc1.py`~~ - ✅ **ARCHIVED** 2026-01-26
+13. ~~`prepare_15k_model_for_promotion.py`~~ - ✅ **ARCHIVED** 2026-01-26 (one-off task completed)
 14. `prepare_data.py` - ❓ **UNKNOWN**
 15. `promote_model.py` - ⚠️ **ACTIVE** - In scripts/README.md promotion workflow
 16. `test_deployment_scenarios.py` - ❓ **UNKNOWN**
@@ -251,10 +253,10 @@ This document contains findings from systematic analysis of the codebase to iden
 ### Scripts Mentioned in README but Wrong Names
 
 **scripts/README.md** mentions:
-- `create_production_model.py` - ❌ **WRONG NAME** - Actual file is `04_create_production_model.py`
-- `test_sampling_strategies.py` - ❌ **WRONG NAME** - Actual file is `01_test_sampling_strategies.py`
+- ~~`create_production_model.py` - ❌ **WRONG NAME** - Actual file is `04_create_production_model.py`~~ ✅ **FIXED** 2026-01-26
+- ~~`test_sampling_strategies.py` - ❌ **WRONG NAME** - Actual file is `01_test_sampling_strategies.py`~~ ✅ **FIXED** 2026-01-26
 
-**Status**: ⚠️ **DOCUMENTATION OUT OF SYNC** - scripts/README.md needs updating.
+**Status**: ✅ **FIXED** - All script names now match actual filenames.
 
 ### Missing Documentation
 
@@ -264,13 +266,13 @@ Many scripts exist but are not documented in any README:
 ### Documentation Inconsistencies
 
 **Script name mismatches in scripts/README.md**:
-- Mentions `create_production_model.py` but actual file is `04_create_production_model.py`
-- Mentions `test_sampling_strategies.py` but actual file is `01_test_sampling_strategies.py`
+- ~~Mentions `create_production_model.py` but actual file is `04_create_production_model.py`~~ ✅ **FIXED** 2026-01-26
+- ~~Mentions `test_sampling_strategies.py` but actual file is `01_test_sampling_strategies.py`~~ ✅ **FIXED** 2026-01-26
 
 **References to non-existent scripts**:
-- `AGENTS.md` and `CLAUDE.md` reference `06_create_lightweight_model.py` which **does not exist**
+- ~~`AGENTS.md` and `CLAUDE.md` reference `06_create_lightweight_model.py` which **does not exist**~~ ✅ **FIXED** 2026-01-26
 - According to dev notes, this script was removed on 2025-09-17
-- **Status**: ⚠️ **DOCUMENTATION OUTDATED** - Needs cleanup
+- **Status**: ✅ **CLEANED UP** - All references removed
 
 ---
 
@@ -324,7 +326,7 @@ Many scripts exist but are not documented in any README:
 | `scripts/compare_child_alone.py` | Specialized tool | Verify if needed |
 | `scripts/optimize_thresholds.py` | Not in main README | Verify if active |
 | `scripts/optimize_all_thresholds.py` | No documentation | Check vs optimize_thresholds.py |
-| `scripts/optimize_critical_thresholds_inc1.py` | "inc1" suggests incremental | Likely obsolete |
+| ~~`scripts/optimize_critical_thresholds_inc1.py`~~ | "inc1" suggests incremental | ✅ **ARCHIVED** 2026-01-26 |
 | `scripts/validate_production_model.py` | Not in main README | Verify usage |
 | `scripts/validate_multilabel_sampling.py` | In scripts/README only | Verify usage |
 | `scripts/test_experimental_model.py` | Not in main README | Verify usage |
@@ -351,19 +353,21 @@ Many scripts exist but are not documented in any README:
 
 ### 🗑️ ARCHIVE/DELETE (Likely Safe)
 
-| File | Reason | Action |
-|------|--------|--------|
-| `scripts/optimize_critical_thresholds_inc1.py` | Incremental work for "Increment 1" model, likely obsolete | **Archive** - Specific to old model version |
-| `scripts/prepare_15k_model_for_promotion.py` | One-off task for 2025-11-06, hardcoded paths, completed | **Archive** - One-off completed task |
-| `scripts/migrate_experimental_paths.py` | Transition utility for path migration | **Archive** - If migration is complete (check if still needed) |
-| `scripts/prepare_data.py` | Alternative interface, not used, has bug | **Archive or Fix** - If not replacing process_data.py, archive it |
-| `scripts/optimize_all_thresholds.py` | May duplicate optimize_thresholds.py | **Review** - Check if truly different from optimize_thresholds.py |
+| File | Reason | Action | Status |
+|------|--------|--------|--------|
+| `scripts/optimize_critical_thresholds_inc1.py` | Incremental work for "Increment 1" model, likely obsolete | **Archive** - Specific to old model version | ✅ **ARCHIVED** 2026-01-26 |
+| `scripts/prepare_15k_model_for_promotion.py` | One-off task for 2025-11-06, hardcoded paths, completed | **Archive** - One-off completed task | ✅ **ARCHIVED** 2026-01-26 |
+| `scripts/migrate_experimental_paths.py` | Transition utility for path migration | **Archive** - If migration is complete (check if still needed) | ⏳ Pending |
+| `scripts/prepare_data.py` | Alternative interface, not used, has bug | **Archive or Fix** - If not replacing process_data.py, archive it | ⏳ Pending |
+| `scripts/optimize_all_thresholds.py` | May duplicate optimize_thresholds.py | **Review** - Check if truly different from optimize_thresholds.py | ⏳ Pending |
 
 ### ✅ ALREADY ARCHIVED
 
 | Location | Status |
 |----------|--------|
 | `scripts/archive/` | Properly quarantined |
+| `scripts/archive/prepare_15k_model_for_promotion.py` | ✅ Archived 2026-01-26 |
+| `scripts/archive/optimize_critical_thresholds_inc1.py` | ✅ Archived 2026-01-26 |
 
 ---
 
@@ -371,13 +375,13 @@ Many scripts exist but are not documented in any README:
 
 ### High-Confidence Actions
 
-1. **Archive one-off scripts**:
-   - `prepare_15k_model_for_promotion.py` - Completed one-off task
-   - `optimize_critical_thresholds_inc1.py` - Incremental work for obsolete model
+1. ✅ **Archive one-off scripts** (COMPLETED 2026-01-26):
+   - `prepare_15k_model_for_promotion.py` - ✅ Archived
+   - `optimize_critical_thresholds_inc1.py` - ✅ Archived
 
-2. **Fix documentation**:
-   - Remove references to non-existent `06_create_lightweight_model.py` from AGENTS.md and CLAUDE.md
-   - Fix script name mismatches in scripts/README.md
+2. ✅ **Fix documentation** (COMPLETED 2026-01-26):
+   - ✅ Removed references to non-existent `06_create_lightweight_model.py` from AGENTS.md and CLAUDE.md
+   - ✅ Fixed script name mismatches in scripts/README.md
 
 3. **Review duplicate functionality**:
    - Consolidate threshold optimization scripts (3 variants)
@@ -401,14 +405,52 @@ Many scripts exist but are not documented in any README:
    - Validation scripts may be part of quality gates
    - Need to understand actual usage patterns
 
+## Cleanup Actions Completed
+
+**Date**: 2026-01-26  
+**Branch**: `cleanup/documentation-and-one-off-scripts`
+
+### Tier 1: Documentation Fixes ✅
+
+1. **Removed references to non-existent script**:
+   - `AGENTS.md`: Removed `python scripts/06_create_lightweight_model.py` from Model Training & Evaluation section
+   - `CLAUDE.md`: Removed "Lightweight model" section referencing the non-existent script
+   - Script was removed on 2025-09-17 per dev notes
+
+2. **Fixed script name mismatches in `scripts/README.md`**:
+   - Updated `create_production_model.py` → `04_create_production_model.py` (header and usage examples)
+   - Updated `test_sampling_strategies.py` → `01_test_sampling_strategies.py` (header and usage examples)
+   - All documentation now matches actual filenames
+
+### Tier 2: Archived One-Off Scripts ✅
+
+1. **Archived `scripts/prepare_15k_model_for_promotion.py`**:
+   - Moved to `scripts/archive/prepare_15k_model_for_promotion.py`
+   - One-off script for 2025-11-06 model promotion (completed task)
+   - Hardcoded paths to specific experiment date
+
+2. **Archived `scripts/optimize_critical_thresholds_inc1.py`**:
+   - Moved to `scripts/archive/optimize_critical_thresholds_inc1.py`
+   - Incremental threshold optimization for obsolete "Increment 1" model version
+   - Not referenced in any documentation
+
+3. **Updated `scripts/README.md`**:
+   - Added entries for newly archived scripts in Archive Directory section
+
+**Status**: All changes staged on branch `cleanup/documentation-and-one-off-scripts`, ready for commit.
+
+---
+
 ## Next Steps
 
 1. ✅ **Dependency analysis** - Completed (scripts are independent entry points)
 2. ✅ **Test coverage check** - Completed (scripts not directly tested)
-3. ⏳ **Git history analysis** - Find rapid generation patterns (optional)
-4. ⏳ **Code review of "INVESTIGATE" scripts** - Understand their purpose (partially done)
-5. ⏳ **Consolidation planning** - Plan how to merge duplicate functionality
-6. ✅ **Documentation audit** - Identified issues (needs fixing)
+3. ✅ **Documentation audit** - Identified and fixed issues
+4. ✅ **Tier 1 & 2 cleanup** - Documentation fixes and one-off script archiving completed
+5. ⏳ **Git history analysis** - Find rapid generation patterns (optional)
+6. ⏳ **Code review of "INVESTIGATE" scripts** - Understand their purpose (partially done)
+7. ⏳ **Consolidation planning** - Plan how to merge duplicate functionality
+8. ⏳ **Tier 3 cleanup** - Review `prepare_data.py` (buggy, unused alternative interface)
 
 ---
 

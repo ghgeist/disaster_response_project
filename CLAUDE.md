@@ -24,9 +24,6 @@ python scripts/process_data.py data/01_raw/disaster_messages.csv data/01_raw/dis
 # Production model (recommended)
 PYTHONPATH=src python scripts/04_create_production_model.py
 
-# Lightweight model (faster inference)
-PYTHONPATH=src python scripts/06_create_lightweight_model.py
-
 # Test sampling strategies
 PYTHONPATH=src python scripts/01_test_sampling_strategies.py data/02_stg/stg_disaster_response.db
 

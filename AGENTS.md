@@ -53,7 +53,6 @@ python scripts/process_data.py data/01_raw/disaster_messages.csv data/01_raw/dis
 ### Model Training & Evaluation
 ```bash
 python scripts/04_create_production_model.py
-python scripts/06_create_lightweight_model.py
 python scripts/01_test_sampling_strategies.py data/02_stg/stg_disaster_response.db
 python scripts/compare_models.py
 ```

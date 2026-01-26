@@ -4,7 +4,7 @@ This directory contains scripts for training, testing, and analyzing disaster re
 
 ## Core Model Creation Scripts
 
-### `create_production_model.py`
+### `04_create_production_model.py`
 Creates a production disaster response classification model with class weighting.
 - **Use when**: Creating the main production model for deployment
 - **Output**: Production model (`model/disaster_rf_v1-2-0_prod_2025-09-11.pkl`), performance metrics, and training logs
@@ -12,7 +12,7 @@ Creates a production disaster response classification model with class weighting
 
 ## Experimental Scripts
 
-### `test_sampling_strategies.py`
+### `01_test_sampling_strategies.py`
 Tests different sampling methods for handling class imbalance with interactive menu.
 - **Use when**: Comparing sampling approaches (SMOTE, ADASYN, conservative)
 - **Output**: Models trained with different sampling strategies
@@ -80,15 +80,17 @@ The `archive/` directory contains legacy scripts that are no longer actively use
 - `train_classifier_original.py` - Original training script
 - `train_classifier.py` - Legacy training script
 - `validate_structure.py` - Legacy structure validation
+- `prepare_15k_model_for_promotion.py` - One-off script for 2025-11-06 model promotion (completed)
+- `optimize_critical_thresholds_inc1.py` - Incremental threshold optimization for obsolete model version
 
 ## Usage Examples
 
 ```bash
 # Create production model
-python scripts/create_production_model.py
+python scripts/04_create_production_model.py
 
 # Test sampling strategies (interactive)
-python scripts/test_sampling_strategies.py data/02_stg/stg_disaster_response.db
+python scripts/01_test_sampling_strategies.py data/02_stg/stg_disaster_response.db
 
 # Test hyperparameters
 python scripts/test_hyperparameters.py data/02_stg/stg_disaster_response.db model/optimized.pkl
