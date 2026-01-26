@@ -7,7 +7,7 @@ from time import perf_counter
 import pytest
 
 from app.config import Config
-from app.services import ModelService
+from app.services.model_service import ModelService
 from tests.conftest import skip_if_no_model
 
 pytestmark = pytest.mark.perf
@@ -22,7 +22,7 @@ def test_model_reload_under_threshold(caplog: pytest.LogCaptureFixture) -> None:
         reason="Model artifact required for performance tests is not present.",
     )
 
-    service = ModelService(Config.MODEL_PATH, Config.GDRIVE_MODEL_ID)
+    service = ModelService(Config.MODEL_PATH)
     service.load_model()
 
     with caplog.at_level(logging.INFO):

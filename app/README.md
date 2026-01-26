@@ -25,7 +25,6 @@ app/
 - **Clean Architecture**: Modular design that's easy to understand and extend
 - **Data Visualization**: Interactive Plotly charts showing message distribution
 - **ML Classification**: Predicts disaster categories for input messages
-- **Model Management**: Automatic model downloading from Google Drive
 - **Input Validation**: Secure input handling and validation
 - **Health Monitoring**: Health check endpoint for production monitoring
 - **Error Handling**: Comprehensive error handling with user-friendly messages
@@ -35,7 +34,6 @@ app/
 1. **Set Environment Variables** (optional):
    ```bash
    export FLASK_ENV=development
-   export GDRIVE_MODEL_ID=your_google_drive_file_id
    ```
 
 2. **Run the Application**:
@@ -53,7 +51,6 @@ The app uses environment-based configuration:
 - `SECRET_KEY`: Flask secret key (auto-generated for development)
 - `HOST`: Server host (default: 0.0.0.0)
 - `PORT`: Server port (default: 5000)
-- `GDRIVE_MODEL_ID`: Google Drive file ID for model download
 - `LOG_LEVEL`: Logging level (INFO/DEBUG/WARNING/ERROR)
 
 ## API Endpoints
