@@ -1,8 +1,8 @@
 # Dev Notes Overview: Disaster Response Project Evolution
 
 **Last Updated**: 2026-01-26  
-**Total Entries**: 11 dev notes spanning September 2025 - January 2026  
-**Project Status**: Production-ready with optimized model (4.53 MB, F1=92.76%, Critical Recall=65%)
+**Total Entries**: 12 dev notes spanning September 2025 - January 2026  
+**Project Status**: Production-ready with optimized model (4.53 MB, F1=92.76%, Critical Recall=65%) and modular architecture
 
 ---
 
@@ -103,6 +103,15 @@ This project has undergone significant iterations, with each phase building on p
 - **Iteration**: Final production hardening with monitoring and observability
 - **Status**: Production-ready with comprehensive monitoring
 
+### **Phase 6: Architecture Refactoring & Codebase Cleanup** (Jan 26, 2026)
+
+**2026-01-26**: Major Architecture Refactoring & Comprehensive Codebase Cleanup
+- **Critical Problem**: Monolithic Flask application structure with mixed routes/services/utils, scripts disorganization, and technical debt
+- **Solutions**: Modular Flask architecture (routes/services/utils), workflow-based scripts organization, comprehensive cleanup (8 scripts archived, documentation fixes, legacy code removal)
+- **Achievement**: Transformed monolithic app into professional modular structure, reorganized scripts into 7 workflow directories, removed 8+ unused scripts
+- **Iteration**: Complete architectural refactoring following industry best practices
+- **Status**: Production-ready with maintainable, professional architecture
+
 ---
 
 ## Architectural Decisions & Dev Notes Mapping
@@ -164,8 +173,9 @@ Together, they provide complete context: the decision rationale (ADR) and the im
 | 2025-09-15 | Codebase Stabilization | Eliminated architectural inconsistencies, 60-70% performance improvement | [ADR-004](../adr/adr-004-filter-related-category-from-ui.md) |
 | 2025-11-04 | Production Stability | CSRF fixes, logging improvements | - |
 | 2026-01-22 | Dependency Management | scikit-learn upgrade, health checks, monitoring | - |
+| 2026-01-26 | Architecture Refactoring | Modular Flask architecture, workflow-based scripts organization, comprehensive cleanup | - |
 
-**Evolution Pattern**: Compatibility workaround → Infrastructure cleanup → Performance optimization → Production reliability → Final deployment hardening
+**Evolution Pattern**: Compatibility workaround → Infrastructure cleanup → Performance optimization → Production reliability → Final deployment hardening → Professional modular architecture
 
 ### **Safety & Critical Issues**
 
@@ -185,8 +195,9 @@ Together, they provide complete context: the decision rationale (ADR) and the im
 | 2025-09-15 | Architectural Cleanup | Eliminated module conflicts, standardized structure | [ADR-004](../adr/adr-004-filter-related-category-from-ui.md) |
 | 2025-09-17 | Path Management | Centralized experimental path management system | [ADR-005](../adr/adr-005-fix-default-n-jobs-constant-redefinition.md) |
 | 2025-09-19 | Documentation | README accuracy, evaluation set migration to JSON | [ADR-006](../adr/adr-006-model-artifact-naming-standard.md), [ADR-007](../adr/adr-007-model-promotion-gating.md) |
+| 2026-01-26 | Architecture Refactoring | Modular Flask architecture (routes/services/utils), workflow-based scripts organization, 8 scripts archived | - |
 
-**Evolution Pattern**: Initial refactoring → Comprehensive architectural cleanup → Infrastructure standardization → Documentation improvements
+**Evolution Pattern**: Initial refactoring → Comprehensive architectural cleanup → Infrastructure standardization → Documentation improvements → Professional modular architecture
 
 ---
 
@@ -222,6 +233,12 @@ Together, they provide complete context: the decision rationale (ADR) and the im
 - **New Approach**: Dependency upgrade + health checks + enhanced logging
 - **Outcome**: Production-ready with comprehensive monitoring
 
+### **Iteration 6: Architecture Refactoring**
+- **Initial State**: Monolithic Flask app, disorganized scripts, technical debt (Jan 26)
+- **Pivot Point**: Maintainability and professional standards
+- **New Approach**: Modular architecture (routes/services/utils), workflow-based scripts organization, comprehensive cleanup
+- **Outcome**: Professional, maintainable architecture with clear separation of concerns
+
 ---
 
 ## Key Achievements Summary
@@ -245,8 +262,9 @@ Together, they provide complete context: the decision rationale (ADR) and the im
 ### **Code Quality Metrics**
 
 - **Test Coverage**: 11/12 → 25+ tests passing
-- **Code Organization**: Centralized configuration, standardized paths
-- **Documentation**: Complete README updates, ADR records, runbooks
+- **Code Organization**: Centralized configuration, standardized paths → Modular architecture (routes/services/utils)
+- **Scripts Organization**: Workflow-based structure (7 directories), 8 scripts archived
+- **Documentation**: Complete README updates, ADR records, runbooks → All documentation fixed and accurate
 
 ---
 
@@ -284,6 +302,11 @@ Together, they provide complete context: the decision rationale (ADR) and the im
 - **Solution**: Session initialization before_request handler
 - **Impact**: 100% CSRF validation success rate
 
+### **7. Monolithic Application Structure** (Jan 26)
+- **Problem**: Flask app had all routes, services, and utilities mixed in single files, making it difficult to maintain, test, and extend
+- **Solution**: Modular architecture with routes/services/utils separation, workflow-based scripts organization, comprehensive cleanup
+- **Impact**: Professional, maintainable architecture following industry best practices
+
 ---
 
 ## Current State & Architecture
@@ -296,16 +319,18 @@ Together, they provide complete context: the decision rationale (ADR) and the im
 - **Thresholds**: Category-specific optimized thresholds
 
 ### **Infrastructure**
-- **Deployment**: Hybrid strategy (Google Drive + local fallback)
+- **Deployment**: Local model file management (Google Drive dependency removed)
 - **Monitoring**: Health check endpoints (`/health`, diagnostics)
 - **Dependencies**: scikit-learn 1.7.1, comprehensive error handling
 - **Performance**: <500ms response times, <0.1s model loading
+- **Application Structure**: Modular Flask architecture (routes/services/utils pattern)
 
 ### **Codebase Health**
-- **Architecture**: Clean separation, standardized paths
+- **Architecture**: Modular Flask structure (routes/services/utils), workflow-based scripts organization (7 directories)
 - **Testing**: 25+ tests passing, comprehensive smoke tests
-- **Documentation**: Complete README, ADRs, runbooks, standards
-- **Code Quality**: Centralized configuration, proper exception handling
+- **Documentation**: Complete README, ADRs, runbooks, standards (all references accurate)
+- **Code Quality**: Centralized configuration, proper exception handling, standardized imports (PEP 8 compliant)
+- **Maintainability**: 8 scripts archived, legacy code removed, professional service layer pattern
 
 ### **ML Operations**
 - **Model Comparison**: Intelligent metadata discovery system
@@ -408,6 +433,10 @@ The iterative nature of the project is visible in how decisions evolved:
 - **Lesson**: Production deployment revealed issues not caught in development
 - **Applied**: CSRF fixes, logging improvements (Nov 4, Jan 22)
 
+### **Pattern 6: Architecture Refactoring for Maintainability**
+- **Lesson**: Monolithic structures accumulate technical debt requiring comprehensive refactoring
+- **Applied**: Modular Flask architecture, workflow-based scripts organization, comprehensive cleanup (Jan 26)
+
 ---
 
 ## Next Steps & Future Work
@@ -443,6 +472,7 @@ The iterative nature of the project is visible in how decisions evolved:
 9. [2025-11-04](2025-11-04.md) - Production Stability Fixes
 10. [2025-11-06](2025-11-06.md) - Model Optimization & Production Readiness
 11. [2026-01-22](2026-01-22.md) - Production Deployment & Dependency Management
+12. [2026-01-26](2026-01-26.md) - Major Architecture Refactoring & Comprehensive Codebase Cleanup
 
 ### **Architectural Decision Records (ADRs)**
 
@@ -466,4 +496,4 @@ See [ADR Index](../adr/README.md) for complete listing and status.
 
 ---
 
-**Note**: This overview document captures the iterative nature of the project, showing how each phase built upon previous work and addressed new challenges. The project evolved from initial ML optimization through infrastructure stabilization, safety-critical fixes, production optimization, and final deployment hardening.
+**Note**: This overview document captures the iterative nature of the project, showing how each phase built upon previous work and addressed new challenges. The project evolved from initial ML optimization through infrastructure stabilization, safety-critical fixes, production optimization, final deployment hardening, and comprehensive architecture refactoring.
