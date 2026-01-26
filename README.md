@@ -71,7 +71,6 @@ scripts/                          # Professional training and testing interface
 ├── optimize_per_category_thresholds.py        # Optimize individual category thresholds
 ├── promote_model.py             # Model promotion utility
 ├── test_experimental_model.py   # Experimental model testing
-├── validate_production_model.py # Production model validation
 ├── validate_multilabel_sampling.py # Multilabel sampling validation
 ├── system_validation.py         # System validation checks
 ├── deployment_health_check.py   # Deployment health verification
@@ -261,7 +260,6 @@ python scripts/compare_models.py
 python scripts/evaluate_hierarchy.py
 python scripts/optimize_hierarchy_threshold_reduction.py  # Hierarchy parameter optimization
 python scripts/optimize_per_category_thresholds.py        # Per-category threshold optimization
-python scripts/validate_production_model.py
 python scripts/test_experimental_model.py
 ```
 
