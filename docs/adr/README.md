@@ -10,6 +10,7 @@ This index lists the active ADRs. Note: On 2025-09-19, the file `adr-003-fix-def
 | 004 | Filter 'related' category from UI display | 2025-09-15 | accepted |
 | 005 | Fix DEFAULT_N_JOBS Constant Redefinition Issue | 2025-09-17 | accepted |
 | 006 | Adopt Standardized Model Artifact Naming | 2025-09-19 | accepted |
+| 007 | Model Promotion Gating Policy | 2025-09-19 | accepted |
 
 See the ADR template for authoring guidance: `docs/adr/adr_template.md`.
 
