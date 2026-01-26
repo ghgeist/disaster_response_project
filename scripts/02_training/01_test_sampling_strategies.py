@@ -14,7 +14,7 @@ Use this script when you want to:
 For batch runs of multiple experiments, use run_batch_experiments.py instead.
 
 Usage:
-    python scripts/test_sampling_strategies.py [data/02_stg/stg_disaster_response.db] [model_output.pkl]
+    python scripts/02_training/01_test_sampling_strategies.py [data/02_stg/stg_disaster_response.db] [model_output.pkl]
     (DB path is optional; defaults to data/02_stg/stg_disaster_response.db)
     
 The script will prompt you to select from available sampling strategies and handle all the

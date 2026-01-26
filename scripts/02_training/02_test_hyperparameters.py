@@ -15,7 +15,7 @@ For class weighting, use create_weighted_model.py instead.
 For sampling experiments, use test_sampling_strategies.py instead.
 
 Usage:
-    python scripts/02_test_hyperparameters.py data/02_stg/stg_disaster_response.db [model_output.pkl]
+    python scripts/02_training/02_test_hyperparameters.py data/02_stg/stg_disaster_response.db [model_output.pkl]
 """
 
 # Standard library imports

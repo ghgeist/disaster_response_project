@@ -10,7 +10,7 @@ For hierarchy post-processing parameter optimization, see
 optimize_hierarchy_threshold_reduction.py.
 
 Usage:
-    python scripts/optimize_per_category_thresholds.py --model-path <model.pkl> --output-dir <output>
+    python scripts/03_optimization/optimize_per_category_thresholds.py --model-path <model.pkl> --output-dir <output>
 """
 
 import os

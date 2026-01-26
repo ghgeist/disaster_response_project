@@ -13,8 +13,8 @@ candidate configurations and stores outputs under the experiments folder:
     - training_log.json
 
 Usage:
-    python scripts/03_create_experimental_model.py
-    python scripts/03_create_experimental_model.py --output experiments/results/experimental_classifier.pkl
+    python scripts/02_training/03_create_experimental_model.py
+    python scripts/02_training/03_create_experimental_model.py --output experiments/results/experimental_classifier.pkl
 """
 
 import argparse

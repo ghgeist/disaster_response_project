@@ -7,7 +7,7 @@ The default files (model/parameters.json, model/class_weights.json) were removed
 These defaults were for RandomForest models only.
 
 Current production models use LogisticRegression and are created via:
-  scripts/03_create_experimental_model.py --algorithm logistic_regression
+  scripts/02_training/03_create_experimental_model.py --algorithm logistic_regression
 
 This script creates a production model and saves results in a clean, obvious structure:
 - model/disaster_rf_v1-2-0_prod_2025-09-11.pkl (the current production model)
@@ -15,7 +15,7 @@ This script creates a production model and saves results in a clean, obvious str
 - model/training_log.json (training metadata)
 
 Usage:
-    python scripts/04_create_production_model.py \
+    python scripts/02_training/04_create_production_model.py \
       --params experiments/model_candidates/vocab_15k.json \
       --class-weights experiments/model_candidates/class_weights.json
 """

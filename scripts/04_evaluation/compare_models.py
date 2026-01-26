@@ -6,7 +6,7 @@ Compares production model (model/) vs latest experimental run (experiments/exper
 by directly comparing performance metrics files.
 
 Usage:
-    python scripts/compare_models.py
+    python scripts/04_evaluation/compare_models.py
 """
 
 import os

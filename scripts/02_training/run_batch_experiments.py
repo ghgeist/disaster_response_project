@@ -6,7 +6,7 @@ This script runs multiple sampling experiments sequentially without user interac
 Use this for automated experiment runs when you want to compare different sampling strategies.
 
 Usage:
-    python scripts/run_batch_experiments.py
+    python scripts/02_training/run_batch_experiments.py
 
 The script will run all predefined experiments:
 - baseline (no sampling)
@@ -24,9 +24,18 @@ import logging
 from datetime import datetime
 
 # Add src to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from scripts.run_experiment import train_experiment
+# Import train_experiment from the sampling strategies script in the same directory
+# Note: Using importlib since module name starts with a number
+import importlib.util
+spec = importlib.util.spec_from_file_location(
+    "test_sampling_strategies",
+    os.path.join(os.path.dirname(__file__), "01_test_sampling_strategies.py")
+)
+test_sampling_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(test_sampling_module)
+train_experiment = test_sampling_module.train_experiment
 from disasterproject.utils.experiment_tracker import create_experiment_name
 from disasterproject.utils.config import setup_logging
 
@@ -134,7 +143,7 @@ def main():
     print('  • data/04_fct/ - Performance metrics')
     
     print('\n💡 Next steps:')
-    print('  • Run: python scripts/compare_models.py')
+    print('  • Run: python scripts/04_evaluation/compare_models.py')
     print('  • Review results in experiments/ directories')
 
 

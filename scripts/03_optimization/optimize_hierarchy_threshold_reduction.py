@@ -11,7 +11,7 @@ category thresholds. For per-category threshold optimization, see
 optimize_per_category_thresholds.py.
 
 Usage:
-    python scripts/optimize_hierarchy_threshold_reduction.py
+    python scripts/03_optimization/optimize_hierarchy_threshold_reduction.py
 """
 
 import os
