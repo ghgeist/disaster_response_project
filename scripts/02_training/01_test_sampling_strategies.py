@@ -345,7 +345,7 @@ def train_experiment(experiment_name: str, sampling_method: str,
     pipeline = create_pipeline()
     
     # Load production parameters for config
-    parameters_path = os.path.join(os.path.dirname(__file__), '..', 'model', 'parameters.json')
+    parameters_path = os.path.join(os.path.dirname(__file__), '..', '..', 'model', 'parameters.json')
     loaded_parameters = load_model_parameters(parameters_path)
     
     # Save experiment configuration

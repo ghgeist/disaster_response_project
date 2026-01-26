@@ -18,7 +18,7 @@ from pathlib import Path
 from datetime import datetime
 
 # Add src to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from disasterproject.utils.config import setup_logging, TARGET_COLUMNS, CRITICAL_LABELS
 from disasterproject.data.loader import load_data

@@ -24,7 +24,7 @@ import logging
 from datetime import datetime
 
 # Add src to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 # Import train_experiment from the sampling strategies script in the same directory
 # Note: Using importlib since module name starts with a number
