@@ -73,6 +73,10 @@ The `archive/` directory contains legacy scripts that are no longer actively use
 - `optimize_critical_thresholds_inc1.py` - Incremental threshold optimization for obsolete model version
 - `compare_csv_models.py` - Enhanced model comparison tool for arbitrary CSV files (designed for UI/UX purposes in portfolio app, archived 2026-01-26 as part of cleanup)
 - `migrate_experimental_paths.py` - Migration utility for experimental path structure (migration completed 2026-01-26)
+- `validate_production_model.py` - Production model validation utility with hardcoded old model paths (archived 2026-01-26 as one-off utility)
+- `validate_threshold_optimization_results.py` - Threshold optimization validation utility (archived 2026-01-26 as one-off utility)
+- `validate_ml_execution_environment.py` - Pre-execution environment validation utility with hardcoded old model paths (archived 2026-01-26 as one-off utility)
+- `test_deployment_scenarios.py` - Deployment scenario testing utility with hardcoded old model paths (archived 2026-01-26 as one-off utility)
 
 ## Usage Examples
 

@@ -1,3 +1,12 @@
+# Codebase Cleanup Options — Status Summary
+
+**Date**: 2026-01-26  
+**Status**: ✅ **ALL OPTIONS COMPLETED**
+
+All cleanup options have been successfully completed. See individual option details below.
+
+---
+
 ## Option 2: Duplicate consolidation — threshold optimization scripts ✅ COMPLETED
 
 Three threshold optimization scripts:
@@ -24,14 +33,14 @@ Action: ✅ **COMPLETED** - Archived `compare_csv_models.py` as unused one-off t
 
 Action: ✅ **COMPLETED** - Verified migration is complete (0 legacy artifacts), archived migration script, and simplified ExperimentalPathManager to remove legacy support.
 
-## Option 5: Validation script audit (medium risk, medium effort)
+## Option 5: Validation script audit ✅ COMPLETED
 
 Six validation scripts:
-- `scripts/system_validation.py` — Active, documented
-- `scripts/validate_production_model.py` — Not in main README
-- `scripts/validate_multilabel_sampling.py` — In scripts/README only
-- `scripts/validate_threshold_optimization_results.py` — No documentation
-- `scripts/validate_ml_execution_environment.py` — No documentation
-- `scripts/test_deployment_scenarios.py` — No documentation
+- `scripts/system_validation.py` — ✅ **KEEP** - Active, documented, referenced in main README.md, CLAUDE.md, AGENTS.md
+- `scripts/validate_production_model.py` — ✅ **ARCHIVED** 2026-01-26 - One-off utility with hardcoded old model paths (`disaster_rf_v1-2-0_prod_2025-09-11.pkl`), not in main README
+- `scripts/validate_multilabel_sampling.py` — ✅ **KEEP** - Referenced in main README.md, scripts/README.md, and system_validation.py suggests it as next step
+- `scripts/validate_threshold_optimization_results.py` — ✅ **ARCHIVED** 2026-01-26 - One-off validation utility for threshold optimization results
+- `scripts/validate_ml_execution_environment.py` — ✅ **ARCHIVED** 2026-01-26 - One-off utility with hardcoded old model paths (`disaster_rf_v25-09-16_prod_2025-09-19.pkl`), not in main README or scripts/README
+- `scripts/test_deployment_scenarios.py` — ✅ **ARCHIVED** 2026-01-26 - One-off utility with hardcoded old model paths (`disaster_rf_v1-2-0_prod_2025-09-11.pkl`), not in main README or scripts/README
 
-Action: Check which are actually used vs one-off utilities.
+Action: ✅ **COMPLETED** 2026-01-26 - Archived four one-off utilities with outdated hardcoded paths. Kept two active validation scripts (`system_validation.py` and `validate_multilabel_sampling.py`) that are part of documented workflows.
