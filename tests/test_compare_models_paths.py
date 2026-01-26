@@ -10,7 +10,7 @@ import pytest
 
 
 def _load_compare_models() -> ModuleType:
-    module_path = Path(__file__).resolve().parents[1] / "scripts" / "compare_models.py"
+    module_path = Path(__file__).resolve().parents[1] / "scripts" / "04_evaluation" / "compare_models.py"
     spec = importlib.util.spec_from_file_location("compare_models_for_tests", module_path)
     if spec is None or spec.loader is None:
         raise RuntimeError("Unable to load compare_models module for testing")

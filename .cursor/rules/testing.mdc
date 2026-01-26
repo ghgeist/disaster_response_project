@@ -1,0 +1,25 @@
+---
+description: Test execution guidelines for Cursor web agents
+globs:
+alwaysApply: true
+---
+
+## Test Execution in Cursor Web UI
+
+When running tests in Cursor Web UI environments, use the portable test runner script:
+
+```bash
+python scripts/run_tests.py tests/test_app_smoke.py -q
+```
+
+Or for the full test suite:
+
+```bash
+python scripts/run_tests.py -q
+```
+
+The test runner automatically handles Python executable detection across different environments (local, Replit, Cursor Web UI, CI/CD).
+
+**Why**: Cursor Web UI may not have `python` in PATH, but the test runner script detects and uses the best available pytest command (`pytest`, `python3 -m pytest`, or `python -m pytest`).
+
+For more details, see `docs/testing/cursor-web-ui.md`.

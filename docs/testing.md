@@ -3,6 +3,7 @@
 ## Index
 - Performance testing: `docs/testing/performance.md`
 - Google Drive testing: `docs/testing/gdrive.md`
+- Cursor Web UI: `docs/testing/cursor-web-ui.md`
 - FAQ: `docs/testing/faq.md`
 
 This repository ships with a curated pytest suite designed to reassure reviewers that the Flask + ML stack is production ready. The tests intentionally mix fast smoke coverage with targeted integration, security, and deployment checks.
@@ -24,6 +25,24 @@ This repository ships with a curated pytest suite designed to reassure reviewers
 ## Running the suite
 
 The default configuration (via `pytest.ini`) skips Google Drive and performance marks so the core checks finish in under a second when the lightweight model is present.
+
+### Recommended: Use the test runner script
+
+For maximum portability across environments (local, Replit, Cursor Web UI, CI/CD), use the test runner script:
+
+```bash
+python scripts/run_tests.py -q                                   # default run (excludes gdrive/perf)
+python scripts/run_tests.py -q -m "not gdrive and not perf and not slow"   # leanest loop when iterating
+python scripts/run_tests.py -q -m perf                           # performance SLA verification
+python scripts/run_tests.py -q -m gdrive                         # download helper contract (mocked)
+python scripts/run_tests.py -q -m "gdrive or perf"               # full extended validation
+```
+
+The test runner automatically detects the best available pytest command (`pytest`, `python3 -m pytest`, or `python -m pytest`) based on your environment.
+
+### Direct pytest invocation
+
+If pytest is available in your PATH, you can also run pytest directly:
 
 ```bash
 pytest -q                                   # default run (excludes gdrive/perf)

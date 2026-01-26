@@ -60,8 +60,10 @@ python scripts/compare_models.py
 ### Application & Quality Gates
 ```bash
 python run.py              # Flask app on http://localhost:5000
-pytest -q                  # Full test suite
-pytest tests/test_smoke.py -q
+pytest -q                  # Full test suite (if pytest in PATH)
+python scripts/run_tests.py -q  # Portable test runner (recommended for web UI/CI)
+pytest tests/test_smoke.py -q   # Specific test file
+python scripts/run_tests.py tests/test_smoke.py -q  # Portable version
 pre-commit run --all-files
 ```
 
