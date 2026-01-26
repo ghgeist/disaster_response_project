@@ -72,6 +72,7 @@ The `archive/` directory contains legacy scripts that are no longer actively use
 - `prepare_15k_model_for_promotion.py` - One-off script for 2025-11-06 model promotion (completed)
 - `optimize_critical_thresholds_inc1.py` - Incremental threshold optimization for obsolete model version
 - `compare_csv_models.py` - Enhanced model comparison tool for arbitrary CSV files (designed for UI/UX purposes in portfolio app, archived 2026-01-26 as part of cleanup)
+- `migrate_experimental_paths.py` - Migration utility for experimental path structure (migration completed 2026-01-26)
 
 ## Usage Examples
 
