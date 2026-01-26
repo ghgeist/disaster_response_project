@@ -3,9 +3,6 @@ Mock services for testing.
 """
 import pandas as pd
 
-from app.services.data_service import DataService
-from app.services.model_service import ModelService
-
 
 class MockDataService:
     """Mock data service for testing."""

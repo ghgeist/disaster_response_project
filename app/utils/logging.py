@@ -3,7 +3,7 @@ Logging and service initialization utilities.
 """
 import logging
 import threading
-from flask import Flask, has_request_context
+from flask import Flask
 
 from app.services.data_service import DataService
 from app.services.model_service import ModelService
