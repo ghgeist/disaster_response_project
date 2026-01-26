@@ -4,6 +4,7 @@ Model health monitoring and metrics utilities.
 from __future__ import annotations
 
 import logging
+import pickle
 import time
 from datetime import datetime
 from pathlib import Path
@@ -152,7 +153,17 @@ class ModelHealthMonitor:
             loader = ModelLoader(file_path)
             model = loader.load_local_model()
             return model is not None
-        except (ModelServiceError, OSError, joblib.externals.loky.process_executor.TerminatedWorkerError):
+        except (
+            ModelServiceError,
+            OSError,
+            joblib.externals.loky.process_executor.TerminatedWorkerError,
+            pickle.PickleError,
+            EOFError,
+            ValueError,
+        ):
+            return False
+        except Exception as error:
+            logger.warning("Unexpected error testing model loading for %s: %s", file_path, error)
             return False
 
     def get_current_model_status(self) -> Dict[str, Any]:

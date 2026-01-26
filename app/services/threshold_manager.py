@@ -53,5 +53,11 @@ class ThresholdManager:
                 default_map[name] = self._default_threshold
 
         if loaded_thresholds:
+            if not isinstance(loaded_thresholds, dict):
+                logger.warning(
+                    "Loaded thresholds is not a dict (type: %s), using defaults only",
+                    type(loaded_thresholds).__name__,
+                )
+                return default_map
             return {**default_map, **loaded_thresholds}
         return default_map
