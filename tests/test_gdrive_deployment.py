@@ -8,7 +8,7 @@ from typing import Iterable
 import pytest
 from unittest.mock import MagicMock, patch
 
-from app.services import ModelService
+from app.services.model_service import ModelService
 
 pytestmark = pytest.mark.gdrive
 

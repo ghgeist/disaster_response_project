@@ -2,7 +2,7 @@
 
 from flask import Flask, g
 
-from app.utils import format_request_context
+from app.utils.formatting import format_request_context
 
 
 def test_format_request_context_without_request() -> None:

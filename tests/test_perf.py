@@ -7,7 +7,7 @@ from time import perf_counter
 import pytest
 
 from app.config import Config
-from app.services import ModelService
+from app.services.model_service import ModelService
 from tests.conftest import skip_if_no_model
 
 pytestmark = pytest.mark.perf

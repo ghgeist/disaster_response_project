@@ -6,7 +6,7 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from app.nltk_setup import (
+from app.utils.nltk_setup import (
     setup_nltk_resources, 
     validate_nltk_resources, 
     get_nltk_status,
@@ -23,7 +23,7 @@ class TestNLTKSetupModule:
 
     def test_nltk_setup_imports(self):
         """Test that NLTK setup module imports successfully."""
-        from app.nltk_setup import (
+        from app.utils.nltk_setup import (
             setup_nltk_resources, 
             validate_nltk_resources, 
             get_nltk_status,
@@ -166,7 +166,7 @@ class TestFlaskAppIntegration:
     def test_flask_app_imports(self):
         """Test that Flask app imports successfully."""
         from app.app import create_app
-        from app.nltk_setup import setup_nltk_resources, NLTKSetupError
+        from app.utils.nltk_setup import setup_nltk_resources, NLTKSetupError
         
         assert callable(create_app)
         assert callable(setup_nltk_resources)

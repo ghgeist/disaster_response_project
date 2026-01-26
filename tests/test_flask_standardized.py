@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from app.config import Config, TestConfig
-from app.services import ModelService
+from app.services.model_service import ModelService
 from tests.conftest import create_test_app, skip_if_no_model
 
 pytestmark = pytest.mark.integration
