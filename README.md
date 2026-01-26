@@ -25,7 +25,7 @@
 - Model size reduced ~1000× enabling lightweight deployments.
 - Load time dropped ~99% through on-demand initialization.
 - Critical-label recall improved via targeted retraining.
-- Hybrid deployment with Google Drive fallback and clear model naming.
+- Clear model naming and local file-based deployment.
 
 ## Project Overview
 
@@ -181,7 +181,7 @@ source venv/bin/activate
 
    Prerequisites for the app to start successfully:
    - Database present at `data/02_stg/stg_disaster_response.db` (run Data Setup if missing)
-   - Model available at `model/disaster_rf_v1-2-0_prod_2025-09-11.pkl` or set `GDRIVE_MODEL_ID`
+   - Model available at `model/disaster_rf_v1-2-0_prod_2025-09-11.pkl`
 
 ### Replit Deployment
 
@@ -189,7 +189,7 @@ The Flask application is optimized for production deployment on Replit with **Au
 
 1. **Import the project** into your Replit workspace
 2. **Dependencies automatically installed** during deployment build process
-3. **Upload the model file** (if not using Google Drive):
+3. **Upload the model file**:
    - **For files < 100MB**: Use Replit's GUI uploader (Files → Upload File)
    - **For files > 100MB**: Use `scp` (SSH) to upload directly:
      ```powershell
@@ -207,13 +207,11 @@ The Flask application is optimized for production deployment on Replit with **Au
      ls -lh model/your-model-file.pkl  # Verify
      ```
    - **To find your Replit SSH connection info**: Run `echo $REPLIT_SSH_HOST` in Replit Shell
-4. **Set environment variables** (optional if model is uploaded locally):
-   - `GDRIVE_MODEL_ID`: Google Drive file ID for model download (only needed if model is not in `model/` directory)
-   - Ensure the SQLite DB exists at `data/02_stg/stg_disaster_response.db` (upload it or adjust config)
+4. **Ensure the SQLite DB exists** at `data/02_stg/stg_disaster_response.db` (upload it or adjust config)
 5. **Run the application**: Click the "Run" button in Replit
 6. **Access the app**: Use the provided Replit URL
 
-**Note**: The app will use the local model file if present in `model/` directory. If not found and `GDRIVE_MODEL_ID` is set, it will download from Google Drive. The database file must exist for the app to function.
+**Note**: The app requires the model file to be present in the `model/` directory. The database file must also exist for the app to function.
 
 ## 📊 Data
 
@@ -339,10 +337,9 @@ python run.py
 
 #### Replit Deployment
 The application is pre-configured for Replit deployment:
-- **Automatic Model Download**: Downloads model from Google Drive if not present
-- **Environment Variables**: Supports `GDRIVE_MODEL_ID` for model access
 - **Port Configuration**: Automatically uses Replit's assigned port
 - **Error Handling**: Robust error handling for cloud deployment scenarios
+- **Model Management**: Model files must be uploaded to the `model/` directory
 
 ## 🚀 Production Deployment
 
@@ -472,13 +469,12 @@ python scripts/06_validation/validate_multilabel_sampling.py
 See [docs/testing.md](docs/testing.md) for the full strategy, including marker usage and troubleshooting notes. Run the suites that match your change scope:
 
 ```bash
-pytest -q -m "not gdrive and not perf and not slow"   # fast core
-pytest -q -m perf                                    # performance suite
-pytest -q -m gdrive                                  # Google Drive (mocked)
-pytest -q                                            # entire suite
+pytest -q -m "not perf and not slow"   # fast core
+pytest -q -m perf                      # performance suite
+pytest -q                              # entire suite
 ```
 
-Marks (`gdrive`, `perf`, `slow`, etc.) keep the default CI lane fast while leaving opt-in coverage for deployment scenarios. Tests that require optional artifacts use descriptive skips so the signal stays clear even when resources are unavailable.
+Marks (`perf`, `slow`, etc.) keep the default CI lane fast while leaving opt-in coverage for deployment scenarios. Tests that require optional artifacts use descriptive skips so the signal stays clear even when resources are unavailable.
 
 ## 📁 Project Structure
 

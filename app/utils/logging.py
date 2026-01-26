@@ -79,8 +79,7 @@ def init_services(app: Flask) -> None:
                 else:
                     app.data_service = DataService(app.config['DATABASE_URL'])
                     app.model_service = ModelService(
-                        model_path=app.config['MODEL_PATH'],
-                        gdrive_model_id=app.config['GDRIVE_MODEL_ID']
+                        model_path=app.config['MODEL_PATH']
                     )
             except Exception as e:
                 app.logger.error('Failed to initialize services: %s', e)
@@ -95,8 +94,7 @@ def init_services(app: Flask) -> None:
         else:
             app.data_service = DataService(app.config['DATABASE_URL'])
             app.model_service = ModelService(
-                model_path=app.config['MODEL_PATH'],
-                gdrive_model_id=app.config['GDRIVE_MODEL_ID']
+                model_path=app.config['MODEL_PATH']
             )
 
         _services_initialized = True

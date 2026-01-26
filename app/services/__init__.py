@@ -2,7 +2,6 @@
 Services for data and model management.
 """
 from .exceptions import (
-    ModelDownloadSkipped,
     DataServiceError,
     ModelServiceError,
 )
@@ -12,7 +11,6 @@ from .health_service import ModelHealthMonitor
 from .metrics_service import load_metric_frames, extract_perf_triplet
 
 __all__ = [
-    'ModelDownloadSkipped',
     'DataServiceError',
     'ModelServiceError',
     'DataService',

@@ -22,7 +22,7 @@ def test_model_reload_under_threshold(caplog: pytest.LogCaptureFixture) -> None:
         reason="Model artifact required for performance tests is not present.",
     )
 
-    service = ModelService(Config.MODEL_PATH, Config.GDRIVE_MODEL_ID)
+    service = ModelService(Config.MODEL_PATH)
     service.load_model()
 
     with caplog.at_level(logging.INFO):

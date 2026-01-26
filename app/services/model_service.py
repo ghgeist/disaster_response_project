@@ -8,13 +8,12 @@ import os
 import pickle
 import warnings
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import joblib
-import requests
 from sklearn.exceptions import InconsistentVersionWarning
 
-from .exceptions import ModelDownloadSkipped, ModelServiceError
+from .exceptions import ModelServiceError
 
 logger = logging.getLogger(__name__)
 
@@ -22,41 +21,25 @@ logger = logging.getLogger(__name__)
 class ModelService:
     """Service for managing ML model loading and prediction."""
     
-    def __init__(self, model_path: Path, gdrive_model_id: Optional[str] = None):
+    def __init__(self, model_path: Path):
         self.model_path = model_path
-        self.gdrive_model_id = gdrive_model_id
         self._model = None
         self._thresholds = None
         self._label_order = None
     
     def load_model(self) -> Any:
-        """Load the ML model, downloading if necessary."""
+        """Load the ML model from local file."""
         if self._model is not None:
             return self._model
 
         try:
-            # Environment-aware model loading
-            # If in Replit, always try to download fresh models. Otherwise only download if missing.
-            should_download = (
-                os.getenv('REPLIT_DB_URL') is not None or  # Replit: always refresh
-                not self.model_path.exists()               # Local: only if missing
-            )
-
-            if should_download:
-                try:
-                    self._download_model()
-                except ModelDownloadSkipped:
-                    # Download was skipped because local model exists - this is fine
-                    logger.debug("Model download skipped, using existing local model")
-                except RuntimeError as e:
-                    # Download failed for other reasons
-                    if self.model_path.exists():
-                        logger.warning("Download failed but using existing local model: %s", e)
-                    else:
-                        # No local model and download failed - re-raise
-                        raise
+            if not self.model_path.exists():
+                raise ModelServiceError(
+                    f"Model file not found at {self.model_path}. "
+                    "Please ensure the model file exists in the model/ directory."
+                )
             
-            # Try standard loading first
+            # Load model from local file
             self._model = self._load_model_with_version_check(self.model_path)
             logger.info("Model loaded successfully from %s", self.model_path)
             
@@ -75,99 +58,6 @@ class ModelService:
             logger.exception("Unexpected error loading model from %s", self.model_path)
             raise ModelServiceError("Failed to load model.") from error
     
-    def _download_model(self) -> None:
-        """Download model from Google Drive if not available locally."""
-        self._validate_gdrive_config()
-        logger.info("Model not found locally, downloading from Google Drive...")
-        
-        # Prepare for download
-        self.model_path.parent.mkdir(parents=True, exist_ok=True)
-        temp_path = f"{self.model_path}.tmp"
-        
-        try:
-            self._perform_download(temp_path)
-            self._validate_downloaded_file(temp_path)
-            self._finalize_download(temp_path)
-            logger.info("Model downloaded and validated successfully!")
-
-        except requests.exceptions.RequestException as error:
-            self._cleanup_temp_file(temp_path)
-            logger.error("Network error downloading model: %s", error)
-            raise ModelServiceError("Network error downloading model.") from error
-        except Exception as error:
-            self._cleanup_temp_file(temp_path)
-            self._handle_download_error(error)
-    
-    def _validate_gdrive_config(self) -> None:
-        """Validate Google Drive configuration before attempting download."""
-        if not self.gdrive_model_id or self.gdrive_model_id.strip() in {'', 'YOUR_FILE_ID', 'YOUR_GOOGLE_DRIVE_FILE_ID'}:
-            if self.model_path.exists():
-                logger.info("Model found at %s, skipping download", self.model_path)
-                raise ModelDownloadSkipped("Local model exists, skipping download")
-            raise ModelServiceError(
-                "GDRIVE_MODEL_ID is not configured for model downloads."
-            )
-    
-    def _perform_download(self, temp_path: str) -> None:
-        """Perform the actual download from Google Drive."""
-        url = f"https://drive.google.com/uc?export=download&id={self.gdrive_model_id}"
-        with requests.get(url, stream=True, timeout=30) as r:
-            r.raise_for_status()
-            self._validate_response_content_type(r)
-            self._write_download_to_file(r, temp_path)
-    
-    def _validate_response_content_type(self, response) -> None:
-        """Validate that the response contains the expected file content."""
-        content_type = response.headers.get('content-type', '')
-        if 'text/html' in content_type.lower():
-            raise ModelServiceError(
-                "Google Drive returned HTML instead of the model file."
-            )
-    
-    def _write_download_to_file(self, response, temp_path: str) -> None:
-        """Write the downloaded content to a temporary file."""
-        with open(temp_path, 'wb') as f:
-            for chunk in response.iter_content(chunk_size=1024 * 1024):
-                if chunk:
-                    f.write(chunk)
-    
-    def _validate_downloaded_file(self, temp_path: str) -> None:
-        """Validate the downloaded file size and integrity."""
-        if os.path.getsize(temp_path) < 1000:  # Model files should be at least 1KB
-            raise ModelServiceError("Downloaded model file is too small.")
-
-        try:
-            test_model = self._load_model_with_version_check(Path(temp_path))
-            del test_model  # Clean up test load
-        except ModelServiceError as error:
-            raise ModelServiceError(
-                "Downloaded model was trained with an incompatible scikit-learn version."
-            ) from error
-        except Exception as error:
-            raise ModelServiceError("Downloaded model file is corrupted.") from error
-    
-    def _finalize_download(self, temp_path: str) -> None:
-        """Move the temporary file to the final location."""
-        os.replace(temp_path, self.model_path)
-    
-    def _cleanup_temp_file(self, temp_path: str) -> None:
-        """Clean up temporary file on error."""
-        if os.path.exists(temp_path):
-            try:
-                os.remove(temp_path)
-            except OSError:
-                pass  # Ignore cleanup errors
-    
-    def _handle_download_error(self, error: Exception) -> None:
-        """Handle download errors with appropriate error messages."""
-        error_str = str(error).lower()
-        
-        if "timeout" in error_str:
-            raise ModelServiceError("Download timed out.") from error
-        if "corrupted" in error_str:
-            raise ModelServiceError("Downloaded model file is corrupted.") from error
-        raise ModelServiceError("Failed to download model from Google Drive.") from error
-
     def _load_model_with_version_check(self, file_path: Path) -> Any:
         """Load a model and raise if scikit-learn version mismatch is detected."""
         with warnings.catch_warnings(record=True) as caught:

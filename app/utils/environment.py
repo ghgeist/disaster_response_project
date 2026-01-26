@@ -59,13 +59,11 @@ def validate_environment(config_class=None) -> dict:
 
     # Check model file using config
     if not config.MODEL_PATH.exists():
-        validation_results['warnings'].append(f"Model file not found: {config.MODEL_PATH}")
-        # Check if Google Drive ID is configured for download
-        if not config.GDRIVE_MODEL_ID or config.GDRIVE_MODEL_ID.strip() in {'', 'YOUR_FILE_ID', 'YOUR_GOOGLE_DRIVE_FILE_ID'}:
-            validation_results['errors'].append("Model file not found and GDRIVE_MODEL_ID not configured")
-            validation_results['valid'] = False
-        else:
-            validation_results['info'].append("Model file not found locally, but GDRIVE_MODEL_ID is configured for download")
+        validation_results['errors'].append(
+            f"Model file not found: {config.MODEL_PATH}. "
+            "Please ensure the model file exists in the model/ directory."
+        )
+        validation_results['valid'] = False
     else:
         validation_results['info'].append(f"Model file found: {config.MODEL_PATH}")
 
