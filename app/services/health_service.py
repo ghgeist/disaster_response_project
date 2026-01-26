@@ -91,7 +91,7 @@ class ModelHealthMonitor:
 
     def __init__(self, base_dir: Path = None, model_service: ModelService = None):
         """Initialize monitor with base directory and optional model service."""
-        self.base_dir = base_dir or Path(__file__).resolve().parent.parent
+        self.base_dir = base_dir or Path(__file__).resolve().parent.parent.parent
         self.model_dir = self.base_dir / "model"
         self.experiments_dir = self.base_dir / "experiments"
         self.data_dir = self.base_dir / "data" / "04_fct"

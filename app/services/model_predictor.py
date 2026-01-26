@@ -86,11 +86,12 @@ class ModelPredictor:
                 model_output_count,
                 expected_count,
             )
-            _, category_mapping = self._category_mapper.create_category_mapping(
+            active_categories, category_mapping = self._category_mapper.create_category_mapping(
                 category_names,
                 model_output_count,
             )
         else:
+            active_categories = category_names
             category_mapping = {i: i for i in range(len(category_names))}
 
         multi_output_clf = self._extract_multi_output_classifier(model)
@@ -99,7 +100,7 @@ class ModelPredictor:
                 idx,
                 p,
                 multi_output_clf,
-                category_names,
+                active_categories,
             )
             for idx, p in enumerate(proba)
         ]
