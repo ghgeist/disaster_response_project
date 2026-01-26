@@ -177,7 +177,7 @@ This document contains findings from systematic analysis of the codebase to iden
 
 **Found**: `src/disasterproject/utils/experimental_paths.py` contains `ExperimentalPathManager` that handles both legacy and new path structures.
 
-**Status**: ⚠️ **TRANSITION CODE** - This is transition infrastructure. Once migration is complete, this can be simplified.
+**Status**: ✅ **SIMPLIFIED** 2026-01-26 - Migration complete, legacy support removed. Now only uses `experiments/experimental_runs/<date>/` structure.
 
 ### Legacy Model References
 
@@ -203,7 +203,7 @@ This document contains findings from systematic analysis of the codebase to iden
 6. `eda_functions.py` - ⚠️ (in scripts/README.md only, but as utility)
 7. `ensure_venv.py` - ✅ **KEEP** - DX utility for AI agents (local vs Replit environment detection)
 8. `estimate_search_time.py` - ❓ **UNKNOWN**
-9. `migrate_experimental_paths.py` - ⚠️ **TRANSITION** - Migration utility
+9. ~~`migrate_experimental_paths.py`~~ - ✅ **ARCHIVED** 2026-01-26 - Migration utility (migration completed)
 10. `model_naming_utility.py` - ❓ **UNKNOWN**
 11. ~~`optimize_all_thresholds.py`~~ - ✅ **RENAMED** to `optimize_per_category_thresholds.py`
 12. ~~`optimize_critical_thresholds_inc1.py`~~ - ✅ **ARCHIVED** 2026-01-26
@@ -363,7 +363,7 @@ Many scripts exist but are not documented in any README:
 |------|--------|--------|--------|
 | `scripts/optimize_critical_thresholds_inc1.py` | Incremental work for "Increment 1" model, likely obsolete | **Archive** - Specific to old model version | ✅ **ARCHIVED** 2026-01-26 |
 | `scripts/prepare_15k_model_for_promotion.py` | One-off task for 2025-11-06, hardcoded paths, completed | **Archive** - One-off completed task | ✅ **ARCHIVED** 2026-01-26 |
-| `scripts/migrate_experimental_paths.py` | Transition utility for path migration | **Archive** - If migration is complete (check if still needed) | ⏳ Pending |
+| ~~`scripts/migrate_experimental_paths.py`~~ | Transition utility for path migration | ✅ **ARCHIVED** 2026-01-26 - Migration completed | ✅ **COMPLETED** |
 | ~~`scripts/prepare_data.py`~~ | Alternative interface, not used | ✅ **ARCHIVED** 2026-01-26 - Unused duplicate of process_data.py |
 | ~~`scripts/optimize_all_thresholds.py`~~ | Renamed to `optimize_per_category_thresholds.py` | ✅ **RENAMED** 2026-01-26 - Clarifies per-category purpose |
 | ~~`scripts/compare_csv_models.py`~~ | UI/UX tool for portfolio app | ✅ **ARCHIVED** 2026-01-26 - Designed for UI/UX purposes in portfolio app, but not actively used in main workflow. compare_models.py handles standard use case. Archived as part of cleanup pass. |
@@ -398,9 +398,9 @@ Many scripts exist but are not documented in any README:
 
 ### Medium-Confidence Actions
 
-4. **Archive transition code** (if migration complete):
-   - `migrate_experimental_paths.py` - Check if experimental path migration is done
-   - Simplify `ExperimentalPathManager` if legacy paths no longer needed
+4. ✅ **Archive transition code** (COMPLETED 2026-01-26):
+   - ✅ `migrate_experimental_paths.py` - Archived (migration completed, 0 legacy artifacts)
+   - ✅ `ExperimentalPathManager` - Simplified (removed legacy support, now only uses new structure)
 
 5. **Review utility scripts**:
    - Many utility scripts may be one-off tools

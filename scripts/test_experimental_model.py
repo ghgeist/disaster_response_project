@@ -43,7 +43,7 @@ def load_models():
             print(f"❌ Experimental model not found: {experimental_path}")
         else:
             print("❌ No experimental model artifacts found")
-            print("   Searched both experiments/experimental_runs/ and experiments/results/")
+            print("   Searched experiments/experimental_runs/")
         models['experimental'] = None
 
     return models

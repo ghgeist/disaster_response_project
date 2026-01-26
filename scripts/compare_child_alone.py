@@ -77,7 +77,7 @@ def main():
         test_child_alone_classifier(experimental_model, "EXPERIMENTAL MODEL")
     else:
         print("\n❌ No experimental model found")
-        print("   Searched both experiments/experimental_runs/ and experiments/results/")
+        print("   Searched experiments/experimental_runs/")
 
     print(f"\n" + "=" * 60)
     print("🎯 ANALYSIS:")
