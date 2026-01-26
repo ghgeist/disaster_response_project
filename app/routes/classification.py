@@ -188,7 +188,6 @@ def go():
                 flash(f"{form[field].label.text}: {error}", 'error')
         
         # To re-render the main page, we need to regenerate the visualizations.
-        from app.services.data_service import DataServiceError
         from app.visualizations import ChartGenerator
         from app.routes.home import _create_basic_visualizations, _add_performance_visualization, _encode_graphs_to_json
         
