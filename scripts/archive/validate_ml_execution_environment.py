@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 """Pre-execution environment validation for ML experiments."""
-import os
-import sys
-import shutil
+# Standard library imports
 import importlib.util
-import pandas as pd
+import os
+import shutil
+import sys
 from pathlib import Path
+
+# Third-party imports
+import pandas as pd
 
 # Import environment detection utilities
 try:

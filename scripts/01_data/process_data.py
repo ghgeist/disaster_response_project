@@ -1,9 +1,9 @@
-#Standard Imports
+# Standard library imports
 import logging
 import os
 import sys
 
-#Third-party Imports
+# Third-party imports
 import pandas as pd
 from sqlalchemy import create_engine
 

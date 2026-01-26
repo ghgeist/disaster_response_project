@@ -16,19 +16,23 @@ Usage:
         --test-size 0.2 --seed 42
 """
 
+# Standard library imports
 import argparse
 import hashlib
+import json
+import logging
 import os
 import sys
-import logging
-import json
 from datetime import datetime
+
+# Third-party imports
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
+# Local imports
 from disasterproject.utils.config import setup_logging
 from disasterproject.data.loader import load_data
 

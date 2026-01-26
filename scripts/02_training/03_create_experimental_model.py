@@ -17,35 +17,39 @@ Usage:
     python scripts/02_training/03_create_experimental_model.py --output experiments/results/experimental_classifier.pkl
 """
 
+# Standard library imports
 import argparse
-import os
-import sys
-import logging
+import hashlib
 import json
+import logging
+import os
+import shutil
+import sys
 from datetime import datetime
 from time import time
-import hashlib
-import shutil
+
+# Third-party imports
+import joblib
+import numpy as np
+import pandas as pd
+from sklearn.metrics import classification_report, f1_score
+from sklearn.model_selection import train_test_split
 
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from disasterproject.utils.config import setup_logging, TARGET_COLUMNS
-from disasterproject.utils.json_io import load_model_parameters
-from disasterproject.utils.experimental_paths import ExperimentalPathManager
+# Local imports
 from disasterproject.data.loader import load_data
+from disasterproject.evaluation.metrics import evaluate_model, save_model
 from disasterproject.models.pipeline import (
     create_pipeline,
     create_pipeline_with_custom_weights,
     build_model
 )
 from disasterproject.models.samplers import get_multilabel_class_weights
-from disasterproject.evaluation.metrics import evaluate_model, save_model
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, f1_score
-import pandas as pd
-import numpy as np
-import joblib
+from disasterproject.utils.config import TARGET_COLUMNS, setup_logging
+from disasterproject.utils.experimental_paths import ExperimentalPathManager
+from disasterproject.utils.json_io import load_model_parameters
 
 
 def generate_model_filename(params_file_path):

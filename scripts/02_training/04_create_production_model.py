@@ -20,34 +20,47 @@ Usage:
       --class-weights experiments/model_candidates/class_weights.json
 """
 
+# Standard library imports
 import argparse
+import hashlib
+import json
+import logging
 import os
 import sys
-import logging
-import json
 from datetime import datetime
-import hashlib
 from time import time
+
+# Third-party imports
+import joblib
+import numpy as np
+import pandas as pd
+from sklearn.metrics import classification_report
+from sklearn.model_selection import train_test_split
 
 # Import from installed package (requires: pip install -e .)
 # Alternative: set PYTHONPATH to include src directory
 
-from disasterproject.utils.config import setup_logging, TARGET_COLUMNS, DEFAULT_TEST_SIZE, DEFAULT_RANDOM_SEED, TAXONOMY, CRITICAL_LABELS, EXCLUDE_FROM_CONSTRAINTS, HIERARCHY_CRITICAL_THRESHOLD_REDUCTION
-from disasterproject.utils.json_io import load_model_parameters
+# Local imports
 from disasterproject.data.loader import load_data
+from disasterproject.evaluation.metrics import evaluate_model, save_model
 from disasterproject.models.pipeline import (
     create_pipeline, 
     create_pipeline_with_custom_weights,
     build_model
 )
 from disasterproject.models.samplers import get_multilabel_class_weights
-from disasterproject.evaluation.metrics import evaluate_model, save_model
 from disasterproject.hierarchy import apply_hierarchy, count_violations
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report
-import pandas as pd
-import numpy as np
-import joblib
+from disasterproject.utils.config import (
+    CRITICAL_LABELS,
+    DEFAULT_RANDOM_SEED,
+    DEFAULT_TEST_SIZE,
+    EXCLUDE_FROM_CONSTRAINTS,
+    HIERARCHY_CRITICAL_THRESHOLD_REDUCTION,
+    TARGET_COLUMNS,
+    TAXONOMY,
+    setup_logging,
+)
+from disasterproject.utils.json_io import load_model_parameters
 
 
 def load_class_weights_config(file_path):

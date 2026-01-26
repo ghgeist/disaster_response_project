@@ -5,9 +5,10 @@ Structure validation script for the refactored disaster response classification 
 This script validates the modular structure without requiring ML dependencies.
 """
 
+# Standard library imports
+import importlib.util
 import os
 import sys
-import importlib.util
 
 
 def check_file_exists(filepath, description):

@@ -10,20 +10,24 @@ This script performs multiple independent checks to ensure:
 5. Critical recall improvements are real
 """
 
+# Standard library imports
+import hashlib
+import json
 import os
 import sys
-import json
-import hashlib
+
+# Third-party imports
+import joblib
 import numpy as np
 import pandas as pd
-import joblib
-from sklearn.metrics import classification_report, f1_score, confusion_matrix
+from sklearn.metrics import classification_report, confusion_matrix, f1_score
 
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from disasterproject.utils.config import TARGET_COLUMNS, CRITICAL_LABELS
+# Local imports
 from disasterproject.data.loader import load_data
+from disasterproject.utils.config import CRITICAL_LABELS, TARGET_COLUMNS
 
 
 def load_eval_split(eval_ids_file, X, Y):
