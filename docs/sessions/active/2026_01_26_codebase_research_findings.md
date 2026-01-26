@@ -197,7 +197,7 @@ This document contains findings from systematic analysis of the codebase to iden
 4. `create_frozen_eval_ids.py` - ❓ **UNKNOWN**
 5. `deployment_health_check.py` - ❓ **UNKNOWN**
 6. `eda_functions.py` - ⚠️ (in scripts/README.md only, but as utility)
-7. `ensure_venv.py` - ❓ **UNKNOWN**
+7. `ensure_venv.py` - ✅ **KEEP** - DX utility for AI agents (local vs Replit environment detection)
 8. `estimate_search_time.py` - ❓ **UNKNOWN**
 9. `migrate_experimental_paths.py` - ⚠️ **TRANSITION** - Migration utility
 10. `model_naming_utility.py` - ❓ **UNKNOWN**
@@ -344,7 +344,7 @@ Many scripts exist but are not documented in any README:
 | `scripts/analyze_vocabulary_distribution.py` | No documentation | **Purpose**: Analyzes vocabulary from trained model, extracts vocabulary, document frequencies, provides recommendations for max_features/min_df/max_df. **Status**: Utility script, may be useful for model optimization. |
 | `scripts/create_frozen_eval_ids.py` | No documentation | **Purpose**: Unknown, but name suggests creating frozen evaluation IDs for consistent train/test splits. **Status**: May be used by other scripts. |
 | `scripts/deployment_health_check.py` | No documentation | **Purpose**: Unknown. **Status**: May be deployment utility. |
-| `scripts/ensure_venv.py` | No documentation | **Purpose**: Likely ensures virtual environment is set up. **Status**: Utility script. |
+| `scripts/ensure_venv.py` | DX utility for AI agents | **Purpose**: Helps AI agents in Cursor distinguish between local dev (requires venv) vs Replit (no venv needed). **Status**: ✅ **KEEP** - DX quality-of-life improvement for dual-environment workflows. Original model was ~900 MB, requiring local training. |
 | `scripts/estimate_search_time.py` | No documentation | **Purpose**: Unknown. **Status**: May be for hyperparameter search time estimation. |
 | `scripts/model_naming_utility.py` | No documentation | **Purpose**: Likely utility for model naming conventions. **Status**: May be used by promotion workflow. |
 | `scripts/prepare_15k_model_for_promotion.py` | Name suggests one-off | **Purpose**: One-off script for 2025-11-06 model promotion. Hardcoded paths to specific experiment date. **Status**: ✅ **ONE-OFF COMPLETED** - Safe to archive. |
@@ -463,6 +463,23 @@ Many scripts exist but are not documented in any README:
 
 **Status**: All changes staged on branch `cleanup/tier3-prepare-data-investigation`, ready for commit.
 
+### Tier 4: Utility Script Investigation ✅
+
+**Date**: 2026-01-26  
+**Branch**: `cleanup/utility-scripts-investigation`
+
+1. **Investigated utility scripts**:
+   - ✅ **`eda_functions.py`**: KEEP - Used in notebooks (active and archived)
+   - ✅ **`ensure_venv.py`**: KEEP - DX utility for AI agents in Cursor to distinguish between local dev (requires venv) vs Replit (no venv needed). Important context: Original model was ~900 MB, requiring local training instead of Replit, necessitating dual-environment support.
+   - ✅ **`model_naming_utility.py`**: KEEP - Referenced in multiple docs (standards, ADRs, dev notes), part of promotion workflow
+   - ✅ **`estimate_search_time.py`**: KEEP - Referenced in documentation (hyperparameter tuning plan, ADRs), active utility
+
+2. **Updated documentation**:
+   - Added comprehensive docstring to `ensure_venv.py` explaining its DX purpose and dual-environment context
+   - Updated research findings to mark all utility scripts with proper status and explanations
+
+**Status**: All utility scripts are active and serve specific purposes. No archiving needed.
+
 ---
 
 ## Next Steps
@@ -475,6 +492,7 @@ Many scripts exist but are not documented in any README:
 6. ⏳ **Code review of "INVESTIGATE" scripts** - Understand their purpose (partially done)
 7. ⏳ **Consolidation planning** - Plan how to merge duplicate functionality
 8. ✅ **Tier 3 cleanup** - ✅ **COMPLETED** 2026-01-26 - Archived `prepare_data.py` (unused alternative interface, no bugs found)
+9. ✅ **Tier 4 utility investigation** - ✅ **COMPLETED** 2026-01-26 - All utility scripts verified as active and documented
 
 ---
 
