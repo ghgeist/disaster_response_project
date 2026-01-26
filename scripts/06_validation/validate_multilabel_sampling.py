@@ -12,7 +12,7 @@ import logging
 from time import time
 
 # Add src to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from disasterproject.data.loader import load_data
 from disasterproject.models.samplers import (
