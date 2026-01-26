@@ -1,0 +1,82 @@
+{# Results-focused macros for classification views #}
+
+{% from 'macros/ui.html' import category_chip %}
+
+{% macro message_display(query) %}
+    <section class="space-y-3">
+        <h4 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Message</h4>
+        <p class="text-lg md:text-xl text-white bg-gray-700/80 p-3 md:p-4 rounded-md">"{{ query }}"</p>
+    </section>
+{% endmacro %}
+
+{% macro category_chips(predictions, probabilities, use_hierarchy, raw, fixed) %}
+    <section class="space-y-4">
+        <h4 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Category Analysis</h4>
+        <div id="category-chips">
+            {% if use_hierarchy %}
+                {% if fixed and fixed.predictions and fixed.predictions|length > 0 %}
+                    {% set display_predictions = fixed.predictions %}
+                {% elif raw and raw.predictions and raw.predictions|length > 0 %}
+                    {% set display_predictions = raw.predictions %}
+                {% else %}
+                    {% set display_predictions = [] %}
+                {% endif %}
+            {% else %}
+                {% set display_predictions = predictions if predictions else [] %}
+            {% endif %}
+
+            {% if display_predictions and display_predictions|length > 0 %}
+                {% for prediction in display_predictions %}
+                    {{ category_chip(prediction.category, prediction.confidence) }}
+                {% endfor %}
+            {% else %}
+                {% if use_hierarchy %}
+                    {% set display_probs = fixed.probabilities if (fixed and fixed.probabilities) else (raw.probabilities if (raw and raw.probabilities) else {}) %}
+                {% else %}
+                    {% set display_probs = probabilities if probabilities else {} %}
+                {% endif %}
+
+                {% if display_probs and display_probs.get('related', 0) > 0.5 %}
+                    <p class="text-gray-400">This message is disaster-related, but doesn't match our specific emergency categories.</p>
+                {% else %}
+                    <p class="text-gray-400">This message doesn't appear to be about a disaster or emergency.</p>
+                {% endif %}
+            {% endif %}
+        </div>
+    </section>
+{% endmacro %}
+
+{% macro status_bar(violations, metrics) %}
+    <section class="status-bar bg-brand-charcoal/80 border border-gray-600 rounded-lg space-y-4">
+        <div class="flex flex-col md:flex-row gap-6 items-start md:items-center">
+            <div class="flex items-center gap-3">
+                {% if violations %}
+                    <svg class="w-4 h-4 text-green-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293z" clip-rule="evenodd"/></svg>
+                    <div class="text-sm text-gray-300"><span class="font-semibold text-green-400">{{ violations|length }}</span> improvements applied</div>
+                {% else %}
+                    <svg class="w-4 h-4 text-green-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                    <div class="text-sm text-gray-300"><span class="font-semibold text-green-400">Logically consistent</span> · no refinements needed</div>
+                {% endif %}
+            </div>
+
+            {% set v = (metrics.violations if metrics and 'violations' in metrics else 0) %}
+            {% set sr = (metrics.safety_recall if metrics and 'safety_recall' in metrics else 0.9147) %}
+            {% set df1 = (metrics.macro_f1_delta if metrics and 'macro_f1_delta' in metrics else -0.0143) %}
+
+            <div class="flex flex-wrap gap-8">
+                <div class="flex items-center gap-3">
+                    <div class="text-lg font-semibold text-green-400">{{ v }}</div>
+                    <div class="text-xs text-gray-400">Violations</div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="text-lg font-semibold text-blue-400">{{ (sr*100)|round(1) }}%</div>
+                    <div class="text-xs text-gray-400">Safety Recall</div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="text-lg font-semibold text-amber-400">{{ (df1*100)|round(2) }}%</div>
+                    <div class="text-xs text-gray-400">F1 Δ</div>
+                </div>
+            </div>
+        </div>
+    </section>
+{% endmacro %}

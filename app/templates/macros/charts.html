@@ -1,0 +1,20 @@
+{# Chart macros for shared visualization containers #}
+
+{% macro chart_container(title, canvas_id, container_class='bg-brand-slate rounded-lg p-4 h-64') %}
+    <div class="{{ container_class }}">
+        {% if title %}
+            <h3 class="text-lg font-semibold mb-4 text-white">{{ title }}</h3>
+        {% endif %}
+        <canvas id="{{ canvas_id }}"></canvas>
+    </div>
+{% endmacro %}
+
+{% macro plotly_container(element_id, class_='bg-brand-slate p-4 rounded-lg shadow-lg', style='width: 100%; max-width: 100%; height: 400px; max-height: 500px;') %}
+    <div id="{{ element_id }}" class="{{ class_ }}" style="{{ style }}"></div>
+{% endmacro %}
+
+{% macro chart_js_defaults() %}
+Chart.defaults.color = '#d1d5db';
+Chart.defaults.borderColor = '#374151';
+Chart.defaults.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+{% endmacro %}

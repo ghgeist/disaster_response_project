@@ -1,49 +1,28 @@
-<!doctype html>
-<html lang="en" class="dark">
+{% extends "base.html" %}
 
-<head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+{% from 'macros/charts.html' import chart_container, chart_js_defaults %}
+{% from 'macros/ui.html' import metric_card, status_badge %}
 
-    <title>Model Health Dashboard - Signal Storm</title>
-    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+{% block title %}Model Health Dashboard - Signal Storm{% endblock %}
 
-    <!-- Tailwind CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
-    
-    <!-- Chart.js for visualizations -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <!-- Custom styles -->
-    <style>
-        .status-healthy { @apply bg-green-600 text-white; }
-        .status-unhealthy { @apply bg-red-600 text-white; }
-        .status-warning { @apply bg-yellow-600 text-black; }
-        .status-missing { @apply bg-gray-600 text-white; }
-        .metric-card { @apply bg-brand-slate rounded-lg p-4 shadow-lg; }
-        .chart-container { @apply bg-brand-slate rounded-lg p-4 h-64; }
-    </style>
-</head>
+{% block head %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
 
-<body class="bg-brand-charcoal text-gray-200 font-sans">
+{% block nav_extra_desktop %}
+<a class="text-brand-accent-blue bg-brand-charcoal rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="{{ url_for('health.model_health_dashboard') }}">
+    Model Health
+</a>
+{% endblock %}
 
-<!-- Navigation Bar -->
-<nav class="bg-brand-slate shadow-md sticky top-0 z-50">
-    <div class="container mx-auto px-6 py-4 flex justify-between items-center">
-        <a class="text-2xl font-bold text-white hover:text-brand-accent-blue focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="/">
-            Signal Storm <span role="img" aria-label="Tornado">🌪️</span>
-        </a>
-        <div class="flex space-x-4">
-            <a href="/" class="text-white hover:text-brand-accent-blue px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue">Home</a>
-            <a href="/admin/model-health" class="text-brand-accent-blue px-3 py-2 rounded-md bg-brand-charcoal focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue">Model Health</a>
-        </div>
-    </div>
-</nav>
+{% block nav_extra_mobile %}
+<a class="text-brand-accent-blue bg-brand-charcoal rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="{{ url_for('health.model_health_dashboard') }}">
+    Model Health
+</a>
+{% endblock %}
 
-<!-- Main Content -->
-<div class="container mx-auto px-6 py-8">
-    
+{% block content %}
     <!-- Header -->
     <div class="mb-8">
         <h1 class="text-3xl font-bold text-white mb-2">Model Performance Dashboard</h1>
@@ -58,73 +37,42 @@
 
     <!-- Status Overview -->
     <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-8">
-        
-        <!-- Current Model Status -->
-        <div class="metric-card">
-            <h3 class="text-lg font-semibold mb-2">Production Model</h3>
-            <div class="flex items-center">
-                <span id="model-status" class="px-3 py-1 rounded-full text-sm font-medium 
-                    {% if health_report.current_model.status == 'healthy' %}status-healthy
-                    {% elif health_report.current_model.status == 'missing' %}status-missing
-                    {% else %}status-unhealthy{% endif %}">
-                    {{ health_report.current_model.status|title }}
-                </span>
+        {% call metric_card('Production Model') %}
+            <div class="flex items-center" id="model-status">
+                {{ status_badge(health_report.current_model.status) }}
                 {% if health_report.current_model.load_time_ms %}
-                <span class="ml-2 text-sm text-gray-400">{{ health_report.current_model.load_time_ms }}ms</span>
+                    <span class="ml-2 text-sm text-gray-400">{{ health_report.current_model.load_time_ms }}ms</span>
                 {% endif %}
             </div>
             <div class="mt-2 text-sm text-gray-400">
                 {% if health_report.current_model.model_type %}
-                Type: {{ health_report.current_model.model_type }}
+                    Type: {{ health_report.current_model.model_type }}
                 {% endif %}
             </div>
-        </div>
+        {% endcall %}
 
-        <!-- Model Files Count -->
-        <div class="metric-card">
-            <h3 class="text-lg font-semibold mb-2">Model Files</h3>
-            <div class="text-2xl font-bold text-brand-accent-blue">
-                {{ health_report.model_files|length }}
-            </div>
-            <div class="text-sm text-gray-400">Total models found</div>
-        </div>
+        {{ metric_card('Model Files', health_report.model_files|length, 'Total models found') }}
 
-        <!-- Performance Metrics -->
-        <div class="metric-card">
-            <h3 class="text-lg font-semibold mb-2">Performance Data</h3>
-            <div class="text-2xl font-bold {% if health_report.performance_metrics.available %}text-green-400{% else %}text-gray-400{% endif %}">
-                {% if health_report.performance_metrics.available %}✓{% else %}✗{% endif %}
-            </div>
-            <div class="text-sm text-gray-400">
-                {% if health_report.performance_metrics.available %}Available{% else %}Not Available{% endif %}
-            </div>
-        </div>
+        {% set performance_available = health_report.performance_metrics.available %}
+        {{ metric_card(
+            'Performance Data',
+            '✓' if performance_available else '✗',
+            'Available' if performance_available else 'Not Available',
+            'text-green-400' if performance_available else 'text-gray-400'
+        ) }}
 
-        <!-- Prediction Samples -->
-        <div class="metric-card">
-            <h3 class="text-lg font-semibold mb-2">Test Predictions</h3>
-            <div class="text-2xl font-bold text-brand-accent-blue">
-                {{ health_report.prediction_samples.samples|length if health_report.prediction_samples.samples else 0 }}
-            </div>
-            <div class="text-sm text-gray-400">Sample tests run</div>
-        </div>
+        {{ metric_card(
+            'Test Predictions',
+            health_report.prediction_samples.samples|length if health_report.prediction_samples.samples else 0,
+            'Sample tests run'
+        ) }}
     </div>
 
     <!-- Charts Section -->
     {% if health_report.performance_metrics.available and health_report.performance_metrics.comparison %}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        
-        <!-- Performance Comparison Chart -->
-        <div class="chart-container">
-            <h3 class="text-lg font-semibold mb-4 text-white">Model Performance Comparison</h3>
-            <canvas id="performance-chart"></canvas>
-        </div>
-
-        <!-- F1 Score Trend -->
-        <div class="chart-container">
-            <h3 class="text-lg font-semibold mb-4 text-white">F1 Score by Model</h3>
-            <canvas id="f1-chart"></canvas>
-        </div>
+        {{ chart_container('Model Performance Comparison', 'performance-chart') }}
+        {{ chart_container('F1 Score by Model', 'f1-chart') }}
     </div>
     {% endif %}
 
@@ -200,7 +148,7 @@
     <div class="bg-brand-slate rounded-lg p-6">
         <h2 class="text-xl font-bold text-white mb-4">Performance Metrics</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
+
             <!-- Baseline Metrics -->
             {% if health_report.performance_metrics.baseline_metrics %}
             <div class="border border-gray-600 rounded p-4">
@@ -233,14 +181,12 @@
         </div>
     </div>
     {% endif %}
+{% endblock %}
 
-</div>
-
+{% block scripts %}
+{{ super() }}
 <script>
-// Chart.js configuration for dark theme
-Chart.defaults.color = '#d1d5db';
-Chart.defaults.borderColor = '#374151';
-Chart.defaults.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+{{ chart_js_defaults() }}
 
 {% if health_report.performance_metrics.available and health_report.performance_metrics.comparison %}
 // Performance Comparison Chart
@@ -323,8 +269,36 @@ new Chart(f1Ctx, {
 });
 {% endif %}
 
+const statusClasses = {
+    healthy: 'bg-green-600 text-white',
+    missing: 'bg-gray-600 text-white',
+    warning: 'bg-yellow-600 text-black',
+    unhealthy: 'bg-red-600 text-white'
+};
+
+const fallbackStatusClass = 'bg-gray-600 text-white';
+
 // Auto-refresh functionality
 let refreshInterval;
+
+function updateStatusBadge(statusValue) {
+    const statusContainer = document.getElementById('model-status');
+    if (!statusContainer) {
+        return;
+    }
+
+    const statusBadge = statusContainer.querySelector('[data-status-badge]');
+    if (!statusBadge) {
+        return;
+    }
+
+    const normalizedStatus = (statusValue || 'unknown').toLowerCase();
+    const statusText = normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1);
+    const statusClass = statusClasses[normalizedStatus] || fallbackStatusClass;
+
+    statusBadge.textContent = statusText;
+    statusBadge.className = 'px-3 py-1 rounded-full text-sm font-medium ' + statusClass;
+}
 
 function updateDashboard() {
     fetch('/api/model-health')
@@ -333,14 +307,10 @@ function updateDashboard() {
             // Update timestamp
             const timestamp = new Date(data.timestamp).toLocaleString();
             document.getElementById('last-updated').textContent = timestamp;
-            
+
             // Update model status
-            const statusElement = document.getElementById('model-status');
-            statusElement.textContent = data.current_model.status.charAt(0).toUpperCase() + data.current_model.status.slice(1);
-            statusElement.className = 'px-3 py-1 rounded-full text-sm font-medium ' + 
-                (data.current_model.status === 'healthy' ? 'status-healthy' :
-                 data.current_model.status === 'missing' ? 'status-missing' : 'status-unhealthy');
-            
+            updateStatusBadge(data.current_model.status);
+
             console.log('Dashboard updated:', timestamp);
         })
         .catch(error => {
@@ -367,6 +337,4 @@ window.addEventListener('beforeunload', function() {
     }
 });
 </script>
-
-</body>
-</html>
+{% endblock %}

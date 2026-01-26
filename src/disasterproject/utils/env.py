@@ -26,6 +26,38 @@ def is_replit() -> bool:
     return any(os.getenv(var) is not None for var in replit_indicators)
 
 
+def is_cursor_web_ui() -> bool:
+    """Check if running in Cursor Web UI environment.
+    
+    Detects Cursor Web UI by checking for Cursor-specific environment variables
+    or indicators that suggest a web-based IDE environment with limited runtime.
+    
+    Returns:
+        True if running in Cursor Web UI, False otherwise.
+    """
+    # Check for Cursor-specific environment variables
+    cursor_indicators = [
+        'CURSOR_ENV',           # Cursor environment indicator
+        'CURSOR_WEB',           # Cursor web UI indicator
+        'CURSOR_WEB_UI',        # Alternative web UI indicator
+    ]
+    
+    # Also check for common web IDE patterns
+    # Cursor Web UI may not have Python in PATH, which is a distinguishing characteristic
+    # We can detect this by checking if we're in a web-like environment
+    if any(os.getenv(var) is not None for var in cursor_indicators):
+        return True
+    
+    # Additional heuristic: Check if we're likely in a web environment
+    # This is a fallback detection method
+    web_ui_indicators = [
+        'VERCEL',           # Vercel deployment (common for web IDEs)
+        'NETLIFY',          # Netlify deployment
+    ]
+    
+    return any(os.getenv(var) is not None for var in web_ui_indicators)
+
+
 def is_venv_required() -> bool:
     """Check if virtual environment is required for current environment.
     
@@ -56,6 +88,7 @@ def get_venv_status() -> dict:
     """
     return {
         'is_replit': is_replit(),
+        'is_cursor_web_ui': is_cursor_web_ui(),
         'venv_required': is_venv_required(),
         'venv_active': check_venv_activation(),
         'python_prefix': sys.prefix,
