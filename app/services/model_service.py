@@ -4,7 +4,6 @@ Model service for managing ML model loading and prediction.
 import hashlib
 import json
 import logging
-import os
 import pickle
 import warnings
 from pathlib import Path
