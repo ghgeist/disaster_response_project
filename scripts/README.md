@@ -56,11 +56,6 @@ Creates performance visualizations.
 
 ## Utility Scripts
 
-### `prepare_data.py`
-Prepares and preprocesses data for training.
-- **Use when**: Data preprocessing and preparation
-- **Output**: Processed data ready for training
-
 ### `system_validation.py`
 Validates system components and dependencies.
 - **Use when**: Checking system health and dependencies

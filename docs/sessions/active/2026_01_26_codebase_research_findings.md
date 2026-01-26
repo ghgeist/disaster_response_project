@@ -137,15 +137,16 @@ This document contains findings from systematic analysis of the codebase to iden
    - **Implementation**: Direct CSV loading, cleaning, and DB saving
    - **Status**: Active, used in all documentation
 
-2. **`prepare_data.py`** - ⚠️ **ALTERNATIVE INTERFACE** - Wrapper around ETL pipeline
+2. **`prepare_data.py`** - ✅ **ARCHIVED** 2026-01-26 - Wrapper around ETL pipeline
    - **Implementation**: Calls `disasterproject.data.loader.prepare_data()` which uses `run_etl_pipeline()`
-   - **Status**: Not referenced in main README, may be newer alternative interface
-   - **Note**: Has a bug (line 76 references undefined `log_level` variable)
+   - **Status**: Not referenced in main README, unused alternative interface
+   - **Investigation**: No bugs found (false positive), not imported or called anywhere
+   - **Action**: ✅ Archived - Redundant with `process_data.py` which is the active, documented script
 
 **Recommendation**: 
 - `process_data.py` is the active one (referenced everywhere)
-- `prepare_data.py` appears to be an alternative/newer interface that's not actively used
-- **Action**: Archive `prepare_data.py` or fix the bug and update documentation if it's meant to replace `process_data.py`
+- `prepare_data.py` was an alternative/newer interface that was never adopted
+- ✅ **COMPLETED**: Archived `prepare_data.py` as unused duplicate functionality
 
 ---
 
@@ -164,6 +165,7 @@ This document contains findings from systematic analysis of the codebase to iden
 - `validate_structure.py` - Legacy structure validation
 - `prepare_15k_model_for_promotion.py` - ✅ Added 2026-01-26 (one-off completed task)
 - `optimize_critical_thresholds_inc1.py` - ✅ Added 2026-01-26 (incremental work for obsolete model)
+- `prepare_data.py` - ✅ Added 2026-01-26 (unused alternative interface, duplicate of process_data.py)
 
 **Status**: ✅ **PROPERLY QUARANTINED** - All legacy scripts archived.
 
@@ -202,7 +204,7 @@ This document contains findings from systematic analysis of the codebase to iden
 11. `optimize_all_thresholds.py` - ❓ **UNKNOWN**
 12. ~~`optimize_critical_thresholds_inc1.py`~~ - ✅ **ARCHIVED** 2026-01-26
 13. ~~`prepare_15k_model_for_promotion.py`~~ - ✅ **ARCHIVED** 2026-01-26 (one-off task completed)
-14. `prepare_data.py` - ❓ **UNKNOWN**
+14. ~~`prepare_data.py`~~ - ✅ **ARCHIVED** 2026-01-26
 15. `promote_model.py` - ⚠️ **ACTIVE** - In scripts/README.md promotion workflow
 16. `test_deployment_scenarios.py` - ❓ **UNKNOWN**
 17. `test_experimental_model.py` - ⚠️ **UNCERTAIN**
@@ -331,7 +333,7 @@ Many scripts exist but are not documented in any README:
 | `scripts/validate_multilabel_sampling.py` | In scripts/README only | Verify usage |
 | `scripts/test_experimental_model.py` | Not in main README | Verify usage |
 | `scripts/evaluate_hierarchy.py` | Not in main README | Verify usage |
-| `scripts/prepare_data.py` | May duplicate process_data.py | Check if needed |
+| ~~`scripts/prepare_data.py`~~ | Duplicated process_data.py | ✅ **ARCHIVED** 2026-01-26 |
 | `scripts/visualize_performance.py` | In scripts/README only | Verify usage |
 | `scripts/eda_functions.py` | Utility functions | Check if imported anywhere |
 
@@ -358,7 +360,7 @@ Many scripts exist but are not documented in any README:
 | `scripts/optimize_critical_thresholds_inc1.py` | Incremental work for "Increment 1" model, likely obsolete | **Archive** - Specific to old model version | ✅ **ARCHIVED** 2026-01-26 |
 | `scripts/prepare_15k_model_for_promotion.py` | One-off task for 2025-11-06, hardcoded paths, completed | **Archive** - One-off completed task | ✅ **ARCHIVED** 2026-01-26 |
 | `scripts/migrate_experimental_paths.py` | Transition utility for path migration | **Archive** - If migration is complete (check if still needed) | ⏳ Pending |
-| `scripts/prepare_data.py` | Alternative interface, not used, has bug | **Archive or Fix** - If not replacing process_data.py, archive it | ⏳ Pending |
+| ~~`scripts/prepare_data.py`~~ | Alternative interface, not used | ✅ **ARCHIVED** 2026-01-26 - Unused duplicate of process_data.py |
 | `scripts/optimize_all_thresholds.py` | May duplicate optimize_thresholds.py | **Review** - Check if truly different from optimize_thresholds.py | ⏳ Pending |
 
 ### ✅ ALREADY ARCHIVED
@@ -439,6 +441,28 @@ Many scripts exist but are not documented in any README:
 
 **Status**: All changes staged on branch `cleanup/documentation-and-one-off-scripts`, ready for commit.
 
+### Tier 3: Archive Unused Alternative Interface ✅
+
+**Date**: 2026-01-26  
+**Branch**: `cleanup/tier3-prepare-data-investigation`
+
+1. **Investigated `scripts/prepare_data.py`**:
+   - ✅ **Bug check**: False positive - no bugs found (code is correct)
+   - ✅ **Usage check**: Not imported or called anywhere in codebase
+   - ✅ **Functionality comparison**: Duplicate of `process_data.py` but unused
+   - **Findings**: Wrapper around ETL pipeline with argparse interface, but `process_data.py` is the active, documented script
+
+2. **Archived `scripts/prepare_data.py`**:
+   - Moved to `scripts/archive/prepare_data.py`
+   - Unused alternative interface that duplicates `process_data.py`
+   - Not referenced in main documentation (only in scripts/README.md)
+
+3. **Updated documentation**:
+   - Removed `prepare_data.py` entry from `scripts/README.md`
+   - Updated research findings to reflect investigation results and archiving
+
+**Status**: All changes staged on branch `cleanup/tier3-prepare-data-investigation`, ready for commit.
+
 ---
 
 ## Next Steps
@@ -450,7 +474,7 @@ Many scripts exist but are not documented in any README:
 5. ⏳ **Git history analysis** - Find rapid generation patterns (optional)
 6. ⏳ **Code review of "INVESTIGATE" scripts** - Understand their purpose (partially done)
 7. ⏳ **Consolidation planning** - Plan how to merge duplicate functionality
-8. ⏳ **Tier 3 cleanup** - Review `prepare_data.py` (buggy, unused alternative interface)
+8. ✅ **Tier 3 cleanup** - ✅ **COMPLETED** 2026-01-26 - Archived `prepare_data.py` (unused alternative interface, no bugs found)
 
 ---
 
