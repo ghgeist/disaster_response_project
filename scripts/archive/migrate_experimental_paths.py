@@ -11,14 +11,16 @@ Usage:
     python scripts/migrate_experimental_paths.py --validate # Validate structure
 """
 
+# Standard library imports
 import argparse
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
+# Local imports
 from disasterproject.utils.experimental_paths import ExperimentalPathManager
 
 

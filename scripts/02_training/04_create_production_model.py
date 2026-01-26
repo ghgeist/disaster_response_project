@@ -20,36 +20,47 @@ Usage:
       --class-weights experiments/model_candidates/class_weights.json
 """
 
+# Standard library imports
 import argparse
+import hashlib
+import json
+import logging
 import os
 import sys
-import logging
-import json
 from datetime import datetime
-import hashlib
 from time import time
+
+# Third-party imports
+import joblib
+import numpy as np
+import pandas as pd
+from sklearn.metrics import classification_report
+from sklearn.model_selection import train_test_split
 
 # Import from installed package (requires: pip install -e .)
 # Alternative: set PYTHONPATH to include src directory
 
-from disasterproject.utils.config import setup_logging, TARGET_COLUMNS, DEFAULT_TEST_SIZE, DEFAULT_RANDOM_SEED, TAXONOMY, CRITICAL_LABELS, EXCLUDE_FROM_CONSTRAINTS, HIERARCHY_CRITICAL_THRESHOLD_REDUCTION
-from disasterproject.utils.json_io import load_model_parameters
+# Local imports
 from disasterproject.data.loader import load_data
+from disasterproject.evaluation.metrics import evaluate_model, save_model
 from disasterproject.models.pipeline import (
     create_pipeline, 
     create_pipeline_with_custom_weights,
     build_model
 )
 from disasterproject.models.samplers import get_multilabel_class_weights
-from disasterproject.evaluation.metrics import evaluate_model, save_model
 from disasterproject.hierarchy import apply_hierarchy, count_violations
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report
-import pandas as pd
-import numpy as np
-import joblib
-import json
-import hashlib
+from disasterproject.utils.config import (
+    CRITICAL_LABELS,
+    DEFAULT_RANDOM_SEED,
+    DEFAULT_TEST_SIZE,
+    EXCLUDE_FROM_CONSTRAINTS,
+    HIERARCHY_CRITICAL_THRESHOLD_REDUCTION,
+    TARGET_COLUMNS,
+    TAXONOMY,
+    setup_logging,
+)
+from disasterproject.utils.json_io import load_model_parameters
 
 
 def load_class_weights_config(file_path):
@@ -69,6 +80,297 @@ def load_class_weights_config(file_path):
         return None
 
 
+def _count_edges(prob_map, taxonomy, exclude) -> int:
+    """Count valid parent-child edges for hierarchy evaluation."""
+    total = 0
+    for parent, children in taxonomy.items():
+        if parent == "related" or parent in exclude:
+            continue
+        if parent not in prob_map:
+            continue
+        for child in children:
+            if child in exclude or child not in prob_map:
+                continue
+            total += 1
+    return total
+
+
+def _build_classification_report_rows(y_true, y_pred, category_names, evaluation_type):
+    """Build classification report rows for each category."""
+    results = []
+    for i, col in enumerate(category_names):
+        report = classification_report(
+            y_true[:, i], y_pred[:, i], output_dict=True, zero_division=0
+        )
+        for output_class, metrics in report.items():
+            if isinstance(metrics, dict):
+                temp = metrics.copy()
+                temp["output_class"] = output_class
+                temp["category"] = col
+                temp["evaluation_type"] = evaluation_type
+                results.append(temp)
+    return results
+
+
+def _evaluate_baseline_predictions(model, X_test, Y_test, category_names):
+    """Generate baseline predictions and evaluation rows."""
+    y_pred_baseline = model.predict(X_test)
+    results = _build_classification_report_rows(
+        Y_test, y_pred_baseline, category_names, "baseline"
+    )
+    return y_pred_baseline, results
+
+
+def _safe_predict_proba(model, X_test):
+    """Return predict_proba output or None if unavailable."""
+    try:
+        return model.predict_proba(X_test)
+    except Exception as e:
+        logging.warning("predict_proba failed (%s); hierarchy evaluation skipped", e)
+        return None
+
+
+def _get_positive_class_probability(proba_array, model, label_idx, sample_idx):
+    """Extract positive class probability for a single label/sample."""
+    if proba_array.ndim == 2 and proba_array.shape[1] == 2:
+        prob = proba_array[sample_idx, 1]
+    elif proba_array.ndim == 2 and proba_array.shape[1] == 1:
+        clf = model.named_steps['clf']
+        if hasattr(clf, 'classes_') and label_idx < len(clf.classes_):
+            classes = clf.classes_[label_idx]
+            if len(classes) == 1 and classes[0] == 0:
+                prob = 0.0
+            elif len(classes) == 1 and classes[0] == 1:
+                prob = 1.0
+            else:
+                prob = proba_array[sample_idx, 0]
+        else:
+            prob = proba_array[sample_idx, 0]
+    else:
+        prob = proba_array[sample_idx]
+    return float(prob)
+
+
+def _build_sample_probability_map(proba_list, model, category_names, sample_idx):
+    """Build probability map for a sample; return map and completeness flag."""
+    probs = {}
+    for label_idx, label_name in enumerate(category_names):
+        try:
+            proba_array = proba_list[label_idx]
+            prob = _get_positive_class_probability(
+                proba_array, model, label_idx, sample_idx
+            )
+            probs[label_name] = prob
+        except Exception:
+            return {}, False
+    return probs, True
+
+
+def _build_hierarchy_thresholds(category_names):
+    """Build thresholds for hierarchy correction with critical reductions."""
+    base_thresholds = {name: 0.5 for name in category_names}
+    thresholds_used = base_thresholds.copy()
+    if HIERARCHY_CRITICAL_THRESHOLD_REDUCTION > 0:
+        for lbl in CRITICAL_LABELS:
+            if lbl in thresholds_used:
+                thresholds_used[lbl] = max(
+                    0.0, thresholds_used[lbl] - HIERARCHY_CRITICAL_THRESHOLD_REDUCTION
+                )
+    return thresholds_used
+
+
+def _evaluate_hierarchy_predictions(
+    model, X_test, Y_test, category_names, y_pred_baseline, proba_list
+):
+    """Apply hierarchy correction and return evaluation rows plus metrics."""
+    n_samples = len(X_test)
+    y_pred_hierarchy = np.zeros_like(y_pred_baseline)
+    thresholds_used = _build_hierarchy_thresholds(category_names)
+
+    violations_before = 0
+    violations_after = 0
+    edges_before = 0
+    edges_after = 0
+    skipped_samples_missing_proba = 0
+
+    for sample_idx in range(n_samples):
+        probs, proba_complete = _build_sample_probability_map(
+            proba_list, model, category_names, sample_idx
+        )
+        if not proba_complete:
+            skipped_samples_missing_proba += 1
+            y_pred_hierarchy[sample_idx, :] = y_pred_baseline[sample_idx, :]
+            continue
+
+        violations_before += count_violations(probs, TAXONOMY, EXCLUDE_FROM_CONSTRAINTS)
+        edges_before += _count_edges(probs, TAXONOMY, EXCLUDE_FROM_CONSTRAINTS)
+
+        adjusted_probs, binary_predictions = apply_hierarchy(
+            probs=probs,
+            thresholds=thresholds_used,
+            taxonomy=TAXONOMY,
+            critical_labels=CRITICAL_LABELS,
+            exclude=EXCLUDE_FROM_CONSTRAINTS,
+            critical_threshold_reduction=0.0,
+        )
+
+        violations_after += count_violations(adjusted_probs, TAXONOMY, EXCLUDE_FROM_CONSTRAINTS)
+        edges_after += _count_edges(adjusted_probs, TAXONOMY, EXCLUDE_FROM_CONSTRAINTS)
+
+        for label_idx, label_name in enumerate(category_names):
+            y_pred_hierarchy[sample_idx, label_idx] = binary_predictions.get(
+                label_name, y_pred_baseline[sample_idx, label_idx]
+            )
+
+    violations_per_1k_before = (
+        (violations_before / edges_before * 1000) if edges_before > 0 else 0.0
+    )
+    violations_per_1k_after = (
+        (violations_after / edges_after * 1000) if edges_after > 0 else 0.0
+    )
+
+    logging.info(
+        "Violations per 1k edges - Before: %.1f, After: %.1f",
+        violations_per_1k_before,
+        violations_per_1k_after,
+    )
+    logging.info("Note: 'violations per 1k' is edge-normalized (per parent→child edge).")
+    if skipped_samples_missing_proba > 0:
+        logging.info(
+            "Hierarchy: %d samples used baseline only due to missing probabilities; "
+            "excluded from edge metrics.",
+            skipped_samples_missing_proba,
+        )
+
+    hierarchy_results = _build_classification_report_rows(
+        Y_test, y_pred_hierarchy, category_names, "hierarchy_corrected"
+    )
+
+    return (
+        hierarchy_results,
+        thresholds_used,
+        violations_per_1k_before,
+        violations_per_1k_after,
+        skipped_samples_missing_proba,
+    )
+
+
+def _compute_across_label_scores(df: pd.DataFrame, category_names):
+    """Compute macro/weighted metrics across labels for positive class."""
+    pos_rows = df[df['output_class'] == '1']
+    pos_rows = pos_rows[pos_rows['category'].isin(category_names)]
+    macro_precision = pos_rows['precision'].mean() if not pos_rows.empty else 0.0
+    macro_recall = pos_rows['recall'].mean() if not pos_rows.empty else 0.0
+    macro_f1 = pos_rows['f1-score'].mean() if not pos_rows.empty else 0.0
+    weights = pos_rows['support'].astype(float)
+    total_w = float(weights.sum()) if not pos_rows.empty else 0.0
+    if total_w > 0:
+        weighted_precision = float((pos_rows['precision'] * weights).sum() / total_w)
+        weighted_recall = float((pos_rows['recall'] * weights).sum() / total_w)
+        weighted_f1 = float((pos_rows['f1-score'] * weights).sum() / total_w)
+    else:
+        weighted_precision = weighted_recall = weighted_f1 = 0.0
+    return {
+        'macro_precision': macro_precision,
+        'macro_recall': macro_recall,
+        'macro_f1': macro_f1,
+        'weighted_precision': weighted_precision,
+        'weighted_recall': weighted_recall,
+        'weighted_f1': weighted_f1,
+    }
+
+
+def _compute_safety_recalls(baseline_df, hierarchy_df, category_names):
+    """Compute average recall for critical labels."""
+    critical_recalls_baseline = []
+    critical_recalls_hierarchy = []
+
+    for label in CRITICAL_LABELS:
+        if label in category_names:
+            baseline_recall = baseline_df[
+                (baseline_df['category'] == label)
+                & (baseline_df['output_class'] == '1')
+            ]['recall']
+            hierarchy_recall = hierarchy_df[
+                (hierarchy_df['category'] == label)
+                & (hierarchy_df['output_class'] == '1')
+            ]['recall']
+
+            if not baseline_recall.empty:
+                critical_recalls_baseline.append(baseline_recall.iloc[0])
+            if not hierarchy_recall.empty:
+                critical_recalls_hierarchy.append(hierarchy_recall.iloc[0])
+
+    safety_recall_baseline = (
+        np.mean(critical_recalls_baseline) if critical_recalls_baseline else 0.0
+    )
+    safety_recall_hierarchy = (
+        np.mean(critical_recalls_hierarchy) if critical_recalls_hierarchy else 0.0
+    )
+    return safety_recall_baseline, safety_recall_hierarchy
+
+
+def _build_performance_summary(
+    results_df,
+    category_names,
+    test_samples,
+    proba_list,
+    hierarchy_results,
+    violations_per_1k_before,
+    violations_per_1k_after,
+):
+    """Build performance summary dict with hierarchy comparison."""
+    baseline_df = results_df[results_df['evaluation_type'] == 'baseline']
+    baseline_across = _compute_across_label_scores(baseline_df, category_names)
+
+    summary = {
+        'total_categories': len(category_names),
+        'test_samples': test_samples,
+        'macro_precision_baseline': baseline_across['macro_precision'],
+        'macro_recall_baseline': baseline_across['macro_recall'],
+        'macro_f1_baseline': baseline_across['macro_f1'],
+        'weighted_precision_baseline': baseline_across['weighted_precision'],
+        'weighted_recall_baseline': baseline_across['weighted_recall'],
+        'weighted_f1_baseline': baseline_across['weighted_f1'],
+    }
+
+    if proba_list is not None and hierarchy_results:
+        hierarchy_df = results_df[results_df['evaluation_type'] == 'hierarchy_corrected']
+        hierarchy_across = _compute_across_label_scores(hierarchy_df, category_names)
+        safety_recall_baseline, safety_recall_hierarchy = _compute_safety_recalls(
+            baseline_df, hierarchy_df, category_names
+        )
+
+        summary.update({
+            'macro_precision_hierarchy': hierarchy_across['macro_precision'],
+            'macro_recall_hierarchy': hierarchy_across['macro_recall'],
+            'macro_f1_hierarchy': hierarchy_across['macro_f1'],
+            'weighted_precision_hierarchy': hierarchy_across['weighted_precision'],
+            'weighted_recall_hierarchy': hierarchy_across['weighted_recall'],
+            'weighted_f1_hierarchy': hierarchy_across['weighted_f1'],
+            'macro_f1_change': hierarchy_across['macro_f1'] - baseline_across['macro_f1'],
+            'weighted_f1_change': hierarchy_across['weighted_f1'] - baseline_across['weighted_f1'],
+            'violations_per_1k_before': violations_per_1k_before,
+            'violations_per_1k_after': violations_per_1k_after,
+            'safety_recall_baseline': safety_recall_baseline,
+            'safety_recall_hierarchy': safety_recall_hierarchy,
+            'safety_recall_improvement': safety_recall_hierarchy - safety_recall_baseline,
+        })
+
+        logging.info(
+            "Safety Recall: %.3f → %.3f (Δ%+.3f)",
+            safety_recall_baseline,
+            safety_recall_hierarchy,
+            safety_recall_hierarchy - safety_recall_baseline,
+        )
+        logging.info(
+            "Macro F1 (across labels) Change: %+.3f",
+            summary['macro_f1_change'],
+        )
+
+    return summary
+
+
 def evaluate_model_to_model_folder(model, X_test, Y_test, category_names, model_dir="model"):
     """
     Evaluate model with both baseline and hierarchy-corrected predictions.
@@ -84,172 +386,42 @@ def evaluate_model_to_model_folder(model, X_test, Y_test, category_names, model_
         dict: Performance summary including hierarchy comparison
     """
     try:
-        # Make baseline predictions
-        Y_pred_baseline = model.predict(X_test)
+        y_pred_baseline, results = _evaluate_baseline_predictions(
+            model, X_test, Y_test, category_names
+        )
+        proba_list = _safe_predict_proba(model, X_test)
 
-        # Get probabilities for hierarchy processing
-        try:
-            proba_list = model.predict_proba(X_test)
-        except Exception as e:
-            logging.warning("predict_proba failed (%s); hierarchy evaluation skipped", e)
-            proba_list = None
-
-        results = []
         hierarchy_results = []
+        thresholds_used = None
+        violations_per_1k_before = 0.0
+        violations_per_1k_after = 0.0
 
-        # Baseline evaluation
-        for i, col in enumerate(category_names):
-            report = classification_report(
-                Y_test[:, i], Y_pred_baseline[:, i], output_dict=True, zero_division=0
-            )
-            for output_class, metrics in report.items():
-                if isinstance(metrics, dict):
-                    temp = metrics.copy()
-                    temp["output_class"] = output_class
-                    temp["category"] = col
-                    temp["evaluation_type"] = "baseline"
-                    results.append(temp)
-
-        # Hierarchy-corrected evaluation (if probabilities available)
         if proba_list is not None:
             logging.info("Performing hierarchy-corrected evaluation...")
-
-            # Convert probabilities to dict format expected by apply_hierarchy
-            n_samples = len(X_test)
-            Y_pred_hierarchy = np.zeros_like(Y_pred_baseline)
-
-            violations_before = 0
-            violations_after = 0
-            edges_before = 0
-            edges_after = 0
-            skipped_samples_missing_proba = 0
-
-            def _count_edges(prob_map, taxonomy, exclude) -> int:
-                total = 0
-                for parent, children in taxonomy.items():
-                    if parent == "related" or parent in exclude:
-                        continue
-                    if parent not in prob_map:
-                        continue
-                    for child in children:
-                        if child in exclude or child not in prob_map:
-                            continue
-                        total += 1
-                return total
-
-            # Prepare thresholds used (apply critical-label reduction once)
-            base_thresholds = {name: 0.5 for name in category_names}
-            thresholds_used = base_thresholds.copy()
-            if HIERARCHY_CRITICAL_THRESHOLD_REDUCTION > 0:
-                for lbl in CRITICAL_LABELS:
-                    if lbl in thresholds_used:
-                        thresholds_used[lbl] = max(
-                            0.0, thresholds_used[lbl] - HIERARCHY_CRITICAL_THRESHOLD_REDUCTION
-                        )
-
-            # Process each sample
-            for sample_idx in range(n_samples):
-                # Build probability dict for this sample
-                probs = {}
-                proba_complete = True
-                for label_idx, label_name in enumerate(category_names):
-                    try:
-                        proba_array = proba_list[label_idx]
-                        if proba_array.ndim == 2 and proba_array.shape[1] == 2:
-                            prob = proba_array[sample_idx, 1]  # Positive class probability
-                        elif proba_array.ndim == 2 and proba_array.shape[1] == 1:
-                            # Single class present - check which class it is
-                            clf = model.named_steps['clf']
-                            if hasattr(clf, 'classes_') and label_idx < len(clf.classes_):
-                                classes = clf.classes_[label_idx]
-                                if len(classes) == 1 and classes[0] == 0:
-                                    # Only class 0 present, probability of class 1 is 0
-                                    prob = 0.0
-                                elif len(classes) == 1 and classes[0] == 1:
-                                    # Only class 1 present, probability of class 1 is 1
-                                    prob = 1.0
-                                else:
-                                    # Fallback
-                                    prob = proba_array[sample_idx, 0]
-                            else:
-                                # Fallback if class info not available
-                                prob = proba_array[sample_idx, 0]
-                        else:
-                            # Handle other shapes (1D or unexpected)
-                            prob = proba_array[sample_idx]
-                        probs[label_name] = float(prob)
-                    except Exception:
-                        # Mark as incomplete and avoid mixing hard labels with probabilities
-                        proba_complete = False
-                        break
-
-                if not proba_complete:
-                    # Fall back to baseline for this sample, do not include in hierarchy metric counts
-                    skipped_samples_missing_proba += 1
-                    Y_pred_hierarchy[sample_idx, :] = Y_pred_baseline[sample_idx, :]
-                    continue
-
-                # Count violations before hierarchy (only when probabilities are complete)
-                violations_before += count_violations(probs, TAXONOMY, EXCLUDE_FROM_CONSTRAINTS)
-                edges_before += _count_edges(probs, TAXONOMY, EXCLUDE_FROM_CONSTRAINTS)
-
-                # Apply hierarchy correction
-                adjusted_probs, binary_predictions = apply_hierarchy(
-                    probs=probs,
-                    thresholds=thresholds_used,
-                    taxonomy=TAXONOMY,
-                    critical_labels=CRITICAL_LABELS,
-                    exclude=EXCLUDE_FROM_CONSTRAINTS,
-                    critical_threshold_reduction=0.0,
-                )
-
-                # Count violations after hierarchy
-                violations_after += count_violations(adjusted_probs, TAXONOMY, EXCLUDE_FROM_CONSTRAINTS)
-                edges_after += _count_edges(adjusted_probs, TAXONOMY, EXCLUDE_FROM_CONSTRAINTS)
-
-                # Store hierarchy-corrected predictions
-                for label_idx, label_name in enumerate(category_names):
-                    Y_pred_hierarchy[sample_idx, label_idx] = binary_predictions.get(label_name, Y_pred_baseline[sample_idx, label_idx])
-
-            # Calculate violation rates per 1k edges
-            violations_per_1k_before = (violations_before / edges_before * 1000) if edges_before > 0 else 0.0
-            violations_per_1k_after = (violations_after / edges_after * 1000) if edges_after > 0 else 0.0
-
-            logging.info(
-                f"Violations per 1k edges - Before: {violations_per_1k_before:.1f}, After: {violations_per_1k_after:.1f}"
+            (
+                hierarchy_results,
+                thresholds_used,
+                violations_per_1k_before,
+                violations_per_1k_after,
+                _,
+            ) = _evaluate_hierarchy_predictions(
+                model, X_test, Y_test, category_names, y_pred_baseline, proba_list
             )
-            logging.info("Note: 'violations per 1k' is edge-normalized (per parent→child edge).")
-            if skipped_samples_missing_proba > 0:
-                logging.info("Hierarchy: %d samples used baseline only due to missing probabilities; excluded from edge metrics.", skipped_samples_missing_proba)
 
-            # Hierarchy-corrected evaluation
-            for i, col in enumerate(category_names):
-                report = classification_report(
-                    Y_test[:, i], Y_pred_hierarchy[:, i], output_dict=True, zero_division=0
-                )
-                for output_class, metrics in report.items():
-                    if isinstance(metrics, dict):
-                        temp = metrics.copy()
-                        temp["output_class"] = output_class
-                        temp["category"] = col
-                        temp["evaluation_type"] = "hierarchy_corrected"
-                        hierarchy_results.append(temp)
-
-        # Combine results
         all_results = results + hierarchy_results
         results_df = pd.DataFrame(all_results)
         results_df = results_df[
             ["category", "evaluation_type", "output_class", "precision", "recall", "f1-score", "support"]
         ]
 
-        # Save to clean model folder location
         os.makedirs(model_dir, exist_ok=True)
         results_file_path = os.path.join(model_dir, "performance_metrics.csv")
         results_df.to_csv(results_file_path, index=False)
         logging.info("Performance metrics saved to: %s", results_file_path)
 
-        # Persist thresholds used for hierarchy (for reproducibility)
         try:
+            if thresholds_used is None:
+                raise ValueError("Hierarchy thresholds unavailable; predict_proba failed")
             thresholds_out_path = os.path.join(model_dir, "thresholds_used_hierarchy.json")
             with open(thresholds_out_path, "w", encoding="utf-8") as f:
                 json.dump(thresholds_used, f, indent=2)
@@ -257,101 +429,15 @@ def evaluate_model_to_model_folder(model, X_test, Y_test, category_names, model_
         except Exception as e:
             logging.warning("Failed to persist hierarchy thresholds: %s", e)
 
-        # Calculate summary statistics with clear across-label metrics
-        baseline_df = results_df[results_df['evaluation_type'] == 'baseline']
-
-        # Helper: compute across-label Macro/Weighted scores using positive class ('1') rows
-        def _across_label_scores(df: pd.DataFrame):
-            pos_rows = df[df['output_class'] == '1']
-            # Ensure only known categories are considered
-            pos_rows = pos_rows[pos_rows['category'].isin(category_names)]
-            # Macro over labels: simple mean of label-wise F1/precision/recall
-            macro_precision = pos_rows['precision'].mean() if not pos_rows.empty else 0.0
-            macro_recall = pos_rows['recall'].mean() if not pos_rows.empty else 0.0
-            macro_f1 = pos_rows['f1-score'].mean() if not pos_rows.empty else 0.0
-            # Weighted over labels: weights by positive support per label
-            weights = pos_rows['support'].astype(float)
-            total_w = float(weights.sum()) if not pos_rows.empty else 0.0
-            if total_w > 0:
-                weighted_precision = float((pos_rows['precision'] * weights).sum() / total_w)
-                weighted_recall = float((pos_rows['recall'] * weights).sum() / total_w)
-                weighted_f1 = float((pos_rows['f1-score'] * weights).sum() / total_w)
-            else:
-                weighted_precision = weighted_recall = weighted_f1 = 0.0
-            return {
-                'macro_precision': macro_precision,
-                'macro_recall': macro_recall,
-                'macro_f1': macro_f1,
-                'weighted_precision': weighted_precision,
-                'weighted_recall': weighted_recall,
-                'weighted_f1': weighted_f1,
-            }
-
-        baseline_across = _across_label_scores(baseline_df)
-
-        summary = {
-            # Legacy overall rows (per-label weighted avg across classes, then mean) kept for continuity
-            'total_categories': len(category_names),
-            'test_samples': len(Y_test),
-            # Across-label metrics (primary/secondary gates)
-            'macro_precision_baseline': baseline_across['macro_precision'],
-            'macro_recall_baseline': baseline_across['macro_recall'],
-            'macro_f1_baseline': baseline_across['macro_f1'],
-            'weighted_precision_baseline': baseline_across['weighted_precision'],
-            'weighted_recall_baseline': baseline_across['weighted_recall'],
-            'weighted_f1_baseline': baseline_across['weighted_f1'],
-        }
-
-        # Add hierarchy comparison if available
-        if proba_list is not None and hierarchy_results:
-            hierarchy_df = results_df[results_df['evaluation_type'] == 'hierarchy_corrected']
-            hierarchy_across = _across_label_scores(hierarchy_df)
-
-            # Calculate Safety Recall (average recall on critical labels)
-            critical_recalls_baseline = []
-            critical_recalls_hierarchy = []
-
-            for label in CRITICAL_LABELS:
-                if label in category_names:
-                    baseline_recall = baseline_df[(baseline_df['category'] == label) &
-                                                (baseline_df['output_class'] == '1')]['recall']
-                    hierarchy_recall = hierarchy_df[(hierarchy_df['category'] == label) &
-                                                   (hierarchy_df['output_class'] == '1')]['recall']
-
-                    if not baseline_recall.empty:
-                        critical_recalls_baseline.append(baseline_recall.iloc[0])
-                    if not hierarchy_recall.empty:
-                        critical_recalls_hierarchy.append(hierarchy_recall.iloc[0])
-
-            safety_recall_baseline = np.mean(critical_recalls_baseline) if critical_recalls_baseline else 0.0
-            safety_recall_hierarchy = np.mean(critical_recalls_hierarchy) if critical_recalls_hierarchy else 0.0
-
-            summary.update({
-                # Across-label metrics after hierarchy
-                'macro_precision_hierarchy': hierarchy_across['macro_precision'],
-                'macro_recall_hierarchy': hierarchy_across['macro_recall'],
-                'macro_f1_hierarchy': hierarchy_across['macro_f1'],
-                'weighted_precision_hierarchy': hierarchy_across['weighted_precision'],
-                'weighted_recall_hierarchy': hierarchy_across['weighted_recall'],
-                'weighted_f1_hierarchy': hierarchy_across['weighted_f1'],
-                # Deltas
-                'macro_f1_change': hierarchy_across['macro_f1'] - baseline_across['macro_f1'],
-                'weighted_f1_change': hierarchy_across['weighted_f1'] - baseline_across['weighted_f1'],
-                # Safety + violations
-                'violations_per_1k_before': violations_per_1k_before,
-                'violations_per_1k_after': violations_per_1k_after,
-                'safety_recall_baseline': safety_recall_baseline,
-                'safety_recall_hierarchy': safety_recall_hierarchy,
-                'safety_recall_improvement': safety_recall_hierarchy - safety_recall_baseline,
-            })
-
-            logging.info(
-                f"Safety Recall: {safety_recall_baseline:.3f} → {safety_recall_hierarchy:.3f} (Δ{(safety_recall_hierarchy - safety_recall_baseline):+.3f})"
-            )
-            logging.info(
-                f"Macro F1 (across labels) Change: {summary['macro_f1_change']:+.3f}"
-            )
-
+        summary = _build_performance_summary(
+            results_df,
+            category_names,
+            len(Y_test),
+            proba_list,
+            hierarchy_results,
+            violations_per_1k_before,
+            violations_per_1k_after,
+        )
         return summary
 
     except Exception as e:
@@ -379,6 +465,49 @@ def save_training_log(model_dir, config, performance_summary, training_time, mod
     return log_path
 
 
+def _extract_positive_probabilities(proba_list, model, label_idx):
+    """Extract positive class probabilities for a label across samples."""
+    probs = proba_list[label_idx]
+    if probs.ndim == 2 and probs.shape[1] == 2:
+        return probs[:, 1]
+    if probs.ndim == 2 and probs.shape[1] == 1:
+        clf = model.named_steps['clf']
+        if hasattr(clf, 'classes_') and label_idx < len(clf.classes_):
+            classes = clf.classes_[label_idx]
+            if len(classes) == 1 and classes[0] == 0:
+                return np.zeros(probs.shape[0])
+            if len(classes) == 1 and classes[0] == 1:
+                return np.ones(probs.shape[0])
+        return probs.ravel()
+    return probs.ravel()
+
+
+def _find_best_f2_threshold(y_true, probabilities, beta=2.0, eps=1e-12):
+    """Find the threshold that maximizes F2 score."""
+    best_t = 0.5
+    best_f = -1.0
+    candidates = np.unique(np.clip(probabilities, 0.0, 1.0))
+    if candidates.size > 200:
+        q = np.linspace(0.05, 0.95, 19)
+        candidates = np.unique(np.concatenate([np.quantile(probabilities, q), [0.5]]))
+    else:
+        candidates = np.unique(np.concatenate([candidates, [0.5]]))
+    for t in candidates:
+        y_pred = (probabilities >= float(t)).astype(int)
+        tp = float(np.sum((y_pred == 1) & (y_true == 1)))
+        fp = float(np.sum((y_pred == 1) & (y_true == 0)))
+        fn = float(np.sum((y_pred == 0) & (y_true == 1)))
+        prec = tp / (tp + fp + eps)
+        rec = tp / (tp + fn + eps)
+        f = (1 + beta ** 2) * (prec * rec) / (beta ** 2 * prec + rec + eps)
+        if f > best_f:
+            best_f = f
+            best_t = float(t)
+    if best_f <= 0:
+        return 0.5, "default"
+    return round(best_t, 4), "optimized"
+
+
 def _compute_f2_thresholds_for_labels(model, X_eval, Y_eval, labels, all_category_names):
     try:
         proba_list = model.predict_proba(X_eval)
@@ -388,8 +517,6 @@ def _compute_f2_thresholds_for_labels(model, X_eval, Y_eval, labels, all_categor
 
     thresholds = {}
     sources = {}
-    beta = 2.0
-    eps = 1e-12
     name_to_idx = {name: i for i, name in enumerate(all_category_names)}
     for name in labels:
         idx = name_to_idx.get(name)
@@ -403,61 +530,14 @@ def _compute_f2_thresholds_for_labels(model, X_eval, Y_eval, labels, all_categor
             sources[name] = "default"
             continue
         try:
-            probs = proba_list[idx]
-            if probs.ndim == 2 and probs.shape[1] == 2:
-                # Normal binary classifier with both classes
-                p = probs[:, 1]
-            elif probs.ndim == 2 and probs.shape[1] == 1:
-                # Single class present - check which class it is
-                # Access the underlying classifier to get class information
-                clf = model.named_steps['clf']
-                if hasattr(clf, 'classes_') and idx < len(clf.classes_):
-                    classes = clf.classes_[idx]
-                    if len(classes) == 1 and classes[0] == 0:
-                        # Only class 0 present, probability of class 1 is 0
-                        p = np.zeros(probs.shape[0])
-                    elif len(classes) == 1 and classes[0] == 1:
-                        # Only class 1 present, probability of class 1 is 1
-                        p = np.ones(probs.shape[0])
-                    else:
-                        # Fallback (shouldn't happen)
-                        p = probs.ravel()
-                else:
-                    # Fallback if class info not available
-                    p = probs.ravel()
-            else:
-                # Fallback for unexpected shapes
-                p = probs.ravel()
+            p = _extract_positive_probabilities(proba_list, model, idx)
         except Exception:
             thresholds[name] = 0.5
             sources[name] = "default"
             continue
-
-        best_t = 0.5
-        best_f = -1.0
-        candidates = np.unique(np.clip(p, 0.0, 1.0))
-        if candidates.size > 200:
-            q = np.linspace(0.05, 0.95, 19)
-            candidates = np.unique(np.concatenate([np.quantile(p, q), [0.5]]))
-        else:
-            candidates = np.unique(np.concatenate([candidates, [0.5]]))
-        for t in candidates:
-            y_pred = (p >= float(t)).astype(int)
-            tp = float(np.sum((y_pred == 1) & (y_true == 1)))
-            fp = float(np.sum((y_pred == 1) & (y_true == 0)))
-            fn = float(np.sum((y_pred == 0) & (y_true == 1)))
-            prec = tp / (tp + fp + eps)
-            rec = tp / (tp + fn + eps)
-            f = (1 + beta ** 2) * (prec * rec) / (beta ** 2 * prec + rec + eps)
-            if f > best_f:
-                best_f = f
-                best_t = float(t)
-        if best_f <= 0:
-            thresholds[name] = 0.5
-            sources[name] = "default"
-        else:
-            thresholds[name] = round(best_t, 4)
-            sources[name] = "optimized"
+        threshold, source = _find_best_f2_threshold(y_true, p)
+        thresholds[name] = threshold
+        sources[name] = source
     return thresholds, sources
 
 

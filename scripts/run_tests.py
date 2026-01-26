@@ -12,9 +12,10 @@ Best practices:
 - Falls back to `python3 -m pytest` then `python -m pytest`
 - Handles environment-specific requirements gracefully
 """
+# Standard library imports
 import os
-import sys
 import subprocess
+import sys
 from pathlib import Path
 
 # Add src to path for imports
@@ -23,7 +24,8 @@ SRC_PATH = PROJECT_ROOT / 'src'
 if str(SRC_PATH) not in sys.path:
     sys.path.insert(0, str(SRC_PATH))
 
-from disasterproject.utils.env import is_replit, is_venv_required, check_venv_activation
+# Local imports
+from disasterproject.utils.env import check_venv_activation, is_replit, is_venv_required
 
 
 def find_pytest_command():

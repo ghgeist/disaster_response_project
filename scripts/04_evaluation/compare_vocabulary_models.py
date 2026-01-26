@@ -6,24 +6,28 @@ Analyzes all vocabulary-limited models, compares performance metrics,
 model sizes, and generates a markdown report.
 """
 
+# Standard library imports
+import argparse
+import hashlib
+import json
+import logging
 import os
 import sys
-import json
-import argparse
-import logging
+from datetime import datetime
+from pathlib import Path
+
+# Third-party imports
+import joblib
 import numpy as np
 import pandas as pd
-import joblib
-from pathlib import Path
-from datetime import datetime
+from sklearn.metrics import classification_report, f1_score
 
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from disasterproject.utils.config import setup_logging, TARGET_COLUMNS, CRITICAL_LABELS
+# Local imports
 from disasterproject.data.loader import load_data
-from sklearn.metrics import classification_report, f1_score
-import hashlib
+from disasterproject.utils.config import CRITICAL_LABELS, TARGET_COLUMNS, setup_logging
 
 def load_eval_split(eval_ids_file, X, Y):
     """Load frozen eval split."""

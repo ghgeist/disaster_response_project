@@ -8,21 +8,25 @@ This script validates the end-to-end system functionality including:
 - Application integration
 """
 
-import sys
-import os
+# Standard library imports
 import logging
+import os
 import pickle
+import sys
 import tempfile
+
+# Third-party imports
 import numpy as np
+from sklearn.model_selection import train_test_split
 
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from disasterproject.utils.config import setup_logging, TARGET_COLUMNS, DEFAULT_TEST_SIZE, RANDOM_STATE
+# Local imports
 from disasterproject.data.loader import load_data
-from disasterproject.models.pipeline import create_pipeline, build_model
 from disasterproject.data.preprocessor import tokenize
-from sklearn.model_selection import train_test_split
+from disasterproject.models.pipeline import build_model, create_pipeline
+from disasterproject.utils.config import DEFAULT_TEST_SIZE, RANDOM_STATE, TARGET_COLUMNS, setup_logging
 
 
 def test_model_training(database_filepath):

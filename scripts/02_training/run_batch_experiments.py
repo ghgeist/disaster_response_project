@@ -17,18 +17,23 @@ The script will run all predefined experiments:
 Results are saved to the experiments/ directory structure.
 """
 
+# Standard library imports
+import importlib.util
+import logging
 import os
 import sys
 import time
-import logging
 from datetime import datetime
 
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
+# Local imports
+from disasterproject.utils.config import setup_logging
+from disasterproject.utils.experiment_tracker import create_experiment_name
+
 # Import train_experiment from the sampling strategies script in the same directory
 # Note: Using importlib since module name starts with a number
-import importlib.util
 spec = importlib.util.spec_from_file_location(
     "test_sampling_strategies",
     os.path.join(os.path.dirname(__file__), "01_test_sampling_strategies.py")
@@ -36,8 +41,6 @@ spec = importlib.util.spec_from_file_location(
 test_sampling_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(test_sampling_module)
 train_experiment = test_sampling_module.train_experiment
-from disasterproject.utils.experiment_tracker import create_experiment_name
-from disasterproject.utils.config import setup_logging
 
 
 DB_PATH = 'data/02_stg/stg_disaster_response.db'

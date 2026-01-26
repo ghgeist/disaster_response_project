@@ -6,21 +6,25 @@ Extracts vocabulary, document frequencies, and provides recommendations
 for optimal max_features, min_df, and max_df values.
 """
 
+# Standard library imports
+import argparse
+import json
+import logging
 import os
 import sys
-import json
-import argparse
-import logging
-import numpy as np
-import pandas as pd
-import joblib
 from collections import Counter
 from pathlib import Path
+
+# Third-party imports
+import joblib
+import numpy as np
+import pandas as pd
 
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from disasterproject.utils.config import setup_logging, CRITICAL_LABELS
+# Local imports
+from disasterproject.utils.config import CRITICAL_LABELS, setup_logging
 
 def analyze_vocabulary(model_path, output_path=None):
     """

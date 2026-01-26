@@ -24,8 +24,9 @@ Note:
     but this script provides a standalone, user-friendly interface with helpful
     error messages for AI agents and developers.
 """
-import sys
+# Standard library imports
 import os
+import sys
 from pathlib import Path
 
 def ensure_venv():

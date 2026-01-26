@@ -12,32 +12,41 @@ Usage:
     python scripts/04_evaluation/evaluate_hierarchy.py --model-path experiments/experimental_runs/2025-09-16/2025-09-16-comprehensive-grid-search-optimized-model.pkl
 """
 
+# Standard library imports
 import argparse
-import os
-import sys
 import json
 import logging
+import os
+import sys
+import warnings
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
-import pandas as pd
-import numpy as np
+from typing import Dict, List, Optional, Tuple
+
+# Third-party imports
 import joblib
+import numpy as np
+import pandas as pd
+from sklearn.metrics import classification_report, precision_recall_fscore_support
+from sklearn.model_selection import train_test_split
 
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from disasterproject.utils.config import (
-    setup_logging, TARGET_COLUMNS, TAXONOMY, CRITICAL_LABELS,
-    EXCLUDE_FROM_CONSTRAINTS, DEFAULT_TEST_SIZE, DEFAULT_RANDOM_SEED,
-    HIERARCHY_CRITICAL_THRESHOLD_REDUCTION,
-)
+# Local imports
 from disasterproject.data.loader import load_data
-from disasterproject.hierarchy import apply_hierarchy, count_violations
 from disasterproject.evaluation.metrics import evaluate_model
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, precision_recall_fscore_support
-import warnings
+from disasterproject.hierarchy import apply_hierarchy, count_violations
+from disasterproject.utils.config import (
+    CRITICAL_LABELS,
+    DEFAULT_RANDOM_SEED,
+    DEFAULT_TEST_SIZE,
+    EXCLUDE_FROM_CONSTRAINTS,
+    HIERARCHY_CRITICAL_THRESHOLD_REDUCTION,
+    TARGET_COLUMNS,
+    TAXONOMY,
+    setup_logging,
+)
 warnings.filterwarnings('ignore')
 
 logger = logging.getLogger(__name__)

@@ -9,19 +9,23 @@ Usage:
     python scripts/04_evaluation/compare_models.py
 """
 
+# Standard library imports
+import glob
+import json
 import os
 import sys
-import json
-import pandas as pd
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional
 
+# Third-party imports
+import pandas as pd
+
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
+# Local imports
 from disasterproject.utils.experimental_paths import ExperimentalPathManager
-import glob
 
 class OutputWriter:
     """Helper class to write output to both console and file."""

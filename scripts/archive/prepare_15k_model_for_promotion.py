@@ -8,12 +8,13 @@ This script:
 3. Ensures all required artifacts are in place
 """
 
-import os
-import sys
-import shutil
+# Standard library imports
 import json
-from pathlib import Path
+import os
+import shutil
+import sys
 from datetime import datetime
+from pathlib import Path
 
 # Setup paths
 project_root = Path(__file__).parent.parent

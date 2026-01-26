@@ -6,15 +6,22 @@ This script validates the proper multi-label sampling approaches and class weigh
 implementation for the disaster response classification system.
 """
 
-import sys
-import os
+# Standard library imports
 import logging
+import os
+import sys
 from time import time
+
+# Third-party imports
+import numpy as np
+from sklearn.model_selection import train_test_split
 
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
+# Local imports
 from disasterproject.data.loader import load_data
+from disasterproject.evaluation.metrics import evaluate_model
 from disasterproject.models.samplers import (
     apply_proper_multilabel_sampling,
     get_multilabel_class_weights
@@ -24,10 +31,7 @@ from disasterproject.models.pipeline import (
     create_pipeline_with_custom_weights,
     build_model
 )
-from disasterproject.evaluation.metrics import evaluate_model
-from disasterproject.utils.config import setup_logging, TARGET_COLUMNS, DEFAULT_TEST_SIZE, RANDOM_STATE
-from sklearn.model_selection import train_test_split
-import numpy as np
+from disasterproject.utils.config import DEFAULT_TEST_SIZE, RANDOM_STATE, TARGET_COLUMNS, setup_logging
 
 
 def analyze_class_distribution(y_original, y_resampled, method_name):

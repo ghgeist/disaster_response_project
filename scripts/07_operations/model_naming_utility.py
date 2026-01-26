@@ -10,6 +10,7 @@ Usage:
     python scripts/model_naming_utility.py --generate-name --algorithm rf --version 1.2.0
 """
 
+# Standard library imports
 import argparse
 import json
 import os

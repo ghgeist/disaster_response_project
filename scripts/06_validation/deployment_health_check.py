@@ -3,11 +3,14 @@
 Post-deployment health check script.
 Verify production deployment is working correctly.
 """
+# Standard library imports
+import json
 import sys
 import time
-import requests
-import json
 from pathlib import Path
+
+# Third-party imports
+import requests
 
 def test_model_endpoint(base_url="http://localhost:5000"):
     """Test the model prediction endpoint."""

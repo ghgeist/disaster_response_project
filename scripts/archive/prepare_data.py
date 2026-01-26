@@ -6,14 +6,16 @@ This script runs the ETL pipeline to process raw disaster response data
 and prepare it for machine learning.
 """
 
+# Standard library imports
 import argparse
 import logging
-import sys
 import os
+import sys
 
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
+# Local imports
 from disasterproject.data.loader import prepare_data
 
 

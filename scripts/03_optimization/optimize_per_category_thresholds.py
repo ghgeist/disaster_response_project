@@ -13,24 +13,28 @@ Usage:
     python scripts/03_optimization/optimize_per_category_thresholds.py --model-path <model.pkl> --output-dir <output>
 """
 
-import os
-import sys
+# Standard library imports
+import argparse
 import json
 import logging
-import argparse
+import os
+import sys
+from datetime import datetime
+
+# Third-party imports
+import joblib
 import numpy as np
 import pandas as pd
-import joblib
-from datetime import datetime
-from sqlalchemy import create_engine
 from sklearn.metrics import classification_report, f1_score
+from sqlalchemy import create_engine
 
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from disasterproject.utils.config import setup_logging, TARGET_COLUMNS, CRITICAL_LABELS
+# Local imports
 from disasterproject.data.loader import load_data
 from disasterproject.hierarchy import optimize_critical_thresholds
+from disasterproject.utils.config import CRITICAL_LABELS, TARGET_COLUMNS, setup_logging
 
 
 def load_eval_split(eval_ids_file, X, Y):

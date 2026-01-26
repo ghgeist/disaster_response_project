@@ -1,7 +1,10 @@
 # scripts/visualize_performance.py
+# Standard library imports
+from pathlib import Path
+
+# Third-party imports
 import pandas as pd
 import plotly.graph_objs as go
-from pathlib import Path
 
 def create_performance_comparison():
     """Generate interactive performance comparison charts."""

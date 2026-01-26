@@ -4,8 +4,11 @@ Quick script to compare model results and see if SMOTE helped.
 Usage: python compare_results.py
 """
 
-import pandas as pd
+# Standard library imports
 import os
+
+# Third-party imports
+import pandas as pd
 
 def compare_model_results():
     """Compare base model vs best model results to see SMOTE impact."""

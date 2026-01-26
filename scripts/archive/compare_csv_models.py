@@ -6,12 +6,15 @@ This script provides crystal-clear comparison between different model prediction
 stored in CSV format, making it easy for portfolio reviewers to understand model performance improvements.
 """
 
-import sys
-import os
-import pandas as pd
-import numpy as np
-from typing import Dict, List, Any, Tuple
+# Standard library imports
 import argparse
+import os
+import sys
+from typing import Any, Dict, List, Tuple
+
+# Third-party imports
+import numpy as np
+import pandas as pd
 
 
 def load_csv_results(file_path: str) -> pd.DataFrame:

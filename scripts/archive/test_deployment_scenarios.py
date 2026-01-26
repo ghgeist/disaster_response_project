@@ -8,10 +8,11 @@ Scenarios:
 3. Development: Google Drive primary
 """
 
+# Standard library imports
 import argparse
 import os
-import sys
 import shutil
+import sys
 from pathlib import Path
 
 # Add paths for imports

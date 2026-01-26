@@ -3,18 +3,22 @@
 Production model validation script.
 Comprehensive testing before deployment.
 """
+# Standard library imports
+import json
+import os
 import sys
 import time
+from pathlib import Path
+
+# Third-party imports
 import joblib
 import psutil
-import os
-from pathlib import Path
-import json
 
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'app'))
 
+# Local imports
 from disasterproject.utils.config import TARGET_COLUMNS
 from services import ModelService
 

@@ -6,24 +6,28 @@ This script loads the trained Inc 1 model and optimizes thresholds
 for critical categories to improve recall while maintaining F1 > 90%.
 """
 
-import os
-import sys
+# Standard library imports
+import hashlib
 import json
 import logging
-import hashlib
+import os
+import sys
+from datetime import datetime
+
+# Third-party imports
+import joblib
 import numpy as np
 import pandas as pd
-import joblib
-from datetime import datetime
-from sqlalchemy import create_engine
 from sklearn.metrics import classification_report, f1_score
+from sqlalchemy import create_engine
 
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from disasterproject.utils.config import setup_logging, TARGET_COLUMNS, CRITICAL_LABELS
+# Local imports
 from disasterproject.data.loader import load_data
 from disasterproject.hierarchy import optimize_critical_thresholds
+from disasterproject.utils.config import CRITICAL_LABELS, TARGET_COLUMNS, setup_logging
 
 def load_eval_split(eval_ids_file, X, Y):
     """Load frozen eval split."""
