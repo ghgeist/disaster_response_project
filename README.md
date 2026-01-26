@@ -67,7 +67,8 @@ scripts/                          # Professional training and testing interface
 ├── compare_models.py            # Model comparison tool
 ├── compare_child_alone.py       # Child alone label analysis
 ├── evaluate_hierarchy.py        # Hierarchy constraint evaluation
-├── optimize_thresholds.py       # Threshold optimization
+├── optimize_hierarchy_threshold_reduction.py  # Optimize hierarchy post-processing parameter
+├── optimize_per_category_thresholds.py        # Optimize individual category thresholds
 ├── promote_model.py             # Model promotion utility
 ├── test_experimental_model.py   # Experimental model testing
 ├── validate_production_model.py # Production model validation
@@ -258,7 +259,8 @@ python scripts/compare_models.py
 
 # Additional analysis tools
 python scripts/evaluate_hierarchy.py
-python scripts/optimize_thresholds.py
+python scripts/optimize_hierarchy_threshold_reduction.py  # Hierarchy parameter optimization
+python scripts/optimize_per_category_thresholds.py        # Per-category threshold optimization
 python scripts/validate_production_model.py
 python scripts/test_experimental_model.py
 ```

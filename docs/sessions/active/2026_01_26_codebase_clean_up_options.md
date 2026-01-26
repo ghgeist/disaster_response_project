@@ -1,11 +1,11 @@
-## Option 2: Duplicate consolidation — threshold optimization scripts (medium risk, medium effort)
+## Option 2: Duplicate consolidation — threshold optimization scripts ✅ COMPLETED
 
 Three threshold optimization scripts:
-- `scripts/optimize_thresholds.py` — Referenced in README architecture section
-- `scripts/optimize_all_thresholds.py` — No documentation
+- `scripts/optimize_hierarchy_threshold_reduction.py` (renamed from `optimize_thresholds.py`) — Hierarchy parameter optimization
+- `scripts/optimize_per_category_thresholds.py` (renamed from `optimize_all_thresholds.py`) — Per-category threshold optimization
 - `scripts/optimize_critical_thresholds_inc1.py` — Already archived
 
-Action: Compare `optimize_thresholds.py` vs `optimize_all_thresholds.py` to see if one can be archived.
+Action: ✅ **COMPLETED** - Renamed scripts to clarify distinct purposes. Both scripts serve different functions and are kept.
 
 ## Option 3: Duplicate consolidation — comparison scripts (low risk, medium effort)
 
