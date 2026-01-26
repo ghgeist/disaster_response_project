@@ -44,6 +44,13 @@ def test_find_experiment_artifacts_prefers_latest_run(tmp_path: Path, monkeypatc
 
 
 def test_find_experiment_artifacts_legacy_results_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, compare_models_module: ModuleType) -> None:
+    """
+    Test that legacy results path is no longer supported.
+    
+    Note: Legacy support for experiments/results/ was removed in favor of
+    the new experiments/experimental_runs/<date>/ structure. This test
+    verifies that legacy paths return None (expected behavior).
+    """
     results_dir = tmp_path / "experiments" / "results"
     results_dir.mkdir(parents=True)
     metrics_path = results_dir / "performance_metrics.csv"
@@ -52,6 +59,5 @@ def test_find_experiment_artifacts_legacy_results_file(tmp_path: Path, monkeypat
     monkeypatch.chdir(tmp_path)
 
     artifacts = compare_models_module.find_experiment_artifacts()
-    assert artifacts is not None
-    assert Path(artifacts["metrics_path"]).resolve() == metrics_path.resolve()
-    assert artifacts["display_name"] == "experiments/results/performance_metrics.csv"
+    # Legacy paths are no longer supported - should return None
+    assert artifacts is None

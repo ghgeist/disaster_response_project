@@ -61,7 +61,7 @@
 <!-- Navigation Bar -->
 <nav class="bg-brand-slate shadow-md sticky top-0 z-50">
     <div class="container mx-auto px-6 py-4 flex justify-between items-center">
-        <a class="text-2xl font-bold text-white hover:text-brand-accent-blue focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="{{ url_for('index') }}">
+        <a class="text-2xl font-bold text-white hover:text-brand-accent-blue focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="{{ url_for('home.index') }}">
             Signal Storm <span role="img" aria-label="Tornado">🌪️</span>
         </a>
         <!-- Mobile Menu Button -->
@@ -72,11 +72,11 @@
         </div>
         <!-- Desktop Menu -->
         <div class="hidden md:flex space-x-4">
-            <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="{{ url_for('index') }}#hero">Home</a>
-            <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="{{ url_for('index') }}#classifier">Try It</a>
-            <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="{{ url_for('index') }}#data">Data</a>
-            <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="{{ url_for('index') }}#how-it-works">How It Works</a>
-            <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="{{ url_for('index') }}#performance">Performance</a>
+            <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="{{ url_for('home.index') }}#hero">Home</a>
+            <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="{{ url_for('home.index') }}#classifier">Try It</a>
+            <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="{{ url_for('home.index') }}#data">Data</a>
+            <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="{{ url_for('home.index') }}#how-it-works">How It Works</a>
+            <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="{{ url_for('home.index') }}#performance">Performance</a>
             <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="https://www.linkedin.com/in/grantgeist/" target="_blank" rel="noopener noreferrer">Contact</a>
             <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="https://github.com/ghgeist/disaster_response_project" target="_blank" rel="noopener noreferrer">GitHub</a>
             {% block nav_extra_desktop %}
@@ -86,11 +86,11 @@
     <!-- Mobile Menu -->
     <div id="mobile-menu" class="hidden bg-brand-slate px-6 py-4 border-t border-gray-700">
         <div class="flex flex-col space-y-2">
-            <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="{{ url_for('index') }}#hero">Home</a>
-            <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="{{ url_for('index') }}#classifier">Try It</a>
-            <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="{{ url_for('index') }}#data">Data</a>
-            <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="{{ url_for('index') }}#how-it-works">How It Works</a>
-            <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="{{ url_for('index') }}#performance">Performance</a>
+            <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="{{ url_for('home.index') }}#hero">Home</a>
+            <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="{{ url_for('home.index') }}#classifier">Try It</a>
+            <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="{{ url_for('home.index') }}#data">Data</a>
+            <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="{{ url_for('home.index') }}#how-it-works">How It Works</a>
+            <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="{{ url_for('home.index') }}#performance">Performance</a>
             <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="https://www.linkedin.com/in/grantgeist/" target="_blank" rel="noopener noreferrer">Contact</a>
             <a class="text-gray-300 hover:text-white rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-slate focus:ring-brand-accent-blue" href="https://github.com/ghgeist/disaster_response_project" target="_blank" rel="noopener noreferrer">GitHub</a>
             {% block nav_extra_mobile %}

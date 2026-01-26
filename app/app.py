@@ -9,7 +9,7 @@ from flask_wtf.csrf import CSRFProtect, CSRFError
 from .config import Config
 from .routes import register_routes
 from .utils import setup_logging, init_services, validate_environment
-from .nltk_setup import setup_nltk_resources, NLTKSetupError
+from .utils.nltk_setup import setup_nltk_resources, NLTKSetupError
 
 # Module-level initialization tracking to prevent duplicate startup messages
 # across multiple app instances in the same process
@@ -130,7 +130,7 @@ def create_app(config_class=Config):
     def ensure_session():
         """Ensure session is initialized for CSRF token support."""
         # Only initialize session for routes that render forms or submit forms (need CSRF)
-        if request.endpoint in ('index', 'go', 'classify'):
+        if request.endpoint in ('home.index', 'classification.go', 'classification.classify'):
             from flask import session
             # Touch session to initialize it (Flask sessions are lazy)
             session.permanent = True
@@ -155,6 +155,17 @@ def create_app(config_class=Config):
             has_session_cookie,
         )
         return render_template('error.html', message="Your session expired or the form is invalid. Please refresh and try again."), 400
+    
+    # Global error handlers for 404 and 500 errors
+    @app.errorhandler(404)
+    def not_found(_error):
+        """Handle 404 errors globally."""
+        return render_template('error.html', message="Page not found"), 404
+
+    @app.errorhandler(500)
+    def internal_error(_error):
+        """Handle 500 errors globally."""
+        return render_template('error.html', message="Internal server error"), 500
     
     # Initialize services
     init_services(app)
