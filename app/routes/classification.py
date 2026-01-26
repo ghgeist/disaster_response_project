@@ -5,7 +5,6 @@ import json
 import logging
 from pathlib import Path
 from flask import Blueprint, render_template, request, current_app, flash, redirect, url_for
-import pandas as pd
 
 from app.services.model_service import ModelServiceError
 from app.utils.validation import sanitize_input, validate_message_input

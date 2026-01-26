@@ -60,11 +60,12 @@ src/disasterproject/          # Core ML package
     └── experiment_tracker.py    # Experiment management
 
 scripts/                          # Professional training and testing interface
+│                                # See scripts/README.md for detailed documentation
 ├── 01_data/                      # Data processing & preparation
 │   ├── process_data.py          # ETL pipeline
 │   └── create_frozen_eval_ids.py # Evaluation dataset creation
 ├── 02_training/                  # Model training scripts
-│   ├── 01_test_sampling_strategies.py  # Sampling strategy testing
+│   ├── 01_test_sampling_strategies.py  # Sampling strategy testing (interactive)
 │   ├── 02_test_hyperparameters.py     # Hyperparameter optimization
 │   ├── 03_create_experimental_model.py # Experimental model creation
 │   ├── 04_create_production_model.py  # Production model creation
@@ -87,19 +88,41 @@ scripts/                          # Professional training and testing interface
 │   ├── validate_multilabel_sampling.py # Multilabel sampling validation
 │   └── deployment_health_check.py   # Deployment health verification
 ├── 07_operations/                 # MLOps & model management
-│   ├── promote_model.py             # Model promotion utility
+│   ├── promote_model.py             # Model promotion utility (with validation gates)
 │   └── model_naming_utility.py      # Model naming helpers
 └── utils/                          # Shared utilities
-    ├── ensure_venv.py              # Virtual environment checks
+    ├── ensure_venv.py              # Virtual environment checks (auto-detects Replit)
     └── estimate_search_time.py     # Time estimation utilities
 
 experiments/                      # Organized experiment results
-└── results/                      # Dated CSVs (e.g., 2025-09-13_lightweight_metrics.csv)
+├── experimental_runs/            # Dated experiment folders (YYYY-MM-DD/)
+│   └── {YYYY-MM-DD}/            # Self-contained experiment artifacts
+├── model_candidates/             # Optimized/tested parameter sets (ready to use)
+├── experimental_configs/         # Reusable experiment templates (search spaces, strategies)
+├── comparisons/                  # Timestamped model comparison reports
+├── model_archive/                # Archived production models and metadata
+├── logs/                         # Training and execution logs
+└── results/                      # Legacy folder (backward compatibility)
 
 app/                              # Web application
 ├── app.py                       # Flask application factory
+├── config.py                    # Application configuration
+├── forms.py                     # Form definitions
 ├── visualizations.py            # Visualization components
-└── templates/                   # HTML templates
+├── routes/                      # Route handlers
+│   ├── home.py                 # Home page routes
+│   ├── classification.py       # Classification endpoints
+│   └── health.py               # Health check endpoints
+├── services/                    # Business logic services
+│   ├── data_service.py         # Data access layer
+│   ├── model_service.py        # Model loading and prediction
+│   ├── metrics_service.py      # Performance metrics
+│   └── health_service.py       # Health check logic
+├── utils/                       # Application utilities
+│   ├── environment.py          # Environment detection
+│   ├── validation.py           # Input validation
+│   └── formatting.py           # Output formatting
+└── templates/                   # Jinja2 HTML templates
 
 run.py                           # Application entry point
 ```
@@ -181,7 +204,7 @@ source venv/bin/activate
 
    Prerequisites for the app to start successfully:
    - Database present at `data/02_stg/stg_disaster_response.db` (run Data Setup if missing)
-   - Model available at `model/disaster_rf_v1-2-0_prod_2025-09-11.pkl`
+   - Model available in `model/` directory (e.g., `disaster_rf_*_prod_*.pkl` - see `app/config.py` for exact filename)
 
 ### Replit Deployment
 
@@ -249,24 +272,50 @@ The machine learning pipeline consists of three main stages:
 
 ## 🧪 Experimentation
 
-The system supports organized experimentation with different sampling strategies:
+The system supports organized experimentation with different sampling strategies, hyperparameters, and model configurations. For detailed documentation, see [experiments/README.md](experiments/README.md).
+
+### Experiment Organization
+
+Experiments are organized in the `experiments/` directory with the following structure:
+
+- **`experimental_runs/{YYYY-MM-DD}/`**: Dated folders containing complete experiment artifacts (models, metrics, logs, reports)
+- **`model_candidates/`**: Optimized/tested parameter sets ready for model training (e.g., `vocab_15k.json`, `class_weights.json`)
+- **`experimental_configs/`**: Reusable experiment templates including:
+  - `hyperparameters/`: Grid search space definitions
+  - `sampling_strategies/`: Data sampling strategy definitions
+  - `eval_sets/`: Evaluation dataset identifiers
+- **`comparisons/`**: Timestamped model comparison reports
+- **`model_archive/`**: Archived production models and promotion history
+- **`logs/`**: Training and execution logs
+
+### Hyperparameter Optimization Workflow
+
+1. **Define search space** → Create/edit config in `experimental_configs/hyperparameters/`
+2. **Run grid search** → `scripts/02_training/02_test_hyperparameters.py` performs optimization
+3. **Save optimized parameters** → Automatically saved to `model_candidates/` as ready-to-use configs
+4. **Train model** → Use optimized configs with training scripts
 
 ### Available Experiments
+
 - **baseline_no_sampling**: No class balancing applied
 - **smote_conservative**: SMOTE with conservative parameters
 - **adasyn_moderate**: ADASYN with moderate parameters  
 - **conservative_sampling**: Very conservative SMOTE approach
 
 ### Running Experiments
+
 ```bash
-# Test sampling strategies
+# Test sampling strategies (interactive menu)
 python scripts/02_training/01_test_sampling_strategies.py data/02_stg/stg_disaster_response.db
 
-# Test hyperparameters
+# Test hyperparameters (uses experimental_configs/hyperparameters/)
 python scripts/02_training/02_test_hyperparameters.py data/02_stg/stg_disaster_response.db
 
-# Create experimental model
+# Create experimental model (uses model_candidates/ configs)
 python scripts/02_training/03_create_experimental_model.py
+
+# Create production model (uses model_candidates/ configs)
+python scripts/02_training/04_create_production_model.py --params experiments/model_candidates/vocab_15k.json --class-weights experiments/model_candidates/class_weights.json
 
 # Compare experiment results
 python scripts/04_evaluation/compare_models.py
@@ -279,15 +328,27 @@ python scripts/02_training/test_experimental_model.py
 ```
 
 ### Experiment Tracking
-Each experiment is automatically organized in the `experiments/` directory with:
-- Model files and parameters
-- Evaluation metrics and visualizations
-- Configuration and results summaries
-- Reproducible experiment names
+
+Each experiment is automatically organized with:
+- **Model files and parameters**: Saved in dated `experimental_runs/` folders
+- **Evaluation metrics**: CSV files and JSON reports
+- **Configuration snapshots**: Complete parameter sets for reproducibility
+- **Comparison reports**: Detailed performance analysis
+
+For complete documentation on experiment structure, naming conventions, and workflows, see [experiments/README.md](experiments/README.md).
 
 ## 🌐 Web Application
 
-The Flask web application provides:
+The Flask web application provides real-time message classification with a clean, modular architecture. For detailed documentation, see [app/README.md](app/README.md).
+
+### Architecture
+
+The application follows a clean separation of concerns:
+- **Routes** (`app/routes/`): HTTP endpoint handlers
+- **Services** (`app/services/`): Business logic (data access, model operations, metrics)
+- **Utils** (`app/utils/`): Helper functions (validation, formatting, environment detection)
+- **Templates** (`app/templates/`): Jinja2 HTML templates
+- **Static** (`app/static/`): CSS and static assets
 
 ### Features
 - **Real-time Classification**: Input messages and get instant category predictions
@@ -296,6 +357,15 @@ The Flask web application provides:
 - **Model Performance**: Visual representation of model metrics
 - **Responsive Design**: Tailwind CSS-based modern interface
 - **Cloud Deployment**: Optimized for Replit deployment with automatic model downloading
+
+### API Endpoints
+
+- **`GET /`**: Main page with visualizations and classification form
+- **`GET /go`**: Message classification results page
+- **`GET /classify`**: Classification API endpoint (supports `use_hierarchy` parameter)
+- **`GET /health`**: Lightweight health check endpoint (for deployment monitoring)
+- **`GET /health/detailed`**: Detailed health check with service diagnostics and performance metrics
+- **`GET /favicon.ico`**: Application favicon
 
 ### Hierarchy Processing Demo
 
@@ -320,6 +390,17 @@ The web application includes a live demonstration of the hierarchy post-processi
 
 This demonstrates the system's ability to enforce logical consistency in AI predictions for mission-critical disaster response scenarios.
 
+### Configuration
+
+The app uses environment-based configuration:
+- **`FLASK_ENV`**: Set to 'development' for debug mode
+- **`SECRET_KEY`**: Flask secret key (auto-generated for development)
+- **`HOST`**: Server host (default: 0.0.0.0)
+- **`PORT`**: Server port (default: 5000)
+- **`LOG_LEVEL`**: Logging level (INFO/DEBUG/WARNING/ERROR)
+
+Model and database paths are configured in `app/config.py`.
+
 ### Usage
 1. Navigate to the main page to see data visualizations
 2. Enter a message in the classification interface
@@ -333,13 +414,15 @@ This demonstrates the system's ability to enforce logical consistency in AI pred
 python run.py
 ```
 
-**Note**: The `run.py` file serves as the application entry point and properly imports the Flask app from `app/app.py`.
+**Note**: The `run.py` file serves as the application entry point and properly imports the Flask app from `app/app.py` using the application factory pattern.
 
 #### Replit Deployment
 The application is pre-configured for Replit deployment:
 - **Port Configuration**: Automatically uses Replit's assigned port
 - **Error Handling**: Robust error handling for cloud deployment scenarios
 - **Model Management**: Model files must be uploaded to the `model/` directory
+
+For complete application documentation, see [app/README.md](app/README.md).
 
 ## 🚀 Production Deployment
 
@@ -450,6 +533,10 @@ python scripts/02_training/run_batch_experiments.py
 # Validate multilabel sampling
 python scripts/06_validation/validate_multilabel_sampling.py
 ```
+
+### Script Documentation
+
+For detailed documentation on all scripts, including usage examples, dependencies, and output locations, see [scripts/README.md](scripts/README.md).
 
 ### Contributing
 1. Follow the established modular architecture
