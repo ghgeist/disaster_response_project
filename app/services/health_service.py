@@ -42,16 +42,38 @@ def extract_perf_triplet(
         raise ValueError("Both base_df and opt_df are required to extract performance triplet")
 
     def select_row(df: pd.DataFrame) -> pd.Series:
-        candidates = df[df.get("output_class", "").astype(str).isin(["1", "positive", "pos"])].head(1)
+        if df.empty:
+            raise ValueError("Metrics dataframe is empty")
+
+        candidates = pd.DataFrame()
+        if "output_class" in df.columns:
+            try:
+                candidates = df[
+                    df["output_class"].astype(str).isin(["1", "positive", "pos"])
+                ].head(1)
+            except (AttributeError, KeyError, TypeError, ValueError):
+                candidates = pd.DataFrame()
+
         if candidates.empty and "output_class" in df.columns:
             try:
-                candidates = df[df["output_class"].str.contains("macro", case=False, na=False)].head(1)
-            except (AttributeError, KeyError):
+                candidates = df[df["output_class"].str.contains("macro", case=False, na=False)].head(
+                    1
+                )
+            except (AttributeError, KeyError, TypeError, ValueError):
                 candidates = pd.DataFrame()
+
         if candidates.empty and "class" in df.columns:
-            candidates = df[df["class"].astype(str).isin(["1", "positive"])].head(1)
+            try:
+                candidates = df[df["class"].astype(str).isin(["1", "positive"])].head(1)
+            except (AttributeError, KeyError, TypeError, ValueError):
+                candidates = pd.DataFrame()
+
         if candidates.empty:
             candidates = df.head(1)
+
+        if candidates.empty:
+            raise ValueError("Metrics dataframe has no rows to select")
+
         return candidates.iloc[0]
 
     base_row = select_row(base_df).to_dict()
