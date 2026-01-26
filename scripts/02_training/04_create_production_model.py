@@ -48,8 +48,6 @@ from sklearn.metrics import classification_report
 import pandas as pd
 import numpy as np
 import joblib
-import json
-import hashlib
 
 
 def load_class_weights_config(file_path):
