@@ -7,15 +7,15 @@ Three threshold optimization scripts:
 
 Action: ✅ **COMPLETED** - Renamed scripts to clarify distinct purposes. Both scripts serve different functions and are kept.
 
-## Option 3: Duplicate consolidation — comparison scripts (low risk, medium effort)
+## Option 3: Duplicate consolidation — comparison scripts ✅ COMPLETED
 
 Four comparison scripts:
-- `scripts/compare_models.py` — Active, documented
-- `scripts/compare_csv_models.py` — Only in scripts/README.md
-- `scripts/compare_vocabulary_models.py` — Purpose known (vocabulary-optimized models)
-- `scripts/compare_child_alone.py` — Specialized tool
+- `scripts/compare_models.py` — ✅ **KEEP** - Active, documented, main comparison tool
+- `scripts/compare_csv_models.py` — ✅ **ARCHIVED** 2026-01-26 - Designed for UI/UX purposes in portfolio app, not used in main workflow
+- `scripts/compare_vocabulary_models.py` — ✅ **KEEP** - Specialized tool for vocabulary experiments
+- `scripts/compare_child_alone.py` — ✅ **KEEP** - Specialized diagnostic tool, referenced in README
 
-Action: Verify if `compare_csv_models.py` duplicates `compare_models.py` or serves a different purpose.
+Action: ✅ **COMPLETED** - Archived `compare_csv_models.py` as unused one-off tool. Other comparison scripts serve distinct purposes and are kept.
 
 ## Option 4: Transition code cleanup (low risk, low effort)
 

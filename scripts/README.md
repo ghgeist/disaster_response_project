@@ -38,12 +38,6 @@ Compares performance between different experiment results.
 - **Output**: Performance comparison reports
 - **Dependencies**: Experiment tracker system
 
-### `compare_csv_models.py`
-Enhanced model comparison tool for CSV prediction results.
-- **Use when**: Comparing models using saved CSV results
-- **Output**: Detailed performance comparison reports
-- **Features**: Crystal-clear comparison for portfolio reviewers
-
 ### `validate_multilabel_sampling.py`
 Validates multi-label sampling implementations.
 - **Use when**: Testing sampling method correctness
@@ -77,6 +71,7 @@ The `archive/` directory contains legacy scripts that are no longer actively use
 - `validate_structure.py` - Legacy structure validation
 - `prepare_15k_model_for_promotion.py` - One-off script for 2025-11-06 model promotion (completed)
 - `optimize_critical_thresholds_inc1.py` - Incremental threshold optimization for obsolete model version
+- `compare_csv_models.py` - Enhanced model comparison tool for arbitrary CSV files (designed for UI/UX purposes in portfolio app, archived 2026-01-26 as part of cleanup)
 
 ## Usage Examples
 
@@ -95,9 +90,6 @@ python scripts/run_batch_experiments.py
 
 # Compare models from experiments
 python scripts/compare_models.py experiment1 experiment2
-
-# Compare CSV results
-python scripts/compare_csv_models.py results1.csv results2.csv
 
 ## Promotion Workflow
 

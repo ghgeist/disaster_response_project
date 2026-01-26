@@ -90,19 +90,23 @@ This document contains findings from systematic analysis of the codebase to iden
    - Purpose: Compare experiment results
    - Status: Active, documented
 
-2. **`compare_csv_models.py`** - ⚠️ **REVIEW** - Only in scripts/README.md
-   - Purpose: "Enhanced model comparison tool for CSV prediction results"
-   - Status: May be duplicate of compare_models.py
+2. **`compare_csv_models.py`** - ✅ **ARCHIVED** 2026-01-26 - Only in scripts/README.md
+   - Purpose: "Enhanced model comparison tool for CSV prediction results" (arbitrary CSV file comparison)
+   - Context: Designed to help with UI/UX issues in the portfolio app (portfolio project requirement)
+   - Status: Not actively used in main workflow, archived as part of cleanup
+   - **Action**: ✅ Archived - More flexible than compare_models.py (can compare arbitrary CSV files), but not actively used. compare_models.py handles the standard comparison use case. Archived despite UI/UX purpose as part of cleanup pass.
 
-3. **`compare_vocabulary_models.py`** - ❓ **UNKNOWN** - Not documented
-   - Purpose: Unknown
-   - Status: Needs investigation
+3. **`compare_vocabulary_models.py`** - ✅ **KEEP** - Specialized tool for vocabulary experiments
+   - Purpose: Compare vocabulary-optimized models, generates markdown reports
+   - Status: Specialized analysis tool for vocabulary size optimization experiments
+   - **Action**: ✅ KEEP - Distinct purpose, used in vocabulary optimization workflow
 
-4. **`compare_child_alone.py`** - ⚠️ **REVIEW** - Not in main README
+4. **`compare_child_alone.py`** - ✅ **KEEP** - Specialized diagnostic tool
    - Purpose: "Child alone label analysis" (per README architecture section)
-   - Status: Specialized analysis tool
+   - Status: Specialized diagnostic tool for child_alone category behavior
+   - **Action**: ✅ KEEP - Referenced in main README, specialized diagnostic tool
 
-**Recommendation**: Investigate if compare_csv_models.py and compare_vocabulary_models.py are truly needed or can be consolidated.
+**Recommendation**: ✅ **COMPLETED** 2026-01-26 - Archived compare_csv_models.py as unused one-off tool. Other comparison scripts serve distinct purposes and are kept.
 
 ### Optimization Scripts (3 found)
 
@@ -323,9 +327,9 @@ Many scripts exist but are not documented in any README:
 
 | File | Reason | Action Needed |
 |------|--------|---------------|
-| `scripts/compare_csv_models.py` | May duplicate compare_models.py | Check if truly needed |
-| `scripts/compare_vocabulary_models.py` | No documentation | Understand purpose |
-| `scripts/compare_child_alone.py` | Specialized tool | Verify if needed |
+| ~~`scripts/compare_csv_models.py`~~ | UI/UX tool for portfolio app | ✅ **ARCHIVED** 2026-01-26 |
+| `scripts/compare_vocabulary_models.py` | Specialized tool for vocabulary experiments | ✅ **KEEP** - Distinct purpose |
+| `scripts/compare_child_alone.py` | Specialized diagnostic tool | ✅ **KEEP** - Referenced in README |
 | `scripts/optimize_hierarchy_threshold_reduction.py` | Hierarchy parameter optimization | ✅ **KEEP** - Distinct purpose |
 | `scripts/optimize_per_category_thresholds.py` | Per-category threshold optimization | ✅ **KEEP** - Distinct purpose |
 | ~~`scripts/optimize_critical_thresholds_inc1.py`~~ | "inc1" suggests incremental | ✅ **ARCHIVED** 2026-01-26 |
@@ -351,7 +355,7 @@ Many scripts exist but are not documented in any README:
 | `scripts/test_deployment_scenarios.py` | No documentation | **Purpose**: Unknown. **Status**: May be deployment testing utility. |
 | `scripts/validate_ml_execution_environment.py` | No documentation | **Purpose**: Likely validates ML environment setup. **Status**: Utility script. |
 | `scripts/validate_threshold_optimization_results.py` | No documentation | **Purpose**: Validates threshold optimization results. **Status**: May be used after threshold optimization. |
-| `scripts/compare_vocabulary_models.py` | No documentation | **Purpose**: Compares vocabulary-optimized models, generates comparison report. Analyzes vocabulary-limited models. **Status**: Specialized analysis tool, may be useful. |
+| `scripts/compare_vocabulary_models.py` | Specialized tool | **Purpose**: Compares vocabulary-optimized models, generates comparison report. Analyzes vocabulary-limited models. **Status**: ✅ **KEEP** - Specialized analysis tool for vocabulary experiments. |
 
 ### 🗑️ ARCHIVE/DELETE (Likely Safe)
 
@@ -362,6 +366,7 @@ Many scripts exist but are not documented in any README:
 | `scripts/migrate_experimental_paths.py` | Transition utility for path migration | **Archive** - If migration is complete (check if still needed) | ⏳ Pending |
 | ~~`scripts/prepare_data.py`~~ | Alternative interface, not used | ✅ **ARCHIVED** 2026-01-26 - Unused duplicate of process_data.py |
 | ~~`scripts/optimize_all_thresholds.py`~~ | Renamed to `optimize_per_category_thresholds.py` | ✅ **RENAMED** 2026-01-26 - Clarifies per-category purpose |
+| ~~`scripts/compare_csv_models.py`~~ | UI/UX tool for portfolio app | ✅ **ARCHIVED** 2026-01-26 - Designed for UI/UX purposes in portfolio app, but not actively used in main workflow. compare_models.py handles standard use case. Archived as part of cleanup pass. |
 
 ### ✅ ALREADY ARCHIVED
 
@@ -370,6 +375,7 @@ Many scripts exist but are not documented in any README:
 | `scripts/archive/` | Properly quarantined |
 | `scripts/archive/prepare_15k_model_for_promotion.py` | ✅ Archived 2026-01-26 |
 | `scripts/archive/optimize_critical_thresholds_inc1.py` | ✅ Archived 2026-01-26 |
+| `scripts/archive/compare_csv_models.py` | ✅ Archived 2026-01-26 |
 
 ---
 
