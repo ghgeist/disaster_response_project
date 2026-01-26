@@ -69,11 +69,6 @@ class Config:
     
     MODEL_PATH = MODELS_DIR / MODEL_FILENAME
     
-    # Google Drive model configuration
-    # Production: REQUIRED - Model downloaded from Google Drive
-    # Development: OPTIONAL - Falls back to local model if not set
-    GDRIVE_MODEL_ID = os.environ.get('GDRIVE_MODEL_ID')
-    
     # Logging settings
     LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO' if not DEBUG else 'DEBUG')
     LOG_FILE = BASE_DIR / 'app.log'
@@ -107,4 +102,3 @@ class TestConfig(Config):
 
     # Mock model settings - these won't be validated
     MODEL_FILENAME = 'test_model.pkl'
-    GDRIVE_MODEL_ID = None

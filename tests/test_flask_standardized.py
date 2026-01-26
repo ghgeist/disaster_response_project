@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from app.config import Config, TestConfig
-from app.services import ModelService
+from app.services.model_service import ModelService
 from tests.conftest import create_test_app, skip_if_no_model
 
 pytestmark = pytest.mark.integration
@@ -114,18 +114,6 @@ class TestFlaskStandardized:
             for category in expected_categories:
                 assert category in labels, f"Expected category {category} not found in labels"
 
-    def test_model_service_with_gdrive_config(self, production_app):
-        """Test model service with Google Drive configuration."""
-        with production_app.app_context():
-            model_service = production_app.model_service
-
-            gdrive_id = production_app.config.get("GDRIVE_MODEL_ID")
-            if gdrive_id and gdrive_id.strip() not in {"", "YOUR_FILE_ID", "YOUR_GOOGLE_DRIVE_FILE_ID"}:
-                result = model_service.predict("Test message for GDrive model")
-                assert isinstance(result, dict)
-                assert "labels" in result
-            else:
-                pytest.skip("GDRIVE_MODEL_ID not configured, testing local model only")
 
     def test_app_routes_accessible(self, test_client):
         """Test that main app routes are accessible under the test config."""
