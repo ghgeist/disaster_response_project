@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """
-Optimize thresholds for ALL categories (not just critical).
+Optimize Per-Category Thresholds
 
-This extends optimize_critical_thresholds_inc1.py to optimize thresholds
-for all categories, using appropriate target recall based on category importance.
+Optimizes individual thresholds for all 36 categories using precision-recall
+curves to achieve target recall values (higher for critical categories).
+
+This script optimizes individual thresholds for each category independently.
+For hierarchy post-processing parameter optimization, see
+optimize_hierarchy_threshold_reduction.py.
 
 Usage:
-    python scripts/optimize_all_thresholds.py --model-path <model.pkl> --output-dir <output>
+    python scripts/optimize_per_category_thresholds.py --model-path <model.pkl> --output-dir <output>
 """
 
 import os

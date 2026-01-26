@@ -48,7 +48,7 @@ This document contains findings from systematic analysis of the codebase to iden
 ### Analysis Scripts (Entry Points)
 
 - `scripts/evaluate_hierarchy.py` - ⚠️ **UNCERTAIN** - Not in main README
-- `scripts/optimize_thresholds.py` - ⚠️ **UNCERTAIN** - Not in main README
+- `scripts/optimize_hierarchy_threshold_reduction.py` - ✅ **KEEP** - Hierarchy parameter optimization
 - `scripts/validate_production_model.py` - ⚠️ **UNCERTAIN** - Not in main README
 - `scripts/system_validation.py` - ✅ **ACTIVE** - Referenced in CLAUDE.md, AGENTS.md
 
@@ -106,13 +106,13 @@ This document contains findings from systematic analysis of the codebase to iden
 
 ### Optimization Scripts (3 found)
 
-1. **`optimize_thresholds.py`** - ⚠️ **REVIEW** - Not in main README
-   - Purpose: Threshold optimization
-   - Status: Referenced in README architecture section
+1. **`optimize_hierarchy_threshold_reduction.py`** (renamed from `optimize_thresholds.py`) - ✅ **KEEP**
+   - Purpose: Optimizes critical threshold reduction parameter for hierarchy post-processing
+   - Status: Referenced in README, distinct from per-category optimization
 
-2. **`optimize_all_thresholds.py`** - ❓ **UNKNOWN** - Not documented
-   - Purpose: Unknown
-   - Status: Needs investigation
+2. **`optimize_per_category_thresholds.py`** (renamed from `optimize_all_thresholds.py`) - ✅ **KEEP**
+   - Purpose: Optimizes individual thresholds for all 36 categories using precision-recall curves
+   - Status: Referenced in threshold-file-naming.md, distinct from hierarchy optimization
 
 3. **`optimize_critical_thresholds_inc1.py`** - ✅ **ARCHIVED** 2026-01-26
    - Purpose: Incremental threshold optimization for obsolete "Increment 1" model version
@@ -201,7 +201,7 @@ This document contains findings from systematic analysis of the codebase to iden
 8. `estimate_search_time.py` - ❓ **UNKNOWN**
 9. `migrate_experimental_paths.py` - ⚠️ **TRANSITION** - Migration utility
 10. `model_naming_utility.py` - ❓ **UNKNOWN**
-11. `optimize_all_thresholds.py` - ❓ **UNKNOWN**
+11. ~~`optimize_all_thresholds.py`~~ - ✅ **RENAMED** to `optimize_per_category_thresholds.py`
 12. ~~`optimize_critical_thresholds_inc1.py`~~ - ✅ **ARCHIVED** 2026-01-26
 13. ~~`prepare_15k_model_for_promotion.py`~~ - ✅ **ARCHIVED** 2026-01-26 (one-off task completed)
 14. ~~`prepare_data.py`~~ - ✅ **ARCHIVED** 2026-01-26
@@ -326,8 +326,8 @@ Many scripts exist but are not documented in any README:
 | `scripts/compare_csv_models.py` | May duplicate compare_models.py | Check if truly needed |
 | `scripts/compare_vocabulary_models.py` | No documentation | Understand purpose |
 | `scripts/compare_child_alone.py` | Specialized tool | Verify if needed |
-| `scripts/optimize_thresholds.py` | Not in main README | Verify if active |
-| `scripts/optimize_all_thresholds.py` | No documentation | Check vs optimize_thresholds.py |
+| `scripts/optimize_hierarchy_threshold_reduction.py` | Hierarchy parameter optimization | ✅ **KEEP** - Distinct purpose |
+| `scripts/optimize_per_category_thresholds.py` | Per-category threshold optimization | ✅ **KEEP** - Distinct purpose |
 | ~~`scripts/optimize_critical_thresholds_inc1.py`~~ | "inc1" suggests incremental | ✅ **ARCHIVED** 2026-01-26 |
 | `scripts/validate_production_model.py` | Not in main README | Verify usage |
 | `scripts/validate_multilabel_sampling.py` | In scripts/README only | Verify usage |
@@ -361,7 +361,7 @@ Many scripts exist but are not documented in any README:
 | `scripts/prepare_15k_model_for_promotion.py` | One-off task for 2025-11-06, hardcoded paths, completed | **Archive** - One-off completed task | ✅ **ARCHIVED** 2026-01-26 |
 | `scripts/migrate_experimental_paths.py` | Transition utility for path migration | **Archive** - If migration is complete (check if still needed) | ⏳ Pending |
 | ~~`scripts/prepare_data.py`~~ | Alternative interface, not used | ✅ **ARCHIVED** 2026-01-26 - Unused duplicate of process_data.py |
-| `scripts/optimize_all_thresholds.py` | May duplicate optimize_thresholds.py | **Review** - Check if truly different from optimize_thresholds.py | ⏳ Pending |
+| ~~`scripts/optimize_all_thresholds.py`~~ | Renamed to `optimize_per_category_thresholds.py` | ✅ **RENAMED** 2026-01-26 - Clarifies per-category purpose |
 
 ### ✅ ALREADY ARCHIVED
 
@@ -479,6 +479,28 @@ Many scripts exist but are not documented in any README:
    - Updated research findings to mark all utility scripts with proper status and explanations
 
 **Status**: All utility scripts are active and serve specific purposes. No archiving needed.
+
+### Tier 5: Threshold Optimization Scripts Renaming ✅
+
+**Date**: 2026-01-26  
+**Branch**: `cleanup/threshold-optimization-consolidation`
+
+1. **Investigated threshold optimization scripts**:
+   - ✅ **`optimize_thresholds.py`**: Optimizes hierarchy post-processing parameter (critical threshold reduction)
+   - ✅ **`optimize_all_thresholds.py`**: Optimizes individual thresholds for all 36 categories
+   - **Finding**: Both scripts serve distinct purposes - NOT duplicates
+
+2. **Renamed scripts for clarity**:
+   - `optimize_thresholds.py` → `optimize_hierarchy_threshold_reduction.py`
+   - `optimize_all_thresholds.py` → `optimize_per_category_thresholds.py`
+   - Updated docstrings to clarify distinct purposes and cross-reference each other
+
+3. **Updated documentation**:
+   - Updated README.md with new names and descriptions
+   - Updated threshold-file-naming.md
+   - Updated research findings to reflect renaming and distinct purposes
+
+**Status**: Scripts renamed to clarify distinct purposes. Both scripts are kept as they serve different optimization needs.
 
 ---
 

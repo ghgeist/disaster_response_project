@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 """
-Threshold Optimization for Hierarchy Post-Processing
+Optimize Hierarchy Threshold Reduction Parameter
 
 Tests different critical threshold reduction values to find optimal balance
-between Safety Recall improvement and Macro F1 impact.
+between Safety Recall improvement and Macro F1 impact when applying hierarchy
+post-processing constraints.
+
+This script optimizes the hierarchy post-processing parameter, not individual
+category thresholds. For per-category threshold optimization, see
+optimize_per_category_thresholds.py.
 
 Usage:
-    python scripts/optimize_thresholds.py
+    python scripts/optimize_hierarchy_threshold_reduction.py
 """
 
 import os

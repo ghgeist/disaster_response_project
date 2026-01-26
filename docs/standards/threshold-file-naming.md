@@ -80,7 +80,7 @@ The production app (`app/services.py`) loads thresholds in this priority order:
 ### Optimization Scripts
 
 - `scripts/optimize_critical_thresholds_inc1.py`: Saves as `{model_stem}_thresholds.json` (also saves legacy name)
-- `scripts/optimize_all_thresholds.py`: Saves as `{model_stem}_thresholds.json` (also saves legacy name)
+- `scripts/optimize_per_category_thresholds.py`: Saves as `{model_stem}_thresholds.json` (also saves legacy name)
 
 ### Training Scripts
 
@@ -116,6 +116,6 @@ Always use the standard naming: `{model_stem}_thresholds.json`
 
 - `app/services.py` - Threshold loading logic
 - `scripts/optimize_critical_thresholds_inc1.py` - Critical threshold optimization
-- `scripts/optimize_all_thresholds.py` - All-category threshold optimization
+- `scripts/optimize_per_category_thresholds.py` - Per-category threshold optimization
 - `scripts/model_naming_utility.py` - Model and artifact renaming utility
 
