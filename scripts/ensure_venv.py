@@ -1,5 +1,29 @@
 #!/usr/bin/env python
-"""Ensure virtual environment is activated for local development."""
+"""
+Ensure virtual environment is activated for local development.
+
+This utility is designed to help AI agents in Cursor distinguish between:
+- Local development environments (Windows/Linux) - requires venv activation
+- Replit environments (SSH or web IDE) - venv not required
+
+Purpose:
+    This is a developer experience (DX) quality-of-life improvement for AI-assisted
+    development workflows. The original model was ~900 MB and had to be trained
+    locally instead of within Replit, necessitating dual-environment support.
+
+Usage:
+    Run directly to check venv status:
+        python scripts/ensure_venv.py
+    
+    Or import the function:
+        from scripts.ensure_venv import ensure_venv
+        ensure_venv()
+
+Note:
+    The underlying functionality is also available in disasterproject.utils.env,
+    but this script provides a standalone, user-friendly interface with helpful
+    error messages for AI agents and developers.
+"""
 import sys
 import os
 from pathlib import Path
