@@ -142,6 +142,11 @@ These ADRs document earlier decisions or portfolio-level work:
   - **Decision**: Preserve disaster-critical words (personal pronouns, action words) while maintaining noise reduction
   - **Relevance**: Core preprocessing strategy used throughout project
 
+- **[ADR-008](../adr/adr-008-class-weighting-over-sampling.md)** (2026-01-26): Use class weighting over multi-label sampling for imbalanced data
+  - **Context**: Decision documented during architecture refactoring work, but decision was made during 2025-09-16 hyperparameter optimization when `child_alone` zero-positive issue was discovered
+  - **Decision**: Use class weighting (via `get_multilabel_class_weights()`) rather than sampling techniques (SMOTE, ADASYN) for handling class imbalance
+  - **Relevance**: Production training strategy that handles zero-positive labels gracefully, avoids synthetic data generation overhead
+
 ### **Key Insight: Decision vs. Implementation**
 
 - **ADRs** document: *Why* decisions were made, alternatives considered, consequences (positive/negative/neutral)
@@ -161,8 +166,9 @@ Together, they provide complete context: the decision rationale (ADR) and the im
 | 2025-09-16 | Hyperparameter Optimization | +3.99% F1 improvement through systematic search |
 | 2025-09-19 | Model Comparison System | Intelligent metadata discovery for model comparisons |
 | 2025-11-06 | Vocabulary Optimization | 93.3% size reduction (67.69 MB → 4.53 MB) |
+| 2026-01-26 | Class Weighting Strategy | Class weighting over sampling for imbalanced data (ADR-008) |
 
-**Evolution Pattern**: Started with basic model replacement → Systematic hyperparameter tuning → Professional comparison tools → Production-optimized vocabulary
+**Evolution Pattern**: Started with basic model replacement → Systematic hyperparameter tuning → Professional comparison tools → Production-optimized vocabulary → Training strategy formalization
 
 ### **Production Deployment & Infrastructure**
 
@@ -485,6 +491,7 @@ All ADRs are located in [`docs/adr/`](../../adr/):
 5. [ADR-005: Fix DEFAULT_N_JOBS Constant Redefinition](../adr/adr-005-fix-default-n-jobs-constant-redefinition.md) - Configuration fix (2025-09-17)
 6. [ADR-006: Model Artifact Naming Standard](../adr/adr-006-model-artifact-naming-standard.md) - Naming governance (2025-09-19)
 7. [ADR-007: Model Promotion Gating Policy](../adr/adr-007-model-promotion-gating.md) - Promotion criteria (2025-09-19)
+8. [ADR-008: Class Weighting Over Sampling](../adr/adr-008-class-weighting-over-sampling.md) - Training strategy for imbalanced data (2026-01-26)
 
 See [ADR Index](../adr/README.md) for complete listing and status.
 
