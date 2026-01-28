@@ -119,7 +119,7 @@ class TestFlaskStandardized:
         """Test that main app routes are accessible under the test config."""
         response = test_client.get("/")
         assert response.status_code == 200
-        assert b"Signal Storm" in response.data
+        assert b"Storm Signal" in response.data
 
         try:
             response = test_client.get("/health")

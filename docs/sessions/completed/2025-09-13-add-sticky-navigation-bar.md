@@ -1,7 +1,7 @@
 # Sticky Navigation Bar with Smooth Scroll Links - Implementation Plan
 
 ## Problem Statement
-The Signal Storm Flask application currently has a static navigation bar with external links only (Contact, GitHub). Users need a sticky navigation bar that stays visible while scrolling and provides smooth scroll links to different sections of the page for better user experience and navigation.
+The Storm Signal Flask application currently has a static navigation bar with external links only (Contact, GitHub). Users need a sticky navigation bar that stays visible while scrolling and provides smooth scroll links to different sections of the page for better user experience and navigation.
 
 ## Current State
 - **Navigation Structure**: Basic navigation bar in `base.html` with brand logo and external links

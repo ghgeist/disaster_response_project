@@ -1,10 +1,10 @@
 # Gemini CLI Agent Interaction Guide
 
-This document provides instructions on how to interact with the Signal Storm project using the Gemini CLI agent.
+This document provides instructions on how to interact with the Storm Signal project using the Gemini CLI agent.
 
 ## Project Overview
 
-Signal Storm is a machine learning pipeline designed to classify emergency messages into 36 disaster-related categories. This helps emergency response agencies prioritize and route assistance effectively during natural disasters.
+Storm Signal is a machine learning pipeline designed to classify emergency messages into 36 disaster-related categories. This helps emergency response agencies prioritize and route assistance effectively during natural disasters.
 
 ## Getting Started with the CLI
 
@@ -106,4 +106,4 @@ To run the project's tests, you can use the following commands:
     run the tests in tests/test_app_smoke.py
     ```
 
-This guide provides a starting point for interacting with the Signal Storm project using the Gemini CLI agent. You can use natural language to ask the agent to perform a wide variety of tasks related to this project.
+This guide provides a starting point for interacting with the Storm Signal project using the Gemini CLI agent. You can use natural language to ask the agent to perform a wide variety of tasks related to this project.

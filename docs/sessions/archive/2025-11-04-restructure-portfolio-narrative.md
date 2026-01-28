@@ -1,5 +1,5 @@
 ---
-title: "Restructure Portfolio Narrative for Signal Storm"
+title: "Restructure Portfolio Narrative for Storm Signal"
 date: "2025-11-04"
 status: "active"
 tags: ["portfolio", "narrative", "documentation"]
@@ -7,7 +7,7 @@ author: "grant"
 related: []
 ---
 
-# Restructure Portfolio Narrative for Signal Storm
+# Restructure Portfolio Narrative for Storm Signal
 
 ## Goal
 Make it immediately clear that this project solves a real-world problem, accessible to anyone, while providing technical depth for technical audiences.
@@ -35,7 +35,7 @@ Make it immediately clear that this project solves a real-world problem, accessi
 **File**: `app/templates/home.html`
 - **Hero Section**: Rewrite with clear problem → solution → impact
   - Problem: During disasters, thousands of messages flood emergency channels
-  - Solution: Signal Storm automatically categorizes messages so responders can prioritize
+  - Solution: Storm Signal automatically categorizes messages so responders can prioritize
   - Impact: Faster response times, better resource allocation
 - **Make "How It Works" more accessible**: Plain language, avoid jargon
 - **Add real-world context**: "In a disaster with 10,000 messages, this tool..."

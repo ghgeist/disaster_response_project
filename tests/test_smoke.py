@@ -29,10 +29,10 @@ def test_core_routes_do_not_error(client, method: str, path: str, payload: dict 
 
 
 def test_homepage_displays_branding(client) -> None:
-    """The landing page should surface the Signal Storm brand copy."""
+    """The landing page should surface the Storm Signal brand copy."""
     response = client.get("/")
     assert response.status_code == 200, "Homepage should render successfully"
-    assert b"Signal Storm" in response.data, "Homepage is missing the Signal Storm header"
+    assert b"Storm Signal" in response.data, "Homepage is missing the Storm Signal header"
 
 
 def test_model_can_load_and_predict(client) -> None:

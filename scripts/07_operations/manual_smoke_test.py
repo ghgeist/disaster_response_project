@@ -26,7 +26,7 @@ def test_homepage(client):
     print("Testing GET /...")
     response = client.get("/")
     assert response.status_code == 200, f"Expected 200, got {response.status_code}"
-    assert b"Signal Storm" in response.data, "Homepage missing branding"
+    assert b"Storm Signal" in response.data, "Homepage missing branding"
     print("✓ GET / passed")
 
 

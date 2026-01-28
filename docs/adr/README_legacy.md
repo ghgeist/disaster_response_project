@@ -1,6 +1,6 @@
 ![Alt text](images/image.png)
 
-# Signal Storm: Leveraging Machine Learning to Identify Requests for Help During Natural Disasters
+# Storm Signal: Leveraging Machine Learning to Identify Requests for Help During Natural Disasters
 
 # Project Overview
 This code creates a machine learning pipeline that can be used to classify tweets sent during an emergency so that help can be sent from an appropriate agency. The project also includes a website where individuals can input new messages and get classification results in several categories. 

@@ -1,8 +1,8 @@
-# Signal Storm: Disaster Response ML Pipeline
+# Storm Signal: Disaster Response ML Pipeline
 
 ## Overview
 
-Signal Storm is a machine learning pipeline that classifies emergency messages into 36 disaster-related categories to enable rapid response coordination during natural disasters. The system includes a modular ML pipeline with separated concerns, an interactive Flask web application for real-time message classification, organized experiment tracking, and comprehensive evaluation tools. Built with professional ML engineering practices, it demonstrates clean architecture with a focus on scalability and maintainability.
+Storm Signal is a machine learning pipeline that classifies emergency messages into 36 disaster-related categories to enable rapid response coordination during natural disasters. The system includes a modular ML pipeline with separated concerns, an interactive Flask web application for real-time message classification, organized experiment tracking, and comprehensive evaluation tools. Built with professional ML engineering practices, it demonstrates clean architecture with a focus on scalability and maintainability.
 
 ## User Preferences
 

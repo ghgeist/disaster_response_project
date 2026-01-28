@@ -1,5 +1,5 @@
 ---
-title: "Signal Storm" Narrative Upgrade"
+title: "Storm Signal" Narrative Upgrade"
 date: "2025-09-02"
 status: "completed"
 completion_date: "2025-01-27"
@@ -239,7 +239,7 @@ Example minimal edits (adjust classes to your Tailwind setup):
 
 ```html
 <!-- HERO -->
-<h1 class="text-5xl font-bold text-white text-center">Signal Storm: Cutting Through Chaos for Cries of Help</h1>
+<h1 class="text-5xl font-bold text-white text-center">Storm Signal: Cutting Through Chaos for Cries of Help</h1>
 <p class="text-xl text-gray-300 text-center mt-2">An AI-powered tool that triages disaster messages in real time, so first responders can focus on what matters most.</p>
 
 <!-- Update input UI text -->
@@ -353,7 +353,7 @@ git commit -m "feat(ui): narrative copy + performance deep dive chart; dark-them
 
 **Copy to use (exact strings)**
 
-* Hero title: `Signal Storm: Cutting Through Chaos for Cries of Help`
+* Hero title: `Storm Signal: Cutting Through Chaos for Cries of Help`
 * Hero subtitle: `An AI-powered tool that triages disaster messages in real time, so first responders can focus on what matters most.`
 * Input placeholder: `Enter an emergency message...`
 * Button: `Analyze Message`
