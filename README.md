@@ -1,6 +1,6 @@
 ![Alt text](images/image.png)
 
-# Signal Storm: Leveraging Machine Learning to Identify Requests for Help During Natural Disasters
+# Storm Signal: Leveraging Machine Learning to Identify Requests for Help During Natural Disasters
 
 ## Table of Contents
 - [Highlights](#highlights)
@@ -29,7 +29,7 @@
 
 ## Project Overview
 
-Signal Storm is a machine learning pipeline designed to classify emergency messages into 36 disaster-related categories, enabling rapid response coordination during natural disasters. The system processes text messages (primarily from social media and direct reports) and automatically categorizes them to help emergency response agencies prioritize and route assistance effectively.
+Storm Signal is a machine learning pipeline designed to classify emergency messages into 36 disaster-related categories, enabling rapid response coordination during natural disasters. The system processes text messages (primarily from social media and direct reports) and automatically categorizes them to help emergency response agencies prioritize and route assistance effectively.
 
 The project includes:
 - **Modular ML Pipeline**: Clean, professional architecture with separated concerns
