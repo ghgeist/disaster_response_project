@@ -2,7 +2,6 @@
 API contract stubs for the Storm Signal dashboard.
 """
 import logging
-import re
 from datetime import datetime, timezone
 
 from flask import Blueprint, current_app, jsonify
@@ -73,10 +72,14 @@ CATEGORY_GROUPS = {
 }
 
 CRITICAL_INTERNAL_CATEGORIES = {
-    re.sub(r"\s+", "_", re.sub(r"[^a-zA-Z0-9\s]", " ", name.replace("&", "and")))
-    .strip()
-    .lower()
-    for name in CATEGORY_GROUPS["Critical Needs"]
+    "medical_help",
+    "medical_products",
+    "search_and_rescue",
+    "water",
+    "food",
+    "shelter",
+    "security",
+    "hospitals",
 }
 
 
