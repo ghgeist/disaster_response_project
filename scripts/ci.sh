@@ -17,7 +17,17 @@ fi
 
 "$PYTHON_BIN" -m pip install -U pip
 
-if [[ -f "$REPO_ROOT/pyproject.toml" ]] && rg -q "\[project\.optional-dependencies\]" "$REPO_ROOT/pyproject.toml"; then
+if [[ -f "$REPO_ROOT/pyproject.toml" ]]; then
+  if command -v rg >/dev/null 2>&1; then
+    HAS_OPTIONAL_DEPS="$(rg -q "\[project\.optional-dependencies\]" "$REPO_ROOT/pyproject.toml" && echo "yes" || echo "no")"
+  else
+    HAS_OPTIONAL_DEPS="$(grep -q "\[project\.optional-dependencies\]" "$REPO_ROOT/pyproject.toml" && echo "yes" || echo "no")"
+  fi
+else
+  HAS_OPTIONAL_DEPS="no"
+fi
+
+if [[ "$HAS_OPTIONAL_DEPS" == "yes" ]]; then
   "$PYTHON_BIN" -m pip install -e ".[dev]"
 else
   "$PYTHON_BIN" -m pip install -r requirements.txt
