@@ -2,6 +2,7 @@
 API contract stubs for the Storm Signal dashboard.
 """
 import logging
+import re
 from datetime import datetime, timezone
 
 from flask import Blueprint, current_app, jsonify
@@ -71,6 +72,13 @@ CATEGORY_GROUPS = {
     ],
 }
 
+CRITICAL_INTERNAL_CATEGORIES = {
+    re.sub(r"\s+", "_", re.sub(r"[^a-zA-Z0-9\s]", " ", name.replace("&", "and")))
+    .strip()
+    .lower()
+    for name in CATEGORY_GROUPS["Critical Needs"]
+}
+
 
 def to_display_name(internal: str) -> str:
     """Convert internal category names to display names."""
@@ -79,25 +87,15 @@ def to_display_name(internal: str) -> str:
 
 def calculate_severity(probabilities: dict) -> str:
     """Determine severity based on critical category probabilities."""
-    critical_categories = {
-        "medical_help",
-        "medical_products",
-        "search_and_rescue",
-        "water",
-        "food",
-        "shelter",
-        "security",
-        "hospitals",
-    }
     critical_count = sum(
         1
         for category, probability in probabilities.items()
-        if category in critical_categories and probability > 0.5
+        if category in CRITICAL_INTERNAL_CATEGORIES and probability > 0.5
     )
     critical_probabilities = [
         probability
         for category, probability in probabilities.items()
-        if category in critical_categories
+        if category in CRITICAL_INTERNAL_CATEGORIES
     ]
     max_confidence = max(critical_probabilities) if critical_probabilities else 0.0
     if critical_count >= 2 or max_confidence > 0.85:
