@@ -20,7 +20,7 @@ CATEGORY_DISPLAY_NAMES = {
     "infrastructure_related": "Infrastructure",
     "aid_centers": "Aid Centers",
     "other_infrastructure": "Other Infrastructure",
-    "weather_related": "Other Weather",
+    "weather_related": "Weather Related",
     "direct_report": "Direct Report",
     "child_alone": "Child Alone",
     "medical_products": "Medical Products",
