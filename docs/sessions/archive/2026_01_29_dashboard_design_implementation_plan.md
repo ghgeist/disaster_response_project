@@ -1,8 +1,12 @@
 ---
 created: 2026-01-29
 updated: 2026-01-29
-status: active
+status: superseded
+superseded_by: 2026_01_29_storm_signal_dashboard_implementation_plan.md
 ---
+
+> **⚠️ This document has been superseded.**  
+> **Please see**: `2026_01_29_storm_signal_dashboard_implementation_plan.md` for the current implementation plan.
 
 # Storm Signal Dashboard — Design Implementation Plan
 

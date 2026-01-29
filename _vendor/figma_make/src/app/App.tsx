@@ -1,0 +1,140 @@
+import { useState, useMemo } from 'react';
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { MOCK_SIGNALS } from '@/app/data';
+import { FeedPanel } from '@/app/components/dashboard/FeedPanel';
+import { MetricsPanel } from '@/app/components/dashboard/MetricsPanel';
+import { ClassificationPanel } from '@/app/components/dashboard/ClassificationPanel';
+import { Radar, Bell, Settings, UserCircle, Menu } from 'lucide-react';
+
+export default function App() {
+  const [signals] = useState(MOCK_SIGNALS);
+  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [showMobileBanner, setShowMobileBanner] = useState(true);
+
+  const handleToggleFilter = (category: string) => {
+    setSelectedFilters(prev => 
+      prev.includes(category) 
+        ? prev.filter(c => c !== category)
+        : [...prev, category]
+    );
+  };
+
+  const handleClearFilters = () => {
+    setSelectedFilters([]);
+  };
+
+  const filteredSignals = useMemo(() => {
+    if (selectedFilters.length === 0) return signals;
+    return signals.filter(s => 
+      s.categories.some(c => selectedFilters.includes(c))
+    );
+  }, [signals, selectedFilters]);
+
+  const ResizeHandle = () => (
+    <PanelResizeHandle className="w-1.5 bg-slate-50 hover:bg-blue-500 transition-colors flex items-center justify-center group focus:outline-none focus:bg-blue-500 border-x border-slate-200">
+      <div className="h-8 w-1 rounded-full bg-slate-300 group-hover:bg-white/80 transition-colors" />
+    </PanelResizeHandle>
+  );
+
+  return (
+    <div className="h-screen w-full flex flex-col bg-slate-50 font-sans text-slate-900 overflow-hidden">
+      {/* Mobile Warning Banner */}
+      <div className="lg:hidden fixed inset-0 z-[100] bg-slate-900/90 flex items-center justify-center p-6 backdrop-blur-sm">
+        <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm text-center">
+          <Radar className="w-12 h-12 text-blue-500 mx-auto mb-4" />
+          <h2 className="text-lg font-bold text-slate-900 mb-2">Desktop Optimized</h2>
+          <p className="text-sm text-slate-600 mb-4">
+            Storm Signal is optimized for desktop viewing. Please access from a larger screen for the full experience.
+          </p>
+          {showMobileBanner && (
+             <button 
+               onClick={() => setShowMobileBanner(false)}
+               className="text-xs text-slate-400 hover:text-slate-600 underline"
+             >
+               Dismiss (View Anyway)
+             </button>
+          )}
+        </div>
+      </div>
+
+      {/* Global Header - Light Theme */}
+      <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4 flex-shrink-0 z-50">
+        <div className="flex items-center gap-4">
+          <button className="p-1.5 hover:bg-slate-100 rounded text-slate-500 hover:text-slate-900 transition-colors">
+            <Menu className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="bg-blue-600 p-1 rounded-sm">
+              <Radar className="w-4 h-4 text-white" />
+            </div>
+            <h1 className="text-lg font-bold tracking-tight text-slate-900">STORM SIGNAL <span className="text-slate-400 font-normal text-sm ml-2 hidden xl:inline">INTELLIGENCE DASHBOARD</span></h1>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <div className="hidden lg:flex items-center gap-2 text-xs text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
+             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+             LIVE STREAM ACTIVE
+          </div>
+          <button className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition-colors relative">
+            <Bell className="w-5 h-5" />
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+          </button>
+          <button className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition-colors">
+            <Settings className="w-5 h-5" />
+          </button>
+          <div className="h-6 w-px bg-slate-200 mx-1"></div>
+          <button className="flex items-center gap-2 pl-1 pr-2 py-1 hover:bg-slate-100 rounded-full transition-colors group">
+            <UserCircle className="w-7 h-7 text-slate-300 group-hover:text-slate-400 transition-colors" />
+            <div className="flex flex-col items-start leading-none">
+              <span className="text-xs font-bold text-slate-700">Operator_7</span>
+              <span className="text-[10px] text-slate-400">Level 3 Clearance</span>
+            </div>
+          </button>
+        </div>
+      </header>
+
+      {/* 3-Panel Resizable Layout */}
+      <main className="flex-1 overflow-hidden relative">
+        {/* Desktop Layout */}
+        <div className="hidden lg:block h-full w-full">
+          <PanelGroup direction="horizontal">
+            {/* Left Panel: Feed & Filters */}
+            <Panel defaultSize={40} minSize={25} order={1} className="bg-white">
+              <FeedPanel 
+                signals={filteredSignals} 
+                selectedFilters={selectedFilters}
+                onToggleFilter={handleToggleFilter}
+                onClearFilters={handleClearFilters}
+              />
+            </Panel>
+            
+            <ResizeHandle />
+            
+            {/* Center Panel: Metrics */}
+            <Panel defaultSize={35} minSize={20} order={2} className="bg-slate-50">
+              <MetricsPanel />
+            </Panel>
+            
+            <ResizeHandle />
+            
+            {/* Right Panel: Classification */}
+            <Panel defaultSize={25} minSize={15} collapsible order={3} className="bg-white">
+              <ClassificationPanel />
+            </Panel>
+          </PanelGroup>
+        </div>
+
+        {/* Mobile Layout Fallback */}
+        <div className="lg:hidden h-full overflow-y-auto">
+          <FeedPanel 
+            signals={filteredSignals} 
+            selectedFilters={selectedFilters}
+            onToggleFilter={handleToggleFilter}
+            onClearFilters={handleClearFilters}
+          />
+        </div>
+      </main>
+    </div>
+  );
+}
