@@ -281,6 +281,13 @@ interface SignalItem {
 
 **Done means**: Endpoint exists, returns category metadata with counts.
 
+#### Phase 1 Completion Notes
+- ✅ Added inline severity calculation helper in `app/routes/api.py`.
+- ✅ `/api/categories` now returns real category counts from `DataService` plus groups.
+- ✅ Contract stub tests still pass: `python scripts/run_tests.py tests/test_api_contract_stubs.py -q`.
+- ⚠️ **pytest.ini fix**: Updated `norecursedirs` to exclude `.venv`, `venv`, `env`, `.git`, `__pycache__`, `.pytest_cache`, `build`, `dist`, `node_modules` (previously only excluded `scripts`). This was causing pytest to recurse into directories it shouldn't, requiring ~30 minutes to diagnose and fix.
+- 🧭 **Prevent repeat**: Keep `norecursedirs` updated when new tool folders appear (e.g., virtual envs, build outputs, node artifacts). If pytest suddenly slows or hangs, check recursion paths first before debugging tests.
+
 ---
 
 ### Phase 2: Feed Endpoint (3-4 hours)

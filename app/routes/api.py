@@ -4,9 +4,10 @@ API contract stubs for the Storm Signal dashboard.
 import logging
 from datetime import datetime, timezone
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, current_app, jsonify
 
 from app.extensions import csrf
+from app.services.errors import DataServiceError
 from app.utils.formatting import format_request_context
 
 logger = logging.getLogger(__name__)
@@ -19,7 +20,7 @@ CATEGORY_DISPLAY_NAMES = {
     "infrastructure_related": "Infrastructure",
     "aid_centers": "Aid Centers",
     "other_infrastructure": "Other Infrastructure",
-    "weather_related": "Other Weather",
+    "weather_related": "Weather Related",
     "direct_report": "Direct Report",
     "child_alone": "Child Alone",
     "medical_products": "Medical Products",
@@ -70,10 +71,41 @@ CATEGORY_GROUPS = {
     ],
 }
 
+CRITICAL_INTERNAL_CATEGORIES = {
+    "medical_help",
+    "medical_products",
+    "search_and_rescue",
+    "water",
+    "food",
+    "shelter",
+    "security",
+    "hospitals",
+}
+
 
 def to_display_name(internal: str) -> str:
     """Convert internal category names to display names."""
     return CATEGORY_DISPLAY_NAMES.get(internal, internal.replace("_", " ").title())
+
+
+def calculate_severity(probabilities: dict) -> str:
+    """Determine severity based on critical category probabilities."""
+    critical_count = sum(
+        1
+        for category, probability in probabilities.items()
+        if category in CRITICAL_INTERNAL_CATEGORIES and probability > 0.5
+    )
+    critical_probabilities = [
+        probability
+        for category, probability in probabilities.items()
+        if category in CRITICAL_INTERNAL_CATEGORIES
+    ]
+    max_confidence = max(critical_probabilities) if critical_probabilities else 0.0
+    if critical_count >= 2 or max_confidence > 0.85:
+        return "HIGH"
+    if critical_count >= 1 or max_confidence > 0.70:
+        return "MEDIUM"
+    return "LOW"
 
 
 def _now_iso() -> str:
@@ -133,17 +165,6 @@ def _build_stub_metrics() -> dict:
     }
 
 
-def _build_stub_categories() -> dict:
-    """Create categories metadata stub for contract validation."""
-    return {
-        "categories": [
-            {"internal": "medical_help", "display": "Medical Help", "count": 1247},
-            {"internal": "water", "display": "Water", "count": 892},
-        ],
-        "groups": CATEGORY_GROUPS,
-    }
-
-
 def _build_stub_classification() -> dict:
     """Create classification results stub for contract validation."""
     return {
@@ -188,10 +209,28 @@ def metrics_stub():
 
 
 @api_bp.route("/categories", methods=["GET"])
-def categories_stub():
-    """Return stubbed category metadata for contract validation."""
+def categories_metadata():
+    """Return category metadata for dashboard filters."""
     try:
-        return jsonify(_build_stub_categories())
+        data_service = getattr(current_app, "data_service", None)
+        if data_service is None:
+            raise DataServiceError("Data service not configured.")
+        df = data_service.get_data()
+        category_columns = data_service.get_category_columns()
+        counts = (
+            df[category_columns].sum().to_dict()
+            if category_columns and not df.empty
+            else {col: 0 for col in category_columns}
+        )
+        categories = [
+            {
+                "internal": internal,
+                "display": to_display_name(internal),
+                "count": int(counts.get(internal, 0)),
+            }
+            for internal in sorted(category_columns)
+        ]
+        return jsonify({"categories": categories, "groups": CATEGORY_GROUPS})
     except Exception as error:
         _log_api_error("GET /api/categories", error)
         return jsonify({"error": "Categories unavailable right now."}), 500
