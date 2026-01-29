@@ -8,7 +8,7 @@ status: active
 
 > **Purpose**: Transform the basic classification demo into a contextualized decision-support dashboard that showcases both ML classification and operational intelligence.
 
-> **Related**: See `2026_01_storm_signal_system_spec.md` for system architecture overview.
+> **Related**: See `2026_01_29_storm_signal_system_spec.md` for system architecture overview.
 
 ---
 

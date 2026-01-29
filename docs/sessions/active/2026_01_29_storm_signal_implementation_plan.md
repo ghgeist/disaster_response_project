@@ -8,7 +8,7 @@ status: active
 
 > **Goal**: Build a modern React-based intelligence dashboard ("Storm Signal") on top of the existing Flask ML backend.
 
-> **Specs**: See `storm_signal_dashboard_design_spec.md` for UI/UX requirements.
+> **Specs**: See `2026_01_29_storm_signal_dashboard_design_spec.md` for UI/UX requirements.
 
 ---
 

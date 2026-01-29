@@ -1,10 +1,12 @@
 ---
 created: 2026-01-22
-updated: 2026-01-22
+updated: 2026-01-29
 ---
 # Storm Signal — System Scope & Demo Contract
 
-> **Related Document:** See `2025_11_storm_signal_execution.md` for execution plan, completion status, and portfolio strategy.
+> **Related Documents:** 
+> - See `2026_01_29_storm_signal_dashboard_design_spec.md` for detailed UI/UX specifications
+> - See `2026_01_29_storm_signal_implementation_plan.md` for implementation phases and tasks
 
 > **Role of this document**: This is a **system specification and map**, not the territory. It defines boundaries, invariants, and interfaces. Many components are intentionally underspecified and will be filled in later.
 
@@ -70,86 +72,111 @@ This bias is explicit, configurable, and visible to operators.
 
 ## 5. System Components (Conceptual)
 
-### 5.1 Input Layer (Conceptual)
+### 5.1 Architecture Stack
 
-* Social posts (e.g., tweets)
-* Metadata where available (timestamp, author, language hints)
+**Frontend**: React 18+ (Single Page Application)
+* **Framework**: React with TypeScript
+* **Styling**: Tailwind CSS (light theme)
+* **Build Tool**: Vite (integrated with Flask)
+* **State Management**: React Context or Zustand
+* **Charts**: Recharts for data visualization
 
-### 5.2 Normalization Layer (Conceptual)
+**Backend**: Flask (API Mode)
+* **API Endpoints**: JSON endpoints for data and classification
+* **Static Files**: Serves compiled React assets
+* **ML Pipeline**: scikit-learn based classification (RandomForest with MultiOutputClassifier)
 
-* Language detection
+### 5.2 Input Layer (Conceptual)
+
+* Social posts (e.g., tweets) from database
+* Metadata: timestamp (simulated), genre (source), original text (for translation detection)
+* Real messages from `data/02_stg/stg_disaster_response.db`
+
+### 5.3 Normalization Layer (Conceptual)
+
+* Language detection (currently English-focused)
 * Preservation of original text
-* Optional translation
-* Tracking of original vs translated content
+* Translation tracking (detect when `original` column differs from `message`)
 
-### 5.3 Classification Layer (Real in Demo)
+### 5.4 Classification Layer (Real in Demo)
 
-* Multi-label categorization against a predefined taxonomy
-* Per-category confidence scores
-* Threshold-based flagging
+* Multi-label categorization against 36 predefined categories
+* Per-category confidence scores (probabilities)
+* Severity calculation (HIGH/MEDIUM/LOW based on critical categories and confidence)
 * Versioned model boundary
+* Real-time classification via `/api/classify` endpoint
 
-### 5.4 Contextualization Layer (Partially Simulated)
+### 5.5 Contextualization Layer (Partially Simulated)
 
 For a given classified item, the system surfaces:
 
-* Similar or related items (heuristic or stubbed)
-* Temporal neighbors
-* Category prevalence indicators
-* Indicators of rarity vs commonality
+* **Category Context**: Volume counts for detected categories (real data from database)
+* **Temporal Context**: Simulated timestamps spread over last 6 hours
+* **Trend Context**: Simulated time-series data for flagged signals
+* **Prevalence Indicators**: Real category counts from database
 
 Context is presented to **support decision-making**, not to assert ground truth.
 
-### 5.5 Action Layer (Thin by Design)
+### 5.6 Action Layer (Thin by Design)
 
-* Reclassification / override
-* Annotation
-* Assignment or escalation markers
-
-Actions are logged but not fully operationalized in the demo.
+* **Dispatch Assistance**: Simulated operational handoff (logs action, shows success state)
+* **Mark as Irrelevant**: For empty classification results
+* Actions are logged but not fully operationalized in the demo
 
 ---
 
-## 6. UI Philosophy
+## 6. UI Philosophy & Layout
 
 The UI is designed as **decision scaffolding**, not automation.
 
 Principles:
 
 * Analytics-first, minimal visual styling
-* Light theme only
+* Light theme only (clean, professional aesthetic)
 * Emphasis on uncertainty and partial information
 * Fast dismissal and review of false positives
+* Desktop-only experience (mobile shows banner message)
 
-The primary UI surfaces are:
+### 6.1 Layout Structure
 
-1. **Command & Control Overview**
+**Three-Panel Desktop Layout** (resizable split-panes):
 
-   * System health
-   * Volume and category distributions
-   * Language and translation mix
+1. **Left Panel (Feed & Filters)** - Default 40% width
+   * Live feed of classified messages
+   * Collapsible category filters
+   * Real messages with simulated timestamps
+   * Severity badges, category tags, confidence scores
 
-2. **Item Detail & Context View**
+2. **Center Panel (Metrics & Trends)** - Default 35% width
+   * Volume metrics (simulated)
+   * Flagged signals trend graph (simulated)
+   * Top categories list (real data)
+   * "METRICS SIMULATED" disclaimer badge
 
-   * Original and translated text
-   * Classification output
-   * Contextual neighbors
-   * Action affordances
+3. **Right Panel (Classification Interface)** - Default 25% width
+   * Message input form
+   * Classification results with category context
+   * Severity indicator
+   * "Dispatch Assistance" action button
+
+**Header**: Hamburger menu, logo, title, user profile controls
 
 ---
 
-## 7. API Boundary (Conceptual)
+## 7. API Boundary
 
-The classification system is treated as an independent service boundary.
+The classification system exposes JSON endpoints via Flask:
 
-Expected capabilities:
+**Implemented Endpoints**:
 
-* Programmatic classification of individual items
-* Structured outputs suitable for AI agents
-* Explicit versioning
-* Feedback hooks for future learning loops
+* **`GET /api/feed`**: Paginated list of messages with classifications, filters, simulated timestamps
+* **`GET /api/metrics`**: Dashboard metrics (volume, flagged percentage, trend data, top categories)
+* **`POST /api/classify`**: Real-time classification of individual messages with severity calculation
+* **`GET /api/categories`**: Category metadata (names, groups, volume counts)
 
-The demo does not implement a full external API, but the interface is treated as first-class in design.
+**Response Format**: Standard JSON with `{ "success": true, "data": ... }` structure
+
+The API treats classification as a first-class service boundary, suitable for both human operators and AI agents.
 
 ---
 
@@ -161,29 +188,67 @@ The following are explicitly out of scope for the current project phase:
 * End-to-end disaster response workflows
 * Guaranteed geolocation accuracy
 * Automated decision-making
-* UI polish, theming, or dark mode
+* Mobile/responsive design (desktop-only)
+* Dark mode (light theme only)
+* Real-time streaming from external platforms
 
-These exclusions are intentional to preserve narrative clarity and system legibility.
+These exclusions are intentional to preserve narrative clarity and system legibility. The demo focuses on **classification + context**, not operational scale.
 
 ---
 
-## 9. Future Elaboration (Deferred)
+## 9. Data Sources & Simulation Strategy
+
+### 9.1 Real Data (from database)
+
+* **Messages**: Actual `message` text from `stg_disaster_response.db`
+* **Categories**: Real binary labels for all 36 categories
+* **Genre**: Source mapping (`direct`, `news`, `social`)
+* **Original**: Translation detection when `original` differs from `message`
+* **Category Counts**: Real volume statistics from database queries
+
+### 9.2 Simulated Data (for demo realism)
+
+* **Timestamps**: Generated over last 6 hours (most recent first)
+* **Volume Metrics**: Simulated "Volume Today" counts (can be based on database size)
+* **Trend Graphs**: Simulated time-series data for flagged signals
+* **Source Platforms**: Enhanced mapping of `genre` to platform names (Twitter, Reddit, etc.)
+
+> **Invariant**: Classification is real. Volume, scale, and temporal context are illustrative.
+
+## 10. Future Elaboration (Deferred)
 
 Details intentionally deferred:
 
 * Taxonomy evolution strategy
 * Model retraining and evaluation pipelines
-* Advanced context retrieval methods
+* Advanced context retrieval methods (similarity search, clustering)
 * Multi-agent orchestration
+* Real-time streaming integration
 
 These will be specified only once the current system boundaries are stable.
 
 ---
 
-## 10. Guiding Principle
+## 11. Guiding Principle
 
 Storm Signal exists to **shape attention under uncertainty**.
 
 Any future expansion should be evaluated against the question:
 
 > *Does this help an operator or agent notice the right thing at the right time?*
+
+---
+
+## 12. Implementation Status
+
+**Current Phase**: Dashboard development (React + Flask API)
+
+**Key Deliverables**:
+- ✅ System architecture defined
+- ✅ Dashboard design specification complete
+- ✅ Implementation plan with phased approach
+- ⏳ React + Vite frontend setup
+- ⏳ Flask API endpoints
+- ⏳ Three-panel UI implementation
+
+See `2026_01_29_storm_signal_implementation_plan.md` for detailed task tracking.
