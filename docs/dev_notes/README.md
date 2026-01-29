@@ -1,7 +1,7 @@
 # Dev Notes Overview: Disaster Response Project Evolution
 
-**Last Updated**: 2026-01-26  
-**Total Entries**: 12 dev notes spanning September 2025 - January 2026  
+**Last Updated**: 2026-01-29  
+**Total Entries**: 13 dev notes spanning September 2025 - January 2026  
 **Project Status**: Production-ready with optimized model (4.53 MB, F1=92.76%, Critical Recall=65%) and modular architecture
 
 ---
@@ -111,6 +111,14 @@ This project has undergone significant iterations, with each phase building on p
 - **Achievement**: Transformed monolithic app into professional modular structure, reorganized scripts into 7 workflow directories, removed 8+ unused scripts
 - **Iteration**: Complete architectural refactoring following industry best practices
 - **Status**: Production-ready with maintainable, professional architecture
+
+### **Phase 7: Storm Signal Dashboard Foundation** (Jan 29, 2026)
+
+**2026-01-29**: Storm Signal Dashboard Foundation & API Phase 0–1
+- **Achievement**: API contract stubs (Phase 0), real `/api/categories` with DataService and severity (Phase 1); Google Drive removal; Codex-cloud-friendly CI
+- **Solutions**: New `api_bp` with stub and real endpoints, inline severity calculation and `CRITICAL_INTERNAL_CATEGORIES`, contract tests; deterministic `scripts/ci.sh`; pytest `norecursedirs` fix
+- **Iteration**: Contract-first dashboard API; Figma UI vendored as reference (`_vendor/figma_make/`); design spec and implementation plan in session docs
+- **Status**: Phase 0–1 complete; ready for Phase 2 (feed) and Phase 3 (metrics)
 
 ---
 
@@ -479,6 +487,7 @@ The iterative nature of the project is visible in how decisions evolved:
 10. [2025-11-06](2025-11-06.md) - Model Optimization & Production Readiness
 11. [2026-01-22](2026-01-22.md) - Production Deployment & Dependency Management
 12. [2026-01-26](2026-01-26.md) - Major Architecture Refactoring & Comprehensive Codebase Cleanup
+13. [2026-01-29](2026-01-29.md) - Storm Signal Dashboard Foundation & API Phase 0–1
 
 ### **Architectural Decision Records (ADRs)**
 
