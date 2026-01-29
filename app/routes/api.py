@@ -159,17 +159,6 @@ def _build_stub_metrics() -> dict:
     }
 
 
-def _build_stub_categories() -> dict:
-    """Create categories metadata stub for contract validation."""
-    return {
-        "categories": [
-            {"internal": "medical_help", "display": "Medical Help", "count": 1247},
-            {"internal": "water", "display": "Water", "count": 892},
-        ],
-        "groups": CATEGORY_GROUPS,
-    }
-
-
 def _build_stub_classification() -> dict:
     """Create classification results stub for contract validation."""
     return {
@@ -236,7 +225,7 @@ def categories_stub():
             for internal in sorted(category_columns)
         ]
         return jsonify({"categories": categories, "groups": CATEGORY_GROUPS})
-    except (DataServiceError, ValueError, KeyError, TypeError) as error:
+    except Exception as error:
         _log_api_error("GET /api/categories", error)
         return jsonify({"error": "Categories unavailable right now."}), 500
 
