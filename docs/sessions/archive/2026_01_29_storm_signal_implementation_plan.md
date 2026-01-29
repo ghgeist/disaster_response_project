@@ -1,10 +1,13 @@
 ---
 created: 2026-01-29
 updated: 2026-01-29
-status: active
+status: archived
+superseded_by: 2026_01_29_dashboard_design_implementation_plan.md
 ---
 
 # Storm Signal Dashboard — Implementation Plan
+
+> **Status**: ⚠️ **ARCHIVED** — This plan was superseded by `2026_01_29_dashboard_design_implementation_plan.md` which aligns with the actual repo state and includes contract-first approach.
 
 > **Goal**: Build a modern React-based intelligence dashboard ("Storm Signal") on top of the existing Flask ML backend.
 
