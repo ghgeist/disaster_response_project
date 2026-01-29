@@ -4,9 +4,10 @@ API contract stubs for the Storm Signal dashboard.
 import logging
 from datetime import datetime, timezone
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, current_app, jsonify
 
 from app.extensions import csrf
+from app.services.errors import DataServiceError
 from app.utils.formatting import format_request_context
 
 logger = logging.getLogger(__name__)
@@ -74,6 +75,31 @@ CATEGORY_GROUPS = {
 def to_display_name(internal: str) -> str:
     """Convert internal category names to display names."""
     return CATEGORY_DISPLAY_NAMES.get(internal, internal.replace("_", " ").title())
+
+
+def calculate_severity(probabilities: dict) -> str:
+    """Determine severity based on critical category probabilities."""
+    critical_categories = {
+        "medical_help",
+        "medical_products",
+        "search_and_rescue",
+        "water",
+        "food",
+        "shelter",
+        "security",
+        "hospitals",
+    }
+    critical_count = sum(
+        1
+        for category, probability in probabilities.items()
+        if category in critical_categories and probability > 0.5
+    )
+    max_confidence = max(probabilities.values()) if probabilities else 0.0
+    if critical_count >= 2 or max_confidence > 0.85:
+        return "HIGH"
+    if critical_count >= 1 or max_confidence > 0.70:
+        return "MEDIUM"
+    return "LOW"
 
 
 def _now_iso() -> str:
@@ -191,8 +217,26 @@ def metrics_stub():
 def categories_stub():
     """Return stubbed category metadata for contract validation."""
     try:
-        return jsonify(_build_stub_categories())
-    except Exception as error:
+        data_service = getattr(current_app, "data_service", None)
+        if data_service is None:
+            raise DataServiceError("Data service not configured.")
+        df = data_service.get_data()
+        category_columns = data_service.get_category_columns()
+        counts = (
+            df[category_columns].sum().to_dict()
+            if category_columns and not df.empty
+            else {col: 0 for col in category_columns}
+        )
+        categories = [
+            {
+                "internal": internal,
+                "display": to_display_name(internal),
+                "count": int(counts.get(internal, 0)),
+            }
+            for internal in sorted(category_columns)
+        ]
+        return jsonify({"categories": categories, "groups": CATEGORY_GROUPS})
+    except (DataServiceError, ValueError, KeyError, TypeError) as error:
         _log_api_error("GET /api/categories", error)
         return jsonify({"error": "Categories unavailable right now."}), 500
 

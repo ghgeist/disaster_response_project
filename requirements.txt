@@ -1,6 +1,5 @@
 # General Purpose
-# numpy: Explicitly pin to avoid numpy 2.0 compatibility issues with scikit-learn 1.7.1
-numpy>=1.26.0,<2.0.0
+numpy>=1.26.0,<3.0.0
 pandas>=2.2.1,<3.0.0
 
 # Data Manipulation
@@ -15,8 +14,8 @@ nltk>=3.8.1,<4.0.0
 
 # Machine Learning
 # CRITICAL: Pin ML libraries for model compatibility
-scikit-learn==1.7.1
-scipy>=1.8.0,<1.12.0
+scikit-learn>=1.7.1,<2.0.0
+scipy>=1.8.0,<2.0.0
 joblib==1.3.2
 imbalanced-learn==0.12.0
 iterative-stratification==0.1.7
@@ -27,3 +26,6 @@ Flask-WTF>=1.2.1,<2.0.0
 WTForms>=3.1.1,<4.0.0
 requests>=2.32.0,<3.0.0
 gunicorn>=21.0.0,<22.0.0
+
+# Testing
+pytest>=8.0.0,<9.0.0
