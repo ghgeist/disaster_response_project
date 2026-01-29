@@ -13,22 +13,26 @@ This document explains how to work on the Disaster Response project when operati
 
 ## Environment & Shell Conventions
 - Target Python 3.12+. Virtual environment is conditionally required based on execution environment (see below).
-- Install dependencies with `pip install -r requirements.txt` followed by `pip install -e .` so `src/` is importable as `disasterproject`.
+- Install dependencies with `python -m pip install -r requirements.txt` and `python -m pip install -r requirements-dev.txt` when present.
+- **Do not use `source .venv/bin/activate`.** Always call the interpreter explicitly (e.g., `./.venv/bin/python -m pytest -q`).
 - In the Codex CLI, prefer `shell` calls of the form `["bash", "-lc", "<command>"]` and always set the `workdir` parameter. Avoid `cd` chains; invoke commands from the project root when possible.
 - Use `rg`/`rg --files` for fast code or file search. Fall back to `grep` only if ripgrep is unavailable.
 - The workspace has restricted network access; plan around offline execution (no package downloads unless already vendored).
+
+## Codex Cloud (Web Codex) Quickstart
+- **How to set up env**: `bash scripts/ci.sh` (creates `.venv` if missing and installs deps).
+- **How to run tests**: `bash scripts/ci.sh` (canonical command).
+- Do not fetch network resources at test runtime.
+- If tests require secrets, they must be mocked or guarded to keep CI deterministic.
 
 ### Virtual Environment (conditional based on environment)
 
 - **Local Development (Windows/Linux)**: Virtual environment is **required**
   - Standard venv location: `.venv/` at the project root.
   - Create once: `python -m venv .venv`.
-  - Activate before any `python`, `pip`, or `pytest` command:
-    - Bash: `source .venv/bin/activate`
-    - PowerShell: `. .venv\Scripts\Activate.ps1`
-  - In Codex CLI shell calls, always inline activation before running scripts:
-    - Bash example: `["bash", "-lc", "source .venv/bin/activate && python scripts/04_create_production_model.py"]` (set `workdir` to the repo root)
-    - PowerShell example: `["pwsh", "-NoProfile", "-Command", ". .venv\\Scripts\\Activate.ps1; python scripts/04_create_production_model.py"]`
+  - Do **not** activate the venv; call the interpreter directly:
+    - Bash: `./.venv/bin/python scripts/04_create_production_model.py`
+    - PowerShell: `.\.venv\Scripts\python scripts\04_create_production_model.py`
 
 - **Replit Environment (SSH)**: Virtual environment is **not required**
   - Replit manages Python environment automatically

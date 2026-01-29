@@ -551,6 +551,16 @@ For detailed documentation on all scripts, including usage examples, dependencie
 - pre-commit run --files <files>
 - pytest -q
 
+## Running tests locally / in Codex
+
+Use the deterministic CI script to create the virtual environment, install dependencies, and run tests without activating a shell:
+
+```bash
+bash scripts/ci.sh
+```
+
+Avoid `source .venv/bin/activate` in automation; call `./.venv/bin/python` explicitly instead. Tests should not fetch network resources or require secrets at runtime.
+
 ### Testing
 
 See [docs/testing.md](docs/testing.md) for the full strategy, including marker usage and troubleshooting notes. Run the suites that match your change scope:
