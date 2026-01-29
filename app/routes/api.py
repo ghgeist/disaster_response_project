@@ -94,7 +94,12 @@ def calculate_severity(probabilities: dict) -> str:
         for category, probability in probabilities.items()
         if category in critical_categories and probability > 0.5
     )
-    max_confidence = max(probabilities.values()) if probabilities else 0.0
+    critical_probabilities = [
+        probability
+        for category, probability in probabilities.items()
+        if category in critical_categories
+    ]
+    max_confidence = max(critical_probabilities) if critical_probabilities else 0.0
     if critical_count >= 2 or max_confidence > 0.85:
         return "HIGH"
     if critical_count >= 1 or max_confidence > 0.70:
@@ -203,8 +208,8 @@ def metrics_stub():
 
 
 @api_bp.route("/categories", methods=["GET"])
-def categories_stub():
-    """Return stubbed category metadata for contract validation."""
+def categories_metadata():
+    """Return category metadata for dashboard filters."""
     try:
         data_service = getattr(current_app, "data_service", None)
         if data_service is None:
