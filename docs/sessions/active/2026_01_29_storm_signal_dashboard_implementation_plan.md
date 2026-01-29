@@ -225,6 +225,14 @@ interface SignalItem {
 
 **Phase 0 Gate**: Existing endpoints validated, React app builds, category mapping ready, API contract stubs validate React integration works.
 
+#### Phase 0 Completion Notes
+- ✅ `/classify?format=json` returns JSON; JSON POSTs to `/classify` are blocked by CSRF (use `/api/classify` for React).
+- ✅ React app builds in `_vendor/figma_make` (`npm install` + `npm run build`); Vite chunk warning noted.
+- ✅ Category display mapping and groups defined inline in `app/routes/api.py`.
+- ✅ API contract stubs implemented in `app/routes/api.py`, registered in `app/routes/__init__.py`, and CSRF-exempt via `app/extensions.py`.
+- ✅ Lightweight contract tests added: `tests/test_api_contract_stubs.py` (4 tests), passing via `python scripts/run_tests.py tests/test_api_contract_stubs.py -q`.
+- ⚠️ Do not commit `_vendor/figma_make/node_modules/` or `_vendor/figma_make/dist/` (build artifacts).
+
 ---
 
 ### Phase 1: Backend API Foundation (1.5-2 hours)

@@ -5,6 +5,7 @@ from flask import Flask
 from .home import home_bp
 from .classification import classification_bp
 from .health import health_bp
+from .api import api_bp
 
 
 def register_routes(app: Flask):
@@ -12,3 +13,4 @@ def register_routes(app: Flask):
     app.register_blueprint(home_bp)
     app.register_blueprint(classification_bp)
     app.register_blueprint(health_bp)
+    app.register_blueprint(api_bp)
