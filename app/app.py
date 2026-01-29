@@ -4,9 +4,10 @@ A clean, scalable portfolio project.
 """
 import threading
 from flask import Flask, render_template, request
-from flask_wtf.csrf import CSRFProtect, CSRFError
+from flask_wtf.csrf import CSRFError
 
 from .config import Config
+from .extensions import csrf
 from .routes import register_routes
 from .utils import setup_logging, init_services, validate_environment
 from .utils.nltk_setup import setup_nltk_resources, NLTKSetupError
@@ -123,7 +124,7 @@ def create_app(config_class=Config):
         raise RuntimeError(f"Application configuration is invalid: {error_summary}")
     
     # Initialize Flask-WTF CSRF protection
-    CSRFProtect(app)
+    csrf.init_app(app)
 
     # Ensure session is initialized for CSRF token support
     @app.before_request

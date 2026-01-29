@@ -32,5 +32,21 @@ cookies.txt
 # Backup files (generated during model promotion)
 *.bak
 
+# Node.js / npm
+node_modules/
+package-lock.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist/
+build/
+*.min.js
+*.min.css
+
+# Vendor directories (treat as read-only upstream)
+_vendor/
+
 # --- Catch accidental weird files
 =*
