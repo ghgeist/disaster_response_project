@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from .artifact_loader import ModelArtifactLoader
 from .category_mapper import CategoryMapper
@@ -20,9 +20,8 @@ logger = logging.getLogger(__name__)
 class ModelService:
     """Service for managing ML model loading and prediction."""
 
-    def __init__(self, model_path: Path, gdrive_model_id: Optional[str] = None):
+    def __init__(self, model_path: Path):
         self.model_path = model_path
-        self.gdrive_model_id = gdrive_model_id
         self._model = None
         self._thresholds = None
         self._label_order = None
@@ -30,10 +29,10 @@ class ModelService:
         self._threshold_manager = ThresholdManager()
         self._category_mapper = CategoryMapper()
         self._predictor = ModelPredictor(self._category_mapper, self._threshold_manager)
-        self._loader = ModelLoader(model_path, gdrive_model_id)
+        self._loader = ModelLoader(model_path)
 
     def load_model(self) -> Any:
-        """Load the ML model, downloading if necessary."""
+        """Load the ML model from local storage."""
         if self._model is not None:
             return self._model
 
