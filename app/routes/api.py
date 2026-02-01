@@ -1,10 +1,13 @@
 """
 API contract stubs for the Storm Signal dashboard.
 """
+import hashlib
 import logging
-from datetime import datetime, timezone
+import math
+import random
+from datetime import datetime, timedelta, timezone
 
-from flask import Blueprint, current_app, jsonify
+from flask import Blueprint, current_app, jsonify, request
 
 from app.extensions import csrf
 from app.services.errors import DataServiceError
@@ -108,9 +111,41 @@ def calculate_severity(probabilities: dict) -> str:
     return "LOW"
 
 
-def _now_iso() -> str:
-    """Return a UTC timestamp string for stubs."""
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+def generate_timestamp_for_id(raw_id) -> datetime:
+    """Return a stable timestamp for a record based on its id (last 6 hours, deterministic)."""
+    key = str(raw_id).encode("utf-8")
+    digest = hashlib.sha256(key).hexdigest()
+    fraction = int(digest[:12], 16) / (16**12)
+    hours_ago = fraction * 6
+    return datetime.now(timezone.utc) - timedelta(hours=hours_ago)
+
+
+GENRE_TO_SOURCE = {
+    "direct": "Direct Report",
+    "news": "News",
+    "social": "X",
+}
+DEFAULT_SOURCE = "X"
+
+
+def _safe_text_value(value) -> str:
+    """Return safe string value, treating NaN/None as empty."""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    try:
+        if math.isnan(value):
+            return ""
+    except TypeError:
+        pass
+    return str(value)
+
+
+def genre_to_source(genre: str) -> str:
+    """Map database genre to display source. Unknown/social genres map to X."""
+    normalized = _safe_text_value(genre).strip().lower() or "direct"
+    return GENRE_TO_SOURCE.get(normalized, DEFAULT_SOURCE)
 
 
 def _log_api_error(label: str, error: Exception):
@@ -119,27 +154,68 @@ def _log_api_error(label: str, error: Exception):
     logger.error("%s failed%s: %s", label, context, error)
 
 
-def _build_stub_feed_item() -> dict:
-    """Create a single SignalItem stub for contract validation."""
-    display_categories = [
-        to_display_name("water"),
-        to_display_name("search_and_rescue"),
-        to_display_name("floods"),
-    ]
+def _safe_label_value(value) -> int:
+    """Return 0/1 label, treating NaN/None/invalid values as 0."""
+    if value is None:
+        return 0
+    if isinstance(value, float) and math.isnan(value):
+        return 0
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _simulated_probabilities(row, category_columns: list) -> dict:
+    """Build probabilities from binary labels with clear separation (0 < 0.5 < 1 bands)."""
     return {
-        "id": "SIG-1001",
-        "timestamp": _now_iso(),
-        "source": "Twitter",
-        "content": "Urgent: Water rising rapidly near the east bridge.",
-        "originalContent": None,
+        col: (0.1 + random.uniform(0, 0.1))
+        if _safe_label_value(row.get(col, 0)) == 0
+        else (0.85 + random.uniform(0, 0.15))
+        for col in category_columns
+    }
+
+
+def _row_to_feed_item(row, category_columns: list) -> dict:
+    """Convert a database row to a SignalItem dict for the feed."""
+    raw_id = row.get("id", 0)
+    msg = _safe_text_value(row.get("message")).strip()
+    original = row.get("original")
+    if hasattr(original, "strip"):
+        original = (original or "").strip() or None
+    else:
+        original = None
+    is_translated = bool(original and original != msg)
+    content_preview = (msg[:120] + "...") if len(msg) > 120 else msg
+
+    probabilities = _simulated_probabilities(row, category_columns)
+    risk_level = calculate_severity(probabilities)
+    sorted_cats = sorted(
+        probabilities.items(),
+        key=lambda x: -x[1],
+    )
+    top_three = [to_display_name(internal) for internal, _ in sorted_cats[:3]]
+    classifications = [
+        {"category": to_display_name(internal), "confidence": round(conf, 2)}
+        for internal, conf in sorted_cats
+        if conf > 0.5
+    ][:10]
+
+    genre = row.get("genre")
+    ts = generate_timestamp_for_id(raw_id)
+    timestamp_iso = ts.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+    return {
+        "id": f"SIG-{raw_id}",
+        "timestamp": timestamp_iso,
+        "source": genre_to_source(genre),
+        "content": content_preview,
+        "originalContent": original if is_translated else None,
         "language": "en",
-        "riskLevel": "HIGH",
-        "categories": display_categories,
-        "classifications": [
-            {"category": display_categories[0], "confidence": 0.92},
-            {"category": display_categories[1], "confidence": 0.88},
-        ],
-        "isTranslated": False,
+        "riskLevel": risk_level,
+        "categories": top_three,
+        "classifications": classifications,
+        "isTranslated": is_translated,
     }
 
 
@@ -178,18 +254,60 @@ def _build_stub_classification() -> dict:
     }
 
 
+def _get_feed_filter_categories() -> list:
+    """Parse categories[] query param (internal names) for feed filter."""
+    names = request.args.getlist("categories[]") or request.args.getlist("categories")
+    return [n.strip() for n in names if n and isinstance(n, str)]
+
+
 @api_bp.route("/feed", methods=["GET"])
-def feed_stub():
-    """Return a stubbed feed response for contract validation."""
+def feed():
+    """Return paginated feed items from the database (binary labels + simulated confidences)."""
     try:
-        items = [_build_stub_feed_item()]
+        data_service = getattr(current_app, "data_service", None)
+        if data_service is None:
+            raise DataServiceError("Data service not configured.")
+        df = data_service.get_data()
+        category_columns = data_service.get_category_columns()
+        if not category_columns:
+            category_columns = []
+
+        limit = min(max(1, request.args.get("limit", 25, type=int)), 100)
+        offset = max(0, request.args.get("offset", 0, type=int))
+        filter_cats = _get_feed_filter_categories()
+
+        if filter_cats:
+            valid_cats = [c for c in filter_cats if c in category_columns]
+            if valid_cats:
+                mask = df[valid_cats].sum(axis=1) > 0
+                df = df.loc[mask]
+        total = len(df)
+        if total == 0:
+            page = 1
+            total_pages = 0
+            effective_offset = 0
+        else:
+            page = (offset // limit) + 1
+            total_pages = (total + limit - 1) // limit
+            if offset >= total:
+                page = total_pages
+                effective_offset = (total_pages - 1) * limit
+            else:
+                effective_offset = offset
+        slice_df = df.iloc[effective_offset : effective_offset + limit]
+
+        items = []
+        for _, row in slice_df.iterrows():
+            item = _row_to_feed_item(row.to_dict(), category_columns)
+            items.append(item)
+
         payload = {
             "items": items,
             "pagination": {
-                "page": 1,
-                "limit": 25,
-                "total": 150,
-                "totalPages": 6,
+                "page": page,
+                "limit": limit,
+                "total": total,
+                "totalPages": total_pages,
             },
         }
         return jsonify(payload)

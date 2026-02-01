@@ -132,7 +132,7 @@ Each item displays:
    - Source: Map `genre` column:
      - `direct` → "Direct Report"
      - `news` → "News"
-     - `social` → "Twitter" (or simulate: Twitter, Reddit, Telegram, BlueSky)
+     - `social` → "X"
    - Signal ID: Format `SIG-[ID]` where ID = database `id` column (e.g., "SIG-1001")
    
 7. **Translation Indicator** (if applicable)
