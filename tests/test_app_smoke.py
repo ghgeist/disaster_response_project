@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import pytest
 
-from tests.conftest import create_test_app
 from app.config import TestConfig
+from tests.conftest import create_test_app
 
 pytestmark = pytest.mark.integration
 

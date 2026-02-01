@@ -3,6 +3,7 @@ import re
 import subprocess
 import sys
 
+
 class SecureSubprocessError(Exception):
     """Custom exception for security-related errors in subprocesses."""
     pass

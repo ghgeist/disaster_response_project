@@ -11,7 +11,6 @@ import sys
 
 # Third-party imports
 import joblib
-import numpy as np
 
 # Add src to path for imports
 sys.path.append('src')
@@ -19,6 +18,7 @@ sys.path.append('src')
 # Local imports
 from disasterproject.utils.config import TARGET_COLUMNS
 from disasterproject.utils.experimental_paths import ExperimentalPathManager
+
 
 def load_models():
     """Load both production and experimental models."""

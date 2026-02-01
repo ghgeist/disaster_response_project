@@ -26,15 +26,14 @@ import sys
 from datetime import datetime
 
 # Third-party imports
-import pandas as pd
 from sklearn.model_selection import train_test_split
 
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 # Local imports
-from disasterproject.utils.config import setup_logging
 from disasterproject.data.loader import load_data
+from disasterproject.utils.config import setup_logging
 
 
 def compute_uids(messages):

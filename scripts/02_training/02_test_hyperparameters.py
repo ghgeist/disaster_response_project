@@ -21,16 +21,15 @@ Usage:
 # Standard library imports
 import json
 import logging
-import multiprocessing
 import os
 import pickle
 import sys
 from datetime import datetime
 
+import nltk
+
 # Third-party imports
 import numpy as np
-import nltk
-from nltk.corpus import stopwords
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
@@ -41,10 +40,12 @@ from sklearn.pipeline import Pipeline
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
 
+from disasterproject.data.preprocessor import tokenize
+
 # Local imports
 from disasterproject.models.hyperparameter_search import run_parameter_search
-from disasterproject.utils.config import FEATURE_COLUMNS, TARGET_COLUMNS, RANDOM_STATE, RF_N_JOBS
-from disasterproject.data.preprocessor import tokenize
+from disasterproject.utils.config import RANDOM_STATE, RF_N_JOBS, TARGET_COLUMNS
+
 # Removed unused sampling imports - not compatible with multi-label classification
 
 # Download required NLTK resources
@@ -102,7 +103,7 @@ def load_data(db_filepath):
     """
     Load data from a SQLite database.
 
-    This function reads a table from a SQLite database and splits it into features (X) and labels (y). 
+    This function reads a table from a SQLite database and splits it into features (X) and labels (y).
     The features are the 'message' column of the table, and the labels are the columns specified by TARGET_COLUMNS.
     If any of the TARGET_COLUMNS contain NaN values, a ValueError is raised.
 
@@ -136,7 +137,7 @@ def load_data(db_filepath):
         y = df[TARGET_COLUMNS].values
 
         nan_columns = df[TARGET_COLUMNS].isna().any()
-        nan_columns_list = nan_columns[nan_columns == True].index.tolist()
+        nan_columns_list = nan_columns.loc[nan_columns].index.tolist()
 
         if len(nan_columns_list) > 0:
             logging.error("Columns with NaN values: %s", nan_columns_list)
@@ -473,7 +474,7 @@ def get_user_input(prompt):
     """
     Get user input with validation.
 
-    This function prompts the user for input and validates it. 
+    This function prompts the user for input and validates it.
     The function continues to prompt the user until they enter 'yes', 'no', or 'exit' (case insensitive).
 
     Args:
@@ -502,9 +503,9 @@ def main():
     """
     Main function to train a classifier.
 
-    This function loads data from a database file, splits it into training and test sets, 
-    and trains a classifier using a pipeline. The user is given the option to retrain the base model, 
-    estimate the grid search runtime, run a grid search, and retrain the model using the optimized parameters found by the grid search. 
+    This function loads data from a database file, splits it into training and test sets,
+    and trains a classifier using a pipeline. The user is given the option to retrain the base model,
+    estimate the grid search runtime, run a grid search, and retrain the model using the optimized parameters found by the grid search.
     The trained model is then saved to a pickle file.
 
     Args:
@@ -532,7 +533,6 @@ def main():
     args = parser.parse_args()
 
     database_filepath = args.database_filepath
-    model_filepath = args.model_filepath
     hyperparameter_config_path = args.config
 
     # Generate output paths based on config filename following naming convention
@@ -574,7 +574,7 @@ def main():
             logging.info("Found optimization config: refit_metric=%s", optimization_config.get("refit_metric"))
 
         logging.info("Estimating grid search runtime (using small subset)...")
-        estimated_grid_search = run_parameter_search(
+        run_parameter_search(
             pipeline,
             hyperparameter_config,
             X_train,
@@ -613,17 +613,17 @@ def main():
         save_best_parameters(grid_search, output_paths['optimized_params'])
         logging.info("Grid search results and optimized parameters saved!")
 
-        print(f"\n🎉 HYPERPARAMETER SEARCH COMPLETE!")
-        print(f"=" * 50)
+        print("\n🎉 HYPERPARAMETER SEARCH COMPLETE!")
+        print("=" * 50)
         print(f"📄 Detailed results saved to: {output_paths['detailed_results']}")
         print(f"⚙️  Optimized parameters saved to: {output_paths['optimized_params']}")
         print(f"📊 Best score achieved: {grid_search.best_score_:.4f}")
-        print(f"\n💡 NEXT STEPS:")
+        print("\n💡 NEXT STEPS:")
         print(f"   1. Review the optimized parameters in: {output_paths['optimized_params']}")
-        print(f"   2. Create optimized model with:")
-        print(f"      python scripts/03_create_experimental_model.py \\")
+        print("   2. Create optimized model with:")
+        print("      python scripts/03_create_experimental_model.py \\")
         print(f"         --params {output_paths['optimized_params']}")
-        print(f"=" * 50)
+        print("=" * 50)
 
 
 if __name__ == "__main__":

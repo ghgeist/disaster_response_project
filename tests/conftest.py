@@ -1,10 +1,9 @@
 """Shared pytest fixtures and helpers for the test suite."""
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Type
-
-import sys
 
 import pytest
 
@@ -13,10 +12,10 @@ SRC_PATH = PROJECT_ROOT / 'src'
 if str(SRC_PATH) not in sys.path:
     sys.path.insert(0, str(SRC_PATH))
 
-from flask import Flask
+from flask import Flask  # noqa: E402
 
-from app.app import create_app
-from app.config import Config, TestConfig
+from app.app import create_app  # noqa: E402
+from app.config import Config, TestConfig  # noqa: E402
 
 
 def create_test_app(config_cls: Type[Config]) -> Flask:

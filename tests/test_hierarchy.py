@@ -9,12 +9,12 @@ Tests cover:
 - Special handling for 'related' group
 """
 
-import pytest
 import numpy as np
+
 from src.disasterproject.hierarchy import (
     apply_hierarchy,
     count_violations,
-    optimize_critical_thresholds
+    optimize_critical_thresholds,
 )
 
 

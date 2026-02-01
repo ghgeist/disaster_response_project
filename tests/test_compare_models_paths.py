@@ -46,7 +46,7 @@ def test_find_experiment_artifacts_prefers_latest_run(tmp_path: Path, monkeypatc
 def test_find_experiment_artifacts_legacy_results_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, compare_models_module: ModuleType) -> None:
     """
     Test that legacy results path is no longer supported.
-    
+
     Note: Legacy support for experiments/results/ was removed in favor of
     the new experiments/experimental_runs/<date>/ structure. This test
     verifies that legacy paths return None (expected behavior).

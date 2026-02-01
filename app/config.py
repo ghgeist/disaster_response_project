@@ -10,15 +10,15 @@ def _discover_latest_model(models_dir: Path) -> str:
     if not models_dir.exists():
         # Fallback to explicit filename if directory doesn't exist yet
         return 'disaster_rf_v25-09-16_prod_2025-09-19.pkl'
-    
+
     # Find all production model files matching the pattern (any algorithm type)
     pattern = 'disaster_*_prod_*.pkl'
     model_files = list(models_dir.glob(pattern))
-    
+
     if not model_files:
         # Fallback to explicit filename if no models found
         return 'disaster_rf_v25-09-16_prod_2025-09-19.pkl'
-    
+
     # Sort by modification time (newest first) and take the latest
     model_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
     return model_files[0].name
@@ -26,36 +26,36 @@ def _discover_latest_model(models_dir: Path) -> str:
 
 class Config:
     """Application configuration."""
-    
+
     # Flask settings
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
     DEBUG = os.environ.get('FLASK_ENV') == 'development'
-    
+
     # Security settings
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB limit to prevent DoS attacks
-    
+
     # Flask-WTF settings
     WTF_CSRF_ENABLED = True
     WTF_CSRF_TIME_LIMIT = 3600  # 1 hour
     # Optional: disable CSRF expiry for long demos (dev only)
     if os.environ.get('CSRF_TIME_LIMIT_NONE') == '1':
         WTF_CSRF_TIME_LIMIT = None
-    
+
     # Application settings
     # Replit Autoscale requires $PORT env var - Config already reads it
     HOST = os.environ.get('HOST', '0.0.0.0')
     PORT = int(os.environ.get('PORT', 5000))
-    
+
     # Paths
     BASE_DIR = Path(__file__).parent.parent
     DATA_DIR = BASE_DIR / 'data' / '02_stg'
     MODELS_DIR = BASE_DIR / 'model'  # Fixed: use 'model' not 'models'
     IMAGES_DIR = BASE_DIR / 'images'
-    
+
     # Database settings
     DATABASE_PATH = DATA_DIR / 'stg_disaster_response.db'
     DATABASE_URL = f'sqlite:///{DATABASE_PATH}'
-    
+
     # Model settings
     # Auto-discover latest production model or use explicit filename from environment
     _MODEL_FILENAME = os.environ.get('MODEL_FILENAME')
@@ -66,9 +66,9 @@ class Config:
         # Auto-discover latest production model matching pattern: disaster_*_prod_*.pkl
         # MODELS_DIR is defined above, so it's available at class definition time
         MODEL_FILENAME = _discover_latest_model(MODELS_DIR)
-    
+
     MODEL_PATH = MODELS_DIR / MODEL_FILENAME
-    
+
     # Logging settings
     LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO' if not DEBUG else 'DEBUG')
     LOG_FILE = BASE_DIR / 'app.log'

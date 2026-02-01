@@ -16,7 +16,7 @@ For batch runs of multiple experiments, use run_batch_experiments.py instead.
 Usage:
     python scripts/02_training/01_test_sampling_strategies.py [data/02_stg/stg_disaster_response.db] [model_output.pkl]
     (DB path is optional; defaults to data/02_stg/stg_disaster_response.db)
-    
+
 The script will prompt you to select from available sampling strategies and handle all the
 training, evaluation, and result storage automatically.
 """
@@ -43,10 +43,14 @@ from disasterproject.data.loader import load_data
 from disasterproject.evaluation.metrics import evaluate_model, save_model
 from disasterproject.models.pipeline import build_model, create_pipeline
 from disasterproject.models.samplers import apply_multi_label_aware_sampling
-from disasterproject.utils.config import DEFAULT_TEST_SIZE, RANDOM_STATE, TARGET_COLUMNS, setup_logging
+from disasterproject.utils.config import (
+    DEFAULT_TEST_SIZE,
+    RANDOM_STATE,
+    TARGET_COLUMNS,
+    setup_logging,
+)
 from disasterproject.utils.experiment_tracker import build_slug, create_experiment_name
 from disasterproject.utils.json_io import load_model_parameters
-
 
 DEFAULT_STRATEGIES_DIR = os.path.join('experiments', 'experimental_configs', 'sampling_strategies')
 ALLOWED_SAMPLING_METHODS = {"baseline"}  # Only baseline works with this dataset
@@ -99,15 +103,15 @@ def validate_strategy_payload(payload: dict) -> Tuple[bool, Optional[str]]:
     """
     if not isinstance(payload, dict):
         return False, 'payload is not a JSON object'
-    
+
     config_obj = payload.get('config')
     if not isinstance(config_obj, dict):
         return False, "missing 'config' object"
-    
+
     method = config_obj.get('sampling_method')
     if not method or method not in ALLOWED_SAMPLING_METHODS:
         return False, f"unsupported sampling_method '{method}' (allowed: {sorted(ALLOWED_SAMPLING_METHODS)})"
-    
+
     return True, None
 
 
@@ -118,7 +122,7 @@ def normalize_strategy_entry(file_path: str, payload: dict) -> Dict[str, object]
     config_obj = payload.get('config', {})
     sampling_method = config_obj.get('sampling_method', 'baseline')
     experiment_name = payload.get('experiment_name', f"{sampling_method}_v1")
-    
+
     return {
         'path': file_path,
         'display_name': experiment_name,
@@ -141,17 +145,17 @@ def discover_strategies(strategies_dir: str) -> List[Dict[str, object]]:
     for filename in sorted(os.listdir(strategies_dir)):
         if not filename.endswith('.json') or is_disabled_filename(filename):
             continue
-            
+
         file_path = os.path.join(strategies_dir, filename)
         payload = load_json_file(file_path)
         if payload is None:
             continue
-            
+
         is_valid, reason = validate_strategy_payload(payload)
         if not is_valid:
             logging.warning("Skipping %s: %s", filename, reason)
             continue
-            
+
         entry = normalize_strategy_entry(file_path, payload)
         results.append(entry)
 
@@ -161,38 +165,38 @@ def discover_strategies(strategies_dir: str) -> List[Dict[str, object]]:
 def calculate_overall_metrics(metrics_file_path: str) -> dict:
     """
     Calculate overall performance metrics from detailed metrics CSV.
-    
+
     Args:
         metrics_file_path: Path to the metrics CSV file
-        
+
     Returns:
         Dictionary with overall metrics
     """
     try:
         df = pd.read_csv(metrics_file_path)
-        
+
         # Filter to only include class 0 and 1 (binary classification results)
         binary_df = df[df['output_class'].isin([0, 1])]
-        
+
         if binary_df.empty:
             logging.warning("No binary classification results found in %s", metrics_file_path)
             return None
-        
+
         # Calculate macro averages (average across all categories)
         class_1_metrics = binary_df[binary_df['output_class'] == 1]
-        
+
         if class_1_metrics.empty:
             logging.warning("No positive class metrics found in %s", metrics_file_path)
             return None
-            
+
         macro_precision = class_1_metrics['precision'].fillna(0.0).mean()
         macro_recall = class_1_metrics['recall'].fillna(0.0).mean()
         macro_f1 = class_1_metrics['f1-score'].fillna(0.0).mean()
-        
+
         # Calculate weighted averages (weighted by support)
         class_1_data = binary_df[binary_df['output_class'] == 1]
         weights = class_1_data['support'].values
-        
+
         # Handle case where all weights are zero (no positive predictions)
         if np.sum(weights) == 0:
             weighted_precision = 0.0
@@ -203,11 +207,11 @@ def calculate_overall_metrics(metrics_file_path: str) -> dict:
             precision_values = class_1_data['precision'].fillna(0.0).values
             recall_values = class_1_data['recall'].fillna(0.0).values
             f1_values = class_1_data['f1-score'].fillna(0.0).values
-            
+
             weighted_precision = np.average(precision_values, weights=weights)
             weighted_recall = np.average(recall_values, weights=weights)
             weighted_f1 = np.average(f1_values, weights=weights)
-        
+
         return {
             'macro_precision': macro_precision,
             'macro_recall': macro_recall,
@@ -236,21 +240,21 @@ def create_experiment_comparison(results_dir: str = "experiments/results") -> st
         for f in os.listdir(results_dir):
             if f.endswith('_metrics.csv'):
                 found_files.append((results_dir, f))
-        
+
         if not found_files:
             logging.warning("No metrics files found for comparison in %s", results_dir)
             return None
-        
+
         comparison_data = []
-        
+
         for d, metrics_file in found_files:
             # Derive experiment name from filename
             experiment_name = metrics_file.replace('_metrics.csv', '').split('_', 1)[1] if '_' in metrics_file else metrics_file
             metrics_path = os.path.join(d, metrics_file)
-            
+
             # Calculate overall metrics
             metrics = calculate_overall_metrics(metrics_path)
-            
+
             if metrics is not None:
                 comparison_data.append({
                     'experiment': experiment_name,
@@ -262,22 +266,22 @@ def create_experiment_comparison(results_dir: str = "experiments/results") -> st
                     'weighted_f1': metrics['weighted_f1'],
                     'total_categories': metrics['total_categories']
                 })
-        
+
         if not comparison_data:
             logging.warning("No valid metrics found for comparison")
             return None
-            
+
         # Create comparison DataFrame
         comparison_df = pd.DataFrame(comparison_data)
-        
+
         # Sort by weighted F1 score (most important metric for imbalanced data)
         comparison_df = comparison_df.sort_values('weighted_f1', ascending=False)
-        
+
         # Save comparison report
         date_str = datetime.now().strftime("%Y-%m-%d")
         comparison_path = os.path.join(results_dir, f"{date_str}_experiment_comparison.csv")
         comparison_df.to_csv(comparison_path, index=False)
-        
+
         # Print summary
         print("\n" + "="*60)
         print("EXPERIMENT COMPARISON RESULTS")
@@ -288,70 +292,70 @@ def create_experiment_comparison(results_dir: str = "experiments/results") -> st
         print("\nTop 3 experiments by weighted F1:")
         print(comparison_df[['experiment', 'weighted_f1', 'macro_f1', 'weighted_precision', 'weighted_recall']].head(3).to_string(index=False))
         print("="*60)
-        
+
         return comparison_path
-        
+
     except (OSError, pd.errors.EmptyDataError, ValueError) as e:
         logging.error("Error creating experiment comparison: %s", e)
         return None
 
 
-def train_experiment(experiment_name: str, sampling_method: str, 
+def train_experiment(experiment_name: str, sampling_method: str,
                     database_filepath: str, model_filepath: str = None):
     """
     Train a model for a specific experiment configuration.
-    
+
     Args:
         experiment_name: Name of the experiment
         sampling_method: Sampling method to use ('baseline', 'smote', 'adasyn', 'conservative')
         database_filepath: Path to the database file
         model_filepath: Path to save the model (optional, will use experiment tracker if not provided)
     """
-    
+
     # Load data
     logging.info("Loading data for experiment: %s", experiment_name)
     X, Y = load_data(database_filepath)
     if X is None or Y is None:
         logging.error("Error loading data from database")
         return None
-    
+
     # Split data
     logging.info("Splitting data into training and test sets...")
     X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=DEFAULT_TEST_SIZE, random_state=RANDOM_STATE)
-    
+
     # Apply sampling if not baseline
     if sampling_method != 'baseline':
         logging.info("Applying %s sampling...", sampling_method)
-        
+
         try:
             X_train_sampled, Y_train_sampled = apply_multi_label_aware_sampling(
-                X_train, Y_train, 
+                X_train, Y_train,
                 method=sampling_method
             )
-            
+
             # Check if sampling actually worked (data changed)
             if len(X_train_sampled) == len(X_train) and np.array_equal(Y_train_sampled, Y_train):
                 logging.error("CRITICAL: %s sampling failed - no changes to training data", sampling_method)
                 print(f"[EXPERIMENT FAILED] {sampling_method} sampling could not be applied.")
                 print("Stopping experiment to prevent misleading results.")
                 return None
-            
+
             X_train, Y_train = X_train_sampled, Y_train_sampled
-            
+
         except Exception as e:
             logging.error("CRITICAL: %s sampling failed with exception: %s", sampling_method, e)
             print(f"[EXPERIMENT FAILED] {sampling_method} sampling failed: {e}")
             print("Stopping experiment to prevent misleading results.")
             return None
-    
+
     # Create pipeline
     logging.info("Creating ML pipeline...")
     pipeline = create_pipeline()
-    
+
     # Load production parameters for config
     parameters_path = os.path.join(os.path.dirname(__file__), '..', '..', 'model', 'parameters.json')
     loaded_parameters = load_model_parameters(parameters_path)
-    
+
     # Save experiment configuration
     config = {
         'sampling_method': sampling_method,
@@ -379,16 +383,16 @@ def train_experiment(experiment_name: str, sampling_method: str,
     }
     with open(config_path, 'w', encoding='utf-8') as f:
         json.dump(config_with_metadata, f, indent=2)
-    
+
     # Train model with loaded parameters
     logging.info("Training model...")
     model = build_model(pipeline, loaded_parameters)
     model.fit(X_train, Y_train)
-    
+
     # Evaluate model
     logging.info("Evaluating model...")
     evaluate_model(model, experiment_name, X_test, Y_test, TARGET_COLUMNS)
-    
+
     # Save model
     saved_model_path = None
     if model_filepath is None:
@@ -400,7 +404,7 @@ def train_experiment(experiment_name: str, sampling_method: str,
         # Respect provided path (backward compatible)
         save_model(model, model_filepath)
         saved_model_path = model_filepath
-    
+
     # Save results summary
     results = {
         'experiment_name': experiment_name,
@@ -418,7 +422,7 @@ def train_experiment(experiment_name: str, sampling_method: str,
     }
     with open(results_path, 'w', encoding='utf-8') as f:
         json.dump(results_with_metadata, f, indent=2)
-    
+
     logging.info("Experiment %s completed successfully!", experiment_name)
     print(f"SLUG: {slug}")
     print(f"MODEL_PATH: {saved_model_path}")
@@ -480,12 +484,12 @@ def main():
         print("\n=== Running All Experiments ===")
         successful_experiments = []
         failed_experiments = []
-        
+
         for idx, s in enumerate(strategies, start=1):
             sampling_method = str(s['sampling_method'])
             experiment_name = s.get('experiment_name') or create_experiment_name(sampling_method)
             print(f"\n[{idx}/{len(strategies)}] Training: {experiment_name} ({sampling_method})")
-            
+
             try:
                 result = train_experiment(experiment_name, sampling_method, database_filepath, model_filepath)
                 if result is not None:
@@ -498,7 +502,7 @@ def main():
                 logging.error("Experiment failed with exception: %s", e)
                 failed_experiments.append(experiment_name)
                 print(f"[ERROR] Failed: {experiment_name} - {e}")
-        
+
         # Print batch summary
         print(f"\n{'='*60}")
         print("BATCH EXPERIMENT SUMMARY")
@@ -506,14 +510,14 @@ def main():
         print(f"Total experiments: {len(strategies)}")
         print(f"Successful: {len(successful_experiments)}")
         print(f"Failed: {len(failed_experiments)}")
-        
+
         if successful_experiments:
-            print(f"\nSuccessful experiments:")
+            print("\nSuccessful experiments:")
             for exp in successful_experiments:
                 print(f"  ✓ {exp}")
-        
+
         if failed_experiments:
-            print(f"\nFailed experiments:")
+            print("\nFailed experiments:")
             for exp in failed_experiments:
                 print(f"  ✗ {exp}")
         # Generate comparison only if we have successful experiments

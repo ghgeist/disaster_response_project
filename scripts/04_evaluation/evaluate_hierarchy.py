@@ -21,13 +21,13 @@ import sys
 import warnings
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Tuple
 
 # Third-party imports
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.metrics import classification_report, precision_recall_fscore_support
+from sklearn.metrics import precision_recall_fscore_support
 from sklearn.model_selection import train_test_split
 
 # Add src to path for imports
@@ -35,7 +35,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 # Local imports
 from disasterproject.data.loader import load_data
-from disasterproject.evaluation.metrics import evaluate_model
 from disasterproject.hierarchy import apply_hierarchy, count_violations
 from disasterproject.utils.config import (
     CRITICAL_LABELS,
@@ -47,6 +46,7 @@ from disasterproject.utils.config import (
     TAXONOMY,
     setup_logging,
 )
+
 warnings.filterwarnings('ignore')
 
 logger = logging.getLogger(__name__)
@@ -137,12 +137,12 @@ class HierarchyEvaluator:
         if hasattr(self.model, 'predict_proba'):
             # MultiOutputClassifier returns list of arrays
             proba_list = self.model.predict_proba(self.X_test)
-            
+
             # Extract positive class probabilities
             # Access the underlying classifier to get class information
             clf = self.model.named_steps['clf']
             raw_probs_list = []
-            
+
             for i, proba in enumerate(proba_list):
                 if proba.ndim == 2 and proba.shape[1] == 2:
                     # Normal binary classifier with both classes
@@ -166,7 +166,7 @@ class HierarchyEvaluator:
                 else:
                     # Fallback for unexpected shapes
                     raw_probs_list.append(proba.ravel())
-            
+
             raw_probs = np.column_stack(raw_probs_list)
         else:
             # Fallback to decision_function if available
@@ -370,7 +370,7 @@ class HierarchyEvaluator:
         print(f"📅 DATE: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"🔢 TEST SAMPLES: {baseline['n_samples']:,}")
 
-        print(f"\n📈 PERFORMANCE METRICS:")
+        print("\n📈 PERFORMANCE METRICS:")
         print("-" * 40)
         print(f"{'Metric':<20} {'Baseline':<12} {'Hierarchy':<12} {'Change'}")
         print("-" * 40)

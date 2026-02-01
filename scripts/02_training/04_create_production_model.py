@@ -39,17 +39,16 @@ from sklearn.model_selection import train_test_split
 
 # Import from installed package (requires: pip install -e .)
 # Alternative: set PYTHONPATH to include src directory
-
 # Local imports
 from disasterproject.data.loader import load_data
-from disasterproject.evaluation.metrics import evaluate_model, save_model
+from disasterproject.evaluation.metrics import save_model
+from disasterproject.hierarchy import apply_hierarchy, count_violations
 from disasterproject.models.pipeline import (
-    create_pipeline, 
+    build_model,
+    create_pipeline,
     create_pipeline_with_custom_weights,
-    build_model
 )
 from disasterproject.models.samplers import get_multilabel_class_weights
-from disasterproject.hierarchy import apply_hierarchy, count_violations
 from disasterproject.utils.config import (
     CRITICAL_LABELS,
     DEFAULT_RANDOM_SEED,
@@ -456,11 +455,11 @@ def save_training_log(model_dir, config, performance_summary, training_time, mod
         'version': '1.0',
         'status': 'production_ready'
     }
-    
+
     log_path = os.path.join(model_dir, 'training_log.json')
     with open(log_path, 'w', encoding='utf-8') as f:
         json.dump(log_data, f, indent=2)
-    
+
     logging.info("Training log saved to: %s", log_path)
     return log_path
 
@@ -559,16 +558,16 @@ def main():
         description='Create production disaster response classification model with clean results structure.'
     )
 
-    parser.add_argument('--db', dest='database_filepath', 
+    parser.add_argument('--db', dest='database_filepath',
                        default='data/02_stg/stg_disaster_response.db',
                        help='Path to SQLite database (default: data/02_stg/stg_disaster_response.db)')
-    parser.add_argument('--params', dest='params_path', 
+    parser.add_argument('--params', dest='params_path',
                        default='model/parameters.json',
                        help='Path to hyperparameters JSON (default: model/parameters.json)')
     parser.add_argument('--class-weights', dest='class_weights_path',
-                       default='model/class_weights.json', 
+                       default='model/class_weights.json',
                        help='Path to class weights JSON (default: model/class_weights.json)')
-    parser.add_argument('--output', dest='model_out', 
+    parser.add_argument('--output', dest='model_out',
                        default='model/disaster_rf_v1-2-0_prod_2025-09-11.pkl',
                        help='Output model path (default: model/disaster_rf_v1-2-0_prod_2025-09-11.pkl)')
     parser.add_argument('--test-size', dest='test_size', type=float, default=DEFAULT_TEST_SIZE,
@@ -583,14 +582,14 @@ def main():
     args = parser.parse_args()
 
     setup_logging()
-    
-    print(f"\nCreating Production Disaster Response Model")
+
+    print("\nCreating Production Disaster Response Model")
     print(f"{'='*60}")
     print(f"Database: {args.database_filepath}")
     print(f"Hyperparameters: {args.params_path}")
     print(f"Class weights: {args.class_weights_path}")
     print(f"Output: {args.model_out}")
-    print(f"Results will be saved to model/ directory for clarity")
+    print("Results will be saved to model/ directory for clarity")
     print(f"{'='*60}")
 
     # Load data
@@ -684,21 +683,21 @@ def main():
 
     # Determine if class weighting is enabled
     class_weights_enabled = class_weights_config.get('class_weights', {}).get('enabled', False)
-    
+
     # Create pipeline based on class weights configuration
     if class_weights_enabled:
         logging.info('Creating pipeline with class weighting enabled...')
-        
+
         # Calculate class weights
         class_weights = get_multilabel_class_weights(Y_train, strategy='balanced')
         if class_weights:
             logging.info(f'Calculated class weights for {len(class_weights)} labels')
-        
+
         pipeline = create_pipeline_with_custom_weights()
     else:
         logging.info('Creating pipeline without class weighting (default)...')
         pipeline = create_pipeline(use_class_weights=False)
-    
+
     if pipeline is None:
         logging.error('Failed to create pipeline. Exiting.')
         sys.exit(1)
@@ -713,9 +712,9 @@ def main():
     # Train model
     logging.info('Training model...')
     train_start = time()
-    
+
     model.fit(X_train, Y_train)
-    
+
     train_time = time() - train_start
     logging.info(f'Model training completed in {train_time:.2f} seconds')
 
@@ -813,30 +812,30 @@ def main():
     )
 
     # Success summary
-    print(f'\nProduction Model Created Successfully!')
+    print('\nProduction Model Created Successfully!')
     print(f"{'='*60}")
     print(f'Model: {args.model_out}')
     print(f'Performance: {model_dir}/performance_metrics.csv')
     print(f'Training Log: {training_log_path}')
     print(f'Training Time: {train_time:.2f} seconds')
     print(f"{'='*60}")
-    
-    print(f'\nPerformance Summary:')
+
+    print('\nPerformance Summary:')
     print(f'   Overall F1-Score: {performance_summary.get("overall_f1", 0):.4f}')
-    print(f'   Overall Recall: {performance_summary.get("overall_recall", 0):.4f}')  
+    print(f'   Overall Recall: {performance_summary.get("overall_recall", 0):.4f}')
     print(f'   Overall Precision: {performance_summary.get("overall_precision", 0):.4f}')
     print(f'   Positive Class F1: {performance_summary.get("positive_class_f1", 0):.4f}')
-    
+
     class_weighting_status = "enabled" if class_weights_enabled else "disabled"
     print(f'\nClass Weighting: {class_weighting_status}')
     if class_weights_enabled:
         print('   Model uses balanced class weights for improved minority class detection')
-    
-    print(f'\nResults Structure:')
-    print(f'   model/disaster_rf_v1-2-0_prod_2025-09-11.pkl          <- Current production model')
-    print(f'   model/performance_metrics.csv <- Current model performance')  
-    print(f'   model/training_log.json       <- Training metadata & config')
-    print(f'\nThis clear structure makes it easy to find current model results!')
+
+    print('\nResults Structure:')
+    print('   model/disaster_rf_v1-2-0_prod_2025-09-11.pkl          <- Current production model')
+    print('   model/performance_metrics.csv <- Current model performance')
+    print('   model/training_log.json       <- Training metadata & config')
+    print('\nThis clear structure makes it easy to find current model results!')
 
 
 if __name__ == '__main__':

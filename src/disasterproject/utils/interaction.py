@@ -7,7 +7,7 @@ def get_user_input(prompt):
     """
     Get user input with validation.
 
-    This function prompts the user for input and validates it. 
+    This function prompts the user for input and validates it.
     The function continues to prompt the user until they enter 'yes', 'no', or 'exit' (case insensitive).
 
     Args:

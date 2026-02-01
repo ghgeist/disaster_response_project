@@ -20,7 +20,7 @@ import logging
 import os
 import sys
 from datetime import datetime
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 # Third-party imports
 import joblib
@@ -84,11 +84,11 @@ class ThresholdOptimizer:
         logger.info("Computing raw probabilities...")
         if hasattr(self.model, 'predict_proba'):
             proba_list = self.model.predict_proba(self.X_test)
-            
+
             # Access the underlying classifier to get class information
             clf = self.model.named_steps['clf']
             raw_probs_list = []
-            
+
             for i, proba in enumerate(proba_list):
                 if proba.ndim == 2 and proba.shape[1] == 2:
                     # Normal binary classifier with both classes
@@ -112,7 +112,7 @@ class ThresholdOptimizer:
                 else:
                     # Fallback for unexpected shapes
                     raw_probs_list.append(proba.ravel())
-            
+
             self.raw_probs = np.column_stack(raw_probs_list)
         else:
             raw_probs = self.model.decision_function(self.X_test)
@@ -271,7 +271,7 @@ def main():
     print("🔍 OPTIMIZING CRITICAL THRESHOLD REDUCTION")
     print("="*50)
     print(f"📊 Testing {len(reduction_values)} reduction values: {reduction_values}")
-    print(f"🎯 Target: Macro F1 decline ≤ 2% while maximizing Safety Recall")
+    print("🎯 Target: Macro F1 decline ≤ 2% while maximizing Safety Recall")
     print()
 
     # Run optimization

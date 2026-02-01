@@ -4,7 +4,7 @@ Test different deployment scenarios for disaster response model.
 
 Scenarios:
 1. Production: Google Drive only (no local model)
-2. Development: Local model fallback  
+2. Development: Local model fallback
 3. Development: Google Drive primary
 """
 
@@ -143,42 +143,42 @@ def main():
     parser = argparse.ArgumentParser(description='Test disaster response deployment scenarios')
     parser.add_argument('scenario', choices=['production', 'dev-local', 'dev-gdrive', 'all'],
                        help='Deployment scenario to test')
-    
+
     args = parser.parse_args()
-    
+
     success_count = 0
     total_count = 0
-    
+
     if args.scenario in ['production', 'all']:
         total_count += 1
         if run_production_scenario():
             success_count += 1
         print()
-    
+
     if args.scenario in ['dev-local', 'all']:
-        total_count += 1  
+        total_count += 1
         if run_development_local():
             success_count += 1
         print()
-    
+
     if args.scenario in ['dev-gdrive', 'all']:
         total_count += 1
         if run_development_gdrive():
             success_count += 1
         print()
-    
+
     # Summary
     print("📊 Test Summary")
     print("=" * 30)
     print(f"✅ Passed: {success_count}/{total_count}")
     print(f"❌ Failed: {total_count - success_count}/{total_count}")
-    
+
     if success_count == total_count:
         print("\n🎉 All deployment scenarios working correctly!")
         print("Your disaster response system is ready for production!")
     else:
-        print(f"\n⚠️  Some scenarios failed. Check logs above for details.")
-    
+        print("\n⚠️  Some scenarios failed. Check logs above for details.")
+
     return success_count == total_count
 
 if __name__ == "__main__":

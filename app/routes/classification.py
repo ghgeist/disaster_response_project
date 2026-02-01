@@ -25,10 +25,10 @@ from app.visualizations import ChartGenerator
 # Import hierarchy functions
 from disasterproject.hierarchy import apply_hierarchy
 from disasterproject.utils.config import (
-    TAXONOMY,
     CRITICAL_LABELS,
     EXCLUDE_FROM_CONSTRAINTS,
-    HIERARCHY_CRITICAL_THRESHOLD_REDUCTION
+    HIERARCHY_CRITICAL_THRESHOLD_REDUCTION,
+    TAXONOMY,
 )
 
 logger = logging.getLogger(__name__)

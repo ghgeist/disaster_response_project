@@ -18,7 +18,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 # Local imports
-from app.app import create_app
+from app.app import create_app  # noqa: E402
 
 
 def test_homepage(client):
@@ -48,7 +48,7 @@ def test_go_post(client):
     # First get the homepage to get CSRF token
     home_response = client.get("/", base_url="http://localhost")
     assert home_response.status_code == 200
-    
+
     # Extract CSRF token
     import re
     html_text = home_response.get_data(as_text=True)
@@ -57,7 +57,7 @@ def test_go_post(client):
         html_text,
         re.IGNORECASE,
     )
-    
+
     if csrf_match:
         csrf_token = csrf_match.group(1)
         response = client.post(
@@ -95,7 +95,7 @@ def test_classify_get_json(client):
     response = client.get("/classify?query=Need clean water&format=json", follow_redirects=False)
     # 400 or 302 are acceptable if model fails to load (known scikit-learn version issue)
     assert response.status_code in (200, 400, 302), f"Expected 200, 400, or 302, got {response.status_code}"
-    
+
     if response.status_code in (400, 302):
         print("⚠ GET /classify?format=json returned {} (likely model loading issue, not a route problem)".format(response.status_code))
     else:
@@ -103,7 +103,7 @@ def test_classify_get_json(client):
         content_type = response.headers.get("Content-Type", "")
         assert "application/json" in content_type or "json" in content_type.lower(), \
             f"Expected JSON response, got {content_type}"
-        
+
         # Try to parse JSON
         import json
         try:
@@ -120,7 +120,7 @@ def test_classify_post(client):
     # First get the homepage to get CSRF token
     home_response = client.get("/", base_url="http://localhost")
     assert home_response.status_code == 200
-    
+
     # Extract CSRF token
     import re
     html_text = home_response.get_data(as_text=True)
@@ -129,7 +129,7 @@ def test_classify_post(client):
         html_text,
         re.IGNORECASE,
     )
-    
+
     if csrf_match:
         csrf_token = csrf_match.group(1)
         response = client.post(
@@ -155,7 +155,7 @@ def test_classify_post_json(client):
     # First get the homepage to get CSRF token
     home_response = client.get("/", base_url="http://localhost")
     assert home_response.status_code == 200
-    
+
     # Extract CSRF token
     import re
     html_text = home_response.get_data(as_text=True)
@@ -164,7 +164,7 @@ def test_classify_post_json(client):
         html_text,
         re.IGNORECASE,
     )
-    
+
     if csrf_match:
         csrf_token = csrf_match.group(1)
         response = client.post(
@@ -183,7 +183,7 @@ def test_classify_post_json(client):
             content_type = response.headers.get("Content-Type", "")
             assert "application/json" in content_type or "json" in content_type.lower(), \
                 f"Expected JSON response, got {content_type}"
-            
+
             # Try to parse JSON
             import json
             try:
@@ -202,7 +202,7 @@ def main():
     print("Manual Smoke Test Suite")
     print("=" * 60)
     print()
-    
+
     app = create_app()
     with app.test_client() as client:
         try:
@@ -213,7 +213,7 @@ def main():
             test_classify_get_json(client)
             test_classify_post(client)
             test_classify_post_json(client)
-            
+
             print()
             print("=" * 60)
             print("✓ All manual smoke tests passed!")

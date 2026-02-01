@@ -2,18 +2,20 @@
 Test script to validate NLTK performance optimization and compatibility features.
 Tests the optimization changes and validates the approach without running the full application.
 """
-import pytest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
+
+import pytest
 
 from app.utils.nltk_setup import (
-    setup_nltk_resources, 
-    validate_nltk_resources, 
-    get_nltk_status,
-    NLTKSetupError,
     REQUIRED_RESOURCES,
-    RESOURCE_VALIDATORS
+    RESOURCE_VALIDATORS,
+    NLTKSetupError,
+    get_nltk_status,
+    setup_nltk_resources,
+    validate_nltk_resources,
 )
+
 # Note: app.compat module was removed as part of module structure cleanup
 # These compatibility functions are no longer needed as models now load directly with joblib
 
@@ -24,14 +26,14 @@ class TestNLTKSetupModule:
     def test_nltk_setup_imports(self):
         """Test that NLTK setup module imports successfully."""
         from app.utils.nltk_setup import (
-            setup_nltk_resources, 
-            validate_nltk_resources, 
-            get_nltk_status,
-            NLTKSetupError,
             REQUIRED_RESOURCES,
-            RESOURCE_VALIDATORS
+            RESOURCE_VALIDATORS,
+            NLTKSetupError,
+            get_nltk_status,
+            setup_nltk_resources,
+            validate_nltk_resources,
         )
-        
+
         assert callable(setup_nltk_resources)
         assert callable(validate_nltk_resources)
         assert callable(get_nltk_status)
@@ -52,7 +54,7 @@ class TestNLTKSetupModule:
         assert 'stopwords' in RESOURCE_VALIDATORS
         assert 'wordnet' in RESOURCE_VALIDATORS
         assert 'punkt' in RESOURCE_VALIDATORS
-        
+
         # Test that validators are callable
         for resource, validator in RESOURCE_VALIDATORS.items():
             assert callable(validator), f"Validator for {resource} is not callable"
@@ -119,11 +121,11 @@ class TestNLTKSetupModule:
                 'missing_resources': [],
                 'validation_errors': []
             }
-            
+
             with patch('nltk.__version__', '3.8.1'):
                 with patch('nltk.data.path', ['/mock/path']):
                     result = get_nltk_status()
-                    
+
                     assert 'status' in result
                     assert 'all_resources_available' in result
                     assert 'nltk_version' in result
@@ -148,10 +150,10 @@ class TestConfigOptimization:
         config_path = Path("app/config.py")
         with open(config_path, 'r') as f:
             content = f.read()
-        
+
         # Check that NLTK download logic has been removed
         assert "nltk.download" not in content, "NLTK download logic still present in config.py"
-        
+
         # Check for optimization comment (optional)
         if "NLTK resources are now managed by app/nltk_setup.py" in content:
             assert True  # Optimization comment found
@@ -166,8 +168,8 @@ class TestFlaskAppIntegration:
     def test_flask_app_imports(self):
         """Test that Flask app imports successfully."""
         from app.app import create_app
-        from app.utils.nltk_setup import setup_nltk_resources, NLTKSetupError
-        
+        from app.utils.nltk_setup import NLTKSetupError, setup_nltk_resources
+
         assert callable(create_app)
         assert callable(setup_nltk_resources)
         assert issubclass(NLTKSetupError, Exception)
@@ -177,7 +179,7 @@ class TestFlaskAppIntegration:
         app_path = Path("app/app.py")
         with open(app_path, 'r') as f:
             content = f.read()
-        
+
         assert "setup_nltk_resources" in content, "NLTK setup call not found in Flask app factory"
 
     def test_flask_app_factory_has_nltk_results_storage(self):
@@ -185,7 +187,7 @@ class TestFlaskAppIntegration:
         app_path = Path("app/app.py")
         with open(app_path, 'r') as f:
             content = f.read()
-        
+
         assert "NLTK_SETUP_RESULTS" in content, "NLTK setup results storage not found"
 
 
@@ -202,7 +204,7 @@ class TestPerformanceMonitoring:
         routes_path = Path("app/routes/health.py")
         with open(routes_path, 'r') as f:
             content = f.read()
-        
+
         assert "total_response_time_ms" in content, "Performance timing not found in health check"
 
     def test_routes_have_performance_diagnostics(self):
@@ -210,7 +212,7 @@ class TestPerformanceMonitoring:
         routes_path = Path("app/routes/health.py")
         with open(routes_path, 'r') as f:
             content = f.read()
-        
+
         assert "performance_diagnostics" in content, "Performance diagnostics endpoint not found"
 
     def test_routes_have_nltk_status_monitoring(self):
@@ -218,7 +220,7 @@ class TestPerformanceMonitoring:
         routes_path = Path("app/routes/health.py")
         with open(routes_path, 'r') as f:
             content = f.read()
-        
+
         assert "nltk_status" in content, "NLTK status monitoring not found"
 
 
@@ -230,10 +232,10 @@ class TestOptimizationIntegration:
         # Test NLTK setup module
         from app.utils.nltk_setup import setup_nltk_resources
         assert callable(setup_nltk_resources)
-        
+
         # Note: app.compat module was removed - models now load directly with joblib
         # No longer needed after module structure cleanup
-        
+
         # Test that config has been optimized
         config_path = Path("app/config.py")
         with open(config_path, 'r') as f:
@@ -245,12 +247,12 @@ class TestOptimizationIntegration:
         # Test that NLTK resources are loaded once (not per request)
         with patch('app.utils.nltk_setup.setup_nltk_resources') as mock_setup:
             mock_setup.return_value = {'success': True, 'setup_time_ms': 100}
-            
+
             # Simulate multiple calls - should not call setup multiple times
             from app.utils.nltk_setup import setup_nltk_resources
             setup_nltk_resources()
             setup_nltk_resources()
-            
+
             # In a real scenario, setup should only be called once at startup
             # This test verifies the function exists and can be called
 
