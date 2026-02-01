@@ -1,10 +1,12 @@
 """
 API contract stubs for the Storm Signal dashboard.
 """
+import hashlib
 import logging
-from datetime import datetime, timezone
+import random
+from datetime import datetime, timedelta, timezone
 
-from flask import Blueprint, current_app, jsonify
+from flask import Blueprint, current_app, jsonify, request
 
 from app.extensions import csrf
 from app.services.errors import DataServiceError
@@ -108,6 +110,32 @@ def calculate_severity(probabilities: dict) -> str:
     return "LOW"
 
 
+def generate_timestamp_for_id(raw_id) -> datetime:
+    """Return a stable timestamp for a record based on its id (last 6 hours, deterministic)."""
+    key = str(raw_id).encode("utf-8")
+    digest = hashlib.sha256(key).hexdigest()
+    fraction = int(digest[:12], 16) / (16**12)
+    hours_ago = fraction * 6
+    return datetime.now(timezone.utc) - timedelta(hours=hours_ago)
+
+
+SOCIAL_SOURCES = ("Twitter", "Facebook", "Telegram", "BlueSky")
+GENRE_TO_SOURCE = {
+    "direct": "Direct Report",
+    "news": "News",
+    "social": None,  # Resolved per call via random choice
+}
+
+
+def genre_to_source(genre: str) -> str:
+    """Map database genre to display source. Social maps to a random platform."""
+    normalized = (genre or "").strip().lower() or "direct"
+    source = GENRE_TO_SOURCE.get(normalized)
+    if source is not None:
+        return source
+    return random.choice(SOCIAL_SOURCES)
+
+
 def _now_iso() -> str:
     """Return a UTC timestamp string for stubs."""
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -117,6 +145,57 @@ def _log_api_error(label: str, error: Exception):
     """Log API errors with request context."""
     context = format_request_context()
     logger.error("%s failed%s: %s", label, context, error)
+
+
+def _simulated_probabilities(row, category_columns: list) -> dict:
+    """Build probabilities from binary labels: 0.5 + (label * 0.4) + random(0, 0.1)."""
+    return {
+        col: 0.5 + (int(row.get(col, 0) or 0) * 0.4) + random.uniform(0, 0.1)
+        for col in category_columns
+    }
+
+
+def _row_to_feed_item(row, category_columns: list) -> dict:
+    """Convert a database row to a SignalItem dict for the feed."""
+    raw_id = row.get("id", 0)
+    msg = (row.get("message") or "").strip()
+    original = row.get("original")
+    if hasattr(original, "strip"):
+        original = (original or "").strip() or None
+    else:
+        original = None
+    is_translated = bool(original and original != msg)
+    content_preview = (msg[:120] + "...") if len(msg) > 120 else msg
+
+    probabilities = _simulated_probabilities(row, category_columns)
+    risk_level = calculate_severity(probabilities)
+    sorted_cats = sorted(
+        probabilities.items(),
+        key=lambda x: -x[1],
+    )
+    top_three = [to_display_name(internal) for internal, _ in sorted_cats[:3]]
+    classifications = [
+        {"category": to_display_name(internal), "confidence": round(conf, 2)}
+        for internal, conf in sorted_cats
+        if conf > 0.5
+    ][:10]
+
+    genre = row.get("genre") or "direct"
+    ts = generate_timestamp_for_id(raw_id)
+    timestamp_iso = ts.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+    return {
+        "id": f"SIG-{raw_id}",
+        "timestamp": timestamp_iso,
+        "source": genre_to_source(genre),
+        "content": content_preview,
+        "originalContent": original if is_translated else None,
+        "language": "en",
+        "riskLevel": risk_level,
+        "categories": top_three,
+        "classifications": classifications,
+        "isTranslated": is_translated,
+    }
 
 
 def _build_stub_feed_item() -> dict:
@@ -178,21 +257,61 @@ def _build_stub_classification() -> dict:
     }
 
 
+def _get_feed_filter_categories() -> list:
+    """Parse categories[] query param (internal names) for feed filter."""
+    names = request.args.getlist("categories[]") or request.args.getlist("categories")
+    return [n.strip() for n in names if n and isinstance(n, str)]
+
+
 @api_bp.route("/feed", methods=["GET"])
-def feed_stub():
-    """Return a stubbed feed response for contract validation."""
+def feed():
+    """Return paginated feed items from the database (binary labels + simulated confidences)."""
     try:
-        items = [_build_stub_feed_item()]
+        data_service = getattr(current_app, "data_service", None)
+        if data_service is None:
+            raise DataServiceError("Data service not configured.")
+        df = data_service.get_data()
+        category_columns = data_service.get_category_columns()
+        if not category_columns:
+            category_columns = []
+
+        limit = min(max(1, request.args.get("limit", 25, type=int)), 100)
+        offset = max(0, request.args.get("offset", 0, type=int))
+        filter_cats = _get_feed_filter_categories()
+
+        if filter_cats:
+            valid_cats = [c for c in filter_cats if c in category_columns]
+            if valid_cats:
+                mask = df[valid_cats].sum(axis=1) > 0
+                df = df.loc[mask]
+        total = len(df)
+        if total == 0:
+            page = 0
+            total_pages = 0
+        else:
+            page = (offset // limit) + 1 if limit else 1
+            total_pages = (total + limit - 1) // limit if limit else 0
+        slice_df = df.iloc[offset : offset + limit]
+        slice_size = len(slice_df)
+
+        items = []
+        for _, row in slice_df.iterrows():
+            item = _row_to_feed_item(row.to_dict(), category_columns)
+            items.append(item)
+
         payload = {
             "items": items,
             "pagination": {
-                "page": 1,
-                "limit": 25,
-                "total": 150,
-                "totalPages": 6,
+                "page": page,
+                "limit": limit,
+                "total": total,
+                "totalPages": total_pages,
             },
         }
         return jsonify(payload)
+    except DataServiceError as error:
+        _log_api_error("GET /api/feed", error)
+        return jsonify({"error": "Feed unavailable right now."}), 500
     except Exception as error:
         _log_api_error("GET /api/feed", error)
         return jsonify({"error": "Feed unavailable right now."}), 500

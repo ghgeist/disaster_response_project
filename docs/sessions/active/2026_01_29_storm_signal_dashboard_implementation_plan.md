@@ -337,6 +337,12 @@ interface SignalItem {
 
 **Done means**: Endpoint exists, returns paginated feed items with all required fields. Uses binary labels + simulated confidences (or limited model inference) to avoid performance issues.
 
+#### Phase 2 Completion Notes
+- ✅ Timestamp generation: `generate_timestamp(index, total)` in `app/routes/api.py` spreads over last 6 hours, most recent first.
+- ✅ Source mapping: `genre_to_source(genre)` with `GENRE_TO_SOURCE` dict; `social` maps to random choice of Twitter/Facebook/Telegram/BlueSky.
+- ✅ `GET /api/feed`: Real data from `DataService.get_data()`, query params `limit` (default 25, max 100), `offset` (default 0), `categories[]` (filter by internal names). Binary labels + simulated confidences (`0.5 + label*0.4 + random(0,0.1)`), severity from `calculate_severity`, pagination with `page`, `limit`, `total`, `totalPages`. Response shape matches Figma `SignalItem`.
+- ✅ Contract tests still pass: `python scripts/run_tests.py tests/test_api_contract_stubs.py -q` (or `.venv\Scripts\python -m pytest tests/test_api_contract_stubs.py -q`).
+
 ---
 
 ### Phase 3: Metrics Endpoint (1.5-2 hours)
