@@ -1,21 +1,23 @@
 ---
 created: 2026-01-29
-updated: 2026-01-29
+updated: 2026-02-01
 status: active
 type: implementation_plan
 supersedes:
   - 2026_01_29_dashboard_design_implementation_plan.md
   - 2026_01_29_figma_code_analysis.md
-related: 
+related:
   - 2026_01_29_storm_signal_dashboard_design_spec.md
   - 2026_01_29_storm_signal_system_spec.md
+prs:
+  - "86 (Phase 3: metrics endpoint)"
 ---
 
 # Storm Signal Dashboard — Implementation Plan
 
 > **Goal**: Build the Storm Signal Dashboard React SPA with Flask API backend, integrating Figma-generated code with minimal churn and avoiding CI hell.
 
-> **Status**: PLANNING PHASE — React code exists in `_vendor/figma_make/`, needs integration
+> **Status**: Backend Phases 0–3 complete (feed, metrics, categories, classify stubs). React integration (Phases 5–6) pending.
 
 > **Key Principle**: **Stabilize API contracts before frontend integration. Use simplified inline utilities.**
 
@@ -29,7 +31,7 @@ related:
 - ✅ Flask app with Jinja templates (existing)
 - ✅ `/classify` endpoint exists with partial JSON support
 - ✅ Figma-generated React code in `_vendor/figma_make/` (~70% complete)
-- ❌ Missing API endpoints: `/api/feed`, `/api/metrics`, `/api/categories`
+- ✅ `GET /api/feed`, `GET /api/metrics`, `GET /api/categories`, `POST /api/classify` implemented (Phases 0–3)
 - ❌ No React integration yet
 
 **Approach**: Simplified implementation using inline utilities instead of separate files. Target desktop-only design (1280px+).
@@ -57,10 +59,10 @@ related:
   - Response shape: `{query, use_hierarchy, raw: {predictions, probabilities, labels}, fixed: {...}, violations, metrics}`
 - `GET /health` — Returns `{'status': 'ok'}` (200)
 
-**Missing API Endpoints** (per spec):
-- `GET /api/feed` — Not implemented
-- `GET /api/metrics` — Not implemented
-- `GET /api/categories` — Not implemented
+**API Endpoints** (per spec):
+- `GET /api/feed` — Implemented (Phase 2)
+- `GET /api/metrics` — Implemented (Phase 3, PR #86)
+- `GET /api/categories` — Implemented (Phase 1)
 
 ### Frontend Code (Vendored Artifact)
 
@@ -370,6 +372,14 @@ interface SignalItem {
 - Return JSON matching Figma `SYSTEM_METRICS` structure
 
 **Done means**: Endpoint passes Phase 2 Quality Gates; NaN safety and empty-data behavior are explicitly tested. Endpoint exists, returns metrics with real category counts and simulated volume/trends.
+
+#### Phase 3 Completion Notes (PR #86)
+- ✅ **PR #86** (feature/phase-3-metrics-endpoint) merged: `GET /api/metrics` returns real data from `DataService`.
+- ✅ `_build_metrics_response(df, category_columns)` in `app/routes/api.py`: builds `volToday`, `flaggedRate`, `topCategories`, `trendData`; uses `df[cats].fillna(0)` for NaN-safe category sums; top 7 categories via `sums.sort_values(ascending=False).head(7)`; counts coerced with `_safe_label_value(count)`.
+- ✅ Simulated volume/trends: `vol_today = n * 100` (0 when empty); `flagged_pct` from `2.0 + (flagged/n)*5.0` capped at 10.0; `trendData` is 7 entries (`TREND_LABELS`) with static counts when `n > 0`, else zeros.
+- ✅ Empty dataset: `volToday=0`, `flaggedRate=0.0`, `topCategories=[]`, `trendData` has 7 entries with `count=0`.
+- ✅ Refactor: removed `_safe_count` and `_build_stub_metrics`; shared `_safe_label_value` used in feed and metrics for consistent NaN/None handling.
+- ✅ Tests: `test_api_metrics_contract` (shape), `test_metrics_empty_dataset` (empty result set), `test_metrics_nan_in_categories_does_not_crash` (NaN safety). Contract tests still pass: `python scripts/run_tests.py tests/test_api_contract_stubs.py -q`.
 
 ---
 
@@ -750,4 +760,4 @@ This keeps the "guide" in the repo without turning it into ceremony.
 
 **Document Status**: ✅ Complete - Ready for implementation
 
-**Last Updated**: 2026-01-29
+**Last Updated**: 2026-02-01
