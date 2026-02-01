@@ -5,14 +5,15 @@ This module contains the definitions and metadata for all columns
 in the disaster response dataset.
 """
 
-import pandas as pd
 import logging
+
+import pandas as pd
 
 
 def get_column_definitions():
     """
     Get the column definitions dictionary.
-    
+
     Returns:
         dict: Dictionary mapping column names to their definitions
     """
@@ -63,7 +64,7 @@ def get_column_definitions():
 def get_column_definitions_dataframe():
     """
     Get column definitions as a pandas DataFrame.
-    
+
     Returns:
         pd.DataFrame: DataFrame with columns 'columns' and 'definition'
     """
@@ -74,7 +75,7 @@ def get_column_definitions_dataframe():
 def get_target_columns():
     """
     Get the list of target columns for classification (excluding metadata columns).
-    
+
     Returns:
         list: List of target column names
     """
@@ -87,7 +88,7 @@ def get_target_columns():
 def get_boolean_columns():
     """
     Get the list of boolean/categorical columns.
-    
+
     Returns:
         list: List of boolean column names
     """
@@ -97,7 +98,7 @@ def get_boolean_columns():
 def get_string_columns():
     """
     Get the list of string/text columns.
-    
+
     Returns:
         list: List of string column names
     """
@@ -107,7 +108,7 @@ def get_string_columns():
 def get_integer_columns():
     """
     Get the list of integer columns.
-    
+
     Returns:
         list: List of integer column names
     """
@@ -117,43 +118,43 @@ def get_integer_columns():
 def get_data_types():
     """
     Get a dictionary mapping column names to their data types.
-    
+
     Returns:
         dict: Dictionary mapping column names to pandas data types
     """
     dtype_dict = {}
-    
+
     # Boolean columns
     for col in get_boolean_columns():
         dtype_dict[col] = bool
-    
+
     # String columns
     for col in get_string_columns():
         dtype_dict[col] = str
-    
+
     # Integer columns
     for col in get_integer_columns():
         dtype_dict[col] = int
-    
+
     return dtype_dict
 
 
 def save_column_definitions(output_filepath):
     """
     Save column definitions to a CSV file.
-    
+
     Args:
         output_filepath (str): Path to save the definitions CSV file
     """
     try:
         import os
         os.makedirs(os.path.dirname(output_filepath), exist_ok=True)
-        
+
         definitions_df = get_column_definitions_dataframe()
         definitions_df.to_csv(output_filepath, index=False)
-        
+
         logging.info(f"Column definitions saved to: {output_filepath}")
-        
+
     except Exception as e:
         logging.error(f"Error saving column definitions: {e}")
         raise
@@ -162,16 +163,16 @@ def save_column_definitions(output_filepath):
 if __name__ == "__main__":
     # Example usage
     logging.basicConfig(level=logging.INFO)
-    
+
     # Print column definitions
     definitions = get_column_definitions()
     print("Column Definitions:")
     for col, definition in definitions.items():
         print(f"  {col}: {definition}")
-    
+
     # Print target columns
     target_cols = get_target_columns()
     print(f"\nTarget Columns ({len(target_cols)}): {target_cols}")
-    
+
     # Save to file
     save_column_definitions("data/02_stg/stg_disaster_messages_definitions.csv")

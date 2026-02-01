@@ -1,6 +1,7 @@
 # Third-party imports
 import pandas as pd
 
+
 def summarize_data(df):
     """
     Summarizes a DataFrame with various statistics.

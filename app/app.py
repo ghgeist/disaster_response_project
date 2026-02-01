@@ -3,14 +3,15 @@ Flask application for Disaster Response message classification.
 A clean, scalable portfolio project.
 """
 import threading
+
 from flask import Flask, render_template, request
 from flask_wtf.csrf import CSRFError
 
 from .config import Config
 from .extensions import csrf
 from .routes import register_routes
-from .utils import setup_logging, init_services, validate_environment
-from .utils.nltk_setup import setup_nltk_resources, NLTKSetupError
+from .utils import init_services, setup_logging, validate_environment
+from .utils.nltk_setup import NLTKSetupError, setup_nltk_resources
 
 # Module-level initialization tracking to prevent duplicate startup messages
 # across multiple app instances in the same process
@@ -21,34 +22,34 @@ _app_initialization_count = 0
 def create_app(config_class=Config):
     """
     Create and configure the Flask application.
-    
+
     Args:
         config_class: Configuration class to use
-        
+
     Returns:
         Configured Flask application
     """
     app = Flask(__name__)
     app.config.from_object(config_class)
-    
+
     # Use module-level tracking to prevent duplicate logging of expensive operations
     # This handles cases where create_app() is called multiple times in the same process
     global _app_initialization_count
-    
+
     # Setup logging first (this will check its own module-level state)
     setup_logging(app)
-    
+
     # Track if this is the first initialization in this process (thread-safe)
     with _app_initialization_lock:
         is_first_init = (_app_initialization_count == 0)
         if is_first_init:
             _app_initialization_count += 1
-    
+
     # Setup NLTK resources at startup for performance optimization
     # The setup_nltk_resources() function handles its own caching and thread safety
     try:
         nltk_setup_results = setup_nltk_resources()
-        
+
         # Only log NLTK setup results on first initialization to prevent duplicate logs
         if is_first_init and nltk_setup_results["success"]:
             app.logger.info(f"NLTK setup completed successfully in {nltk_setup_results['setup_time_ms']}ms")
@@ -57,7 +58,7 @@ def create_app(config_class=Config):
             app.logger.warning(f"NLTK setup completed with warnings in {nltk_setup_results['setup_time_ms']}ms")
             for error in nltk_setup_results.get("errors", []):
                 app.logger.warning(f"NLTK setup warning: {error}")
-                
+
     except NLTKSetupError as e:
         # Critical NLTK setup failure
         if is_first_init:
@@ -78,13 +79,13 @@ def create_app(config_class=Config):
             "error": str(e),
             "setup_time_ms": 0
         }
-    
+
     # Store NLTK setup results in app config for monitoring
     app.config['NLTK_SETUP_RESULTS'] = nltk_setup_results
-    
+
     # Validate environment configuration
     validation_results = validate_environment(config_class)
-    
+
     # Log validation results only on first initialization to prevent duplicate logs
     if is_first_init:
         # Log validation results - consolidate info messages in production, detailed in debug
@@ -103,26 +104,26 @@ def create_app(config_class=Config):
                 )]
                 if key_validations:
                     app.logger.debug(f"Validation details: {', '.join(key_validations[:3])}")
-        
+
         for warning_msg in validation_results.get('warnings', []):
             app.logger.warning(f"Config validation: {warning_msg}")
-        
+
         for error_msg in validation_results.get('errors', []):
             app.logger.error(f"Config validation: {error_msg}")
     else:
         # On subsequent initializations, only log errors/warnings
         for warning_msg in validation_results.get('warnings', []):
             app.logger.warning(f"Config validation: {warning_msg}")
-        
+
         for error_msg in validation_results.get('errors', []):
             app.logger.error(f"Config validation: {error_msg}")
-    
+
     # Check if validation failed
     if not validation_results['valid']:
         error_summary = "; ".join(validation_results['errors'])
         app.logger.critical(f"Configuration validation failed: {error_summary}")
         raise RuntimeError(f"Application configuration is invalid: {error_summary}")
-    
+
     # Initialize Flask-WTF CSRF protection
     csrf.init_app(app)
 
@@ -156,7 +157,7 @@ def create_app(config_class=Config):
             has_session_cookie,
         )
         return render_template('error.html', message="Your session expired or the form is invalid. Please refresh and try again."), 400
-    
+
     # Global error handlers for 404 and 500 errors
     @app.errorhandler(404)
     def not_found(_error):
@@ -167,13 +168,13 @@ def create_app(config_class=Config):
     def internal_error(_error):
         """Handle 500 errors globally."""
         return render_template('error.html', message="Internal server error"), 500
-    
+
     # Initialize services
     init_services(app)
-    
+
     # Register routes
     register_routes(app)
-    
+
     # Add security headers
     @app.after_request
     def add_security_headers(response):
@@ -207,12 +208,12 @@ def create_app(config_class=Config):
             # Non-fatal logging aid
             pass
         return response
-    
+
     # Mark as initialized and log startup completion only on first initialization
     app._initialized = True
     if is_first_init:
         app.logger.info('Disaster Response application started')
-    
+
     return app
 
 

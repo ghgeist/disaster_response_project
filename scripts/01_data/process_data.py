@@ -30,7 +30,7 @@ def load_data(messages_filepath, categories_filepath):
     categories_filepath (str): The path to the categories csv file.
 
     Returns:
-    tuple: A tuple containing two dataframes, one for messages and one for categories. 
+    tuple: A tuple containing two dataframes, one for messages and one for categories.
 
     Raises:
     FileNotFoundError: If either of the files does not exist.
@@ -116,7 +116,7 @@ def join_messages_and_categories(messages_df, categories_df):
     categories_df (DataFrame): The categories dataframe.
 
     Returns:
-    DataFrame: The dataframe resulting from joining messages and categories. 
+    DataFrame: The dataframe resulting from joining messages and categories.
                If an error occurs during the merge, returns None.
 
     Raises:
@@ -183,7 +183,7 @@ def drop_duplicates(df):
 
 def clean_data(messages_df, categories_df):
     """
-    Clean the messages and categories dataframes by processing them, joining them, 
+    Clean the messages and categories dataframes by processing them, joining them,
     dropping ambiguous messages, and dropping duplicates.
 
     Parameters:
@@ -232,11 +232,11 @@ def main():
     """
     Load data from the specified input files, clean the data, and save it to a database.
 
-    The file paths are provided as command-line arguments. The first argument is the path to the messages file, 
-    the second argument is the path to the categories file, and the third argument is the path to the database 
+    The file paths are provided as command-line arguments. The first argument is the path to the messages file,
+    the second argument is the path to the categories file, and the third argument is the path to the database
     where the cleaned data will be saved.
 
-    If the correct number of arguments are not provided, an error message is logged and the function returns 
+    If the correct number of arguments are not provided, an error message is logged and the function returns
     without doing anything.
     """
     if len(sys.argv) == 4:

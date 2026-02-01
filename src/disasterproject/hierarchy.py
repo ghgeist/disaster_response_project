@@ -15,7 +15,8 @@ Key design decisions:
 """
 
 import logging
-from typing import Dict, List, Set, Tuple, Union
+from typing import Dict, List, Set, Tuple
+
 import numpy as np
 
 logger = logging.getLogger(__name__)

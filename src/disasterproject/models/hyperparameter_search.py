@@ -7,23 +7,23 @@ resource monitoring, memory management, and progress tracking.
 
 import logging
 from time import time
-from sklearn.model_selection import RandomizedSearchCV
-from sklearn.metrics import make_scorer, f1_score, accuracy_score, precision_score, recall_score
-from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
+
 import psutil
+from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
+from sklearn.metrics import accuracy_score, f1_score, make_scorer, precision_score, recall_score
+from sklearn.model_selection import RandomizedSearchCV
 
 # Import centralized configuration constants
 from disasterproject.utils.config import (
-    MEMORY_LIMIT_GB,
-    MEMORY_WARNING_GB,
-    MIN_AVAILABLE_MEMORY_GB,
-    DEFAULT_N_ITER,
-    SEARCH_N_JOBS,
     DEFAULT_CV_SPLITS,
+    DEFAULT_N_ITER,
     ESTIMATION_CV_SPLITS,
     ESTIMATION_MAX_ITER,
     ESTIMATION_SUBSET_SIZE,
-    RANDOM_STATE
+    MEMORY_WARNING_GB,
+    MIN_AVAILABLE_MEMORY_GB,
+    RANDOM_STATE,
+    SEARCH_N_JOBS,
 )
 
 logger = logging.getLogger(__name__)
@@ -158,8 +158,8 @@ def run_parameter_search(pipeline, parameters, X_train, y_train, use_small_subse
     )
 
     if use_small_subset:
-        print(f"\n🔍 RUNTIME ESTIMATION MODE")
-        print(f"=" * 50)
+        print("\n🔍 RUNTIME ESTIMATION MODE")
+        print("=" * 50)
         X_train_size = len(X_train)
         print(f"📊 Full dataset size: {X_train_size:,} samples")
         print(f"🔬 Using subset: {ESTIMATION_SUBSET_SIZE} samples ({ESTIMATION_SUBSET_SIZE/X_train_size*100:.1f}%)")
@@ -175,11 +175,11 @@ def run_parameter_search(pipeline, parameters, X_train, y_train, use_small_subse
         # Configure for faster estimation
         _configure_estimation_mode(cv)
 
-        print(f"⚙️  Estimation settings:")
+        print("⚙️  Estimation settings:")
         print(f"   • CV folds: {ESTIMATION_CV_SPLITS}")
         print(f"   • Parameter trials: {cv.n_iter}")
         print(f"   • Total CV fits: {ESTIMATION_CV_SPLITS * cv.n_iter}")
-        print(f"\n🚀 Starting estimation...")
+        print("\n🚀 Starting estimation...")
 
         cv.fit(X_train, y_train)
         end_time = time()
@@ -191,24 +191,24 @@ def run_parameter_search(pipeline, parameters, X_train, y_train, use_small_subse
         hours, remainder = divmod(full_runtime, 3600)
         minutes, seconds = divmod(remainder, 60)
 
-        print(f"\n📈 ESTIMATION RESULTS:")
-        print(f"=" * 50)
+        print("\n📈 ESTIMATION RESULTS:")
+        print("=" * 50)
         print(f"⏱️  Subset completed in: {subset_time:.1f} seconds")
         print(f"🎯 Best score found: {cv.best_score_:.4f}")
         print(f"🏆 Best parameters: {cv.best_params_}")
-        print(f"\n⚡ FULL SEARCH ESTIMATE:")
+        print("\n⚡ FULL SEARCH ESTIMATE:")
         print(f"   📅 Expected runtime: {int(hours)}h {int(minutes)}m {int(seconds)}s")
         print(f"   🔢 Full parameter trials: {DEFAULT_N_ITER}")
         print(f"   📊 Full CV folds: {DEFAULT_CV_SPLITS}")
         print(f"   🔄 Total CV fits: {DEFAULT_CV_SPLITS * DEFAULT_N_ITER}")
 
         if hours > 4:
-            print(f"\n⚠️  WARNING: Estimated runtime > 4 hours")
-            print(f"   Consider reducing n_iter or using smaller parameter grid")
+            print("\n⚠️  WARNING: Estimated runtime > 4 hours")
+            print("   Consider reducing n_iter or using smaller parameter grid")
         elif hours < 0.5:
-            print(f"\n✅ Good news: Fast runtime expected!")
+            print("\n✅ Good news: Fast runtime expected!")
 
-        print(f"=" * 50)
+        print("=" * 50)
     else:
         logger.info("Starting hyperparameter search with resource monitoring")
         logger.info("Configuration: n_iter=%d, n_jobs=%d", DEFAULT_N_ITER, SEARCH_N_JOBS)

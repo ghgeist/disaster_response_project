@@ -9,24 +9,23 @@ import string
 import sys
 from time import time
 
+import nltk
+
 # Third-party imports
 import numpy as np
-import nltk
+import pandas as pd
+from imblearn.over_sampling import ADASYN, SMOTE
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
-import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.metrics import classification_report
-from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.multioutput import MultiOutputClassifier
 from sklearn.pipeline import Pipeline
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
-from imblearn.over_sampling import SMOTE
-from imblearn.over_sampling import SMOTEN
-from imblearn.over_sampling import ADASYN
 
 # Download required NLTK resources
 nltk_resources = {
@@ -141,7 +140,7 @@ def load_data(db_filepath):
     """
     Load data from a SQLite database.
 
-    This function reads a table from a SQLite database and splits it into features (X) and labels (y). 
+    This function reads a table from a SQLite database and splits it into features (X) and labels (y).
     The features are the 'message' column of the table, and the labels are the columns specified by TARGET_COLUMNS.
     If any of the TARGET_COLUMNS contain NaN values, a ValueError is raised.
 
@@ -175,7 +174,7 @@ def load_data(db_filepath):
         y = df[TARGET_COLUMNS].values
 
         nan_columns = df[TARGET_COLUMNS].isna().any()
-        nan_columns_list = nan_columns[nan_columns == True].index.tolist()
+        nan_columns_list = nan_columns.loc[nan_columns].index.tolist()
 
         if len(nan_columns_list) > 0:
             logging.error("Columns with NaN values: %s", nan_columns_list)
@@ -233,9 +232,9 @@ def load_json(file_path):
     """
     Load a JSON file and return its contents as a dictionary.
 
-    This function opens a JSON file, decodes it into a Python object, and returns that object. 
-    If the file does not exist, cannot be opened, or does not contain a valid JSON object, 
-    an error message is printed and the function returns None. 
+    This function opens a JSON file, decodes it into a Python object, and returns that object.
+    If the file does not exist, cannot be opened, or does not contain a valid JSON object,
+    an error message is printed and the function returns None.
     If the JSON object is not a dictionary, an error message is printed and the function returns None.
 
     Args:
@@ -268,9 +267,9 @@ def load_model_parameters(file_path):
     """
     Load a JSON file and return its contents as a dictionary.
 
-    This function opens a JSON file, decodes it into a Python object, and returns that object. 
-    If the file does not exist, cannot be opened, or does not contain a valid JSON object, 
-    an error message is printed and the function returns None. 
+    This function opens a JSON file, decodes it into a Python object, and returns that object.
+    If the file does not exist, cannot be opened, or does not contain a valid JSON object,
+    an error message is printed and the function returns None.
     If the JSON object is not a dictionary, an error message is printed and the function returns None.
 
     Args:
@@ -299,9 +298,9 @@ def load_hyperparameter_optimization_config(file_path):
     """
     Load a JSON file and return its contents as a dictionary with hyperparameter optimization configuration.
 
-    This function opens a JSON file, decodes it into a Python object, and returns that object. 
-    If the file does not exist, cannot be opened, or does not contain a valid JSON object, 
-    an error message is printed and the function returns None. 
+    This function opens a JSON file, decodes it into a Python object, and returns that object.
+    If the file does not exist, cannot be opened, or does not contain a valid JSON object,
+    an error message is printed and the function returns None.
     If the JSON object is not a dictionary, an error message is printed and the function returns None.
 
     Args:
@@ -528,8 +527,8 @@ def save_best_parameters(cv, output_file_path):
     """
     Save the best parameters of a grid search to a JSON file.
 
-    This function extracts the best parameters from the results of a GridSearchCV, 
-    and saves them to a JSON file. If the file cannot be opened for writing (for example, if the directory does not exist), 
+    This function extracts the best parameters from the results of a GridSearchCV,
+    and saves them to a JSON file. If the file cannot be opened for writing (for example, if the directory does not exist),
     an error message is logged and the function returns without saving the parameters.
 
     Args:
@@ -552,7 +551,7 @@ def get_user_input(prompt):
     """
     Get user input with validation.
 
-    This function prompts the user for input and validates it. 
+    This function prompts the user for input and validates it.
     The function continues to prompt the user until they enter 'yes', 'no', or 'exit' (case insensitive).
 
     Args:
@@ -573,18 +572,18 @@ def get_user_input(prompt):
 def apply_smote_sampling(X_train, y_train):
     """
     Apply SMOTE oversampling to handle class imbalance in multi-label classification.
-    
+
     This function applies SMOTE to the multi-label dataset using a more conservative approach
     that works better with text data. It uses regular SMOTE with better parameters and
     handles the multi-label nature more carefully.
-    
+
     Args:
         X_train (numpy.ndarray): Training features
         y_train (numpy.ndarray): Training labels
-        
+
     Returns:
         tuple: (X_train_resampled, y_train_resampled) - The resampled training data
-        
+
     Raises:
         ValueError: If SMOTE cannot be applied to any target column
     """
@@ -599,20 +598,20 @@ def apply_smote_sampling(X_train, y_train):
                 ratio = max(class_dist.values()) / min(class_dist.values())
                 if ratio > 10:
                     logging.info(f"  {col}: {class_dist} (ratio: {ratio:.1f}:1)")
-        
+
         # Use regular SMOTE with more conservative parameters for text data
-        # k_neighbors=3 is more conservative than 1, and sampling_strategy='auto' 
+        # k_neighbors=3 is more conservative than 1, and sampling_strategy='auto'
         # will balance classes to the majority class size
         sampler = SMOTE(
-            random_state=42, 
+            random_state=42,
             k_neighbors=3,  # More conservative than 1
             sampling_strategy='auto'  # Balance to majority class
         )
-        
+
         X_train_resampled, y_train_resampled = sampler.fit_resample(X_train, y_train)
-        
+
         logging.info(f"Training samples: {len(X_train)} -> {len(X_train_resampled)}")
-        
+
         # Print after class distribution statistics
         logging.info("Class distribution AFTER SMOTE:")
         for i, col in enumerate(TARGET_COLUMNS):
@@ -621,9 +620,9 @@ def apply_smote_sampling(X_train, y_train):
             if len(class_dist) == 2:
                 ratio = max(class_dist.values()) / min(class_dist.values())
                 logging.info(f"  {col}: {class_dist} (ratio: {ratio:.1f}:1)")
-        
+
         return X_train_resampled, y_train_resampled
-        
+
     except Exception as e:
         logging.error(f"Error applying SMOTE: {e}")
         logging.warning("SMOTE could not be applied. Using original training data.")
@@ -633,21 +632,21 @@ def apply_smote_sampling(X_train, y_train):
 def apply_multi_label_aware_sampling(X_train, y_train, method='smote'):
     """
     Apply oversampling that's more aware of multi-label classification.
-    
+
     This function tries different approaches to handle the multi-label nature
     of the data more effectively than standard SMOTE.
-    
+
     Args:
         X_train (numpy.ndarray): Training features
         y_train (numpy.ndarray): Training labels
         method (str): Sampling method ('smote', 'adasyn', 'conservative')
-        
+
     Returns:
         tuple: (X_train_resampled, y_train_resampled) - The resampled training data
     """
     try:
         logging.info(f"Applying {method.upper()} sampling for multi-label classification...")
-        
+
         # Print before class distribution statistics
         logging.info("Class distribution BEFORE sampling:")
         for i, col in enumerate(TARGET_COLUMNS):
@@ -657,11 +656,11 @@ def apply_multi_label_aware_sampling(X_train, y_train, method='smote'):
                 ratio = max(class_dist.values()) / min(class_dist.values())
                 if ratio > 5:  # Show all imbalanced classes
                     logging.info(f"  {col}: {class_dist} (ratio: {ratio:.1f}:1)")
-        
+
         if method == 'smote':
             # Conservative SMOTE with moderate oversampling
             sampler = SMOTE(
-                random_state=42, 
+                random_state=42,
                 k_neighbors=5,  # More conservative
                 sampling_strategy=0.5  # Only oversample to 50% of majority class
             )
@@ -675,17 +674,17 @@ def apply_multi_label_aware_sampling(X_train, y_train, method='smote'):
         elif method == 'conservative':
             # Very conservative SMOTE
             sampler = SMOTE(
-                random_state=42, 
+                random_state=42,
                 k_neighbors=7,  # Very conservative
                 sampling_strategy=0.3  # Only oversample to 30% of majority class
             )
         else:
             raise ValueError(f"Unknown method: {method}")
-        
+
         X_train_resampled, y_train_resampled = sampler.fit_resample(X_train, y_train)
-        
+
         logging.info(f"Training samples: {len(X_train)} -> {len(X_train_resampled)}")
-        
+
         # Print after class distribution statistics
         logging.info("Class distribution AFTER sampling:")
         for i, col in enumerate(TARGET_COLUMNS):
@@ -694,9 +693,9 @@ def apply_multi_label_aware_sampling(X_train, y_train, method='smote'):
             if len(class_dist) == 2:
                 ratio = max(class_dist.values()) / min(class_dist.values())
                 logging.info(f"  {col}: {class_dist} (ratio: {ratio:.1f}:1)")
-        
+
         return X_train_resampled, y_train_resampled
-        
+
     except Exception as e:
         logging.error(f"Error applying {method} sampling: {e}")
         logging.warning(f"{method.upper()} could not be applied. Using original training data.")
@@ -707,9 +706,9 @@ def main():
     """
     Main function to train a classifier.
 
-    This function loads data from a database file, splits it into training and test sets, 
-    and trains a classifier using a pipeline. The user is given the option to retrain the base model, 
-    estimate the grid search runtime, run a grid search, and retrain the model using the optimized parameters found by the grid search. 
+    This function loads data from a database file, splits it into training and test sets,
+    and trains a classifier using a pipeline. The user is given the option to retrain the base model,
+    estimate the grid search runtime, run a grid search, and retrain the model using the optimized parameters found by the grid search.
     The trained model is then saved to a pickle file.
 
     Args:
@@ -777,7 +776,7 @@ def main():
             logging.info("Loading grid search parameters...")
             hyperparameter_config = load_hyperparameter_optimization_config(HYPERPARAMETER_OPTIMIZATION)
             logging.info("Estimating grid search runtime (using small subset)...")
-            estimated_grid_search = run_grid_search(
+            run_grid_search(
                 pipeline,
                 hyperparameter_config,
                 X_train,
@@ -818,14 +817,14 @@ def main():
                 logging.error("Failed to load optimized parameters. Please ensure the file exists and is valid.")
             else:
                 logging.info("Optimized parameters loaded successfully")
-            
+
             logging.info("Building and training optimized model...")
             optimized_model = build_model(pipeline, optimized_parameters)
             optimized_model.fit(X_train, Y_train)
-            
+
             logging.info("Evaluating optimized model...")
             evaluate_model(optimized_model, "optimized_model", X_test, Y_test, TARGET_COLUMNS)
-            
+
             logging.info("Saving optimized model to: %s", model_filepath)
             save_model(optimized_model, model_filepath)
             logging.info("Optimized model training complete!")

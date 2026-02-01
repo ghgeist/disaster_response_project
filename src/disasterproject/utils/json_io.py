@@ -1,15 +1,15 @@
 import json
 import logging
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 
 def load_json(file_path: str) -> Optional[Dict[str, Any]]:
     """
     Load a JSON file and return its contents as a dictionary.
 
-    This function opens a JSON file, decodes it into a Python object, and returns that object. 
-    If the file does not exist, cannot be opened, or does not contain a valid JSON object, 
-    an error message is logged and the function returns None. 
+    This function opens a JSON file, decodes it into a Python object, and returns that object.
+    If the file does not exist, cannot be opened, or does not contain a valid JSON object,
+    an error message is logged and the function returns None.
     If the JSON object is not a dictionary, an error message is logged and the function returns None.
 
     Args:
@@ -82,9 +82,9 @@ def load_model_parameters(file_path: str) -> Optional[Dict[str, Any]]:
     """
     Load a JSON file and return its contents as a dictionary with model parameters.
 
-    This function opens a JSON file, decodes it into a Python object, and returns that object. 
-    If the file does not exist, cannot be opened, or does not contain a valid JSON object, 
-    an error message is logged and the function returns None. 
+    This function opens a JSON file, decodes it into a Python object, and returns that object.
+    If the file does not exist, cannot be opened, or does not contain a valid JSON object,
+    an error message is logged and the function returns None.
     If the JSON object is not a dictionary, an error message is logged and the function returns None.
 
     Args:
@@ -124,9 +124,9 @@ def load_hyperparameter_optimization_config(file_path: str) -> Optional[Dict[str
     """
     Load a JSON file and return its contents as a dictionary with hyperparameter optimization configuration.
 
-    This function opens a JSON file, decodes it into a Python object, and returns that object. 
-    If the file does not exist, cannot be opened, or does not contain a valid JSON object, 
-    an error message is logged and the function returns None. 
+    This function opens a JSON file, decodes it into a Python object, and returns that object.
+    If the file does not exist, cannot be opened, or does not contain a valid JSON object,
+    an error message is logged and the function returns None.
     If the JSON object is not a dictionary, an error message is logged and the function returns None.
 
     Args:

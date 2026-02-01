@@ -3,9 +3,9 @@ Home page routes for the Disaster Response application.
 """
 import logging
 
-from flask import Blueprint, abort, current_app, send_from_directory
 import pandas as pd
 import sqlalchemy.exc
+from flask import Blueprint, abort, current_app, send_from_directory
 
 from app.forms import MessageForm
 from app.services.data_service import DataServiceError
@@ -35,7 +35,7 @@ def favicon():
                 return send_from_directory(images_dir, png_name, mimetype='image/png')
 
         abort(404)
-        
+
     except (OSError, FileNotFoundError) as error:
         context = format_request_context()
         logger.error("Favicon access failed%s: %s", context, error)

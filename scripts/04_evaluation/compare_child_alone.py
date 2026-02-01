@@ -17,6 +17,7 @@ sys.path.append('src')
 from disasterproject.utils.config import TARGET_COLUMNS
 from disasterproject.utils.experimental_paths import ExperimentalPathManager
 
+
 def test_child_alone_classifier(model_path, model_name):
     """Test the child_alone classifier behavior."""
 
@@ -48,7 +49,7 @@ def test_child_alone_classifier(model_path, model_name):
         print("⚠️  WARNING: Degenerate classifier (only one class)")
         print("   This suggests no positive examples in training data")
     elif child_alone_prob_array.shape[0] == 2:
-        print(f"✅ Normal binary classifier")
+        print("✅ Normal binary classifier")
         print(f"   Prob of negative class: {child_alone_prob_array[0]:.3f}")
         print(f"   Prob of positive class: {child_alone_prob_array[1]:.3f}")
 
@@ -85,7 +86,7 @@ def main():
         print("\n❌ No experimental model found")
         print("   Searched experiments/experimental_runs/")
 
-    print(f"\n" + "=" * 60)
+    print("\n" + "=" * 60)
     print("🎯 ANALYSIS:")
     print("If both models have the same issue, it's a training data problem.")
     print("If only experimental has the issue, it's a hyperparameter problem.")

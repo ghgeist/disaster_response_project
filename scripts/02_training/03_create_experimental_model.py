@@ -40,11 +40,11 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 # Local imports
 from disasterproject.data.loader import load_data
-from disasterproject.evaluation.metrics import evaluate_model, save_model
+from disasterproject.evaluation.metrics import save_model
 from disasterproject.models.pipeline import (
+    build_model,
     create_pipeline,
     create_pipeline_with_custom_weights,
-    build_model
 )
 from disasterproject.models.samplers import get_multilabel_class_weights
 from disasterproject.utils.config import TARGET_COLUMNS, setup_logging
@@ -189,7 +189,7 @@ def save_training_log(experiment_dir, config, performance_summary, training_time
 def _compute_f2_thresholds_for_labels(model, X_eval, Y_eval, labels, all_category_names):
     """
     Compute F2-optimized thresholds for the selected labels; fallback to 0.5 when unreliable.
-    
+
     Note: This uses F2 score (beta=2.0) which emphasizes recall over precision.
     For production use, consider using optimize_critical_thresholds() which uses
     precision_recall_curve with target recall instead (see optimize_critical_thresholds_inc1.py).
@@ -338,7 +338,7 @@ def main():
     date_str = datetime.now().strftime('%Y-%m-%d')
     experiment_dir = os.path.join('experiments', 'experimental_runs', date_str)
 
-    print(f"\nCreating Experimental Disaster Response Model")
+    print("\nCreating Experimental Disaster Response Model")
     print(f"{'='*60}")
     print(f"Database: {args.database_filepath}")
     print(f"Hyperparameters: {args.params_path}")
@@ -418,9 +418,9 @@ def main():
     # Filter parameters for LogisticRegression (remove RF-specific params)
     if args.algorithm == 'logistic_regression':
         rf_params = [
-            'clf__estimator__n_estimators', 
+            'clf__estimator__n_estimators',
             'clf__estimator__max_depth',
-            'clf__estimator__min_samples_leaf', 
+            'clf__estimator__min_samples_leaf',
             'clf__estimator__min_samples_split'
         ]
         original_params = parameters.copy()
@@ -442,7 +442,7 @@ def main():
     # Import appropriate pipeline functions
     from disasterproject.models.pipeline import (
         create_pipeline_logistic_regression,
-        create_pipeline_logistic_regression_weighted
+        create_pipeline_logistic_regression_weighted,
     )
 
     # Create pipeline based on algorithm and class weights configuration
@@ -561,7 +561,7 @@ def main():
             thresholds_file = os.path.join(experiment_dir, f'{model_stem}_thresholds.json')
         else:
             thresholds_file = os.path.join(experiment_dir, 'thresholds.json')  # Fallback for unknown model name
-        
+
         with open(thresholds_file, 'w', encoding='utf-8') as f:
             json.dump(thresholds_map, f, indent=2)
         with open(os.path.join(experiment_dir, 'label_order.json'), 'w', encoding='utf-8') as f:
@@ -607,7 +607,7 @@ def main():
     )
 
     # Success summary
-    print(f'\nExperimental Model Created Successfully!')
+    print('\nExperimental Model Created Successfully!')
     print(f"{'='*60}")
     print(f'Model: {args.model_out}')
     print(f'Experiment: {experiment_dir}')
@@ -615,7 +615,7 @@ def main():
     print(f'Training Time: {train_time:.2f} seconds')
     print(f"{'='*60}")
 
-    print(f'\nPerformance Summary:')
+    print('\nPerformance Summary:')
     print(f'   Overall F1-Score: {performance_summary.get("overall_f1", 0):.4f}')
     print(f'   Overall Recall: {performance_summary.get("overall_recall", 0):.4f}')
     print(f'   Overall Precision: {performance_summary.get("overall_precision", 0):.4f}')
@@ -626,20 +626,20 @@ def main():
     if class_weights_enabled:
         print('   Model uses balanced class weights for experimental evaluation')
 
-    print(f'\nExperiment Structure:')
-    print(f'   Experimental Model:')
+    print('\nExperiment Structure:')
+    print('   Experimental Model:')
     print(f'     {args.model_out}')
-    print(f'   ')
+    print('   ')
     print(f'   Experiment Results ({experiment_dir}):')
-    print(f'     performance_metrics.csv    <- Detailed classification metrics')
-    print(f'     training_log.json         <- Training metadata & configuration')
-    print(f'     thresholds.json           <- Optimized F2 thresholds')
-    print(f'     label_order.json          <- Category label order')
-    print(f'     MODEL_INFO.json           <- Model metadata & info')
+    print('     performance_metrics.csv    <- Detailed classification metrics')
+    print('     training_log.json         <- Training metadata & configuration')
+    print('     thresholds.json           <- Optimized F2 thresholds')
+    print('     label_order.json          <- Category label order')
+    print('     MODEL_INFO.json           <- Model metadata & info')
     if eval_ids_file:
         eval_file_ext = 'json' if eval_ids_file.endswith('.json') else 'csv'
         print(f'     eval_ids_used.{eval_file_ext}         <- Evaluation set identifiers')
-    print(f'\nThis structure organizes all experiment artifacts by date for easy tracking!')
+    print('\nThis structure organizes all experiment artifacts by date for easy tracking!')
 
 
 if __name__ == '__main__':

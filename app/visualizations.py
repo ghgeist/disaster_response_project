@@ -1,11 +1,12 @@
 """
 Chart generation utilities for the disaster response application.
 """
+import logging
 import warnings
+from typing import Any, Dict, Tuple
+
 import pandas as pd
 import plotly.graph_objs as go
-from typing import Tuple, Dict, Any
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +37,7 @@ def _create_bar_trace(x_data, y_data, name, orientation='h', color=None) -> go.B
 
 class ChartGenerator:
     """Service for generating visualization charts."""
-    
+
     COLOR_PALETTE = {
         'primary': '#06d6a0',
         'secondary': '#118ab2',
@@ -44,7 +45,7 @@ class ChartGenerator:
         'quaternary': '#ef476f',
         'neutral': '#A0AEC0'
     }
-    
+
     @staticmethod
     def prepare_genre_data(df: pd.DataFrame) -> Tuple[list, pd.DataFrame]:
         """
@@ -73,7 +74,7 @@ class ChartGenerator:
             genre_related_counts = genre_related_counts.reindex(genre_names)
 
             return genre_names, genre_related_counts
-            
+
         except Exception as e:
             logger.error(f"Error preparing genre data: {e}")
             raise
@@ -109,7 +110,7 @@ class ChartGenerator:
                 )
                 for col in genre_related_counts.columns
             ]
-            
+
             layout = _create_base_layout(
                 'Message Genre Distribution',
                 'Message Count',
@@ -119,7 +120,7 @@ class ChartGenerator:
             layout.update(legend=dict(orientation='h', yanchor='top', y=-0.2, xanchor='center', x=0.5))
 
             return {'data': traces, 'layout': layout}
-            
+
         except Exception as e:
             logger.error(f"Error creating genre visual: {e}")
             raise
@@ -160,7 +161,7 @@ class ChartGenerator:
             df_filtered = df_filtered.drop_duplicates()
 
             return df_filtered
-            
+
         except Exception as e:
             logger.error(f"Error classifying message types: {e}")
             raise
@@ -187,7 +188,7 @@ class ChartGenerator:
                 name='Count',
                 color=ChartGenerator.COLOR_PALETTE['primary']
             )
-            
+
             layout = _create_base_layout(
                 'Direct Message Types',
                 'Number of Messages',
@@ -198,7 +199,7 @@ class ChartGenerator:
 
 
             return {'data': [trace], 'layout': layout}
-            
+
         except Exception as e:
             logger.error(f"Error plotting message types: {e}")
             raise
@@ -214,7 +215,7 @@ class ChartGenerator:
 
             trace_base = _create_bar_trace(categories, base_vals, labels[0], orientation='v', color=ChartGenerator.COLOR_PALETTE['secondary'])
             trace_opt = _create_bar_trace(categories, opt_vals, labels[1], orientation='v', color=ChartGenerator.COLOR_PALETTE['primary'])
-            
+
             layout = _create_base_layout(
                 'Baseline vs Optimized Model Performance',
                 '',
@@ -223,7 +224,7 @@ class ChartGenerator:
             layout.update(barmode='group', legend=dict(orientation='h', x=0.5, xanchor='center'))
             layout.yaxis.update(rangemode='tozero')
             layout.margin.update(l=60, r=40, t=60, b=60)
-            
+
             return {"data": [trace_base, trace_opt], "layout": layout}
         except Exception as e:
             logger.error(f"Error creating performance visual: {e}")

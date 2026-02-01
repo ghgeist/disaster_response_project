@@ -7,7 +7,8 @@ resources are pre-loaded and validated once at startup.
 import logging
 import threading
 import time
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, Tuple
+
 import nltk
 from nltk.corpus import stopwords, wordnet
 
@@ -50,28 +51,28 @@ def _get_validators_signature() -> Tuple[str, ...]:
 def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
     """
     Download and validate NLTK resources once at startup.
-    
+
     Note: Failed setups are cached to prevent repeated expensive attempts.
     Use force_download=True to retry after fixing NLTK installation issues.
-    
+
     Args:
         force_download: If True, force download even if resources exist
-        
+
     Returns:
         Dictionary with setup status and timing information
-        
+
     Raises:
         NLTKSetupError: If critical resources cannot be loaded
     """
     global _setup_completed, _setup_results, _validators_signature
-    
+
     # Return cached results if already completed and validators are unchanged
     current_signature = _get_validators_signature()
     with _setup_lock:
         if _setup_completed and not force_download and _validators_signature == current_signature:
             logger.debug("Returning cached NLTK setup results")
             return _setup_results
-    
+
     start_time = time.time()
     setup_results = {
         "success": True,
@@ -82,9 +83,9 @@ def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
         "setup_time_ms": 0,
         "errors": []
     }
-    
+
     logger.info("Starting NLTK resource setup...")
-    
+
     try:
         # Process each resource type
         for resource_type, resources in REQUIRED_RESOURCES.items():
@@ -133,26 +134,26 @@ def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
                     })
                     setup_results["errors"].append(error_msg)
                     logger.error("✗ %s", error_msg)
-        
+
         # Check if critical resources are available
         # punkt_tab is critical for newer NLTK versions, punkt for older ones
         # At least one tokenizer (punkt or punkt_tab) must be available
         failed_resources = [r["name"] for r in setup_results["resources_failed"]]
-        
+
         # Stopwords is always required
         if "stopwords" in failed_resources:
             error_msg = "Critical NLTK resources missing: stopwords"
             setup_results["success"] = False
             logger.error(error_msg)
             raise NLTKSetupError(error_msg)
-        
+
         # At least one tokenizer must be available (punkt or punkt_tab)
         if "punkt" in failed_resources and "punkt_tab" in failed_resources:
             error_msg = "Critical NLTK resources missing: at least one of punkt or punkt_tab is required"
             setup_results["success"] = False
             logger.error(error_msg)
             raise NLTKSetupError(error_msg)
-        
+
         # Ensure WordNet is fully loaded for multiprocessing compatibility
         try:
             wordnet.ensure_loaded()
@@ -161,9 +162,9 @@ def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
             warning_msg = f"Failed to ensure WordNet is loaded: {e}"
             setup_results["errors"].append(warning_msg)
             logger.warning(warning_msg)
-        
+
         setup_results["setup_time_ms"] = round((time.time() - start_time) * 1000, 2)
-        
+
         if setup_results["success"]:
             logger.info(
                 "NLTK setup completed successfully in %sms",
@@ -174,15 +175,15 @@ def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
                 "NLTK setup completed with warnings in %sms",
                 setup_results["setup_time_ms"],
             )
-        
+
         # Cache the results for future calls
         with _setup_lock:
             _setup_completed = True
             _setup_results = setup_results
             _validators_signature = current_signature
-            
+
         return setup_results
-        
+
     except NLTKSetupError as error:
         setup_results["success"] = False
         setup_results["setup_time_ms"] = round((time.time() - start_time) * 1000, 2)
@@ -201,13 +202,13 @@ def setup_nltk_resources(force_download: bool = False) -> Dict[str, any]:
         setup_results["setup_time_ms"] = round((time.time() - start_time) * 1000, 2)
         setup_results["errors"].append(f"Setup failed: {e}")
         logger.error("NLTK setup failed: %s", e)
-        
+
         # Cache the failed result to prevent repeated attempts
         with _setup_lock:
             _setup_completed = True
             _setup_results = setup_results
             _validators_signature = current_signature
-        
+
         raise NLTKSetupError(f"NLTK setup failed: {e}") from e
 
 
@@ -257,7 +258,7 @@ def _setup_single_resource(resource_type: str, resource: str, force_download: bo
 def validate_nltk_resources() -> Dict[str, any]:
     """
     Validate that all required NLTK resources are available.
-    
+
     Returns:
         Dictionary with validation results
     """
@@ -267,13 +268,13 @@ def validate_nltk_resources() -> Dict[str, any]:
         "missing_resources": [],
         "validation_errors": []
     }
-    
+
     for resource_type, resources in REQUIRED_RESOURCES.items():
         for resource in resources:
             try:
                 resource_path = f"{resource_type}/{resource}"
                 nltk.data.find(resource_path)
-                
+
                 # Additional validation if validator exists
                 if resource in RESOURCE_VALIDATORS:
                     if RESOURCE_VALIDATORS[resource]():
@@ -283,27 +284,27 @@ def validate_nltk_resources() -> Dict[str, any]:
                         validation_results["all_available"] = False
                 else:
                     validation_results["available_resources"].append(resource)
-                    
+
             except LookupError:
                 validation_results["missing_resources"].append(resource)
                 validation_results["all_available"] = False
             except Exception as e:
                 validation_results["validation_errors"].append(f"{resource}: {e}")
                 validation_results["all_available"] = False
-    
+
     return validation_results
 
 
 def get_nltk_status() -> Dict[str, any]:
     """
     Get current NLTK status for monitoring.
-    
+
     Returns:
         Dictionary with NLTK status information
     """
     try:
         validation_results = validate_nltk_resources()
-        
+
         return {
             "status": "healthy" if validation_results["all_available"] else "degraded",
             "all_resources_available": validation_results["all_available"],

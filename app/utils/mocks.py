@@ -132,7 +132,7 @@ class MockModelService:
 
         # Return in same format as real ModelService for consistency
         return {"labels": predictions, "probabilities": probabilities}
-    
+
     def get_thresholds_map(self) -> dict:
         """Mock thresholds map for testing."""
         # Return default thresholds similar to real ModelService

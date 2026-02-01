@@ -8,7 +8,7 @@ from typing import List, Tuple
 import pandas as pd
 import plotly
 
-from app.services.metrics_service import load_metric_frames, extract_perf_triplet
+from app.services.metrics_service import extract_perf_triplet, load_metric_frames
 from app.utils.formatting import format_request_context
 from app.visualizations import ChartGenerator
 

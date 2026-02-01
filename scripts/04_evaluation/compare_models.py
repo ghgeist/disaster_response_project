@@ -10,7 +10,6 @@ Usage:
 """
 
 # Standard library imports
-import glob
 import json
 import os
 import sys
@@ -26,6 +25,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 # Local imports
 from disasterproject.utils.experimental_paths import ExperimentalPathManager
+
 
 class OutputWriter:
     """Helper class to write output to both console and file."""
@@ -241,7 +241,7 @@ def compare_models(output_writer: OutputWriter):
 
     # Calculate improvements if both models exist
     if prod_metrics is not None and exp_metrics is not None:
-        output_writer.print(f"\nPERFORMANCE CHANGES:")
+        output_writer.print("\nPERFORMANCE CHANGES:")
         output_writer.print("-" * 30)
 
         f1_change = ((exp_overall['f1_score'] - prod_overall['f1_score']) / prod_overall['f1_score']) * 100
@@ -253,7 +253,7 @@ def compare_models(output_writer: OutputWriter):
         output_writer.print(f"   Recall:     {recall_change:+.2f}%")
 
         # Overall verdict
-        output_writer.print(f"\nVERDICT:")
+        output_writer.print("\nVERDICT:")
         if f1_change > 0:
             output_writer.print("   Experimental model shows improvement!")
         elif f1_change < 0:

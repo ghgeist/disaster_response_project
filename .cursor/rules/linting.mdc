@@ -1,0 +1,11 @@
+---
+description: Linting expectations for AI agents
+globs:
+alwaysApply: true
+---
+
+## Linting Expectations
+
+- Run Ruff on changed Python code before considering a task complete.
+- When Pylint is configured, run Pylint on changed code as well.
+- Fix any lint findings, or explicitly document why a finding is intentionally ignored.
