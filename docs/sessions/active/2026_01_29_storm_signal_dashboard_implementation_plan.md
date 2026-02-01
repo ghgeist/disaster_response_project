@@ -373,6 +373,16 @@ interface SignalItem {
 
 **Done means**: Endpoint passes Phase 2 Quality Gates; NaN safety and empty-data behavior are explicitly tested. Endpoint exists, returns metrics with real category counts and simulated volume/trends.
 
+#### Phase 4 Completion Notes
+- ✅ **Branch**: `feature/phase-4-classification-enhancement`. `POST /api/classify` replaced stub with real implementation.
+- ✅ `classify()` in `app/routes/api.py`: parses JSON `message`, validates input, calls `process_prediction_result(model_service, message)`; builds simplified response via `_build_simplified_classification()`.
+- ✅ Severity: `calculate_severity(probabilities)` (Phase 1). Category volume: real counts from `DataService.get_data()` (Phase 3). Per-label thresholds: `model_service.get_thresholds_map()` for inclusion.
+- ✅ Response shape: `categories` (name, confidence, volume), `severity`, `maxConfidence`, `avgConfidence`. Categories included where probability ≥ threshold; sorted by confidence, capped at 10.
+- ✅ Validation: empty/missing message → 400; missing model_service → 503; ModelServiceError/ValueError → 503.
+- ✅ Tests: `test_api_classify_contract` (shape), `test_api_classify_empty_message_returns_400`, `test_api_classify_no_model_service_returns_503`. Contract tests: `python scripts/run_tests.py tests/test_api_contract_stubs.py -q` (20 passed). Ruff passes on `app/routes/api.py`.
+
+---
+
 #### Phase 3 Completion Notes (PR #86)
 - ✅ **PR #86** (feature/phase-3-metrics-endpoint) merged: `GET /api/metrics` returns real data from `DataService`.
 - ✅ `_build_metrics_response(df, category_columns)` in `app/routes/api.py`: builds `volToday`, `flaggedRate`, `topCategories`, `trendData`; uses `df[cats].fillna(0)` for NaN-safe category sums; top 7 categories via `sums.sort_values(ascending=False).head(7)`; counts coerced with `_safe_label_value(count)`.

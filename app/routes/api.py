@@ -1,5 +1,5 @@
 """
-API contract stubs for the Storm Signal dashboard.
+Storm Signal dashboard API: feed, metrics, categories, and classification.
 """
 import hashlib
 import logging
@@ -11,7 +11,9 @@ from flask import Blueprint, current_app, jsonify, request
 
 from app.extensions import csrf
 from app.services.errors import DataServiceError
+from app.services.model_service import ModelServiceError
 from app.utils.formatting import format_request_context
+from app.utils.prediction_helpers import process_prediction_result
 
 logger = logging.getLogger(__name__)
 
@@ -277,6 +279,47 @@ def _build_stub_classification() -> dict:
     }
 
 
+def _build_simplified_classification(
+    prediction_result: dict,
+    category_volumes: dict,
+    thresholds_map: dict,
+) -> dict:
+    """Build simplified classification response with severity and volume context."""
+    probabilities = prediction_result.get("probabilities") or {}
+    if not probabilities:
+        return {
+            "categories": [],
+            "severity": "LOW",
+            "maxConfidence": 0.0,
+            "avgConfidence": 0.0,
+        }
+    threshold_default = 0.5
+    above_threshold = [
+        (internal, prob)
+        for internal, prob in probabilities.items()
+        if prob >= thresholds_map.get(internal, threshold_default)
+    ]
+    above_threshold.sort(key=lambda x: -x[1])
+    categories = [
+        {
+            "name": to_display_name(internal),
+            "confidence": round(prob, 2),
+            "volume": _safe_label_value(category_volumes.get(internal, 0)),
+        }
+        for internal, prob in above_threshold[:10]
+    ]
+    severity = calculate_severity(probabilities)
+    values = list(probabilities.values())
+    max_conf = round(max(values), 2) if values else 0.0
+    avg_conf = round(sum(values) / len(values), 2) if values else 0.0
+    return {
+        "categories": categories,
+        "severity": severity,
+        "maxConfidence": max_conf,
+        "avgConfidence": avg_conf,
+    }
+
+
 def _get_feed_filter_categories() -> list:
     """Parse categories[] query param (internal names) for feed filter."""
     names = request.args.getlist("categories[]") or request.args.getlist("categories")
@@ -386,10 +429,42 @@ def categories_metadata():
 
 
 @api_bp.route("/classify", methods=["POST"])
-def classify_stub():
-    """Return stubbed classification results for contract validation."""
+def classify():
+    """Return simplified classification with severity and category volume context."""
     try:
-        return jsonify(_build_stub_classification())
+        body = request.get_json(silent=True) or {}
+        message = (body.get("message") or "").strip()
+        if not message:
+            return jsonify({"error": "Message is required."}), 400
+
+        model_service = getattr(current_app, "model_service", None)
+        if model_service is None:
+            return jsonify({"error": "Classification unavailable right now."}), 503
+
+        prediction_result = process_prediction_result(model_service, message)
+        if not prediction_result.get("is_valid", True):
+            return (
+                jsonify({"error": prediction_result.get("error_message", "Invalid message.")}),
+                400,
+            )
+
+        category_volumes = {}
+        data_service = getattr(current_app, "data_service", None)
+        if data_service is not None:
+            df = data_service.get_data()
+            category_columns = data_service.get_category_columns() or []
+            if category_columns and df is not None and not df.empty:
+                sums = df[category_columns].fillna(0).sum()
+                category_volumes = sums.to_dict()
+
+        thresholds_map = model_service.get_thresholds_map()
+        payload = _build_simplified_classification(
+            prediction_result, category_volumes, thresholds_map
+        )
+        return jsonify(payload)
+    except (ValueError, ModelServiceError) as error:
+        _log_api_error("POST /api/classify", error)
+        return jsonify({"error": "Classification unavailable right now."}), 503
     except Exception as error:
         _log_api_error("POST /api/classify", error)
         return jsonify({"error": "Classification unavailable right now."}), 500

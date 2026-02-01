@@ -165,6 +165,31 @@ def test_api_classify_contract(client):
         assert key in category
 
 
+def test_api_classify_empty_message_returns_400(client):
+    """Empty or missing message returns 400 with error."""
+    r1 = client.post("/api/classify", json={})
+    assert r1.status_code == 400
+    assert r1.get_json().get("error")
+
+    r2 = client.post("/api/classify", json={"message": ""})
+    assert r2.status_code == 400
+
+    r3 = client.post("/api/classify", json={"message": "   "})
+    assert r3.status_code == 400
+
+
+def test_api_classify_no_model_service_returns_503(app, client):
+    """When model_service is not configured, classify returns 503."""
+    original = getattr(app, "model_service", None)
+    app.model_service = None
+    try:
+        response = client.post("/api/classify", json={"message": "Need water"})
+        assert response.status_code == 503
+        assert response.get_json().get("error")
+    finally:
+        app.model_service = original
+
+
 def test_safe_label_value_handles_nan():
     assert _safe_label_value(None) == 0
     assert _safe_label_value(float("nan")) == 0
