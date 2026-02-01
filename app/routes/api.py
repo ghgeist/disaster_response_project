@@ -270,8 +270,8 @@ def feed():
             page = 1
             total_pages = 0
         else:
-            page = (offset // limit) + 1 if limit else 1
-            total_pages = (total + limit - 1) // limit if limit else 0
+            page = (offset // limit) + 1
+            total_pages = (total + limit - 1) // limit
         slice_df = df.iloc[offset : offset + limit]
 
         items = []
