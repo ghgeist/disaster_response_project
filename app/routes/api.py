@@ -155,9 +155,11 @@ def _log_api_error(label: str, error: Exception):
 
 
 def _simulated_probabilities(row, category_columns: list) -> dict:
-    """Build probabilities from binary labels with clear separation."""
+    """Build probabilities from binary labels with clear separation (0 < 0.5 < 1 bands)."""
     return {
-        col: 0.1 + (_safe_label_value(row.get(col, 0)) * 0.6) + random.uniform(0, 0.1)
+        col: (0.1 + random.uniform(0, 0.1))
+        if _safe_label_value(row.get(col, 0)) == 0
+        else (0.85 + random.uniform(0, 0.15))
         for col in category_columns
     }
 

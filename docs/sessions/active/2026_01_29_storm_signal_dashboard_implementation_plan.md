@@ -292,6 +292,15 @@ interface SignalItem {
 
 ### Phase 2: Feed Endpoint (3-4 hours)
 
+**Phase 2 Gate (merge criteria)**:
+- ✅ Ruff passes (at minimum catching unused vars/imports + dead stores)
+- ✅ Endpoint tests cover:
+  - empty result set (including pagination invariants)
+  - unexpected enum value(s)
+  - null/NaN conversion safety
+- ✅ If randomness is used: tests assert invariants/ranges, not exact values
+- ✅ API response shape matches the documented contract in Section 6
+
 **Objective**: Create feed endpoint with simulated timestamps and source mapping.
 
 #### Step 2.1: Implement Timestamp Generation (Inline)
@@ -324,7 +333,7 @@ interface SignalItem {
 - Load messages from `DataService.get_data()`
 - **Performance Guardrail**: Use binary labels + simulated confidences initially
   - Read binary category labels from database (0/1)
-  - Convert to probabilities: `confidence = 0.5 + (label * 0.4) + random(0, 0.1)` (simulated)
+  - Convert to probabilities: label=0 → `0.1 + random(0, 0.1)`, label=1 → `0.85 + random(0, 0.15)` (simulated)
   - **Alternative**: Run model only for top N items (e.g., 10) during first integration
   - **Rationale**: Per-item inference on 25+ rows can be slow. Demo system behavior without full compute cost.
   - **Future**: Decide whether real inference belongs in feed (may need caching/pre-computation)
@@ -335,13 +344,14 @@ interface SignalItem {
 - Implement pagination
 - Return JSON array matching Figma `SignalItem` structure
 
-**Done means**: Endpoint exists, returns paginated feed items with all required fields. Uses binary labels + simulated confidences (or limited model inference) to avoid performance issues.
+**Done means**: Endpoint passes Phase 2 Quality Gates; Tripwires #1–#3 and #6 are covered by tests. Endpoint exists, returns paginated feed items with all required fields. Uses binary labels + simulated confidences (or limited model inference) to avoid performance issues.
 
 #### Phase 2 Completion Notes
 - ✅ Timestamp generation: `generate_timestamp_for_id(raw_id)` in `app/routes/api.py` spreads over last 6 hours, deterministic per id.
 - ✅ Source mapping: `genre_to_source(genre)` with `GENRE_TO_SOURCE` dict; `social` maps to `X` (default source).
-- ✅ `GET /api/feed`: Real data from `DataService.get_data()`, query params `limit` (default 25, max 100), `offset` (default 0), `categories[]` (filter by internal names). Binary labels + simulated confidences (`0.5 + label*0.4 + random(0,0.1)`), severity from `calculate_severity`, pagination with `page`, `limit`, `total`, `totalPages`. Response shape matches Figma `SignalItem`.
+- ✅ `GET /api/feed`: Real data from `DataService.get_data()`, query params `limit` (default 25, max 100), `offset` (default 0), `categories[]` (filter by internal names). Binary labels + simulated confidences (label=0 → `0.1 + random(0,0.1)`, label=1 → `0.85 + random(0,0.15)`), severity from `calculate_severity`, pagination with `page`, `limit`, `total`, `totalPages`. Response shape matches Figma `SignalItem`.
 - ✅ Contract tests still pass: `python scripts/run_tests.py tests/test_api_contract_stubs.py -q` (or `.venv\Scripts\python -m pytest tests/test_api_contract_stubs.py -q`).
+- ✅ Regression tests added to avoid feed/pagination drift: offset in-range, out-of-range clamp, empty dataset, limit bounds (0→1, 999→100), filter+offset clamp, genre/NaN/unknown→X, classification inclusion (conf > 0.5). Stub `StubDataService` used so pagination tests are deterministic; does not block Phase 5 (React fetch) or future steps.
 
 ---
 
@@ -359,7 +369,7 @@ interface SignalItem {
   - Can be static array or simple random walk
 - Return JSON matching Figma `SYSTEM_METRICS` structure
 
-**Done means**: Endpoint exists, returns metrics with real category counts and simulated volume/trends.
+**Done means**: Endpoint passes Phase 2 Quality Gates; NaN safety and empty-data behavior are explicitly tested. Endpoint exists, returns metrics with real category counts and simulated volume/trends.
 
 ---
 
@@ -667,7 +677,7 @@ app/
 ### Integration Tests (Future)
 
 **If Needed**:
-- API endpoint contract tests
+- API endpoint contract tests (feed pagination, genre/NaN, classification threshold covered in `tests/test_api_contract_stubs.py`)
 - React component tests
 - E2E tests
 
@@ -710,6 +720,31 @@ app/
 8. **Desktop-Only Design**: Target 1280px+ width, no responsive breakpoints
 9. **Classification Endpoint**: Test Phase 0 first, then decide on enhancement approach
 10. **No Contract Tests Initially**: Manual testing first, add automated tests if needed
+
+---
+
+## 11. CI & Correctness Tripwires (Phase 2+)
+
+**Purpose**: Encode the recurring failure modes we've already paid for, so future PRs (and AI agents) don't relearn them.
+
+**Tripwires Table (living)**:
+
+| # | Tripwire | Severity | Invariant violated | Invariant | Primary Catch |
+|---|----------|----------|--------------------|-----------|---------------|
+| 1 | Unknown genres → random social sources | Low | Unknown enums not explicitly handled | Unknown enums must be explicitly handled (warn+default OR 4xx), never ambiguous dict.get() fallback | Unit test + sentinel default pattern |
+| 2 | Pagination returns page 0 for empty results | Medium | Pagination not 1-indexed when empty | Pagination is always 1-indexed, even when empty | Boundary tests |
+| 3 | NaN values crash endpoint | Medium | Null/NaN in conversion path | Null/NaN must never crash conversion logic | Safe conversion helper + fixture with NaN |
+| 4 | Unused variable (slice_size) | Low | Dead store in committed code | No dead stores in committed code | Ruff F841 |
+| 5 | Unused function (_build_stub_feed_item) | Medium | Dead code path after refactor | No dead code paths left behind after refactor | Ruff / coverage smell |
+| 6 | Probability formula makes label=0 exceed threshold | High | Simulated probs cross decision boundary | Simulated probs must respect threshold semantics (no overlap across decision boundary) | Range test / property test |
+| 7 | Duplicate exception handlers | Low | Handlers don't differ meaningfully | Exception handlers either differ meaningfully or are consolidated | Pylint / review checklist |
+
+**Prevention by category**:
+- **Linter-catchable**: Enforce Ruff (F841/F401 minimum) + optional Pylint "duplicate-except"
+- **Test-catchable**: Add edge-case tests: unknown inputs, empty results, NaN handling, probability-range invariants
+- **Design-review**: Write down API edge contracts + compute formula ranges before coding
+
+This keeps the "guide" in the repo without turning it into ceremony.
 
 ---
 
