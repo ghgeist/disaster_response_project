@@ -7,7 +7,7 @@ import math
 import random
 from datetime import datetime, timedelta, timezone
 
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, current_app, jsonify, request, send_from_directory
 
 from app.extensions import csrf
 from app.services.errors import DataServiceError
@@ -461,6 +461,16 @@ def categories_metadata():
     except Exception as error:
         _log_api_error("GET /api/categories", error)
         return jsonify({"error": "Categories unavailable right now."}), 500
+
+
+@api_bp.route("/dashboard")
+@api_bp.route("/dashboard/<path:path>")
+def dashboard(path=None):
+    """Serve Storm Signal dashboard SPA (React app)."""
+    static_folder = current_app.static_folder
+    return send_from_directory(
+        static_folder, "dashboard/index.html", mimetype="text/html"
+    )
 
 
 @api_bp.route("/classify", methods=["POST"])

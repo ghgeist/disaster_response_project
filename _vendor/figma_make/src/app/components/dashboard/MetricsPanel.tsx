@@ -1,15 +1,70 @@
-import { SYSTEM_METRICS } from "@/app/data";
+import { useState, useEffect } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { Activity, BarChart3, TrendingUp, AlertCircle } from "lucide-react";
 
+interface MetricsData {
+  volumeToday: number;
+  flaggedRate: number;
+  flaggedHistory: { time: string; count: number }[];
+  topCategories: { name: string; count: number }[];
+}
+
+const defaultMetrics: MetricsData = {
+  volumeToday: 0,
+  flaggedRate: 0,
+  flaggedHistory: [],
+  topCategories: [],
+};
+
 export const MetricsPanel = () => {
+  const [metrics, setMetrics] = useState<MetricsData>(defaultMetrics);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    fetch("/api/metrics")
+      .then((res) => {
+        if (!res.ok) throw new Error(`Metrics ${res.status}`);
+        return res.json();
+      })
+      .then((data: { volToday?: number; flaggedRate?: number; trendData?: { time: string; count: number }[]; topCategories?: { name: string; count: number }[] }) => {
+        setMetrics({
+          volumeToday: data.volToday ?? 0,
+          flaggedRate: data.flaggedRate ?? 0,
+          flaggedHistory: Array.isArray(data.trendData) ? data.trendData : [],
+          topCategories: Array.isArray(data.topCategories) ? data.topCategories : [],
+        });
+      })
+      .catch((err) => setError(err?.message ?? "Failed to load metrics"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="h-full flex flex-col bg-slate-50 overflow-y-auto items-center justify-center text-slate-500 text-sm">
+        Loading metrics…
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="h-full flex flex-col bg-slate-50 overflow-y-auto items-center justify-center text-red-600 text-sm px-4 text-center">
+        {error}
+      </div>
+    );
+  }
+
+  const maxCatCount = Math.max(metrics.topCategories[0]?.count ?? 0, 1);
+
   return (
     <div className="h-full flex flex-col bg-slate-50 overflow-y-auto">
-      {/* Header with Simulated Badge */}
+      {/* Header with Live Badge */}
       <div className="p-4 flex justify-end">
-        <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-slate-100 border border-slate-200 rounded text-[10px] font-medium text-slate-500">
-          <AlertCircle className="w-3 h-3 text-slate-400" />
-          METRICS SIMULATED
+        <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-emerald-50 border border-emerald-200 rounded text-[10px] font-medium text-emerald-700">
+          <AlertCircle className="w-3 h-3 text-emerald-500" />
+          LIVE
         </div>
       </div>
 
@@ -19,7 +74,7 @@ export const MetricsPanel = () => {
           <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
             <div className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Vol Today</div>
             <div className="text-2xl font-bold text-slate-900 flex items-baseline gap-2">
-              {SYSTEM_METRICS.volumeToday.toLocaleString()}
+              {metrics.volumeToday.toLocaleString()}
               <span className="text-[10px] text-emerald-600 font-medium bg-emerald-50 px-1.5 rounded flex items-center">
                 <TrendingUp className="w-2.5 h-2.5 mr-0.5" /> +5%
               </span>
@@ -28,7 +83,7 @@ export const MetricsPanel = () => {
           <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
             <div className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Flagged</div>
             <div className="text-2xl font-bold text-slate-900 flex items-baseline gap-2">
-              <span className="text-red-600">{SYSTEM_METRICS.flaggedRate}%</span>
+              <span className="text-red-600">{metrics.flaggedRate}%</span>
               <span className="text-xs text-slate-400 font-normal">of total</span>
             </div>
           </div>
@@ -41,7 +96,7 @@ export const MetricsPanel = () => {
           </h3>
           <div className="h-[150px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={SYSTEM_METRICS.flaggedHistory}>
+              <AreaChart data={metrics.flaggedHistory}>
                 <defs>
                   <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#ef4444" stopOpacity={0.1}/>
@@ -79,7 +134,7 @@ export const MetricsPanel = () => {
             <BarChart3 className="w-3 h-3 text-slate-400" /> Top Categories
           </h3>
           <div className="space-y-3">
-            {SYSTEM_METRICS.topCategories.map((cat, i) => (
+            {metrics.topCategories.map((cat, i) => (
               <div key={cat.name} className="flex items-center gap-3">
                 <div className="w-6 text-[10px] font-mono text-slate-400 text-right">0{i+1}</div>
                 <div className="flex-1">
@@ -90,7 +145,7 @@ export const MetricsPanel = () => {
                   <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-slate-800 rounded-full" 
-                      style={{ width: `${(cat.count / SYSTEM_METRICS.topCategories[0].count) * 100}%` }}
+                      style={{ width: `${(cat.count / maxCatCount) * 100}%` }}
                     />
                   </div>
                 </div>

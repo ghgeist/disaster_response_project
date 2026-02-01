@@ -1,15 +1,40 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { MOCK_SIGNALS } from '@/app/data';
+import type { SignalItem } from '@/app/data';
 import { FeedPanel } from '@/app/components/dashboard/FeedPanel';
 import { MetricsPanel } from '@/app/components/dashboard/MetricsPanel';
 import { ClassificationPanel } from '@/app/components/dashboard/ClassificationPanel';
 import { Radar, Bell, Settings, UserCircle, Menu } from 'lucide-react';
 
+function mapFeedItem(item: { timestamp: string; [k: string]: unknown }): SignalItem {
+  return {
+    ...item,
+    timestamp: new Date(item.timestamp),
+  } as SignalItem;
+}
+
 export default function App() {
-  const [signals] = useState(MOCK_SIGNALS);
+  const [signals, setSignals] = useState<SignalItem[]>([]);
+  const [feedLoading, setFeedLoading] = useState(true);
+  const [feedError, setFeedError] = useState<string | null>(null);
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [showMobileBanner, setShowMobileBanner] = useState(true);
+
+  useEffect(() => {
+    setFeedLoading(true);
+    setFeedError(null);
+    fetch('/api/feed?limit=50')
+      .then((res) => {
+        if (!res.ok) throw new Error(`Feed ${res.status}`);
+        return res.json();
+      })
+      .then((data: { items?: unknown[] }) => {
+        const items = Array.isArray(data?.items) ? data.items : [];
+        setSignals(items.map((i) => mapFeedItem(i as { timestamp: string; [k: string]: unknown })));
+      })
+      .catch((err) => setFeedError(err?.message ?? 'Failed to load feed'))
+      .finally(() => setFeedLoading(false));
+  }, []);
 
   const handleToggleFilter = (category: string) => {
     setSelectedFilters(prev => 
@@ -106,6 +131,8 @@ export default function App() {
                 selectedFilters={selectedFilters}
                 onToggleFilter={handleToggleFilter}
                 onClearFilters={handleClearFilters}
+                loading={feedLoading}
+                error={feedError}
               />
             </Panel>
             
@@ -132,6 +159,8 @@ export default function App() {
             selectedFilters={selectedFilters}
             onToggleFilter={handleToggleFilter}
             onClearFilters={handleClearFilters}
+            loading={feedLoading}
+            error={feedError}
           />
         </div>
       </main>

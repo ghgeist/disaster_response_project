@@ -1,6 +1,6 @@
 import { Classification } from "@/app/data";
 import { ConfidenceBar, Badge } from "@/app/components/ui/common";
-import { Info, HelpCircle } from "lucide-react";
+import { Info } from "lucide-react";
 
 interface ClassificationPaneProps {
   classifications: Classification[];
