@@ -93,12 +93,29 @@ def to_display_name(internal: str) -> str:
     return CATEGORY_DISPLAY_NAMES.get(internal, internal.replace("_", " ").title())
 
 
+def _safe_category_display(internal) -> str:
+    """Return display name for a category key; handle None/NaN keys to avoid JSON/crash."""
+    if internal is None:
+        logger.debug("Category key was None; coercing to Unknown (upstream data check).")
+        return "Unknown"
+    if isinstance(internal, float) and math.isnan(internal):
+        logger.debug("Category key was NaN; coercing to Unknown (upstream data check).")
+        return "Unknown"
+    if isinstance(internal, str) and internal:
+        return to_display_name(internal)
+    logger.debug(
+        "Category key was non-string (%s); coercing to str (upstream data check).",
+        type(internal).__name__,
+    )
+    return str(internal) if internal is not None else "Unknown"
+
+
 def calculate_severity(probabilities: dict) -> str:
     """Determine severity based on critical category probabilities."""
     critical_count = sum(
         1
         for category, probability in probabilities.items()
-        if category in CRITICAL_INTERNAL_CATEGORIES and probability > 0.5
+        if category in CRITICAL_INTERNAL_CATEGORIES and _safe_float_prob(probability) > 0.5
     )
     critical_probabilities = [
         _safe_float_prob(probability)
@@ -309,12 +326,13 @@ def _build_simplified_classification(
     above_threshold = [
         (internal, prob)
         for internal, prob in probabilities.items()
-        if prob >= thresholds_map.get(internal, threshold_default)
+        if _safe_float_prob(prob)
+        >= _safe_float_prob(thresholds_map.get(internal, threshold_default))
     ]
-    above_threshold.sort(key=lambda x: -x[1])
+    above_threshold.sort(key=lambda x: -_safe_float_prob(x[1]))
     categories = [
         {
-            "name": to_display_name(internal),
+            "name": _safe_category_display(internal),
             "confidence": round(_safe_float_prob(prob), 2),
             "volume": _safe_label_value(category_volumes.get(internal, 0)),
         }
@@ -422,7 +440,7 @@ def categories_metadata():
         df = data_service.get_data()
         category_columns = data_service.get_category_columns()
         counts = (
-            df[category_columns].sum().to_dict()
+            df[category_columns].fillna(0).sum().to_dict()
             if category_columns and not df.empty
             else {col: 0 for col in category_columns}
         )
@@ -430,7 +448,7 @@ def categories_metadata():
             {
                 "internal": internal,
                 "display": to_display_name(internal),
-                "count": int(counts.get(internal, 0)),
+                "count": _safe_label_value(counts.get(internal, 0)),
             }
             for internal in sorted(category_columns)
         ]
