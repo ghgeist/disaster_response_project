@@ -237,19 +237,17 @@ def _build_metrics_response(df, category_columns: list) -> dict:
 
     vol_today = n * 100 if n > 0 else 0
     if n > 0 and cats:
-        flagged = (df[cats].fillna(0).sum(axis=1) > 0).sum()
+        filled = df[cats].fillna(0)
+        flagged = (filled.sum(axis=1) > 0).sum()
         flagged_pct = round(min(10.0, 2.0 + (float(flagged) / n) * 5.0), 1)
-    else:
-        flagged_pct = 0.0
-
-    if n > 0 and cats:
-        sums = df[cats].fillna(0).sum()
+        sums = filled.sum()
         top = sums.sort_values(ascending=False).head(7)
         top_categories = [
             {"name": to_display_name(internal), "count": _safe_label_value(count)}
             for internal, count in top.items()
         ]
     else:
+        flagged_pct = 0.0
         top_categories = []
 
     if n > 0:
