@@ -1,6 +1,6 @@
 """Contract smoke tests for stubbed dashboard API endpoints."""
 
-from app.routes.api import _safe_label_value, _simulated_probabilities
+from app.routes.api import _row_to_feed_item, _safe_label_value, _simulated_probabilities
 
 
 def test_api_feed_contract(client):
@@ -92,3 +92,10 @@ def test_simulated_probabilities_accept_nan():
     assert 0.1 <= result["medical_help"] <= 0.2
     assert 0.7 <= result["water"] <= 0.8
     assert 0.1 <= result["food"] <= 0.2
+
+
+def test_row_to_feed_item_handles_nan_message_genre():
+    row = {"id": 7, "message": float("nan"), "genre": float("nan")}
+    item = _row_to_feed_item(row, [])
+    assert item["content"] == ""
+    assert item["source"] == "Direct Report"

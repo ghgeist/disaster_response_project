@@ -128,9 +128,20 @@ GENRE_TO_SOURCE = {
 DEFAULT_SOURCE = "X"
 
 
+def _safe_text_value(value) -> str:
+    """Return safe string value, treating NaN/None as empty."""
+    if value is None:
+        return ""
+    if isinstance(value, float) and math.isnan(value):
+        return ""
+    if isinstance(value, str):
+        return value
+    return str(value)
+
+
 def genre_to_source(genre: str) -> str:
     """Map database genre to display source. Unknown/social genres map to X."""
-    normalized = (genre or "").strip().lower() or "direct"
+    normalized = _safe_text_value(genre).strip().lower() or "direct"
     return GENRE_TO_SOURCE.get(normalized, DEFAULT_SOURCE)
 
 
@@ -163,7 +174,7 @@ def _safe_label_value(value) -> int:
 def _row_to_feed_item(row, category_columns: list) -> dict:
     """Convert a database row to a SignalItem dict for the feed."""
     raw_id = row.get("id", 0)
-    msg = (row.get("message") or "").strip()
+    msg = _safe_text_value(row.get("message")).strip()
     original = row.get("original")
     if hasattr(original, "strip"):
         original = (original or "").strip() or None
@@ -185,7 +196,7 @@ def _row_to_feed_item(row, category_columns: list) -> dict:
         if conf > 0.5
     ][:10]
 
-    genre = row.get("genre") or "direct"
+    genre = _safe_text_value(row.get("genre")).strip().lower() or "direct"
     ts = generate_timestamp_for_id(raw_id)
     timestamp_iso = ts.replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
@@ -272,6 +283,8 @@ def feed():
         else:
             page = (offset // limit) + 1
             total_pages = (total + limit - 1) // limit
+            if page > total_pages:
+                page = total_pages
         slice_df = df.iloc[offset : offset + limit]
 
         items = []
