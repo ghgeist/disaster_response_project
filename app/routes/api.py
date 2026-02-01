@@ -174,25 +174,26 @@ def _log_api_error(label: str, error: Exception):
 
 
 def _safe_label_value(value) -> int:
-    """Return 0/1 label, treating NaN/None/invalid values as 0."""
+    """Return 0/1 label, treating NaN/None/inf/invalid values as 0."""
     if value is None:
         return 0
-    if isinstance(value, float) and math.isnan(value):
+    if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
         return 0
     try:
         return int(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return 0
 
 
 def _safe_float_prob(value) -> float:
-    """Return probability as float; treat NaN/None/non-numeric as 0.0 to avoid JSON/serialization failures."""
+    """Return probability as float; treat NaN/None/inf/non-numeric as 0.0 to avoid JSON/serialization failures."""
     if value is None:
         return 0.0
-    if isinstance(value, float) and math.isnan(value):
+    if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
         return 0.0
     try:
-        return float(value)
+        result = float(value)
+        return 0.0 if math.isnan(result) or math.isinf(result) else result
     except (TypeError, ValueError):
         return 0.0
 
@@ -227,9 +228,9 @@ def _row_to_feed_item(row, category_columns: list) -> dict:
     )
     top_three = [to_display_name(internal) for internal, _ in sorted_cats[:3]]
     classifications = [
-        {"category": to_display_name(internal), "confidence": round(conf, 2)}
+        {"category": to_display_name(internal), "confidence": round(_safe_float_prob(conf), 2)}
         for internal, conf in sorted_cats
-        if conf > 0.5
+        if _safe_float_prob(conf) > 0.5
     ][:10]
 
     genre = row.get("genre")
@@ -339,9 +340,11 @@ def _build_simplified_classification(
         for internal, prob in above_threshold[:10]
     ]
     severity = calculate_severity(probabilities)
-    values = [_safe_float_prob(v) for v in probabilities.values()]
-    max_conf = round(max(values), 2) if values else 0.0
-    avg_conf = round(sum(values) / len(values), 2) if values else 0.0
+    returned_probs = [_safe_float_prob(prob) for _, prob in above_threshold[:10]]
+    max_conf = round(max(returned_probs), 2) if returned_probs else 0.0
+    avg_conf = (
+        round(sum(returned_probs) / len(returned_probs), 2) if returned_probs else 0.0
+    )
     return {
         "categories": categories,
         "severity": severity,
@@ -368,8 +371,10 @@ def feed():
         if not category_columns:
             category_columns = []
 
-        limit = min(max(1, request.args.get("limit", 25, type=int)), 100)
-        offset = max(0, request.args.get("offset", 0, type=int))
+        limit_raw = request.args.get("limit", 25, type=int)
+        offset_raw = request.args.get("offset", 0, type=int)
+        limit = min(max(1, limit_raw if limit_raw is not None else 25), 100)
+        offset = max(0, offset_raw if offset_raw is not None else 0)
         filter_cats = _get_feed_filter_categories()
 
         if filter_cats:
@@ -438,7 +443,7 @@ def categories_metadata():
         if data_service is None:
             raise DataServiceError("Data service not configured.")
         df = data_service.get_data()
-        category_columns = data_service.get_category_columns()
+        category_columns = data_service.get_category_columns() or []
         counts = (
             df[category_columns].fillna(0).sum().to_dict()
             if category_columns and not df.empty
