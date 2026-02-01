@@ -101,7 +101,7 @@ def calculate_severity(probabilities: dict) -> str:
         if category in CRITICAL_INTERNAL_CATEGORIES and probability > 0.5
     )
     critical_probabilities = [
-        probability
+        _safe_float_prob(probability)
         for category, probability in probabilities.items()
         if category in CRITICAL_INTERNAL_CATEGORIES
     ]
@@ -166,6 +166,18 @@ def _safe_label_value(value) -> int:
         return int(value)
     except (TypeError, ValueError):
         return 0
+
+
+def _safe_float_prob(value) -> float:
+    """Return probability as float; treat NaN/None/non-numeric as 0.0 to avoid JSON/serialization failures."""
+    if value is None:
+        return 0.0
+    if isinstance(value, float) and math.isnan(value):
+        return 0.0
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def _simulated_probabilities(row, category_columns: list) -> dict:
@@ -303,13 +315,13 @@ def _build_simplified_classification(
     categories = [
         {
             "name": to_display_name(internal),
-            "confidence": round(prob, 2),
+            "confidence": round(_safe_float_prob(prob), 2),
             "volume": _safe_label_value(category_volumes.get(internal, 0)),
         }
         for internal, prob in above_threshold[:10]
     ]
     severity = calculate_severity(probabilities)
-    values = list(probabilities.values())
+    values = [_safe_float_prob(v) for v in probabilities.values()]
     max_conf = round(max(values), 2) if values else 0.0
     avg_conf = round(sum(values) / len(values), 2) if values else 0.0
     return {
@@ -451,11 +463,15 @@ def classify():
         category_volumes = {}
         data_service = getattr(current_app, "data_service", None)
         if data_service is not None:
-            df = data_service.get_data()
-            category_columns = data_service.get_category_columns() or []
-            if category_columns and df is not None and not df.empty:
-                sums = df[category_columns].fillna(0).sum()
-                category_volumes = sums.to_dict()
+            try:
+                df = data_service.get_data()
+                category_columns = data_service.get_category_columns() or []
+                if category_columns and df is not None and not df.empty:
+                    sums = df[category_columns].fillna(0).sum()
+                    category_volumes = sums.to_dict()
+            except (DataServiceError, Exception) as data_error:
+                _log_api_error("POST /api/classify (data_service)", data_error)
+                # Volumes are supplementary; classification continues with empty volumes
 
         thresholds_map = model_service.get_thresholds_map()
         payload = _build_simplified_classification(
