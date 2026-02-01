@@ -21,6 +21,13 @@ prs:
 
 > **Key Principle**: **Stabilize API contracts before frontend integration. Use simplified inline utilities.**
 
+> **Data Reality Gate** (applies to all `/api/*` endpoints)
+> - **Invariant**: All `/api/*` endpoints tolerate `None`/NaN inputs from pandas/DB and **never emit NaN or Infinity in JSON**.
+> - **Gate**: Each endpoint must have at least one null-realism test (fixture with None/NaN values; assert 200 + valid shape).
+> - **Boundary**: All conversions at the boundary use safe helpers (no raw `int(x)` / `float(x)` on DB/pandas values).
+> - **Done means**: Endpoint passes its contract tests, its null-realism test, and a no-NaN/Infinity-in-JSON invariant test.
+> - *This turns “remember to handle NaN” into “it’s part of done.”*
+
 > **Vendor Rule**: **Treat `_vendor/figma_make/` as read-only upstream until API contracts are stable. Copy build output only, don't edit vendor source unless necessary.**
 
 ---
@@ -345,8 +352,11 @@ interface SignalItem {
 - Map genre to source (inline dict)
 - Implement pagination
 - Return JSON array matching Figma `SignalItem` structure
+- **Null-realism (Data Reality Gate)**:
+  - Add null-realism fixture: at least one row with `genre=None`, one category column NaN, and one optional text field None
+  - Add test: `test_feed_handles_nulls_and_nans()` asserting 200 + valid response shape + pagination contract
 
-**Done means**: Endpoint passes Phase 2 Quality Gates; Tripwires #1–#3 and #6 are covered by tests. Endpoint exists, returns paginated feed items with all required fields. Uses binary labels + simulated confidences (or limited model inference) to avoid performance issues.
+**Done means**: Endpoint passes Phase 2 Quality Gates; Tripwires #1–#3 and #6 are covered by tests; Data Reality Gate (null-realism test + no NaN/Infinity in JSON). Endpoint exists, returns paginated feed items with all required fields. Uses binary labels + simulated confidences (or limited model inference) to avoid performance issues.
 
 #### Phase 2 Completion Notes
 - ✅ Timestamp generation: `generate_timestamp_for_id(raw_id)` in `app/routes/api.py` spreads over last 6 hours, deterministic per id.
@@ -370,8 +380,22 @@ interface SignalItem {
 - `trend_data`: Simulated time series (6 hours, hourly intervals)
   - Can be static array or simple random walk
 - Return JSON matching Figma `SYSTEM_METRICS` structure
+- **Null-realism (Data Reality Gate)**:
+  - Add null-realism fixture: at least one category column NaN
+  - Add test: `test_metrics_handles_nulls_and_nans()` asserting 200 + numeric fields present + no NaN in JSON output
 
-**Done means**: Endpoint passes Phase 2 Quality Gates; NaN safety and empty-data behavior are explicitly tested. Endpoint exists, returns metrics with real category counts and simulated volume/trends.
+**Done means**: Endpoint passes Phase 2 Quality Gates; NaN safety and empty-data behavior are explicitly tested; Data Reality Gate (null-realism test + no NaN/Infinity in JSON). Endpoint exists, returns metrics with real category counts and simulated volume/trends.
+
+#### Phase 4 Completion Notes
+- ✅ **Branch**: `feature/phase-4-classification-enhancement`. `POST /api/classify` replaced stub with real implementation.
+- ✅ `classify()` in `app/routes/api.py`: parses JSON `message`, validates input, calls `process_prediction_result(model_service, message)`; builds simplified response via `_build_simplified_classification()`.
+- ✅ Severity: `calculate_severity(probabilities)` (Phase 1). Category volume: real counts from `DataService.get_data()` (Phase 3). Per-label thresholds: `model_service.get_thresholds_map()` for inclusion.
+- ✅ Response shape: `categories` (name, confidence, volume), `severity`, `maxConfidence`, `avgConfidence`. Categories included where probability ≥ threshold; sorted by confidence, capped at 10.
+- ✅ Validation: empty/missing message → 400; missing model_service → 503; ModelServiceError/ValueError → 503.
+- ✅ **NaN/None safety (Tripwire #3)**: All probability and threshold values pass through `_safe_float_prob()` before comparison, max/avg, or JSON; `critical_count` and `critical_probabilities` in `calculate_severity` use it; above-threshold filter and sort use it; category `confidence`, `maxConfidence`, and `avgConfidence` use it. Category keys use `_safe_category_display()` so None/NaN keys do not crash. Thresholds from `thresholds_map` are sanitized with `_safe_float_prob()` before comparison. Data-service failure is isolated so classification still returns 200 with empty volumes. `GET /api/categories` uses `fillna(0).sum()` and `_safe_label_value(count)` for NaN-safe counts.
+- ✅ Tests: `test_api_classify_contract` (shape), `test_api_classify_empty_message_returns_400`, `test_api_classify_no_model_service_returns_503`. Contract tests: `python scripts/run_tests.py tests/test_api_contract_stubs.py -q` (20 passed). Ruff passes on `app/routes/api.py`.
+
+---
 
 #### Phase 3 Completion Notes (PR #86)
 - ✅ **PR #86** (feature/phase-3-metrics-endpoint) merged: `GET /api/metrics` returns real data from `DataService`.
@@ -404,7 +428,7 @@ interface SignalItem {
 - Add category volume context (reuse from Phase 3)
 - Return simplified JSON matching React component expectations
 
-**Done means**: Classification endpoint returns simplified JSON with severity and volume context.
+**Done means**: Classification endpoint returns simplified JSON with severity and volume context; Data Reality Gate (null-realism test + no NaN/Infinity in JSON).
 
 ---
 
@@ -508,6 +532,8 @@ app/
 ~~`app/utils/source_mapper.py`~~ → Inline dict lookup
 
 **Rationale**: These are simple operations (5-10 lines each) that don't need separate modules. Keep code close to where it's used for easier maintenance.
+
+**Boundary conversion rule**: When reading from pandas/DB, never call `int(x)` / `float(x)` directly. Use a tiny safe conversion helper (inline or local to `api.py`) for any external value. That’s enough for an AI agent to follow reliably.
 
 ---
 
@@ -752,6 +778,7 @@ app/
 **Prevention by category**:
 - **Linter-catchable**: Enforce Ruff (F841/F401 minimum) + optional Pylint "duplicate-except"
 - **Test-catchable**: Add edge-case tests: unknown inputs, empty results, NaN handling, probability-range invariants
+- **Data edge cases**: Tests must include None and NaN values in fixtures for any endpoint touching pandas/DB
 - **Design-review**: Write down API edge contracts + compute formula ranges before coding
 
 This keeps the "guide" in the repo without turning it into ceremony.

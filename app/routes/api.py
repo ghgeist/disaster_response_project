@@ -1,5 +1,5 @@
 """
-API contract stubs for the Storm Signal dashboard.
+Storm Signal dashboard API: feed, metrics, categories, and classification.
 """
 import hashlib
 import logging
@@ -11,7 +11,9 @@ from flask import Blueprint, current_app, jsonify, request
 
 from app.extensions import csrf
 from app.services.errors import DataServiceError
+from app.services.model_service import ModelServiceError
 from app.utils.formatting import format_request_context
+from app.utils.prediction_helpers import process_prediction_result
 
 logger = logging.getLogger(__name__)
 
@@ -91,15 +93,32 @@ def to_display_name(internal: str) -> str:
     return CATEGORY_DISPLAY_NAMES.get(internal, internal.replace("_", " ").title())
 
 
+def _safe_category_display(internal) -> str:
+    """Return display name for a category key; handle None/NaN keys to avoid JSON/crash."""
+    if internal is None:
+        logger.debug("Category key was None; coercing to Unknown (upstream data check).")
+        return "Unknown"
+    if isinstance(internal, float) and math.isnan(internal):
+        logger.debug("Category key was NaN; coercing to Unknown (upstream data check).")
+        return "Unknown"
+    if isinstance(internal, str) and internal:
+        return to_display_name(internal)
+    logger.debug(
+        "Category key was non-string (%s); coercing to str (upstream data check).",
+        type(internal).__name__,
+    )
+    return str(internal) if internal is not None else "Unknown"
+
+
 def calculate_severity(probabilities: dict) -> str:
     """Determine severity based on critical category probabilities."""
     critical_count = sum(
         1
         for category, probability in probabilities.items()
-        if category in CRITICAL_INTERNAL_CATEGORIES and probability > 0.5
+        if category in CRITICAL_INTERNAL_CATEGORIES and _safe_float_prob(probability) > 0.5
     )
     critical_probabilities = [
-        probability
+        _safe_float_prob(probability)
         for category, probability in probabilities.items()
         if category in CRITICAL_INTERNAL_CATEGORIES
     ]
@@ -155,15 +174,28 @@ def _log_api_error(label: str, error: Exception):
 
 
 def _safe_label_value(value) -> int:
-    """Return 0/1 label, treating NaN/None/invalid values as 0."""
+    """Return 0/1 label, treating NaN/None/inf/invalid values as 0."""
     if value is None:
         return 0
-    if isinstance(value, float) and math.isnan(value):
+    if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
         return 0
     try:
         return int(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return 0
+
+
+def _safe_float_prob(value) -> float:
+    """Return probability as float; treat NaN/None/inf/non-numeric as 0.0 to avoid JSON/serialization failures."""
+    if value is None:
+        return 0.0
+    if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
+        return 0.0
+    try:
+        result = float(value)
+        return 0.0 if math.isnan(result) or math.isinf(result) else result
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def _simulated_probabilities(row, category_columns: list) -> dict:
@@ -196,9 +228,9 @@ def _row_to_feed_item(row, category_columns: list) -> dict:
     )
     top_three = [to_display_name(internal) for internal, _ in sorted_cats[:3]]
     classifications = [
-        {"category": to_display_name(internal), "confidence": round(conf, 2)}
+        {"category": to_display_name(internal), "confidence": round(_safe_float_prob(conf), 2)}
         for internal, conf in sorted_cats
-        if conf > 0.5
+        if _safe_float_prob(conf) > 0.5
     ][:10]
 
     genre = row.get("genre")
@@ -277,6 +309,50 @@ def _build_stub_classification() -> dict:
     }
 
 
+def _build_simplified_classification(
+    prediction_result: dict,
+    category_volumes: dict,
+    thresholds_map: dict,
+) -> dict:
+    """Build simplified classification response with severity and volume context."""
+    probabilities = prediction_result.get("probabilities") or {}
+    if not probabilities:
+        return {
+            "categories": [],
+            "severity": "LOW",
+            "maxConfidence": 0.0,
+            "avgConfidence": 0.0,
+        }
+    threshold_default = 0.5
+    above_threshold = [
+        (internal, prob)
+        for internal, prob in probabilities.items()
+        if _safe_float_prob(prob)
+        >= _safe_float_prob(thresholds_map.get(internal, threshold_default))
+    ]
+    above_threshold.sort(key=lambda x: -_safe_float_prob(x[1]))
+    categories = [
+        {
+            "name": _safe_category_display(internal),
+            "confidence": round(_safe_float_prob(prob), 2),
+            "volume": _safe_label_value(category_volumes.get(internal, 0)),
+        }
+        for internal, prob in above_threshold[:10]
+    ]
+    severity = calculate_severity(probabilities)
+    returned_probs = [_safe_float_prob(prob) for _, prob in above_threshold[:10]]
+    max_conf = round(max(returned_probs), 2) if returned_probs else 0.0
+    avg_conf = (
+        round(sum(returned_probs) / len(returned_probs), 2) if returned_probs else 0.0
+    )
+    return {
+        "categories": categories,
+        "severity": severity,
+        "maxConfidence": max_conf,
+        "avgConfidence": avg_conf,
+    }
+
+
 def _get_feed_filter_categories() -> list:
     """Parse categories[] query param (internal names) for feed filter."""
     names = request.args.getlist("categories[]") or request.args.getlist("categories")
@@ -295,8 +371,10 @@ def feed():
         if not category_columns:
             category_columns = []
 
-        limit = min(max(1, request.args.get("limit", 25, type=int)), 100)
-        offset = max(0, request.args.get("offset", 0, type=int))
+        limit_raw = request.args.get("limit", 25, type=int)
+        offset_raw = request.args.get("offset", 0, type=int)
+        limit = min(max(1, limit_raw if limit_raw is not None else 25), 100)
+        offset = max(0, offset_raw if offset_raw is not None else 0)
         filter_cats = _get_feed_filter_categories()
 
         if filter_cats:
@@ -365,9 +443,9 @@ def categories_metadata():
         if data_service is None:
             raise DataServiceError("Data service not configured.")
         df = data_service.get_data()
-        category_columns = data_service.get_category_columns()
+        category_columns = data_service.get_category_columns() or []
         counts = (
-            df[category_columns].sum().to_dict()
+            df[category_columns].fillna(0).sum().to_dict()
             if category_columns and not df.empty
             else {col: 0 for col in category_columns}
         )
@@ -375,7 +453,7 @@ def categories_metadata():
             {
                 "internal": internal,
                 "display": to_display_name(internal),
-                "count": int(counts.get(internal, 0)),
+                "count": _safe_label_value(counts.get(internal, 0)),
             }
             for internal in sorted(category_columns)
         ]
@@ -386,10 +464,46 @@ def categories_metadata():
 
 
 @api_bp.route("/classify", methods=["POST"])
-def classify_stub():
-    """Return stubbed classification results for contract validation."""
+def classify():
+    """Return simplified classification with severity and category volume context."""
     try:
-        return jsonify(_build_stub_classification())
+        body = request.get_json(silent=True) or {}
+        message = (body.get("message") or "").strip()
+        if not message:
+            return jsonify({"error": "Message is required."}), 400
+
+        model_service = getattr(current_app, "model_service", None)
+        if model_service is None:
+            return jsonify({"error": "Classification unavailable right now."}), 503
+
+        prediction_result = process_prediction_result(model_service, message)
+        if not prediction_result.get("is_valid", True):
+            return (
+                jsonify({"error": prediction_result.get("error_message", "Invalid message.")}),
+                400,
+            )
+
+        category_volumes = {}
+        data_service = getattr(current_app, "data_service", None)
+        if data_service is not None:
+            try:
+                df = data_service.get_data()
+                category_columns = data_service.get_category_columns() or []
+                if category_columns and df is not None and not df.empty:
+                    sums = df[category_columns].fillna(0).sum()
+                    category_volumes = sums.to_dict()
+            except (DataServiceError, Exception) as data_error:
+                _log_api_error("POST /api/classify (data_service)", data_error)
+                # Volumes are supplementary; classification continues with empty volumes
+
+        thresholds_map = model_service.get_thresholds_map()
+        payload = _build_simplified_classification(
+            prediction_result, category_volumes, thresholds_map
+        )
+        return jsonify(payload)
+    except (ValueError, ModelServiceError) as error:
+        _log_api_error("POST /api/classify", error)
+        return jsonify({"error": "Classification unavailable right now."}), 503
     except Exception as error:
         _log_api_error("POST /api/classify", error)
         return jsonify({"error": "Classification unavailable right now."}), 500

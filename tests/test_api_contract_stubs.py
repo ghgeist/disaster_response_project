@@ -1,5 +1,6 @@
 """Contract smoke tests for stubbed dashboard API endpoints."""
 
+import math
 import random
 from unittest.mock import patch
 
@@ -27,6 +28,17 @@ class StubDataService:
 
     def get_category_columns(self) -> list:
         return list(self._category_columns)
+
+
+def _json_contains_no_nan_or_infinity(obj) -> bool:
+    """Return True if obj (JSON-serializable structure) contains no float('nan') or float('inf')."""
+    if isinstance(obj, float):
+        return not (math.isnan(obj) or math.isinf(obj))
+    if isinstance(obj, dict):
+        return all(_json_contains_no_nan_or_infinity(v) for v in obj.values())
+    if isinstance(obj, (list, tuple)):
+        return all(_json_contains_no_nan_or_infinity(v) for v in obj)
+    return True
 
 
 def _make_feed_df(n_rows: int, category_columns: list | None = None) -> pd.DataFrame:
@@ -163,6 +175,31 @@ def test_api_classify_contract(client):
     category = categories[0]
     for key in ("name", "confidence", "volume"):
         assert key in category
+
+
+def test_api_classify_empty_message_returns_400(client):
+    """Empty or missing message returns 400 with error."""
+    r1 = client.post("/api/classify", json={})
+    assert r1.status_code == 400
+    assert r1.get_json().get("error")
+
+    r2 = client.post("/api/classify", json={"message": ""})
+    assert r2.status_code == 400
+
+    r3 = client.post("/api/classify", json={"message": "   "})
+    assert r3.status_code == 400
+
+
+def test_api_classify_no_model_service_returns_503(app, client):
+    """When model_service is not configured, classify returns 503."""
+    original = getattr(app, "model_service", None)
+    app.model_service = None
+    try:
+        response = client.post("/api/classify", json={"message": "Need water"})
+        assert response.status_code == 503
+        assert response.get_json().get("error")
+    finally:
+        app.model_service = original
 
 
 def test_safe_label_value_handles_nan():
@@ -329,3 +366,25 @@ def test_classification_inclusion_threshold_label_0_excluded_label_1_included():
     assert "Water" in classifications
     assert "Food" not in classifications
     assert "Shelter" not in classifications
+
+
+# ---- Data Reality Gate: no NaN/Infinity in JSON ----
+
+
+def test_api_responses_contain_no_nan_or_infinity(client):
+    """Invariant: feed, metrics, categories, and classify responses contain no NaN or Infinity in JSON."""
+    feed_resp = client.get("/api/feed")
+    assert feed_resp.status_code == 200
+    assert _json_contains_no_nan_or_infinity(feed_resp.get_json()), "GET /api/feed must not emit NaN/Infinity"
+
+    metrics_resp = client.get("/api/metrics")
+    assert metrics_resp.status_code == 200
+    assert _json_contains_no_nan_or_infinity(metrics_resp.get_json()), "GET /api/metrics must not emit NaN/Infinity"
+
+    categories_resp = client.get("/api/categories")
+    assert categories_resp.status_code == 200
+    assert _json_contains_no_nan_or_infinity(categories_resp.get_json()), "GET /api/categories must not emit NaN/Infinity"
+
+    classify_resp = client.post("/api/classify", json={"message": "Need water and medical aid"})
+    assert classify_resp.status_code == 200
+    assert _json_contains_no_nan_or_infinity(classify_resp.get_json()), "POST /api/classify must not emit NaN/Infinity"
