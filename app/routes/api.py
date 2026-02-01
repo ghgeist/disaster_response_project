@@ -219,25 +219,48 @@ def _row_to_feed_item(row, category_columns: list) -> dict:
     }
 
 
-def _build_stub_metrics() -> dict:
-    """Create a SYSTEM_METRICS stub for contract validation."""
+TREND_LABELS = [
+    "6h ago",
+    "5h ago",
+    "4h ago",
+    "3h ago",
+    "2h ago",
+    "1h ago",
+    "Now",
+]
+
+
+def _build_metrics_response(df, category_columns: list) -> dict:
+    """Build SYSTEM_METRICS from real category counts and simulated volume/trends."""
+    n = len(df) if df is not None and not df.empty else 0
+    cats = category_columns or []
+
+    vol_today = n * 100 if n > 0 else 0
+    if n > 0 and cats:
+        filled = df[cats].fillna(0)
+        flagged = (filled.sum(axis=1) > 0).sum()
+        flagged_pct = round(min(10.0, 2.0 + (float(flagged) / n) * 5.0), 1)
+        sums = filled.sum()
+        top = sums.sort_values(ascending=False).head(7)
+        top_categories = [
+            {"name": to_display_name(internal), "count": _safe_label_value(count)}
+            for internal, count in top.items()
+        ]
+    else:
+        flagged_pct = 0.0
+        top_categories = []
+
+    if n > 0:
+        trend_counts = [45, 120, 80, 210, 150, 95, 60]
+    else:
+        trend_counts = [0, 0, 0, 0, 0, 0, 0]
+    trend_data = [{"time": label, "count": c} for label, c in zip(TREND_LABELS, trend_counts)]
+
     return {
-        "volToday": 14502,
-        "flaggedRate": 4.2,
-        "topCategories": [
-            {"name": "Medical Help", "count": 1247},
-            {"name": "Water", "count": 892},
-            {"name": "Food", "count": 756},
-        ],
-        "trendData": [
-            {"time": "6h ago", "count": 45},
-            {"time": "5h ago", "count": 120},
-            {"time": "4h ago", "count": 80},
-            {"time": "3h ago", "count": 210},
-            {"time": "2h ago", "count": 150},
-            {"time": "1h ago", "count": 95},
-            {"time": "Now", "count": 60},
-        ],
+        "volToday": vol_today,
+        "flaggedRate": flagged_pct,
+        "topCategories": top_categories,
+        "trendData": trend_data,
     }
 
 
@@ -317,10 +340,18 @@ def feed():
 
 
 @api_bp.route("/metrics", methods=["GET"])
-def metrics_stub():
-    """Return a stubbed metrics response for contract validation."""
+def metrics():
+    """Return metrics with real category counts and simulated volume/trends."""
     try:
-        return jsonify(_build_stub_metrics())
+        data_service = getattr(current_app, "data_service", None)
+        if data_service is None:
+            raise DataServiceError("Data service not configured.")
+        df = data_service.get_data()
+        category_columns = data_service.get_category_columns()
+        if not category_columns:
+            category_columns = []
+        payload = _build_metrics_response(df, category_columns)
+        return jsonify(payload)
     except Exception as error:
         _log_api_error("GET /api/metrics", error)
         return jsonify({"error": "Metrics unavailable right now."}), 500

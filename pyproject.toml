@@ -17,6 +17,9 @@ target-version = ["py312"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+# Use cache outside project to avoid OneDrive path/sync issues
+cache-dir = "~/.cache/ruff"
+exclude = ["notebooks"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N"]
