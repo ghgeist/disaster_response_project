@@ -24,6 +24,7 @@ from disasterproject.models.pipeline import run_parameter_search
 from disasterproject.utils.config import RF_N_JOBS
 from disasterproject.utils.json_io import load_hyperparameter_optimization_config
 
+
 def create_pipeline():
     """Create the text classification Pipeline compatible with our parameter grids."""
     return Pipeline([

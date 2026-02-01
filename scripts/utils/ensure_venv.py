@@ -14,7 +14,7 @@ Purpose:
 Usage:
     Run directly to check venv status:
         python scripts/utils/ensure_venv.py
-    
+
     Or import the function:
         from scripts.utils.ensure_venv import ensure_venv
         ensure_venv()
@@ -29,25 +29,26 @@ import os
 import sys
 from pathlib import Path
 
+
 def ensure_venv():
     """Check if venv is activated, provide helpful error if not."""
     try:
-        from disasterproject.utils.env import is_replit, check_venv_activation
+        from disasterproject.utils.env import check_venv_activation, is_replit
     except ImportError:
         # Fallback if package not installed
         def is_replit():
             replit_indicators = ['REPLIT_DB_URL', 'REPL_ID', 'REPL_SLUG', 'REPL_OWNER', 'REPLIT_POD_ID']
             return any(os.getenv(var) is not None for var in replit_indicators)
-        
+
         def check_venv_activation():
             if is_replit():
                 return True
             return sys.prefix != sys.base_prefix
-    
+
     if is_replit():
         print("ℹ️ Running in Replit - venv check skipped")
         return True
-    
+
     if not check_venv_activation():
         venv_path = Path('.venv')
         print("❌ Virtual environment not activated!")
@@ -60,7 +61,7 @@ def ensure_venv():
         print("\nOr create venv if it doesn't exist:")
         print(f"  python -m venv {venv_path}")
         sys.exit(1)
-    
+
     print("✓ Virtual environment is active")
     return True
 

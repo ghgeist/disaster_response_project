@@ -2,10 +2,11 @@
 Route blueprints for the Disaster Response application.
 """
 from flask import Flask
-from .home import home_bp
+
+from .api import api_bp
 from .classification import classification_bp
 from .health import health_bp
-from .api import api_bp
+from .home import home_bp
 
 
 def register_routes(app: Flask):

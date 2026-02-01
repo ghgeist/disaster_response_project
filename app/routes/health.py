@@ -3,13 +3,14 @@ Health check and monitoring routes for the Disaster Response application.
 """
 import logging
 import time
-from flask import Blueprint, render_template, current_app
+
 import pandas as pd
 import sqlalchemy.exc
+from flask import Blueprint, current_app, render_template
 
 from app.services.data_service import DataServiceError
-from app.services.model_service import ModelServiceError
 from app.services.health_service import ModelHealthMonitor
+from app.services.model_service import ModelServiceError
 from app.utils.formatting import format_request_context
 from app.utils.nltk_setup import get_nltk_status
 
@@ -34,30 +35,30 @@ def health_check_detailed():
     Checks data service, model service, and returns comprehensive diagnostics.
     """
     start_time = time.time()
-    
+
     try:
         # Check if services are available
         data_service = current_app.data_service
         model_service = current_app.model_service
-        
+
         # Test data service with timing
         data_start = time.time()
         df = data_service.get_data()
         data_time = (time.time() - data_start) * 1000
         data_healthy = len(df) > 0
-        
+
         # Test model service with timing
         model_start = time.time()
         model = model_service.load_model()
         model_time = (time.time() - model_start) * 1000
         model_healthy = model is not None
-        
+
         # Get NLTK status if available
         nltk_status = current_app.config.get('NLTK_SETUP_RESULTS', {})
-        
+
         # Calculate total response time
         total_time = (time.time() - start_time) * 1000
-        
+
         if data_healthy and model_healthy:
             response_data = {
                 'status': 'healthy',
@@ -70,7 +71,7 @@ def health_check_detailed():
                     'model_service_time_ms': round(model_time, 2)
                 }
             }
-            
+
             # Add NLTK status if available
             if nltk_status:
                 response_data['nltk_status'] = {
@@ -79,7 +80,7 @@ def health_check_detailed():
                     'resources_loaded': len(nltk_status.get('resources_loaded', [])),
                     'resources_failed': len(nltk_status.get('resources_failed', []))
                 }
-            
+
             return response_data, 200
         else:
             return {
@@ -92,7 +93,7 @@ def health_check_detailed():
                     'model_service_time_ms': round(model_time, 2)
                 }
             }, 503
-            
+
     except (sqlalchemy.exc.SQLAlchemyError, pd.errors.DatabaseError) as error:
         context = format_request_context()
         logger.error("Health check database failure%s: %s", context, error)
@@ -128,20 +129,20 @@ def model_health_dashboard():
     try:
         # Get services from app context
         model_service = getattr(current_app, 'model_service', None)
-        
+
         # Initialize model health monitor with model service
         health_monitor = ModelHealthMonitor(model_service=model_service)
-        
+
         # Get comprehensive health report
         health_report = health_monitor.get_comprehensive_health_report(model_service)
-        
+
         return render_template(
-            'model_health.html', 
+            'model_health.html',
             health_report=health_report,
             graphJSON="[]",  # Will be populated by JavaScript
             ids=[]
         )
-        
+
     except Exception as error:
         context = format_request_context()
         logger.error("Model health dashboard failed%s: %s", context, error)
@@ -159,15 +160,15 @@ def model_health_api():
     try:
         # Get services from app context
         model_service = getattr(current_app, 'model_service', None)
-        
+
         # Initialize model health monitor with model service
         health_monitor = ModelHealthMonitor(model_service=model_service)
-        
+
         # Get comprehensive health report
         health_report = health_monitor.get_comprehensive_health_report(model_service)
-        
+
         return health_report
-        
+
     except Exception as error:
         context = format_request_context()
         logger.error("Model health API failed%s: %s", context, error)
@@ -184,16 +185,16 @@ def performance_diagnostics():
     """
     try:
         start_time = time.time()
-        
+
         # Get NLTK status
         nltk_status = get_nltk_status()
-        
+
         # Get NLTK setup results from app config
         nltk_setup_results = current_app.config.get('NLTK_SETUP_RESULTS', {})
-        
+
         # Calculate response time
         response_time = (time.time() - start_time) * 1000
-        
+
         diagnostics = {
             'timestamp': pd.Timestamp.now().isoformat(),
             'response_time_ms': round(response_time, 2),
@@ -204,9 +205,9 @@ def performance_diagnostics():
                 'per_request_downloads': 'disabled'
             }
         }
-        
+
         return diagnostics
-        
+
     except Exception as error:
         context = format_request_context()
         logger.error("Performance diagnostics API failed%s: %s", context, error)

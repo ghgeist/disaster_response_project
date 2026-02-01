@@ -15,7 +15,6 @@ Usage:
 import argparse
 import os
 import sys
-from pathlib import Path
 
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
@@ -56,7 +55,7 @@ def main():
             print("\n✅ No issues detected")
 
         # Show current artifacts
-        print(f"\n📄 CURRENT ARTIFACTS:")
+        print("\n📄 CURRENT ARTIFACTS:")
         artifacts = manager.get_latest_experimental_artifacts()
         if artifacts:
             print(f"  Display name: {artifacts.display_name}")

@@ -32,7 +32,7 @@ def validate_environment(config_class=None) -> dict:
         'warnings': [],
         'info': []
     }
-    
+
     # Check required directories using config
     if not config.DATA_DIR.exists():
         validation_results['errors'].append(f"Data directory not found: {config.DATA_DIR}")
@@ -77,5 +77,5 @@ def validate_environment(config_class=None) -> dict:
         validation_results['warnings'].append(f"Log directory not found: {log_dir}")
     else:
         validation_results['info'].append(f"Log directory found: {log_dir}")
-    
+
     return validation_results

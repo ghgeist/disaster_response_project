@@ -26,22 +26,21 @@ import joblib
 import numpy as np
 import pandas as pd
 from sklearn.metrics import classification_report, f1_score
-from sqlalchemy import create_engine
 
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 # Local imports
 from disasterproject.data.loader import load_data
-from disasterproject.hierarchy import optimize_critical_thresholds
 from disasterproject.utils.config import CRITICAL_LABELS, TARGET_COLUMNS, setup_logging
 
 
 def load_eval_split(eval_ids_file, X, Y):
     """Load frozen eval split."""
     import hashlib
+
     import pandas as pd
-    
+
     def _compute_uids(messages):
         uids_local = []
         for idx, msg in enumerate(messages):
@@ -49,20 +48,20 @@ def load_eval_split(eval_ids_file, X, Y):
             uid_src = f"{text}|{idx}"
             uids_local.append(hashlib.sha1(uid_src.encode('utf-8')).hexdigest())
         return uids_local
-    
+
     # Load eval IDs
     with open(eval_ids_file, 'r') as f:
         data = json.load(f)
     eval_uids = set(data['eval_ids'])
-    
+
     # Compute UIDs and split
     uids = _compute_uids(X)
     uid_series = pd.Series(uids)
     is_eval = uid_series.isin(eval_uids).values
-    
+
     X_train, X_test = X[~is_eval], X[is_eval]
     Y_train, Y_test = Y[~is_eval], Y[is_eval]
-    
+
     print(f"Split: Train={len(X_train)}, Eval={len(X_test)}")
     return X_train, X_test, Y_train, Y_test
 
@@ -73,10 +72,10 @@ def get_proba_array(model, X):
     n_samples = len(X)
     n_labels = len(y_proba_list)
     y_proba = np.zeros((n_samples, n_labels))
-    
+
     # Access the underlying classifier to get class information
     clf = model.named_steps['clf']
-    
+
     for i, probs in enumerate(y_proba_list):
         if probs.ndim == 2 and probs.shape[1] == 2:
             y_proba[:, i] = probs[:, 1]  # Probability of class 1
@@ -99,29 +98,29 @@ def get_proba_array(model, X):
         else:
             # Fallback for unexpected shapes
             y_proba[:, i] = probs.ravel()
-    
+
     return y_proba
 
 
 def optimize_threshold_for_category(y_true, y_proba, target_recall=0.65):
     """
     Optimize threshold for a single category to achieve target recall.
-    
+
     Returns threshold value.
     """
     from sklearn.metrics import precision_recall_curve
-    
+
     # Skip if no positive examples
     if np.sum(y_true) == 0:
         return 0.5
-    
+
     try:
         precision, recall, thresh = precision_recall_curve(y_true, y_proba)
-        
+
         # Find threshold with recall nearest to target
         recall_diff = np.abs(recall - target_recall)
         best_idx = int(np.argmin(recall_diff))
-        
+
         # precision_recall_curve returns thresholds one shorter than recall
         chosen = float(thresh[max(0, min(best_idx, len(thresh)-1))]) if len(thresh) else 0.5
         return chosen
@@ -133,21 +132,21 @@ def optimize_threshold_for_category(y_true, y_proba, target_recall=0.65):
 def evaluate_with_thresholds(Y_true, Y_pred, category_names):
     """Evaluate predictions (matches training script calculation)."""
     all_metrics = []
-    
+
     for i, label in enumerate(category_names):
         report = classification_report(
-            Y_true[:, i], Y_pred[:, i], 
+            Y_true[:, i], Y_pred[:, i],
             output_dict=True, zero_division=0
         )
-        
+
         # Get weighted avg F1 for this category
         if 'weighted avg' in report:
             all_metrics.append(report['weighted avg']['f1-score'])
-    
+
     # Calculate overall F1 as mean of per-category weighted F1
     f1_weighted = np.mean(all_metrics) if all_metrics else 0.0
     f1_micro = f1_score(Y_true, Y_pred, average='micro', zero_division=0)
-    
+
     return {
         'f1_weighted': f1_weighted,
         'f1_micro': f1_micro
@@ -190,26 +189,26 @@ def main():
         default=0.60,
         help='Target recall for non-critical categories (default: 0.60)'
     )
-    
+
     args = parser.parse_args()
-    
+
     setup_logging()
-    
+
     # Paths
     model_path = args.model_path
     db_path = args.db_path
     eval_ids_path = args.eval_ids
-    
+
     # Determine output directory
     if args.output_dir:
         output_dir = args.output_dir
     else:
         # Default to same directory as model
         output_dir = os.path.dirname(model_path) or '.'
-    
+
     # Ensure output directory exists
     os.makedirs(output_dir, exist_ok=True)
-    
+
     print("\n" + "="*70)
     print("THRESHOLD OPTIMIZATION FOR ALL CATEGORIES")
     print("="*70)
@@ -218,21 +217,21 @@ def main():
     print(f"Critical Labels: {', '.join(sorted(CRITICAL_LABELS))}")
     print(f"Target Recall - Critical: {args.critical_recall:.0%}, Non-Critical: {args.non_critical_recall:.0%}")
     print("="*70 + "\n")
-    
+
     # Load model
     print("Loading model...")
     model = joblib.load(model_path)
     print(f"✓ Model loaded: {type(model)}")
-    
+
     # Load data
     print("Loading data...")
     X, Y = load_data(db_path)
     print(f"✓ Loaded {len(X)} samples with {Y.shape[1]} labels")
-    
+
     # Load eval split
     print("Loading eval split...")
     X_train, X_test, Y_train, Y_test = load_eval_split(eval_ids_path, X, Y)
-    
+
     # Baseline evaluation (default 0.5 thresholds)
     print("\n" + "-"*70)
     print("BASELINE PERFORMANCE (default 0.5 thresholds)")
@@ -241,27 +240,27 @@ def main():
     baseline_metrics = evaluate_with_thresholds(
         Y_test, Y_pred_baseline, TARGET_COLUMNS
     )
-    
+
     print(f"F1-Weighted: {baseline_metrics['f1_weighted']:.4f}")
     print(f"F1-Micro: {baseline_metrics['f1_micro']:.4f}")
-    
+
     # Get probabilities
     print("\nExtracting probabilities...")
     y_proba = get_proba_array(model, X_test)
     print(f"✓ Probability array shape: {y_proba.shape}")
-    
+
     # Optimize thresholds for all categories
     print("\n" + "-"*70)
     print("OPTIMIZING THRESHOLDS FOR ALL CATEGORIES")
     print("-"*70)
-    
+
     all_thresholds = {}
     category_stats = []
-    
+
     for i, label in enumerate(TARGET_COLUMNS):
         y_true_label = Y_test[:, i]
         y_proba_label = y_proba[:, i]
-        
+
         # Determine target recall based on category type
         if label in CRITICAL_LABELS:
             target_recall = args.critical_recall
@@ -269,28 +268,28 @@ def main():
         else:
             target_recall = args.non_critical_recall
             category_type = "non-critical"
-        
+
         # Optimize threshold
         threshold = optimize_threshold_for_category(
-            y_true_label, 
-            y_proba_label, 
+            y_true_label,
+            y_proba_label,
             target_recall=target_recall
         )
-        
+
         all_thresholds[label] = threshold
-        
+
         # Calculate metrics for this category
         y_pred_label = (y_proba_label >= threshold).astype(int)
         report = classification_report(
             y_true_label, y_pred_label,
             output_dict=True, zero_division=0
         )
-        
+
         recall = report.get('1', {}).get('recall', 0.0) if '1' in report else 0.0
         precision = report.get('1', {}).get('precision', 0.0) if '1' in report else 0.0
         f1 = report.get('1', {}).get('f1-score', 0.0) if '1' in report else 0.0
         support = report.get('1', {}).get('support', 0) if '1' in report else 0
-        
+
         category_stats.append({
             'category': label,
             'type': category_type,
@@ -301,38 +300,38 @@ def main():
             'f1': f1,
             'support': support
         })
-        
+
         if i % 10 == 0:
             print(f"  Processed {i+1}/{len(TARGET_COLUMNS)} categories...")
-    
+
     print(f"\n✓ Optimized thresholds for all {len(TARGET_COLUMNS)} categories")
-    
+
     # Apply optimized thresholds
     print("\n" + "-"*70)
     print("EVALUATING WITH OPTIMIZED THRESHOLDS")
     print("-"*70)
-    
+
     Y_pred_optimized = np.zeros_like(Y_test, dtype=int)
     for i, label in enumerate(TARGET_COLUMNS):
         threshold = all_thresholds[label]
         Y_pred_optimized[:, i] = (y_proba[:, i] >= threshold).astype(int)
-    
+
     optimized_metrics = evaluate_with_thresholds(
         Y_test, Y_pred_optimized, TARGET_COLUMNS
     )
-    
+
     print(f"F1-Weighted: {optimized_metrics['f1_weighted']:.4f}")
     print(f"F1-Micro: {optimized_metrics['f1_micro']:.4f}")
-    
+
     # Performance delta
     print("\n" + "-"*70)
     print("PERFORMANCE DELTA (Optimized vs Baseline)")
     print("-"*70)
     f1_change = optimized_metrics['f1_weighted'] - baseline_metrics['f1_weighted']
     f1_change_pct = (f1_change / baseline_metrics['f1_weighted']) * 100
-    
+
     print(f"F1-Weighted Change: {f1_change:+.4f} ({f1_change_pct:+.2f}%)")
-    
+
     # Category statistics
     stats_df = pd.DataFrame(category_stats)
     print("\n" + "-"*70)
@@ -341,13 +340,13 @@ def main():
     print("\nCritical Categories:")
     critical_df = stats_df[stats_df['type'] == 'critical'].sort_values('threshold')
     print(critical_df[['category', 'threshold', 'actual_recall', 'precision', 'f1']].to_string(index=False))
-    
+
     print("\nNon-Critical Categories (top 10 by threshold change):")
     non_critical_df = stats_df[stats_df['type'] == 'non-critical'].copy()
     non_critical_df['threshold_change'] = abs(non_critical_df['threshold'] - 0.5)
     top_changed = non_critical_df.nlargest(10, 'threshold_change')
     print(top_changed[['category', 'threshold', 'actual_recall', 'precision', 'f1']].to_string(index=False))
-    
+
     # Save optimized thresholds
     # Standard naming: {model_stem}_thresholds.json (also save legacy name for compatibility)
     model_stem = os.path.splitext(os.path.basename(model_path))[0]
@@ -378,17 +377,17 @@ def main():
             }
         }
     }
-    
+
     # Save with standard name
     with open(threshold_output_standard, 'w') as f:
         json.dump(threshold_data, f, indent=2)
     print(f"\n✓ Optimized thresholds saved to: {threshold_output_standard}")
-    
+
     # Also save legacy name for backward compatibility
     with open(threshold_output_legacy, 'w') as f:
         json.dump(threshold_data, f, indent=2)
     print(f"  (Also saved as: {os.path.basename(threshold_output_legacy)} for compatibility)")
-    
+
     # Verdict
     print("\n" + "="*70)
     if optimized_metrics['f1_weighted'] >= 0.90 and f1_change_pct >= -5.0:

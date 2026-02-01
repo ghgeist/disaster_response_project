@@ -10,7 +10,6 @@ This script:
 
 # Standard library imports
 import json
-import os
 import shutil
 import sys
 from datetime import datetime
@@ -113,7 +112,7 @@ print("\n" + "="*70)
 print("✅ PREPARATION COMPLETE")
 print("="*70)
 print(f"\nPromotion directory: {promo_dir}")
-print(f"\nNext steps:")
+print("\nNext steps:")
 print(f"1. Validate: python scripts/promote_model.py {promo_dir} --dry-run")
 print(f"2. Promote: python scripts/promote_model.py {promo_dir} --print-new-path")
 print("\n" + "="*70)

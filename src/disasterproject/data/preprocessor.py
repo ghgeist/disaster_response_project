@@ -2,10 +2,11 @@
 import logging
 import re
 import string
+
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
 
-from ..utils.config import STOPWORDS_SET, URL_REGEX, URL_PLACE_HOLDER
+from ..utils.config import STOPWORDS_SET, URL_PLACE_HOLDER, URL_REGEX
 
 
 def _normalize_negation_contractions(text: str) -> str:
@@ -32,7 +33,7 @@ def tokenize(text):
     """
     Tokenize with disaster-aware stopword filtering.
 
-    This function detects and replaces URLs, removes punctuation, tokenizes the text, 
+    This function detects and replaces URLs, removes punctuation, tokenizes the text,
     removes stop words while preserving disaster-critical words, and lemmatizes the tokens.
 
     Parameters:
@@ -52,16 +53,16 @@ def tokenize(text):
         text = text.translate(str.maketrans("", "", string.punctuation))
         # Tokenize text
         tokens = word_tokenize(text)
-        
+
         # DISASTER-AWARE stopword removal
         disaster_critical = {
             'me', 'us', 'we', 'i', 'my', 'our', 'help', 'please', 'save', 'rescue',
             # Negations and related
             'no', 'not', 'never', 'none', 'without', 'nor'
         }
-        tokens = [token for token in tokens 
+        tokens = [token for token in tokens
                  if token.lower() not in STOPWORDS_SET or token.lower() in disaster_critical]
-        
+
         # Lemmatize tokens
         lemmatizer = WordNetLemmatizer()
         cleaned_tokens = [

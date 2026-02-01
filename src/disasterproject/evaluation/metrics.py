@@ -5,16 +5,15 @@ Model evaluation and metrics calculation functions.
 import logging
 import os
 import pickle
+
 import pandas as pd
 from sklearn.metrics import classification_report
-
-from ..utils.config import TARGET_COLUMNS
 
 
 def evaluate_model(model, model_name, X_test, Y_test, category_names):
     """
     Evaluate a trained model and save detailed results.
-    
+
     Args:
         model: The trained model to evaluate
         model_name (str): Name of the model for file naming
@@ -81,7 +80,7 @@ def save_gs_results(cv, output_file_path):
     output_file_path (str): The file path where the results should be saved.
     """
     import json
-    
+
     cv_results = cv.cv_results_
     results = []
 
@@ -99,8 +98,8 @@ def save_best_parameters(cv, output_file_path):
     """
     Save the best parameters of a grid search to a JSON file.
 
-    This function extracts the best parameters from the results of a GridSearchCV, 
-    and saves them to a JSON file. If the file cannot be opened for writing (for example, if the directory does not exist), 
+    This function extracts the best parameters from the results of a GridSearchCV,
+    and saves them to a JSON file. If the file cannot be opened for writing (for example, if the directory does not exist),
     an error message is logged and the function returns without saving the parameters.
 
     Args:
@@ -111,7 +110,7 @@ def save_best_parameters(cv, output_file_path):
     FileNotFoundError: If the file cannot be opened for writing.
     """
     import json
-    
+
     best_params = cv.best_params_
 
     try:

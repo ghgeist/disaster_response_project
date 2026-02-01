@@ -13,7 +13,6 @@ Implements MLOps best practices for promoting experimental models to production:
 import argparse
 import hashlib
 import json
-import os
 import shutil
 import sys
 from datetime import datetime
@@ -423,7 +422,7 @@ def main():
         with open(record_file, 'w') as f:
             json.dump(complete_record, f, indent=2)
 
-        print(f"\n✅ Promotion complete!")
+        print("\n✅ Promotion complete!")
         print(f"📝 Promotion record: {record_file}")
 
         return 0

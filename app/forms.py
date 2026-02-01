@@ -1,7 +1,7 @@
 """Flask-WTF forms for the Disaster Response application."""
 
 from flask_wtf import FlaskForm
-from wtforms import TextAreaField, SubmitField, BooleanField
+from wtforms import SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Length, Regexp
 
 

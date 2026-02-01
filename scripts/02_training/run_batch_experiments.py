@@ -10,7 +10,7 @@ Usage:
 
 The script will run all predefined experiments:
 - baseline (no sampling)
-- smote (SMOTE conservative sampling)  
+- smote (SMOTE conservative sampling)
 - adasyn (ADASYN moderate sampling)
 - conservative (very conservative SMOTE sampling)
 
@@ -56,31 +56,31 @@ def main():
     """Run all predefined experiments in batch mode."""
     # Set up logging
     setup_logging()
-    
+
     print('🚀 Batch Experiment Runner')
     print('=' * 50)
     print(f'Database: {DB_PATH}')
     print(f'Experiments to run: {len(EXPERIMENTS)}')
     print(f'Started at: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
     print('=' * 50)
-    
+
     start_time = time.time()
     results = []
-    
+
     for i, (label, method, description) in enumerate(EXPERIMENTS, 1):
         print(f"\n[{i}/{len(EXPERIMENTS)}] Starting: {label.upper()}")
         print(f"Description: {description}")
         print(f"Method: {method}")
         print('-' * 40)
-        
+
         experiment_start = time.time()
-        
+
         try:
             name = create_experiment_name(method)
             model = train_experiment(name, method, DB_PATH)
-            
+
             experiment_duration = time.time() - experiment_start
-            
+
             if model is not None:
                 print(f"✅ {label} completed successfully in {experiment_duration/60:.1f} minutes")
                 results.append({
@@ -97,7 +97,7 @@ def main():
                     'status': 'failed',
                     'duration': experiment_duration
                 })
-                
+
         except Exception as e:
             experiment_duration = time.time() - experiment_start
             print(f"💥 {label} crashed: {e}")
@@ -109,17 +109,17 @@ def main():
                 'duration': experiment_duration,
                 'error': str(e)
             })
-        
+
         # Brief pause between experiments
         if i < len(EXPERIMENTS):
             print("⏸️  Pausing 3 seconds before next experiment...")
             time.sleep(3)
-    
+
     # Summary report
     total_duration = time.time() - start_time
     successful = [r for r in results if r['status'] == 'success']
     failed = [r for r in results if r['status'] != 'success']
-    
+
     print('\n' + '=' * 60)
     print('📋 BATCH EXPERIMENT SUMMARY')
     print('=' * 60)
@@ -127,24 +127,24 @@ def main():
     print(f'❌ Failed: {len(failed)}/{len(EXPERIMENTS)}')
     print(f'⏱️  Total time: {total_duration/60:.1f} minutes')
     print(f'🕐 Finished at: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
-    
+
     if successful:
         print('\n📊 Successful experiments:')
         for result in successful:
             print(f"  • {result['experiment']}: {result['duration']/60:.1f} min")
-    
+
     if failed:
         print('\n💥 Failed experiments:')
         for result in failed:
             error_msg = result.get('error', 'Unknown error')
             print(f"  • {result['experiment']}: {result['status']} - {error_msg}")
-    
+
     print('\n📁 Check these directories for results:')
     print('  • experiments/configs/ - Experiment configurations')
-    print('  • experiments/results/ - Result summaries')  
+    print('  • experiments/results/ - Result summaries')
     print('  • experiments/models/ - Trained models')
     print('  • data/04_fct/ - Performance metrics')
-    
+
     print('\n💡 Next steps:')
     print('  • Run: python scripts/04_evaluation/compare_models.py')
     print('  • Review results in experiments/ directories')
