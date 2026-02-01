@@ -132,10 +132,13 @@ def _safe_text_value(value) -> str:
     """Return safe string value, treating NaN/None as empty."""
     if value is None:
         return ""
-    if isinstance(value, float) and math.isnan(value):
-        return ""
     if isinstance(value, str):
         return value
+    try:
+        if math.isnan(value):
+            return ""
+    except TypeError:
+        pass
     return str(value)
 
 
@@ -196,7 +199,7 @@ def _row_to_feed_item(row, category_columns: list) -> dict:
         if conf > 0.5
     ][:10]
 
-    genre = _safe_text_value(row.get("genre")).strip().lower() or "direct"
+    genre = row.get("genre")
     ts = generate_timestamp_for_id(raw_id)
     timestamp_iso = ts.replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
@@ -280,12 +283,16 @@ def feed():
         if total == 0:
             page = 1
             total_pages = 0
+            effective_offset = 0
         else:
             page = (offset // limit) + 1
             total_pages = (total + limit - 1) // limit
-            if page > total_pages:
+            if offset >= total:
                 page = total_pages
-        slice_df = df.iloc[offset : offset + limit]
+                effective_offset = (total_pages - 1) * limit
+            else:
+                effective_offset = offset
+        slice_df = df.iloc[effective_offset : effective_offset + limit]
 
         items = []
         for _, row in slice_df.iterrows():
