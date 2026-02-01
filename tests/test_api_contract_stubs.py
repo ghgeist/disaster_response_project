@@ -89,6 +89,50 @@ def test_api_metrics_contract(client):
     assert isinstance(payload["trendData"], list)
 
 
+def test_metrics_empty_dataset(app, client):
+    """Empty dataset: volToday=0, flaggedRate=0, topCategories=[], trendData has 7 entries count=0."""
+    df = _make_feed_df(0, ["water", "food"])
+    stub = StubDataService(df, ["water", "food"])
+    original = app.data_service
+    app.data_service = stub
+    try:
+        response = client.get("/api/metrics")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["volToday"] == 0
+        assert data["flaggedRate"] == 0.0
+        assert data["topCategories"] == []
+        assert len(data["trendData"]) == 7
+        for entry in data["trendData"]:
+            assert "time" in entry and "count" in entry
+            assert entry["count"] == 0
+    finally:
+        app.data_service = original
+
+
+def test_metrics_nan_in_categories_does_not_crash(app, client):
+    """DataFrame with NaN in category columns does not crash metrics endpoint."""
+    df = pd.DataFrame(
+        [
+            {"id": 1, "message": "a", "genre": "direct", "water": 1, "food": float("nan")},
+            {"id": 2, "message": "b", "genre": "news", "water": float("nan"), "food": 0},
+        ]
+    )
+    stub = StubDataService(df, ["water", "food"])
+    original = app.data_service
+    app.data_service = stub
+    try:
+        response = client.get("/api/metrics")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "topCategories" in data
+        assert "volToday" in data
+        for cat in data["topCategories"]:
+            assert isinstance(cat["count"], int)
+    finally:
+        app.data_service = original
+
+
 def test_api_categories_contract(client):
     response = client.get("/api/categories")
     assert response.status_code == 200
