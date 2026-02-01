@@ -3,6 +3,7 @@ API contract stubs for the Storm Signal dashboard.
 """
 import hashlib
 import logging
+import math
 import random
 from datetime import datetime, timedelta, timezone
 
@@ -119,26 +120,18 @@ def generate_timestamp_for_id(raw_id) -> datetime:
     return datetime.now(timezone.utc) - timedelta(hours=hours_ago)
 
 
-SOCIAL_SOURCES = ("Twitter", "Facebook", "Telegram", "BlueSky")
 GENRE_TO_SOURCE = {
     "direct": "Direct Report",
     "news": "News",
-    "social": None,  # Resolved per call via random choice
+    "social": "X",
 }
+DEFAULT_SOURCE = "X"
 
 
 def genre_to_source(genre: str) -> str:
-    """Map database genre to display source. Social maps to a random platform."""
+    """Map database genre to display source. Unknown/social genres map to X."""
     normalized = (genre or "").strip().lower() or "direct"
-    source = GENRE_TO_SOURCE.get(normalized)
-    if source is not None:
-        return source
-    return random.choice(SOCIAL_SOURCES)
-
-
-def _now_iso() -> str:
-    """Return a UTC timestamp string for stubs."""
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return GENRE_TO_SOURCE.get(normalized, DEFAULT_SOURCE)
 
 
 def _log_api_error(label: str, error: Exception):
@@ -150,9 +143,21 @@ def _log_api_error(label: str, error: Exception):
 def _simulated_probabilities(row, category_columns: list) -> dict:
     """Build probabilities from binary labels: 0.5 + (label * 0.4) + random(0, 0.1)."""
     return {
-        col: 0.5 + (int(row.get(col, 0) or 0) * 0.4) + random.uniform(0, 0.1)
+        col: 0.5 + (_safe_label_value(row.get(col, 0)) * 0.4) + random.uniform(0, 0.1)
         for col in category_columns
     }
+
+
+def _safe_label_value(value) -> int:
+    """Return 0/1 label, treating NaN/None/invalid values as 0."""
+    if value is None:
+        return 0
+    if isinstance(value, float) and math.isnan(value):
+        return 0
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _row_to_feed_item(row, category_columns: list) -> dict:
@@ -195,30 +200,6 @@ def _row_to_feed_item(row, category_columns: list) -> dict:
         "categories": top_three,
         "classifications": classifications,
         "isTranslated": is_translated,
-    }
-
-
-def _build_stub_feed_item() -> dict:
-    """Create a single SignalItem stub for contract validation."""
-    display_categories = [
-        to_display_name("water"),
-        to_display_name("search_and_rescue"),
-        to_display_name("floods"),
-    ]
-    return {
-        "id": "SIG-1001",
-        "timestamp": _now_iso(),
-        "source": "Twitter",
-        "content": "Urgent: Water rising rapidly near the east bridge.",
-        "originalContent": None,
-        "language": "en",
-        "riskLevel": "HIGH",
-        "categories": display_categories,
-        "classifications": [
-            {"category": display_categories[0], "confidence": 0.92},
-            {"category": display_categories[1], "confidence": 0.88},
-        ],
-        "isTranslated": False,
     }
 
 
@@ -286,13 +267,12 @@ def feed():
                 df = df.loc[mask]
         total = len(df)
         if total == 0:
-            page = 0
+            page = 1
             total_pages = 0
         else:
             page = (offset // limit) + 1 if limit else 1
             total_pages = (total + limit - 1) // limit if limit else 0
         slice_df = df.iloc[offset : offset + limit]
-        slice_size = len(slice_df)
 
         items = []
         for _, row in slice_df.iterrows():

@@ -1,5 +1,7 @@
 """Contract smoke tests for stubbed dashboard API endpoints."""
 
+from app.routes.api import _safe_label_value, _simulated_probabilities
+
 
 def test_api_feed_contract(client):
     response = client.get("/api/feed")
@@ -73,3 +75,20 @@ def test_api_classify_contract(client):
     category = categories[0]
     for key in ("name", "confidence", "volume"):
         assert key in category
+
+
+def test_safe_label_value_handles_nan():
+    assert _safe_label_value(None) == 0
+    assert _safe_label_value(float("nan")) == 0
+    assert _safe_label_value("0") == 0
+    assert _safe_label_value("1") == 1
+    assert _safe_label_value("invalid") == 0
+
+
+def test_simulated_probabilities_accept_nan():
+    row = {"medical_help": float("nan"), "water": 1, "food": 0}
+    result = _simulated_probabilities(row, ["medical_help", "water", "food"])
+    assert set(result.keys()) == {"medical_help", "water", "food"}
+    assert 0.5 <= result["medical_help"] <= 0.6
+    assert 0.9 <= result["water"] <= 1.0
+    assert 0.5 <= result["food"] <= 0.6

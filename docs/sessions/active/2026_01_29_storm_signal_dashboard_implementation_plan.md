@@ -111,7 +111,7 @@ related:
 interface SignalItem {
   id: string;                    // "SIG-1001"
   timestamp: Date;                 // Generated (last 6 hours)
-  source: string;                  // "Twitter", "News", "Direct Report"
+  source: string;                  // "X", "News", "Direct Report"
   content: string;                 // Message text
   originalContent?: string;        // If translated
   language: Language;             // "en", "es", "fr", "ht"
@@ -129,7 +129,7 @@ interface SignalItem {
 | `id` | `SignalItem.id` → `SIG-{id}` | Format as signal ID |
 | `message` | `SignalItem.content` | Truncate to 120 chars for preview |
 | `original` | `SignalItem.originalContent` | Check if differs from `message` |
-| `genre` | `SignalItem.source` | Map: `direct`→"Direct Report", `news`→"News", `social`→random platform |
+| `genre` | `SignalItem.source` | Map: `direct`→"Direct Report", `news`→"News", `social`→"X" |
 | 36 category columns | `SignalItem.classifications` | Binary labels → probabilities from model |
 
 **Category Name Mapping** (Internal → Display):
@@ -314,7 +314,7 @@ interface SignalItem {
   GENRE_TO_SOURCE = {
       'direct': 'Direct Report',
       'news': 'News',
-      'social': random.choice(['Twitter', 'Facebook', 'Telegram', 'BlueSky'])
+      'social': 'X'
   }
   ```
 
@@ -338,8 +338,8 @@ interface SignalItem {
 **Done means**: Endpoint exists, returns paginated feed items with all required fields. Uses binary labels + simulated confidences (or limited model inference) to avoid performance issues.
 
 #### Phase 2 Completion Notes
-- ✅ Timestamp generation: `generate_timestamp(index, total)` in `app/routes/api.py` spreads over last 6 hours, most recent first.
-- ✅ Source mapping: `genre_to_source(genre)` with `GENRE_TO_SOURCE` dict; `social` maps to random choice of Twitter/Facebook/Telegram/BlueSky.
+- ✅ Timestamp generation: `generate_timestamp_for_id(raw_id)` in `app/routes/api.py` spreads over last 6 hours, deterministic per id.
+- ✅ Source mapping: `genre_to_source(genre)` with `GENRE_TO_SOURCE` dict; `social` maps to `X` (default source).
 - ✅ `GET /api/feed`: Real data from `DataService.get_data()`, query params `limit` (default 25, max 100), `offset` (default 0), `categories[]` (filter by internal names). Binary labels + simulated confidences (`0.5 + label*0.4 + random(0,0.1)`), severity from `calculate_severity`, pagination with `page`, `limit`, `total`, `totalPages`. Response shape matches Figma `SignalItem`.
 - ✅ Contract tests still pass: `python scripts/run_tests.py tests/test_api_contract_stubs.py -q` (or `.venv\Scripts\python -m pytest tests/test_api_contract_stubs.py -q`).
 
@@ -507,7 +507,7 @@ app/
     {
       "id": "SIG-1001",
       "timestamp": "2026-01-29T15:24:59Z",
-      "source": "Twitter",
+      "source": "X",
       "content": "Urgent: Water rising rapidly...",
       "originalContent": null,
       "language": "en",

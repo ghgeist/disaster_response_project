@@ -81,7 +81,7 @@ The Figma code provides a **complete React SPA structure** with:
 interface SignalItem {
   id: string;                    // "SIG-1001"
   timestamp: Date;                 // Generated (last 6 hours)
-  source: string;                  // "Twitter", "News", "Direct Report"
+  source: string;                  // "X", "News", "Direct Report"
   content: string;                 // Message text
   originalContent?: string;        // If translated
   language: Language;             // "en", "es", "fr", "ht"
@@ -166,7 +166,7 @@ fire, earthquake, cold, other_weather, direct_report
 |---------------|--------------|-------|
 | `direct` | "Direct Report" | ✅ Direct mapping |
 | `news` | "News" | ✅ Direct mapping |
-| `social` | "Twitter", "Facebook", "Telegram", "BlueSky" | ⚠️ Needs randomization or mapping logic |
+| `social` | "X" | Standardize on X for social sources |
 
 **Design Spec**: Map `genre` to platform names (can randomize for variety).
 
@@ -215,7 +215,7 @@ is_translated = (
     {
       "id": "SIG-1001",
       "timestamp": "2026-01-29T15:24:59Z",
-      "source": "Twitter",
+      "source": "X",
       "content": "Urgent: Water rising rapidly...",
       "originalContent": null,
       "language": "en",
@@ -566,7 +566,7 @@ const calculateSeverity = (classifications: Classification[]): RiskLevel => {
 2. ✅ Source mapping inline (simple dict lookup):
    ```python
    GENRE_TO_SOURCE = {'direct': 'Direct Report', 'news': 'News', 
-                      'social': random.choice(['Twitter', 'Facebook', ...])}
+                      'social': 'X'}
    ```
 
 **Estimated Time**: 3-4 hours (reduced from 4-5 hours)
@@ -915,7 +915,7 @@ See `docs/sessions/active/2026_01_29_storm_signal_dashboard_design_spec.md` Sect
     {
       "id": "SIG-1001",
       "timestamp": "2026-01-29T15:24:59Z",
-      "source": "Twitter",
+      "source": "X",
       "content": "Urgent: Water rising rapidly in downtown area...",
       "originalContent": null,
       "language": "en",

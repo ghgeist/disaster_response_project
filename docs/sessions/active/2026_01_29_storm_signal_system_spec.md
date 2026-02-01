@@ -211,7 +211,7 @@ These exclusions are intentional to preserve narrative clarity and system legibi
 * **Timestamps**: Generated over last 6 hours (most recent first)
 * **Volume Metrics**: Simulated "Volume Today" counts (can be based on database size)
 * **Trend Graphs**: Simulated time-series data for flagged signals
-* **Source Platforms**: Enhanced mapping of `genre` to platform names (Twitter, Reddit, etc.)
+* **Source Platforms**: Map `genre` to platform name `X` for social sources
 
 > **Invariant**: Classification is real. Volume, scale, and temporal context are illustrative.
 
