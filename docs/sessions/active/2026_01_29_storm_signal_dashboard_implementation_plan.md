@@ -465,6 +465,13 @@ interface SignalItem {
 
 **Done means**: React app loads, displays real data, all features work end-to-end.
 
+#### Phase 5 Completion Notes
+- ✅ **Branch**: `feature/phase-5-frontend-integration`.
+- ✅ **Step 5.1**: Vite `base: '/static/dashboard/'` in `_vendor/figma_make/vite.config.ts`; React app built with `npm run build`; `dist/` contents copied to `app/static/dashboard/` (index.html, assets/*.js, assets/*.css).
+- ✅ **Step 5.2**: Flask routes added in `app/routes/api.py`: `GET /api/dashboard` and `GET /api/dashboard/<path:path>` serve `app/static/dashboard/index.html` for SPA routing; static assets served at `/static/dashboard/assets/`.
+- ✅ **Step 5.3**: React components updated (minimal vendor edits): `App.tsx` fetches `/api/feed?limit=50`, maps items (timestamp string → Date), passes loading/error to `FeedPanel`; `FeedPanel` accepts optional `loading`/`error` and shows loading/error states; `MetricsPanel` fetches `/api/metrics`, maps `volToday`/`trendData` to `volumeToday`/`flaggedHistory`, shows LIVE badge; `ClassificationPanel` POSTs to `/api/classify` with `{ message }`, maps response `categories` (name, confidence, volume) to result shape, shows classify error when applicable.
+- ✅ **Step 5.4**: Manual check: `GET /api/dashboard` returns 200 and index.html; feed and metrics APIs return JSON; dashboard loads and fetches real data from Flask.
+
 ---
 
 ### Phase 6: Polish & Testing (2-3 hours)

@@ -11,6 +11,8 @@ interface FeedPanelProps {
   selectedFilters: string[];
   onToggleFilter: (category: string) => void;
   onClearFilters: () => void;
+  loading?: boolean;
+  error?: string | null;
 }
 
 const SourceIcon = ({ source }: { source: string }) => {
@@ -21,7 +23,7 @@ const SourceIcon = ({ source }: { source: string }) => {
   return <MessageSquare className="w-3 h-3" />;
 };
 
-export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFilters }: FeedPanelProps) => {
+export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFilters, loading, error }: FeedPanelProps) => {
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
   return (
@@ -95,15 +97,25 @@ export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFil
 
       {/* Feed List */}
       <div className="flex-1 overflow-y-auto p-0">
-        {signals.length === 0 ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center h-48 text-slate-500 text-sm">
+            <span>Loading feed…</span>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center h-48 text-red-600 text-sm px-4 text-center">
+            <span>{error}</span>
+          </div>
+        ) : signals.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-slate-400 text-sm">
             <span>No signals found</span>
             <button onClick={onClearFilters} className="text-blue-500 hover:underline mt-1">Clear filters</button>
           </div>
         ) : (
           signals.map((signal) => {
-            const maxConf = Math.max(...signal.classifications.map(c => c.confidence));
-            
+            const confidences = signal.classifications?.map((c) => c.confidence) ?? [];
+            const rawMax = confidences.length > 0 ? Math.max(...confidences) : 0;
+            const maxConf = Number.isFinite(rawMax) ? rawMax : 0;
+
             return (
               <div 
                 key={signal.id}

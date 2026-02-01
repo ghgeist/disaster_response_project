@@ -1,50 +1,47 @@
 import { useState } from "react";
-import { Badge, cn } from "@/app/components/ui/common";
-import { getCategoryVolume } from "@/app/data";
+import { Badge } from "@/app/components/ui/common";
 import { Send, Sparkles, BarChart2, Ambulance, AlertOctagon, Trash2 } from "lucide-react";
 
 export const ClassificationPanel = () => {
   const [inputText, setInputText] = useState("");
-  const [result, setResult] = useState<{ categories: {name: string, conf: number, vol: number}[], severity: string } | null>(null);
+  const [result, setResult] = useState<{ categories: { name: string; conf: number; vol: number }[]; severity: string } | null>(null);
   const [isClassifying, setIsClassifying] = useState(false);
   const [hasNoCategories, setHasNoCategories] = useState(false);
+  const [classifyError, setClassifyError] = useState<string | null>(null);
 
   const handleClassify = () => {
     if (!inputText.trim()) return;
     setIsClassifying(true);
     setHasNoCategories(false);
     setResult(null);
-    
-    // Simulate API call
-    setTimeout(() => {
-      // Mock result logic based on keywords or random
-      const mockCats = [];
-      const lower = inputText.toLowerCase();
-      
-      if (lower.includes("water") || lower.includes("flood")) mockCats.push({name: "Water", conf: 0.92});
-      if (lower.includes("hurt") || lower.includes("injured")) mockCats.push({name: "Medical Help", conf: 0.88});
-      if (lower.includes("food") || lower.includes("hungry")) mockCats.push({name: "Food", conf: 0.85});
-      if (lower.includes("rubble") || lower.includes("trapped")) mockCats.push({name: "Search & Rescue", conf: 0.94});
-      if (lower.includes("fire")) mockCats.push({name: "Fire", conf: 0.97});
+    setClassifyError(null);
 
-      // Special case for empty
-      if (mockCats.length === 0) {
-        setHasNoCategories(true);
-      } else {
-        // Add volume stats
-        const enrichedCats = mockCats.map(c => ({
-          ...c,
-          vol: getCategoryVolume(c.name)
-        }));
-
-        setResult({
-          categories: enrichedCats,
-          severity: enrichedCats.some(c => ["Medical Help", "Water", "Food", "Search & Rescue", "Fire"].includes(c.name)) ? "HIGH" : "LOW"
-        });
-      }
-      
-      setIsClassifying(false);
-    }, 800);
+    fetch("/api/classify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: inputText.trim() }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(res.status === 400 ? "Invalid message" : `Classification ${res.status}`);
+        return res.json();
+      })
+      .then((data: { categories?: { name: string; confidence: number; volume: number }[]; severity?: string }) => {
+        const cats = Array.isArray(data?.categories) ? data.categories : [];
+        if (cats.length === 0) {
+          setHasNoCategories(true);
+        } else {
+          setResult({
+            categories: cats.map((c) => ({
+              name: c.name,
+              conf: c.confidence ?? 0,
+              vol: c.volume ?? 0,
+            })),
+            severity: (data.severity as string) ?? "LOW",
+          });
+        }
+      })
+      .catch((err) => setClassifyError(err?.message ?? "Classification failed"))
+      .finally(() => setIsClassifying(false));
   };
 
   return (
@@ -81,6 +78,9 @@ e.g. 'Flash flood in sector 7, need immediate evacuation support...'"
               </>
             )}
           </button>
+          {classifyError && (
+            <p className="text-xs text-red-600 mt-2">{classifyError}</p>
+          )}
         </div>
 
         {/* Results */}
