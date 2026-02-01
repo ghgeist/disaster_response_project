@@ -56,7 +56,7 @@ export const MetricsPanel = () => {
     );
   }
 
-  const maxCatCount = metrics.topCategories[0]?.count ?? 1;
+  const maxCatCount = Math.max(metrics.topCategories[0]?.count ?? 0, 1);
 
   return (
     <div className="h-full flex flex-col bg-slate-50 overflow-y-auto">

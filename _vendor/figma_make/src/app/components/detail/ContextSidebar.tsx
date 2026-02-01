@@ -1,4 +1,4 @@
-import { Clock, Copy, GitBranch, TrendingUp } from "lucide-react";
+import { Clock, Copy, TrendingUp } from "lucide-react";
 
 export const ContextSidebar = () => {
   return (

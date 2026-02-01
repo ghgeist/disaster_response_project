@@ -113,8 +113,8 @@ export const ContentPane = ({ item }: ContentPaneProps) => {
           <div className="bg-blue-50/50 border border-blue-100 rounded p-3">
             <p className="text-xs text-blue-800 leading-normal">
               <span className="font-semibold">Key triggers: </span>
-              The model identified <span className="font-mono bg-blue-100 px-1 rounded text-blue-900 mx-0.5">"{item.keywords[0]}"</span> 
-              and <span className="font-mono bg-blue-100 px-1 rounded text-blue-900 mx-0.5">"{item.keywords[1]}"</span> 
+              The model identified <span className="font-mono bg-blue-100 px-1 rounded text-blue-900 mx-0.5">&quot;{item.keywords[0]}&quot;</span>
+              and <span className="font-mono bg-blue-100 px-1 rounded text-blue-900 mx-0.5">&quot;{item.keywords[1]}&quot;</span> 
               as high-confidence indicators for the primary classification.
             </p>
           </div>

@@ -6,6 +6,17 @@ alwaysApply: true
 
 ## Linting Expectations
 
+**Why:** Run the same linters that CI runs so lint/format issues are fixed before push and don’t cause long-tail CI failures.
+
+### Python
 - Run Ruff on changed Python code before considering a task complete.
 - When Pylint is configured, run Pylint on changed code as well.
+
+### TypeScript / React (`_vendor/figma_make/`)
+- Run the TypeScript linter on changed TS/TSX code in the dashboard before considering a task complete.
+- From project root: `npm run lint --prefix _vendor/figma_make` (or `cd _vendor/figma_make && npm run lint`).
+- To auto-fix: `npm run lint:fix --prefix _vendor/figma_make` (or `cd _vendor/figma_make && npm run lint:fix`).
+- Uses ESLint with typescript-eslint and React/React Hooks rules; config lives at `_vendor/figma_make/eslint.config.js`.
+
+### General
 - Fix any lint findings, or explicitly document why a finding is intentionally ignored.

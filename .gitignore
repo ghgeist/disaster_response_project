@@ -19,7 +19,7 @@ __pycache__
 # Logging files
 *.log
 
-#VSCode
+# VSCode
 .vscode/
 
 # Security: never commit local session/cookie/token artifacts
@@ -44,6 +44,13 @@ dist/
 build/
 *.min.js
 *.min.css
+
+# React / Vite dashboard (built from _vendor/figma_make; copy dist/ → app/static/dashboard/)
+app/static/dashboard/assets/
+
+# Vite/React env (secrets, local overrides)
+.env.local
+.env.*.local
 
 # Vendor directories (treat as read-only upstream)
 _vendor/
