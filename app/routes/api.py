@@ -154,16 +154,6 @@ def _log_api_error(label: str, error: Exception):
     logger.error("%s failed%s: %s", label, context, error)
 
 
-def _simulated_probabilities(row, category_columns: list) -> dict:
-    """Build probabilities from binary labels with clear separation (0 < 0.5 < 1 bands)."""
-    return {
-        col: (0.1 + random.uniform(0, 0.1))
-        if _safe_label_value(row.get(col, 0)) == 0
-        else (0.85 + random.uniform(0, 0.15))
-        for col in category_columns
-    }
-
-
 def _safe_label_value(value) -> int:
     """Return 0/1 label, treating NaN/None/invalid values as 0."""
     if value is None:
@@ -174,6 +164,16 @@ def _safe_label_value(value) -> int:
         return int(value)
     except (TypeError, ValueError):
         return 0
+
+
+def _simulated_probabilities(row, category_columns: list) -> dict:
+    """Build probabilities from binary labels with clear separation (0 < 0.5 < 1 bands)."""
+    return {
+        col: (0.1 + random.uniform(0, 0.1))
+        if _safe_label_value(row.get(col, 0)) == 0
+        else (0.85 + random.uniform(0, 0.15))
+        for col in category_columns
+    }
 
 
 def _row_to_feed_item(row, category_columns: list) -> dict:
