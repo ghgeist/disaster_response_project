@@ -89,6 +89,6 @@ def test_simulated_probabilities_accept_nan():
     row = {"medical_help": float("nan"), "water": 1, "food": 0}
     result = _simulated_probabilities(row, ["medical_help", "water", "food"])
     assert set(result.keys()) == {"medical_help", "water", "food"}
-    assert 0.5 <= result["medical_help"] <= 0.6
-    assert 0.9 <= result["water"] <= 1.0
-    assert 0.5 <= result["food"] <= 0.6
+    assert 0.1 <= result["medical_help"] <= 0.2
+    assert 0.7 <= result["water"] <= 0.8
+    assert 0.1 <= result["food"] <= 0.2

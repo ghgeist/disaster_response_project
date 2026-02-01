@@ -141,9 +141,9 @@ def _log_api_error(label: str, error: Exception):
 
 
 def _simulated_probabilities(row, category_columns: list) -> dict:
-    """Build probabilities from binary labels: 0.5 + (label * 0.4) + random(0, 0.1)."""
+    """Build probabilities from binary labels with clear separation."""
     return {
-        col: 0.5 + (_safe_label_value(row.get(col, 0)) * 0.4) + random.uniform(0, 0.1)
+        col: 0.1 + (_safe_label_value(row.get(col, 0)) * 0.6) + random.uniform(0, 0.1)
         for col in category_columns
     }
 
@@ -289,9 +289,6 @@ def feed():
             },
         }
         return jsonify(payload)
-    except DataServiceError as error:
-        _log_api_error("GET /api/feed", error)
-        return jsonify({"error": "Feed unavailable right now."}), 500
     except Exception as error:
         _log_api_error("GET /api/feed", error)
         return jsonify({"error": "Feed unavailable right now."}), 500
