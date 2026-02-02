@@ -21,7 +21,6 @@ export default function App() {
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [showMobileBanner, setShowMobileBanner] = useState(true);
   const [isDesktop, setIsDesktop] = useState(false);
-  const [dispatchScrollKey, setDispatchScrollKey] = useState(0);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -147,7 +146,6 @@ export default function App() {
 
       return [newSignalWithFixedTime, ...prev];
     });
-    setDispatchScrollKey(prev => prev + 1);
   };
 
   const ResizeHandle = () => (
@@ -221,15 +219,14 @@ export default function App() {
             <PanelGroup direction="horizontal">
               {/* Left Panel: Feed & Filters */}
               <Panel defaultSize={40} minSize={25} order={1} className="bg-white">
-                <FeedPanel 
-                  signals={filteredSignals} 
-                  selectedFilters={selectedFilters}
-                  onToggleFilter={handleToggleFilter}
-                  onClearFilters={handleClearFilters}
-                  loading={feedLoading}
-                  error={feedError}
-                scrollToTopKey={dispatchScrollKey}
-                />
+              <FeedPanel 
+                signals={filteredSignals} 
+                selectedFilters={selectedFilters}
+                onToggleFilter={handleToggleFilter}
+                onClearFilters={handleClearFilters}
+                loading={feedLoading}
+                error={feedError}
+              />
               </Panel>
               
               <ResizeHandle />
@@ -256,7 +253,6 @@ export default function App() {
               onClearFilters={handleClearFilters}
               loading={feedLoading}
               error={feedError}
-              scrollToTopKey={dispatchScrollKey}
             />
           </div>
         )}

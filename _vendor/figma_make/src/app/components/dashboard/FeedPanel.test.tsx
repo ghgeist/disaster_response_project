@@ -100,4 +100,31 @@ describe('FeedPanel', () => {
     )
     expect(screen.getByText('Feed 500')).toBeInTheDocument()
   })
+
+  it('renders signals in the provided order', () => {
+    const signals: SignalItem[] = [
+      makeSignal({
+        id: 'MANUAL-1',
+        content: 'Manual dispatch message',
+        timestamp: new Date('2026-02-01T14:05:00Z'),
+      }),
+      makeSignal({
+        id: 'SIG-2',
+        content: 'Direct report message',
+        timestamp: new Date('2026-02-01T14:00:00Z'),
+      }),
+    ]
+    render(
+      <FeedPanel
+        signals={signals}
+        selectedFilters={[]}
+        onToggleFilter={noop}
+        onClearFilters={noop}
+      />
+    )
+    const manual = screen.getByText('Manual dispatch message')
+    const direct = screen.getByText('Direct report message')
+    const position = manual.compareDocumentPosition(direct)
+    expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
 })
