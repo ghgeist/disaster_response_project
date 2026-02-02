@@ -36,3 +36,31 @@ def test_prediction_flow_returns_completion_banner(smoke_client) -> None:
     )
     assert response.status_code == 200, "Prediction flow should render without redirect loops"
     assert b"Analysis Complete" in response.data, "Results page missing completion banner"
+
+
+def test_dashboard_spa_returns_200_and_references_static_assets(smoke_client) -> None:
+    """Dashboard SPA route returns HTTP 200 and HTML that references static assets."""
+    response = smoke_client.get("/api/dashboard")
+    assert response.status_code == 200, "GET /api/dashboard should return 200"
+    assert response.content_type and "text/html" in response.content_type
+    body = response.data.decode("utf-8")
+    assert "/static/dashboard/" in body, "Dashboard HTML must reference static assets (SPA entry)"
+
+
+def test_model_info_dashboard_spa_returns_200(smoke_client) -> None:
+    """Model Information SPA route returns HTTP 200 and serves the same SPA shell."""
+    response = smoke_client.get("/api/model-info-dashboard")
+    assert response.status_code == 200, "GET /api/model-info-dashboard should return 200"
+    assert response.content_type and "text/html" in response.content_type
+    body = response.data.decode("utf-8")
+    assert "/static/dashboard/" in body, "Model info dashboard must reference same static assets"
+
+
+def test_model_info_dashboard_api_returns_200_and_valid_json(smoke_client) -> None:
+    """GET /api/model-info/dashboard returns HTTP 200 and valid JSON with expected keys."""
+    response = smoke_client.get("/api/model-info/dashboard")
+    assert response.status_code == 200, "GET /api/model-info/dashboard (API) should return 200"
+    payload = response.get_json()
+    assert payload is not None, "Response must be valid JSON"
+    for key in ("model", "metrics", "categories", "criticalThresholds", "registry"):
+        assert key in payload, f"Dashboard API payload must include key: {key}"
