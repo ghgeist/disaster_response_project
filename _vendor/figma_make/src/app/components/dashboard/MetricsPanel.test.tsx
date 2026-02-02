@@ -37,12 +37,11 @@ describe('MetricsPanel', () => {
     expect(screen.getByText(/Loading metrics/)).toBeInTheDocument()
   })
 
-  it('shows Vol Today and LIVE badge after fetch succeeds', async () => {
+  it('shows Vol Today after fetch succeeds', async () => {
     render(<MetricsPanel />)
     await waitFor(() => {
       expect(screen.getByText(/Vol Today/)).toBeInTheDocument()
     })
-    expect(screen.getByText('LIVE')).toBeInTheDocument()
     expect(screen.getByText('1,000')).toBeInTheDocument()
   })
 

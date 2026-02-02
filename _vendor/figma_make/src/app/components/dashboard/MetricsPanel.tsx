@@ -62,7 +62,7 @@ export const MetricsPanel = ({ onCategoryClick }: MetricsPanelProps) => {
 
   // Calculate global max if list is not empty
   const maxCatCount = metrics.topCategories.length > 0
-    ? Math.max(...metrics.topCategories.map(c => c.count))
+    ? Math.max(...metrics.topCategories.map(c => c.count), 1)
     : 1;
 
   return (
