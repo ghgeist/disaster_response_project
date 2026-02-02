@@ -56,7 +56,7 @@ export const ClassificationPanel = () => {
       <div className="p-4 flex-1 flex flex-col">
         <div className="space-y-3 mb-6">
           <textarea
-            className="w-full text-xs p-3 rounded border border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none min-h-[120px] resize-none bg-slate-50 placeholder:text-slate-400"
+            className="w-full text-xs p-3 rounded border border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none min-h-[120px] resize-none bg-slate-50 text-slate-700 placeholder:text-slate-500"
             placeholder="Paste a raw message to test classification model...
 e.g. 'Flash flood in sector 7, need immediate evacuation support...'"
             value={inputText}
@@ -87,19 +87,19 @@ e.g. 'Flash flood in sector 7, need immediate evacuation support...'"
         {hasNoCategories && (
           <div className="animate-in fade-in slide-in-from-top-2 duration-300 border-t border-slate-100 pt-4 flex-1 flex flex-col">
             <div className="flex justify-between items-center mb-4">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Detection Results</span>
-              <Badge variant="neutral" className="text-[10px] py-0 px-2 opacity-50">
+              <span className="text-[10px] font-bold text-slate-500 uppercase">Detection Results</span>
+              <Badge variant="neutral" className="text-[10px] py-0 px-2 opacity-70">
                 NO MATCH
               </Badge>
             </div>
             
             <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-100 rounded bg-slate-50 text-center mb-4 flex-1 min-h-[120px]">
-              <AlertOctagon className="w-8 h-8 text-slate-300 mb-2" />
-              <p className="text-xs text-slate-500 font-medium">No emergency categories detected.</p>
-              <p className="text-[10px] text-slate-400 mt-1">This message likely does not contain actionable signal.</p>
+              <AlertOctagon className="w-8 h-8 text-slate-400 mb-2" />
+              <p className="text-xs text-slate-600 font-medium">No emergency categories detected.</p>
+              <p className="text-[10px] text-slate-500 mt-1">This message likely does not contain actionable signal.</p>
             </div>
             
-            <button className="w-full bg-slate-100 text-slate-600 text-xs font-medium py-2.5 rounded shadow-sm flex items-center justify-center gap-2 hover:bg-slate-200 border border-slate-200 transition-all mt-auto">
+            <button className="w-full bg-slate-100 text-slate-700 text-xs font-medium py-2.5 rounded shadow-sm flex items-center justify-center gap-2 hover:bg-slate-200 border border-slate-200 transition-all mt-auto">
               <Trash2 className="w-3 h-3" /> Mark as Irrelevant
             </button>
           </div>
@@ -108,7 +108,7 @@ e.g. 'Flash flood in sector 7, need immediate evacuation support...'"
         {result && (
           <div className="animate-in fade-in slide-in-from-top-2 duration-300 border-t border-slate-100 pt-4 flex-1 flex flex-col">
             <div className="flex justify-between items-center mb-3">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Detection Results</span>
+              <span className="text-[10px] font-bold text-slate-500 uppercase">Detection Results</span>
               <Badge variant={result.severity === "HIGH" ? "danger" : "neutral"} className="text-[10px] py-0 px-2">
                 {result.severity} SEVERITY
               </Badge>
@@ -128,8 +128,8 @@ e.g. 'Flash flood in sector 7, need immediate evacuation support...'"
                   </div>
 
                   {/* Operational Context Stats */}
-                  <div className="flex items-center gap-1.5 text-[10px] text-slate-500 bg-slate-50 px-2 py-1 rounded border border-slate-100">
-                    <BarChart2 className="w-3 h-3 text-slate-400" />
+                  <div className="flex items-center gap-1.5 text-[10px] text-slate-600 bg-slate-50 px-2 py-1 rounded border border-slate-100">
+                    <BarChart2 className="w-3 h-3 text-slate-500" />
                     <span>Volume Today:</span>
                     <span className="font-mono font-medium text-slate-700">{cat.vol.toLocaleString()}</span>
                   </div>
@@ -142,7 +142,7 @@ e.g. 'Flash flood in sector 7, need immediate evacuation support...'"
                <button className="w-full bg-blue-600 text-white text-xs font-bold py-3 rounded shadow-sm flex items-center justify-center gap-2 hover:bg-blue-700 transition-all active:scale-[0.98]">
                 <Ambulance className="w-4 h-4" /> Dispatch Assistance
               </button>
-              <div className="mt-2 p-2 rounded text-[10px] text-center text-slate-400">
+              <div className="mt-2 p-2 rounded text-[10px] text-center text-slate-500">
                 Action logs will be recorded
               </div>
             </div>

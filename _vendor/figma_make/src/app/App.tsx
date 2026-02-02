@@ -44,6 +44,13 @@ export default function App() {
     );
   };
 
+  // Handler for drill-down from metrics (only adds if not present)
+  const handleAddFilter = (category: string) => {
+    setSelectedFilters(prev => 
+      prev.includes(category) ? prev : [...prev, category]
+    );
+  };
+
   const handleClearFilters = () => {
     setSelectedFilters([]);
   };
@@ -140,7 +147,7 @@ export default function App() {
             
             {/* Center Panel: Metrics */}
             <Panel defaultSize={35} minSize={20} order={2} className="bg-slate-50">
-              <MetricsPanel />
+              <MetricsPanel onCategoryClick={handleAddFilter} />
             </Panel>
             
             <ResizeHandle />

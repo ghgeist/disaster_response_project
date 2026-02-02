@@ -427,6 +427,70 @@ def test_feed_categories_only_from_actual_labels():
     assert "Medical Help" not in classification_categories
 
 
+def test_risk_level_consistency_with_labeled_categories():
+    """
+    Regression test: risk level should only consider categories with label=1.
+    
+    This ensures that a message with no labeled critical categories cannot get
+    HIGH/MEDIUM risk level based on simulated probabilities for label=0 categories.
+    """
+    category_columns = ["medical_help", "water", "food", "search_and_rescue", "infrastructure_related"]
+    
+    # Test case: Message with no critical categories labeled (all critical have label=0)
+    # Even if simulated probabilities for critical categories are high, risk should be LOW
+    # Use a non-critical category like "infrastructure_related" or "buildings"
+    row_no_critical_labels = {
+        "id": 100,
+        "message": "General weather update - no immediate emergency",
+        "original": None,
+        "genre": "news",
+        "related": 1,
+        "medical_help": 0,  # Critical category with label=0
+        "water": 0,  # Critical category with label=0
+        "food": 0,  # Critical category with label=0
+        "search_and_rescue": 0,  # Critical category with label=0
+        "infrastructure_related": 1,  # Non-critical category with label=1
+    }
+    
+    # Run multiple times to account for randomness in probability simulation
+    risk_levels = []
+    for _ in range(10):
+        item = _row_to_feed_item(row_no_critical_labels, category_columns)
+        risk_levels.append(item["riskLevel"])
+    
+    # All risk levels should be LOW since no critical categories have label=1
+    # (Even if simulated probabilities for label=0 critical categories are high)
+    assert all(level == "LOW" for level in risk_levels), (
+        "Messages with no labeled critical categories should always get LOW risk level, "
+        "regardless of simulated probabilities for label=0 categories"
+    )
+    
+    # Test case: Message with labeled critical categories should get appropriate risk level
+    row_with_critical_labels = {
+        "id": 101,
+        "message": "Urgent: Medical assistance needed, water supplies running low",
+        "original": None,
+        "genre": "direct",
+        "related": 1,
+        "medical_help": 1,  # Critical category with label=1
+        "water": 1,  # Critical category with label=1
+        "food": 0,
+        "search_and_rescue": 0,
+        "shelter": 0,
+    }
+    
+    item_with_critical = _row_to_feed_item(row_with_critical_labels, category_columns)
+    # Should get HIGH or MEDIUM since we have 2 critical categories with label=1
+    assert item_with_critical["riskLevel"] in ["HIGH", "MEDIUM"], (
+        "Messages with labeled critical categories should get HIGH or MEDIUM risk level"
+    )
+    
+    # Verify classifications include the critical categories
+    classification_categories = {c["category"] for c in item_with_critical["classifications"]}
+    assert "Medical Help" in classification_categories
+    assert "Water" in classification_categories
+
+
 # ---- Data Reality Gate: no NaN/Infinity in JSON ----
 
 

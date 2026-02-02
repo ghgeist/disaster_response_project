@@ -25,7 +25,7 @@ export interface SignalItem {
 export const CATEGORY_GROUPS = {
   "Critical Needs": [
     "Medical Help", "Medical Products", "Search & Rescue", "Water", "Food", 
-    "Shelter", "Security", "Hospitals"
+    "Shelter", "Security", "Hospitals", "Missing People", "Refugees", "Death"
   ],
   "Infrastructure": [
     "Transport", "Buildings", "Electricity", "Tools", "Shops", 
@@ -35,7 +35,7 @@ export const CATEGORY_GROUPS = {
     "Floods", "Storm", "Fire", "Earthquake", "Cold", "Other Weather"
   ],
   "Other": [
-    "Missing People", "Refugees", "Death", "Clothing", "Money", 
+    "Clothing", "Money", 
     "Other Aid", "Military", "Child Alone", "Request", "Offer", "Direct Report"
   ]
 };

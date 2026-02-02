@@ -328,14 +328,21 @@ def _row_to_feed_item(row, category_columns: list) -> dict:
     content_preview = (msg[:120] + "...") if len(msg) > 120 else msg
 
     probabilities = _improved_simulated_probabilities(row, category_columns, msg)
-    risk_level = calculate_severity(probabilities)
+    
+    # Only consider categories that actually have label=1 for severity calculation
+    # This ensures consistency with displayed classifications
+    filtered_probabilities = {
+        internal: conf
+        for internal, conf in probabilities.items()
+        if _safe_label_value(row.get(internal, 0)) == 1
+    }
+    risk_level = calculate_severity(filtered_probabilities)
 
     # Only show categories that actually have label=1 in the training data
     # Filter to categories with actual positive labels before sorting
     labeled_cats = [
         (internal, conf)
-        for internal, conf in probabilities.items()
-        if _safe_label_value(row.get(internal, 0)) == 1
+        for internal, conf in filtered_probabilities.items()
     ]
     sorted_cats = sorted(
         labeled_cats,
