@@ -49,6 +49,11 @@ export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFil
 
   const filteredCategories = getFilteredCategories();
 
+  const handleClearAll = () => {
+    onClearFilters();
+    setHideLowConfidence(false);
+  };
+
   return (
     <div className="h-full flex flex-col bg-slate-50">
       {/* Header */}
@@ -91,10 +96,7 @@ export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFil
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Active Filters</span>
                   {(selectedFilters.length > 0 || hideLowConfidence) && (
                     <button 
-                      onClick={() => {
-                        onClearFilters();
-                        setHideLowConfidence(false);
-                      }}
+                      onClick={handleClearAll}
                       className="text-[10px] text-red-500 hover:text-red-600 font-medium flex items-center gap-1"
                     >
                       Clear All <X className="w-3 h-3" />
@@ -172,7 +174,7 @@ export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFil
               </button>
             </Badge>
           ))}
-          <button onClick={() => { onClearFilters(); setHideLowConfidence(false); }} className="text-[10px] text-blue-600 hover:text-blue-700 hover:underline ml-1 font-medium">
+          <button onClick={handleClearAll} className="text-[10px] text-blue-600 hover:text-blue-700 hover:underline ml-1 font-medium">
             Clear all
           </button>
         </div>
@@ -193,7 +195,7 @@ export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFil
             <Filter className="w-8 h-8 mb-2 opacity-20" />
             <span className="font-medium text-slate-600">No signals found</span>
             <span className="text-xs mt-1 mb-3 opacity-70">Try adjusting your filters</span>
-            <button onClick={() => { onClearFilters(); setHideLowConfidence(false); }} className="text-blue-500 hover:underline text-xs bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100">
+            <button onClick={handleClearAll} className="text-blue-500 hover:underline text-xs bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100">
               Clear all filters
             </button>
           </div>

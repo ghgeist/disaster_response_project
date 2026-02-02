@@ -255,7 +255,7 @@ export default function App() {
             <TooltipContent side="bottom" sideOffset={8} className="bg-slate-900 text-white text-xs max-w-xs z-[100]">
               {modelInfo ? (
                 <>
-                  Model version: {modelInfo.version} | {modelInfo.f1_score ? `${Math.round(modelInfo.f1_score * 100)}%` : 'N/A'} F1-score | {Math.round(modelInfo.hierarchy_violations)}% Hierarchy Violations
+                  Model version: {modelInfo.version} | {modelInfo.f1_score !== null ? `${Math.round(modelInfo.f1_score * 100)}%` : 'N/A'} F1-score | {Math.round(modelInfo.hierarchy_violations)}% Hierarchy Violations
                 </>
               ) : (
                 <>Loading model info...</>
