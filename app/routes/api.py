@@ -198,14 +198,121 @@ def _safe_float_prob(value) -> float:
         return 0.0
 
 
+# Category relationships for improved probability simulation
+CATEGORY_RELATIONSHIPS = {
+    # Parent-child relationships (if parent is present, child confidence increases)
+    "aid_related": ["medical_help", "medical_products", "water", "food", "shelter"],
+    "infrastructure_related": ["buildings", "electricity", "transport", "hospitals"],
+    "weather_related": ["floods", "storm", "cold"],
+    # Co-occurrence patterns (if one is present, related ones get boost)
+    "medical_help": ["hospitals", "medical_products"],
+    "hospitals": ["medical_help", "medical_products"],
+    "buildings": ["infrastructure_related", "electricity"],
+    "electricity": ["infrastructure_related", "buildings"],
+    "water": ["food", "shelter"],
+    "food": ["water", "shelter"],
+}
+
+# Keywords that suggest higher confidence for categories
+CATEGORY_KEYWORDS = {
+    "medical_help": ["hospital", "doctor", "medical", "injured", "wound", "sick", "illness"],
+    "medical_products": ["medicine", "supplies", "medication", "drugs", "bandage"],
+    "water": ["water", "thirst", "drink", "hydrate"],
+    "food": ["food", "hunger", "starving", "eat", "meal"],
+    "shelter": ["shelter", "home", "house", "building", "roof"],
+    "search_and_rescue": ["missing", "rescue", "search", "trapped", "stuck"],
+    "infrastructure_related": ["road", "bridge", "building", "destroyed", "damage"],
+    "buildings": ["building", "house", "structure", "destroyed", "collapsed"],
+    "electricity": ["power", "electric", "light", "generator"],
+    "weather_related": ["weather", "storm", "rain", "wind", "hurricane"],
+    "storm": ["storm", "hurricane", "wind", "rain"],
+    "floods": ["flood", "water", "drowned"],
+    "fire": ["fire", "burning", "smoke"],
+    "earthquake": ["earthquake", "shake", "tremor"],
+}
+
+
+def _improved_simulated_probabilities(row, category_columns: list, message: str = "") -> dict:
+    """
+    Build more realistic probabilities from binary labels using heuristics.
+    
+    Uses category relationships, keyword matching, and critical category
+    weighting to generate more realistic probability distributions.
+    """
+    message_lower = (message or "").lower()
+    probabilities = {}
+    
+    # Count how many categories are positive for this message
+    positive_count = sum(1 for col in category_columns if _safe_label_value(row.get(col, 0)) == 1)
+    
+    for col in category_columns:
+        label = _safe_label_value(row.get(col, 0))
+        
+        if label == 1:
+            # Base probability for positive labels - higher for critical categories
+            if col in CRITICAL_INTERNAL_CATEGORIES:
+                base_prob = 0.80  # Critical categories get higher base
+            else:
+                base_prob = 0.70  # Non-critical positive labels
+            
+            # Boost if related categories are also present
+            boost = 0.0
+            if col in CATEGORY_RELATIONSHIPS:
+                related_cats = CATEGORY_RELATIONSHIPS[col]
+                related_count = sum(
+                    1 for related_cat in related_cats
+                    if _safe_label_value(row.get(related_cat, 0)) == 1
+                )
+                if related_count > 0:
+                    boost += min(0.15, related_count * 0.05)  # Up to 15% boost
+            
+            # Boost if parent category is present (e.g., aid_related -> medical_help)
+            for parent, children in CATEGORY_RELATIONSHIPS.items():
+                if col in children and _safe_label_value(row.get(parent, 0)) == 1:
+                    boost += 0.08
+            
+            # Boost if keywords match message content
+            if col in CATEGORY_KEYWORDS:
+                keywords = CATEGORY_KEYWORDS[col]
+                matches = sum(1 for keyword in keywords if keyword in message_lower)
+                if matches > 0:
+                    boost += min(0.10, matches * 0.03)  # Up to 10% boost for keyword matches
+            
+            # Adjust based on how many categories are positive (more = slightly lower individual)
+            if positive_count > 5:
+                base_prob -= 0.05  # Slight reduction when many categories
+            
+            final_prob = base_prob + boost
+            # Add small random variation (±5%)
+            probabilities[col] = max(0.5, min(0.98, final_prob + random.uniform(-0.05, 0.05)))
+        
+        else:
+            # For negative labels, use lower probabilities but with some variation
+            # Messages with many positive categories might have slightly higher negatives
+            if positive_count > 3:
+                base_prob = random.uniform(0.15, 0.30)  # Slightly higher when many positives
+            else:
+                base_prob = random.uniform(0.05, 0.20)  # Lower baseline
+            
+            # If keywords strongly suggest this category but label is 0, keep it low
+            if col in CATEGORY_KEYWORDS:
+                keywords = CATEGORY_KEYWORDS[col]
+                matches = sum(1 for keyword in keywords if keyword in message_lower)
+                if matches > 2:  # Strong keyword match but label=0
+                    base_prob = random.uniform(0.20, 0.35)  # Slightly higher but still below threshold
+            
+            probabilities[col] = base_prob
+    
+    return probabilities
+
+
 def _simulated_probabilities(row, category_columns: list) -> dict:
-    """Build probabilities from binary labels with clear separation (0 < 0.5 < 1 bands)."""
-    return {
-        col: (0.1 + random.uniform(0, 0.1))
-        if _safe_label_value(row.get(col, 0)) == 0
-        else (0.85 + random.uniform(0, 0.15))
-        for col in category_columns
-    }
+    """
+    Legacy wrapper for backward compatibility with tests.
+    
+    Calls _improved_simulated_probabilities without message context.
+    """
+    return _improved_simulated_probabilities(row, category_columns, "")
 
 
 def _row_to_feed_item(row, category_columns: list) -> dict:
@@ -220,20 +327,22 @@ def _row_to_feed_item(row, category_columns: list) -> dict:
     is_translated = bool(original and original != msg)
     content_preview = (msg[:120] + "...") if len(msg) > 120 else msg
 
-    probabilities = _simulated_probabilities(row, category_columns)
+    probabilities = _improved_simulated_probabilities(row, category_columns, msg)
     risk_level = calculate_severity(probabilities)
 
-    # Exclude meta-categories (e.g., "related") from display output
-    display_probabilities = {
-        internal: conf
+    # Only show categories that actually have label=1 in the training data
+    # Filter to categories with actual positive labels before sorting
+    labeled_cats = [
+        (internal, conf)
         for internal, conf in probabilities.items()
-        if internal != "related"
-    }
+        if _safe_label_value(row.get(internal, 0)) == 1
+    ]
     sorted_cats = sorted(
-        display_probabilities.items(),
+        labeled_cats,
         key=lambda x: -x[1],
     )
     top_three = [to_display_name(internal) for internal, _ in sorted_cats[:3]]
+    # Classifications should only include categories with actual label=1 and probability > 0.5
     classifications = [
         {"category": to_display_name(internal), "confidence": round(_safe_float_prob(conf), 2)}
         for internal, conf in sorted_cats

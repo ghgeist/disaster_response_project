@@ -211,12 +211,16 @@ def test_safe_label_value_handles_nan():
 
 
 def test_simulated_probabilities_accept_nan():
+    """Test that NaN values are handled correctly (treated as 0, get low probabilities)."""
     row = {"medical_help": float("nan"), "water": 1, "food": 0}
     result = _simulated_probabilities(row, ["medical_help", "water", "food"])
     assert set(result.keys()) == {"medical_help", "water", "food"}
-    assert 0.1 <= result["medical_help"] <= 0.2
-    assert 0.85 <= result["water"] <= 1.0
-    assert 0.1 <= result["food"] <= 0.2
+    # NaN treated as 0, so gets low probability (new range: 0.05-0.30 depending on context)
+    assert 0.05 <= result["medical_help"] <= 0.35
+    # water=1 gets high probability (new range: 0.70-0.98 for non-critical, but water is critical so 0.80-0.98)
+    assert 0.70 <= result["water"] <= 0.98
+    # food=0 gets low probability
+    assert 0.05 <= result["food"] <= 0.35
 
 
 def test_row_to_feed_item_handles_nan_message_genre():
@@ -366,6 +370,61 @@ def test_classification_inclusion_threshold_label_0_excluded_label_1_included():
     assert "Water" in classifications
     assert "Food" not in classifications
     assert "Shelter" not in classifications
+
+
+def test_feed_categories_only_from_actual_labels():
+    """
+    Regression test: categories shown must only come from actual label=1 in training data.
+    
+    This prevents the bug where messages with no labels (only related=1) were showing
+    random categories due to simulated probabilities being assigned to label=0 categories.
+    """
+    category_columns = ["electricity", "infrastructure_related", "medical_help", "water", "food"]
+    
+    # Test case 1: Message with no labels (only related=1) should show empty categories
+    row_no_labels = {
+        "id": 2,
+        "message": "Weather update - a cold front from Cuba that could pass over Haiti",
+        "original": None,
+        "genre": "direct",
+        "related": 1,
+        "electricity": 0,
+        "infrastructure_related": 0,
+        "medical_help": 0,
+        "water": 0,
+        "food": 0,
+    }
+    item_no_labels = _row_to_feed_item(row_no_labels, category_columns)
+    assert item_no_labels["categories"] == [], (
+        "Messages with no category labels should show empty categories list, "
+        "not random categories from simulated probabilities"
+    )
+    assert item_no_labels["classifications"] == []
+    
+    # Test case 2: Message with actual labels should only show those labels
+    row_with_labels = {
+        "id": 9,
+        "message": "UN reports Leogane 80-90 destroyed. Only Hospital St. Croix functioning.",
+        "original": None,
+        "genre": "direct",
+        "related": 1,
+        "electricity": 0,
+        "infrastructure_related": 1,
+        "medical_help": 0,
+        "water": 0,
+        "food": 0,
+    }
+    item_with_labels = _row_to_feed_item(row_with_labels, category_columns)
+    categories_set = set(item_with_labels["categories"])
+    assert "Infrastructure" in categories_set, "Should show Infrastructure (label=1)"
+    assert "Electricity" not in categories_set, "Should NOT show Electricity (label=0)"
+    assert "Medical Help" not in categories_set, "Should NOT show Medical Help (label=0)"
+    
+    # Verify classifications also only include label=1 categories
+    classification_categories = {c["category"] for c in item_with_labels["classifications"]}
+    assert "Infrastructure" in classification_categories
+    assert "Electricity" not in classification_categories
+    assert "Medical Help" not in classification_categories
 
 
 # ---- Data Reality Gate: no NaN/Infinity in JSON ----
