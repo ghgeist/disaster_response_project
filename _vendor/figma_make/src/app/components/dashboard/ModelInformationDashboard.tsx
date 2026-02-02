@@ -21,7 +21,6 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
@@ -310,24 +309,21 @@ export function ModelInformationDashboard() {
         <SidebarHeader />
         <SidebarContent className="bg-white">
           <SidebarGroup className="p-4">
-            <SidebarGroupLabel className="text-xs font-medium uppercase tracking-wide text-slate-500">
-              Dashboards
-            </SidebarGroupLabel>
-            <SidebarGroupContent className="mt-2">
+            <SidebarGroupContent>
               <SidebarMenu className="space-y-0.5">
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild className="rounded-md text-slate-900 hover:bg-slate-100 hover:text-slate-900">
                     <a href="/api/dashboard">
                       <LayoutDashboard className="h-4 w-4 text-slate-600" />
-                      <span>Dashboard</span>
+                      <span>Overview</span>
                     </a>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild className="rounded-md text-slate-900 hover:bg-slate-100 hover:text-slate-900 data-[active=true]:bg-slate-100">
+                  <SidebarMenuButton asChild isActive className="rounded-md text-slate-900 hover:bg-slate-100 hover:text-slate-900 data-[active=true]:bg-slate-100 data-[active=true]:font-medium">
                     <a href="/api/model-info-dashboard">
                       <FileBarChart className="h-4 w-4 text-slate-600" />
-                      <span>Model Information</span>
+                      <span>Production Model</span>
                     </a>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

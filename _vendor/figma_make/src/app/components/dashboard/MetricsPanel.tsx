@@ -48,7 +48,7 @@ export const MetricsPanel = ({ onCategoryClick }: MetricsPanelProps) => {
 
   if (loading) {
     return (
-      <div className="h-full flex flex-col bg-slate-50 overflow-y-auto" aria-busy="true" aria-live="polite">
+      <div className="h-full flex flex-col bg-slate-50 overflow-y-auto min-w-0" aria-busy="true" aria-live="polite">
         <span className="sr-only">Loading metrics…</span>
         <div className="pt-4 px-6 pb-6 space-y-6">
           <div className="grid grid-cols-2 gap-4">
@@ -89,7 +89,7 @@ export const MetricsPanel = ({ onCategoryClick }: MetricsPanelProps) => {
   }
   if (error) {
     return (
-      <div className="h-full flex flex-col bg-slate-50 overflow-y-auto items-center justify-center text-red-600 text-sm px-4 text-center">
+      <div className="h-full flex flex-col bg-slate-50 overflow-y-auto min-w-0 items-center justify-center text-red-600 text-sm px-4 text-center">
         {error}
       </div>
     );
@@ -101,7 +101,7 @@ export const MetricsPanel = ({ onCategoryClick }: MetricsPanelProps) => {
     : 1;
 
   return (
-    <div className="h-full flex flex-col bg-slate-50 overflow-y-auto">
+    <div className="h-full flex flex-col bg-slate-50 overflow-y-auto min-w-0">
       <div className="pt-4 px-6 pb-6 space-y-6">
         {/* KPI Cards */}
         <div className="grid grid-cols-2 gap-4">

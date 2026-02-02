@@ -13,7 +13,6 @@ import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarGroupContent,
   SidebarHeader,
   SidebarInset,
@@ -279,16 +278,13 @@ export function StormSignalView() {
         <SidebarHeader />
         <SidebarContent>
           <SidebarGroup className="p-4">
-            <SidebarGroupLabel className="text-xs font-medium uppercase tracking-wide text-slate-500">
-              Dashboards
-            </SidebarGroupLabel>
-            <SidebarGroupContent className="mt-2">
+            <SidebarGroupContent>
               <SidebarMenu className="space-y-0.5">
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild className="rounded-md text-slate-900 hover:bg-slate-100 hover:text-slate-900 data-[active=true]:bg-slate-100">
                     <a href="/api/dashboard">
                       <LayoutDashboard className="h-4 w-4 text-slate-600" />
-                      <span>Dashboard</span>
+                      <span>Overview</span>
                     </a>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -296,7 +292,7 @@ export function StormSignalView() {
                   <SidebarMenuButton asChild className="rounded-md text-slate-900 hover:bg-slate-100 hover:text-slate-900">
                     <a href="/api/model-info-dashboard">
                       <FileBarChart className="h-4 w-4 text-slate-600" />
-                      <span>Model Information</span>
+                      <span>Production Model</span>
                     </a>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -331,7 +327,7 @@ export function StormSignalView() {
             {isDesktop ? (
               <div className="h-full w-full">
                 <PanelGroup direction="horizontal">
-                  <Panel defaultSize={40} minSize={25} order={1} className="bg-white">
+                  <Panel defaultSize={38} minSize={25} order={1} className="bg-white min-w-0 overflow-hidden">
                     <FeedPanel
                       signals={filteredSignals}
                       selectedFilters={selectedFilters}
@@ -345,13 +341,13 @@ export function StormSignalView() {
 
                   <ResizeHandle />
 
-                  <Panel defaultSize={35} minSize={20} order={2} className="bg-slate-50">
+                  <Panel defaultSize={34} minSize={20} order={2} className="bg-slate-50 min-w-0 overflow-hidden">
                     <MetricsPanel onCategoryClick={handleAddFilter} />
                   </Panel>
 
                   <ResizeHandle />
 
-                  <Panel defaultSize={25} minSize={15} collapsible order={3} className="bg-white">
+                  <Panel defaultSize={28} minSize={22} collapsible order={3} className="bg-white min-w-0 overflow-hidden">
                     <ClassificationPanel onDispatch={handleDispatch} />
                   </Panel>
                 </PanelGroup>

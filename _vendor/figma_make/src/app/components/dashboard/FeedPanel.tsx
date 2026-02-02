@@ -57,7 +57,7 @@ export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFil
   };
 
   return (
-    <div className="h-full flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-slate-50 min-w-0">
       {/* Header */}
       <div className="p-3 border-b border-slate-200 bg-white flex justify-between items-center sticky top-0 z-20">
         <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2 uppercase tracking-wide">
