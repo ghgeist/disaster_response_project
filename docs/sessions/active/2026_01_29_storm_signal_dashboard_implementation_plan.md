@@ -1,6 +1,6 @@
 ---
 created: 2026-01-29
-updated: 2026-02-01
+updated: 2026-02-02
 status: active
 type: implementation_plan
 supersedes:
@@ -12,13 +12,14 @@ related:
 prs:
   - "86 (Phase 3: metrics endpoint)"
   - "87 (Phase 4: classification enhancement)"
+  - "88 (Phase 5: frontend integration)"
 ---
 
 # Storm Signal Dashboard — Implementation Plan
 
 > **Goal**: Build the Storm Signal Dashboard React SPA with Flask API backend, integrating Figma-generated code with minimal churn and avoiding CI hell.
 
-> **Status**: Backend Phases 0–4 complete (feed, metrics, categories, classify). React integration (Phases 5–6) pending.
+> **Status**: Backend Phases 0–4 complete (feed, metrics, categories, classify). Phase 5 (React integration) complete. Phase 6 (Polish & Testing) pending.
 
 > **Key Principle**: **Stabilize API contracts before frontend integration. Use simplified inline utilities.**
 
@@ -38,9 +39,9 @@ prs:
 **Current State**:
 - ✅ Flask app with Jinja templates (existing)
 - ✅ `/classify` endpoint exists with partial JSON support
-- ✅ Figma-generated React code in `_vendor/figma_make/` (~70% complete)
+- ✅ Figma-generated React code in `_vendor/figma_make/` (integrated with backend)
 - ✅ `GET /api/feed`, `GET /api/metrics`, `GET /api/categories`, `POST /api/classify` implemented (Phases 0–4)
-- ❌ No React integration yet
+- ✅ React integration complete (Phase 5); dashboard fetches live data from API endpoints
 
 **Approach**: Simplified implementation using inline utilities instead of separate files. Target desktop-only design (1280px+).
 
@@ -76,13 +77,13 @@ prs:
 
 **Location**: `_vendor/figma_make/`
 
-**Status**: ~70% complete (vendored from Figma export)
+**Status**: Integrated with backend (Phase 5 complete)
 - ✅ Three-panel resizable layout (Feed, Metrics, Classification)
-- ✅ Mock data structures matching design spec
+- ✅ Real data integration via API endpoints
 - ✅ UI components (shadcn/ui style)
 - ✅ Tailwind CSS styling
-- ⚠️ Mock data that needs real database integration
-- ⚠️ No backend API integration yet
+- ✅ Backend API integration complete (fetches from `/api/feed`, `/api/metrics`, `/api/classify`)
+- ✅ Loading and error states implemented
 
 **Vendor Management Rule**:
 - **Treat as read-only upstream** until API contracts are stable
@@ -744,9 +745,12 @@ app/
 3. ✅ Basic testing at key viewport sizes
 
 ### Medium-term (Next Week)
-1. ✅ Phase 6 (Polish & Testing) - **2-3 hours**
-2. ✅ Cross-browser testing
-3. ✅ Documentation updates
+1. ⏳ Phase 6 (Polish & Testing) - **2-3 hours**
+   - Add pagination UI / infinite scroll
+   - Add error boundaries
+   - Test at key viewport sizes (1280px, 1440px, 1920px)
+   - Cross-browser testing
+2. ⏳ Documentation updates
 
 **Total Estimated Time**: 14-18 hours
 
@@ -793,6 +797,6 @@ This keeps the "guide" in the repo without turning it into ceremony.
 
 ---
 
-**Document Status**: ✅ Complete - Ready for implementation
+**Document Status**: ✅ Complete - Phase 5 implemented, Phase 6 pending
 
-**Last Updated**: 2026-02-01
+**Last Updated**: 2026-02-02
