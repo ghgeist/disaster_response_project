@@ -5,6 +5,7 @@ import { FeedPanel } from '@/app/components/dashboard/FeedPanel';
 import { MetricsPanel } from '@/app/components/dashboard/MetricsPanel';
 import { ClassificationPanel } from '@/app/components/dashboard/ClassificationPanel';
 import { Radar, Bell, Settings, UserCircle, Menu } from 'lucide-react';
+import { toApiName } from '@/app/utils/api';
 
 function mapFeedItem(item: { timestamp: string; [k: string]: unknown }): SignalItem {
   return {
@@ -12,22 +13,6 @@ function mapFeedItem(item: { timestamp: string; [k: string]: unknown }): SignalI
     timestamp: new Date(item.timestamp),
   } as SignalItem;
 }
-
-// Helper to map display names to API internal names
-const toApiName = (displayName: string) => {
-  if (displayName === "Search & Rescue") return "search_and_rescue";
-  if (displayName === "Other Infrastructure") return "other_infrastructure";
-  if (displayName === "Other Weather") return "other_weather";
-  if (displayName === "Other Aid") return "other_aid";
-  if (displayName === "Medical Help") return "medical_help";
-  if (displayName === "Medical Products") return "medical_products";
-  if (displayName === "Aid Centers") return "aid_centers";
-  if (displayName === "Child Alone") return "child_alone";
-  if (displayName === "Direct Report") return "direct_report";
-  if (displayName === "Missing People") return "missing_people";
-  
-  return displayName.toLowerCase().replace(/ /g, "_");
-};
 
 export default function App() {
   const [signals, setSignals] = useState<SignalItem[]>([]);
@@ -89,6 +74,31 @@ export default function App() {
     );
   }, [signals, selectedFilters]);
 
+  // Handler for dispatching from classification panel
+  const handleDispatch = (message: string, results: any) => {
+    // Create a new signal item
+    const newSignal: SignalItem = {
+      id: `MANUAL-${Date.now()}`,
+      timestamp: new Date(),
+      source: "Manual Dispatch",
+      content: message,
+      originalContent: null,
+      language: "en",
+      riskLevel: results.severity,
+      categories: results.categories
+        .filter((c: any) => (c.meetsThreshold ?? c.conf > 0.5))
+        .map((c: any) => c.name)
+        .slice(0, 3), // Top 3
+      classifications: results.categories.map((c: any) => ({
+        category: c.name,
+        confidence: c.conf
+      })),
+      isTranslated: false
+    };
+
+    setSignals(prev => [newSignal, ...prev]);
+  };
+
   const ResizeHandle = () => (
     <PanelResizeHandle className="w-1.5 bg-slate-50 hover:bg-blue-500 transition-colors flex items-center justify-center group focus:outline-none focus:bg-blue-500 border-x border-slate-200">
       <div className="h-8 w-1 rounded-full bg-slate-300 group-hover:bg-white/80 transition-colors" />
@@ -126,21 +136,21 @@ export default function App() {
             <div className="bg-blue-600 p-1 rounded-sm">
               <Radar className="w-4 h-4 text-white" />
             </div>
-            <h1 className="text-lg font-bold tracking-tight text-slate-900">STORM SIGNAL <span className="text-slate-400 font-normal text-sm ml-2 hidden xl:inline">INTELLIGENCE DASHBOARD</span></h1>
+            <h1 className="text-lg font-bold tracking-tight text-slate-900">STORM SIGNAL</h1>
           </div>
         </div>
         
         <div className="flex items-center gap-4">
-          <div className="hidden lg:flex items-center gap-2 text-xs text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
+          <div className="hidden lg:flex items-center gap-2 text-xs text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200 font-medium tracking-wide">
              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-             LIVE STREAM ACTIVE
+             SYSTEM: OPERATIONAL
           </div>
+          <button className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition-colors">
+            <Settings className="w-5 h-5" />
+          </button>
           <button className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition-colors relative">
             <Bell className="w-5 h-5" />
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-          </button>
-          <button className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition-colors">
-            <Settings className="w-5 h-5" />
           </button>
           <div className="h-6 w-px bg-slate-200 mx-1"></div>
           <button className="flex items-center gap-2 pl-1 pr-2 py-1 hover:bg-slate-100 rounded-full transition-colors group">
@@ -181,7 +191,7 @@ export default function App() {
             
             {/* Right Panel: Classification */}
             <Panel defaultSize={25} minSize={15} collapsible order={3} className="bg-white">
-              <ClassificationPanel />
+              <ClassificationPanel onDispatch={handleDispatch} />
             </Panel>
           </PanelGroup>
         </div>

@@ -454,14 +454,18 @@ def _build_simplified_classification(
         >= _safe_float_prob(thresholds_map.get(internal, threshold_default))
     ]
     above_threshold.sort(key=lambda x: -_safe_float_prob(x[1]))
-    categories = [
-        {
-            "name": _safe_category_display(internal),
-            "confidence": round(_safe_float_prob(prob), 2),
-            "volume": _safe_label_value(category_volumes.get(internal, 0)),
-        }
-        for internal, prob in above_threshold[:10]
-    ]
+    categories = []
+    for internal, prob in above_threshold[:10]:
+        threshold = _safe_float_prob(thresholds_map.get(internal, threshold_default))
+        categories.append(
+            {
+                "name": _safe_category_display(internal),
+                "confidence": round(_safe_float_prob(prob), 2),
+                "volume": _safe_label_value(category_volumes.get(internal, 0)),
+                "threshold": round(threshold, 3),
+                "meetsThreshold": _safe_float_prob(prob) >= threshold,
+            }
+        )
     severity = calculate_severity(probabilities)
     returned_probs = [_safe_float_prob(prob) for _, prob in above_threshold[:10]]
     max_conf = round(max(returned_probs), 2) if returned_probs else 0.0

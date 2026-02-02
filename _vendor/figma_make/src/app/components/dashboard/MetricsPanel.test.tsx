@@ -3,8 +3,6 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { MetricsPanel } from './MetricsPanel'
 
 describe('MetricsPanel', () => {
-  const _originalFetch = globalThis.fetch
-
   beforeEach(() => {
     vi.stubGlobal(
       'fetch',
