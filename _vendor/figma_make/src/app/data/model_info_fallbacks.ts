@@ -1,4 +1,3 @@
-
 export const MODEL_METRICS = {
   f1Score: 93.8,
   precision: 94.2,
@@ -17,7 +16,6 @@ export const REGISTRY_FILES = [
   { name: "README.md", size: "4.5 KB", type: "md" }
 ];
 
-// Map category names to their specific critical thresholds (0.0 - 1.0)
 export const THRESHOLD_MAP: Record<string, number> = {
   "Medical Help": 0.82,
   "Search & Rescue": 0.85,

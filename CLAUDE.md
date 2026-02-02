@@ -74,6 +74,7 @@ Disaster response message classification system with modular ML pipeline targeti
 ### Web Application
 - Flask factory pattern in `app/`
 - **Important**: Use `run.py` as entry point (handles factory setup)
+- Single React app in `_vendor/figma_make` serves both Storm Signal dashboard and Model Information; build with `scripts/build_dashboard.py`, output in `app/static/dashboard/`
 - Auto-downloads models from Google Drive for cloud deployment
 - Optimized for both local development and Replit
 

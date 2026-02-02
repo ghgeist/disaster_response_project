@@ -858,28 +858,20 @@ def model_info_dashboard():
 
 @api_bp.route("/model-info-dashboard")
 def model_info_dashboard_spa():
-    """Serve Model Information dashboard SPA (index.html)."""
+    """Serve merged SPA (same dashboard as Storm Signal); Model Information route is client-side."""
     static_folder = current_app.static_folder
     return send_from_directory(
-        static_folder, "model_info_dashboard/index.html", mimetype="text/html"
+        static_folder, "dashboard/index.html", mimetype="text/html"
     )
 
 
 @api_bp.route("/model-info-dashboard/", defaults={"path": ""})
 @api_bp.route("/model-info-dashboard/<path:path>")
 def model_info_dashboard_spa_path(path):
-    """Serve Model Information dashboard assets or index.html for SPA fallback."""
-    static_folder = Path(current_app.static_folder)
-    dashboard_dir = static_folder / "model_info_dashboard"
-    if not path:
-        return send_from_directory(
-            static_folder, "model_info_dashboard/index.html", mimetype="text/html"
-        )
-    file_path = dashboard_dir / path
-    if file_path.is_file() and file_path.resolve().is_relative_to(dashboard_dir.resolve()):
-        return send_from_directory(str(dashboard_dir), path)
+    """Serve merged SPA (dashboard) for all paths; assets are loaded from /static/dashboard/."""
+    static_folder = current_app.static_folder
     return send_from_directory(
-        static_folder, "model_info_dashboard/index.html", mimetype="text/html"
+        static_folder, "dashboard/index.html", mimetype="text/html"
     )
 
 
