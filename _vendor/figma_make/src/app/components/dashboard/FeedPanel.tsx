@@ -6,6 +6,7 @@ import { Globe, Radio, MessageSquare, Twitter, Newspaper, Phone, Filter, X, EyeO
 import { Checkbox } from "@/app/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/app/components/ui/popover";
 import { Input } from "@/app/components/ui/input";
+import { Skeleton } from "@/app/components/ui/skeleton";
 
 interface FeedPanelProps {
   signals: SignalItem[];
@@ -184,8 +185,29 @@ export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFil
       {/* Feed List */}
       <div className="flex-1 overflow-y-auto p-0" data-feed-panel>
         {loading ? (
-          <div className="flex flex-col items-center justify-center h-48 text-slate-500 text-sm">
-            <span>Loading feed…</span>
+          <div className="p-3 space-y-3" aria-busy="true" aria-live="polite">
+            <span className="sr-only">Loading feed…</span>
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={`feed-skeleton-${index}`} className="bg-white border border-slate-200 rounded-md p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-3 w-16" />
+                    <Skeleton className="h-3 w-24" />
+                    <Skeleton className="h-3 w-12" />
+                  </div>
+                  <Skeleton className="h-3 w-14" />
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-11/12" />
+                </div>
+                <div className="flex gap-2">
+                  <Skeleton className="h-3 w-12" />
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-3 w-10" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center h-48 text-red-600 text-sm px-4 text-center">
