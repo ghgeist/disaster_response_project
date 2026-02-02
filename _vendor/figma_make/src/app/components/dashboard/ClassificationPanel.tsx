@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Badge } from "@/app/components/ui/common";
 import { Send, Sparkles, BarChart2, Ambulance, AlertOctagon, Trash2 } from "lucide-react";
+import { CRITICAL_CATEGORIES } from "@/app/data";
 
 interface ClassificationPanelProps {
   onDispatch?: (message: string, results: any) => void;
@@ -77,9 +78,8 @@ export const ClassificationPanel = ({ onDispatch }: ClassificationPanelProps) =>
 
   // Helper to determine severity display with overrides
   const getSeverityDisplay = (result: any) => {
-    const criticalCats = ["Medical Help", "Search & Rescue", "Medical Products", "Water"];
     const hasCritical = result.categories.some(
-      (c: any) => criticalCats.includes(c.name) && c.conf > 0.4
+      (c: any) => CRITICAL_CATEGORIES.includes(c.name) && c.conf > 0.4
     );
     
     if (hasCritical) return { label: "CRITICAL SEVERITY", variant: "danger" as const };
