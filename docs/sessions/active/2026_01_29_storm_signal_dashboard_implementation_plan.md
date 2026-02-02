@@ -11,13 +11,14 @@ related:
   - 2026_01_29_storm_signal_system_spec.md
 prs:
   - "86 (Phase 3: metrics endpoint)"
+  - "87 (Phase 4: classification enhancement)"
 ---
 
 # Storm Signal Dashboard — Implementation Plan
 
 > **Goal**: Build the Storm Signal Dashboard React SPA with Flask API backend, integrating Figma-generated code with minimal churn and avoiding CI hell.
 
-> **Status**: Backend Phases 0–3 complete (feed, metrics, categories, classify stubs). React integration (Phases 5–6) pending.
+> **Status**: Backend Phases 0–4 complete (feed, metrics, categories, classify). React integration (Phases 5–6) pending.
 
 > **Key Principle**: **Stabilize API contracts before frontend integration. Use simplified inline utilities.**
 
@@ -38,7 +39,7 @@ prs:
 - ✅ Flask app with Jinja templates (existing)
 - ✅ `/classify` endpoint exists with partial JSON support
 - ✅ Figma-generated React code in `_vendor/figma_make/` (~70% complete)
-- ✅ `GET /api/feed`, `GET /api/metrics`, `GET /api/categories`, `POST /api/classify` implemented (Phases 0–3)
+- ✅ `GET /api/feed`, `GET /api/metrics`, `GET /api/categories`, `POST /api/classify` implemented (Phases 0–4)
 - ❌ No React integration yet
 
 **Approach**: Simplified implementation using inline utilities instead of separate files. Target desktop-only design (1280px+).
@@ -386,8 +387,8 @@ interface SignalItem {
 
 **Done means**: Endpoint passes Phase 2 Quality Gates; NaN safety and empty-data behavior are explicitly tested; Data Reality Gate (null-realism test + no NaN/Infinity in JSON). Endpoint exists, returns metrics with real category counts and simulated volume/trends.
 
-#### Phase 4 Completion Notes
-- ✅ **Branch**: `feature/phase-4-classification-enhancement`. `POST /api/classify` replaced stub with real implementation.
+#### Phase 4 Completion Notes (PR #87)
+- ✅ **PR #87** (feature/phase-4-classification-enhancement) merged: `POST /api/classify` replaced stub with real implementation.
 - ✅ `classify()` in `app/routes/api.py`: parses JSON `message`, validates input, calls `process_prediction_result(model_service, message)`; builds simplified response via `_build_simplified_classification()`.
 - ✅ Severity: `calculate_severity(probabilities)` (Phase 1). Category volume: real counts from `DataService.get_data()` (Phase 3). Per-label thresholds: `model_service.get_thresholds_map()` for inclusion.
 - ✅ Response shape: `categories` (name, confidence, volume), `severity`, `maxConfidence`, `avgConfidence`. Categories included where probability ≥ threshold; sorted by confidence, capped at 10.
