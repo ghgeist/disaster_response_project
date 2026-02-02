@@ -151,7 +151,7 @@ export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFil
                   ))}
                   {Object.keys(filteredCategories).length === 0 && (
                      <div className="col-span-2 text-center py-4 text-xs text-slate-400">
-                        No categories found matching "{searchTerm}"
+                        {`No categories found matching "${searchTerm}"`}
                      </div>
                   )}
                 </div>

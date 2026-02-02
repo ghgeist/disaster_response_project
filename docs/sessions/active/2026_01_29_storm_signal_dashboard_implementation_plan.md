@@ -480,10 +480,6 @@ interface SignalItem {
 
 **Objective**: Add polish, error handling, and testing.
 
-#### Step 6.1: Add Pagination UI
-- Add "Load More" button to feed panel
-- Implement infinite scroll (optional)
-
 #### Step 6.2: Add Error Boundaries
 - Add React error boundaries
 - Add error states in components
@@ -491,7 +487,8 @@ interface SignalItem {
 
 #### Step 6.3: Add Loading States
 - Add loading skeletons (some already exist)
-- Add spinners for async operations
+- Add spinners for async operations  
+- **Status**: Functional loading is done (FeedPanel, MetricsPanel, ModelInformationDashboard show "Loading …" during fetch). Optional polish: use existing `Skeleton` in feed/metrics panels or add spinners (~30–60 min) if desired.
 
 #### Step 6.4: Test at Key Viewport Sizes
 - Test at 1280px width (minimum)
@@ -746,7 +743,6 @@ app/
 
 ### Medium-term (Next Week)
 1. ⏳ Phase 6 (Polish & Testing) - **2-3 hours**
-   - Add pagination UI / infinite scroll
    - Add error boundaries
    - Test at key viewport sizes (1280px, 1440px, 1920px)
    - Cross-browser testing

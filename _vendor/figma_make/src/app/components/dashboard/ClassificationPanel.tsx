@@ -3,16 +3,26 @@ import { Badge } from "@/app/components/ui/common";
 import { Send, Sparkles, BarChart2, Ambulance, AlertOctagon, Trash2 } from "lucide-react";
 import { CRITICAL_CATEGORIES } from "@/app/data";
 
+export interface ClassificationCategory {
+  name: string;
+  conf: number;
+  vol: number;
+  threshold?: number;
+  meetsThreshold?: boolean;
+}
+
+export interface ClassificationResult {
+  categories: ClassificationCategory[];
+  severity: string;
+}
+
 interface ClassificationPanelProps {
-  onDispatch?: (message: string, results: any) => void;
+  onDispatch?: (message: string, results: ClassificationResult) => void;
 }
 
 export const ClassificationPanel = ({ onDispatch }: ClassificationPanelProps) => {
   const [inputText, setInputText] = useState("");
-  const [result, setResult] = useState<{
-    categories: { name: string; conf: number; vol: number; threshold?: number; meetsThreshold?: boolean }[];
-    severity: string;
-  } | null>(null);
+  const [result, setResult] = useState<ClassificationResult | null>(null);
   const [isClassifying, setIsClassifying] = useState(false);
   const [hasNoCategories, setHasNoCategories] = useState(false);
   const [classifyError, setClassifyError] = useState<string | null>(null);
@@ -77,24 +87,24 @@ export const ClassificationPanel = ({ onDispatch }: ClassificationPanelProps) =>
   };
 
   // Helper to determine severity display with overrides
-  const getSeverityDisplay = (result: any) => {
-    const hasCritical = result.categories.some(
-      (c: any) => CRITICAL_CATEGORIES.includes(c.name) && c.conf > 0.4
+  const getSeverityDisplay = (res: ClassificationResult) => {
+    const hasCritical = res.categories.some(
+      (c: ClassificationCategory) => CRITICAL_CATEGORIES.includes(c.name) && c.conf > 0.4
     );
     
     if (hasCritical) return { label: "CRITICAL SEVERITY", variant: "danger" as const };
-    if (result.severity === "HIGH") return { label: `${result.severity} SEVERITY`, variant: "danger" as const };
-    if (result.severity === "MEDIUM") return { label: `${result.severity} SEVERITY`, variant: "warning" as const };
-    return { label: `${result.severity} SEVERITY`, variant: "neutral" as const };
+    if (res.severity === "HIGH") return { label: `${res.severity} SEVERITY`, variant: "danger" as const };
+    if (res.severity === "MEDIUM") return { label: `${res.severity} SEVERITY`, variant: "warning" as const };
+    return { label: `${res.severity} SEVERITY`, variant: "neutral" as const };
   };
 
   const severityDisplay = result ? getSeverityDisplay(result) : null;
   
   // Split categories for display using per-category threshold when available
-  const isAboveThreshold = (cat: any) =>
+  const isAboveThreshold = (cat: ClassificationCategory) =>
     cat.meetsThreshold !== undefined ? !!cat.meetsThreshold : cat.conf > 0.2;
-  const highConfCats = result?.categories.filter((c: any) => isAboveThreshold(c)) || [];
-  const lowConfCats = result?.categories.filter((c: any) => !isAboveThreshold(c)) || [];
+  const highConfCats = result?.categories.filter((c: ClassificationCategory) => isAboveThreshold(c)) || [];
+  const lowConfCats = result?.categories.filter((c: ClassificationCategory) => !isAboveThreshold(c)) || [];
 
   return (
     <div className="h-full flex flex-col bg-white relative">
