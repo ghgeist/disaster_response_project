@@ -83,7 +83,9 @@ export const ClassificationPanel = ({ onDispatch }: ClassificationPanelProps) =>
     );
     
     if (hasCritical) return { label: "CRITICAL SEVERITY", variant: "danger" as const };
-    return { label: `${result.severity} SEVERITY`, variant: result.severity === "HIGH" ? "danger" as const : "neutral" as const };
+    if (result.severity === "HIGH") return { label: `${result.severity} SEVERITY`, variant: "danger" as const };
+    if (result.severity === "MEDIUM") return { label: `${result.severity} SEVERITY`, variant: "warning" as const };
+    return { label: `${result.severity} SEVERITY`, variant: "neutral" as const };
   };
 
   const severityDisplay = result ? getSeverityDisplay(result) : null;
@@ -97,7 +99,7 @@ export const ClassificationPanel = ({ onDispatch }: ClassificationPanelProps) =>
   return (
     <div className="h-full flex flex-col bg-white relative">
       {/* Header */}
-      <div className="p-3 border-b border-slate-200 bg-white flex-shrink-0 sticky top-0 z-10 pb-0 border-b-0">
+      <div className="p-3 border-b border-slate-200 bg-white flex-shrink-0 sticky top-0 z-10 pb-0">
         <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
           <Sparkles className="w-3 h-3 text-blue-500" /> Classify Message
         </h3>

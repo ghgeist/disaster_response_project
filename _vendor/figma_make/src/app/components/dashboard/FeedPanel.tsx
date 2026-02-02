@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { SignalItem, CATEGORY_GROUPS } from "@/app/data";
+import type { SignalItem, CategoryGroups } from "@/app/data";
 import { Badge, cn } from "@/app/components/ui/common";
 import { Globe, Radio, MessageSquare, Twitter, Newspaper, Phone, Filter, X, EyeOff, Search } from "lucide-react";
 import { Checkbox } from "@/app/components/ui/checkbox";
@@ -12,6 +12,7 @@ interface FeedPanelProps {
   selectedFilters: string[];
   onToggleFilter: (category: string) => void;
   onClearFilters: () => void;
+  categoryGroups: CategoryGroups;
   loading?: boolean;
   error?: string | null;
 }
@@ -24,7 +25,7 @@ const SourceIcon = ({ source }: { source: string }) => {
   return <MessageSquare className="w-3 h-3" />;
 };
 
-export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFilters, loading, error }: FeedPanelProps) => {
+export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFilters, categoryGroups, loading, error }: FeedPanelProps) => {
   const [hideLowConfidence, setHideLowConfidence] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -38,9 +39,9 @@ export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFil
 
   // Filter categories based on search
   const getFilteredCategories = () => {
-    if (!searchTerm) return CATEGORY_GROUPS;
+    if (!searchTerm) return categoryGroups;
     const result: Record<string, string[]> = {};
-    Object.entries(CATEGORY_GROUPS).forEach(([group, cats]) => {
+    Object.entries(categoryGroups).forEach(([group, cats]) => {
       const filtered = cats.filter(c => c.toLowerCase().includes(searchTerm.toLowerCase()));
       if (filtered.length > 0) result[group] = filtered;
     });

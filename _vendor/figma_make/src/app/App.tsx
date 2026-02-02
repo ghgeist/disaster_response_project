@@ -1,11 +1,12 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import type { SignalItem, ModelInfo } from '@/app/data';
+import type { SignalItem, ModelInfo, CategoryGroups } from '@/app/data';
+import { DEFAULT_CATEGORY_GROUPS } from '@/app/data';
 import { FeedPanel } from '@/app/components/dashboard/FeedPanel';
 import { MetricsPanel } from '@/app/components/dashboard/MetricsPanel';
 import { ClassificationPanel } from '@/app/components/dashboard/ClassificationPanel';
 import { Radar, Bell, Settings, UserCircle, Menu } from 'lucide-react';
-import { toApiName } from '@/app/utils/api';
+import { toApiName, getCategories } from '@/app/utils/api';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/app/components/ui/tooltip';
 
 function mapFeedItem(item: { timestamp: string; [k: string]: unknown }): SignalItem {
@@ -22,6 +23,7 @@ export default function App() {
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [showMobileBanner, setShowMobileBanner] = useState(true);
   const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
+  const [categoryGroups, setCategoryGroups] = useState<CategoryGroups>(DEFAULT_CATEGORY_GROUPS);
   const justDispatchedRef = useRef(false);
   // Initialize isDesktop correctly to prevent flash on initial render
   const [isDesktop, setIsDesktop] = useState(() => {
@@ -45,6 +47,13 @@ export default function App() {
     return () => {
       mediaQuery.removeEventListener("change", handleChange);
     };
+  }, []);
+
+  // Fetch category groups from backend (single source of truth)
+  useEffect(() => {
+    getCategories()
+      .then((data) => setCategoryGroups(data.groups))
+      .catch(() => { /* keep DEFAULT_CATEGORY_GROUPS */ });
   }, []);
 
   // Fetch model metadata on mount
@@ -292,6 +301,7 @@ export default function App() {
                 selectedFilters={selectedFilters}
                 onToggleFilter={handleToggleFilter}
                 onClearFilters={handleClearFilters}
+                categoryGroups={categoryGroups}
                 loading={feedLoading}
                 error={feedError}
               />
@@ -319,6 +329,7 @@ export default function App() {
               selectedFilters={selectedFilters}
               onToggleFilter={handleToggleFilter}
               onClearFilters={handleClearFilters}
+              categoryGroups={categoryGroups}
               loading={feedLoading}
               error={feedError}
             />

@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { FeedPanel } from './FeedPanel'
+import { DEFAULT_CATEGORY_GROUPS } from '@/app/data'
 import type { SignalItem } from '@/app/data'
 
 const noop = () => {}
+const defaultCategoryGroups = DEFAULT_CATEGORY_GROUPS
 
 function makeSignal(overrides: Partial<SignalItem> = {}): SignalItem {
   return {
@@ -28,6 +30,7 @@ describe('FeedPanel', () => {
         selectedFilters={[]}
         onToggleFilter={noop}
         onClearFilters={noop}
+        categoryGroups={defaultCategoryGroups}
       />
     )
     expect(screen.getByText(/Live Feed/)).toBeInTheDocument()
@@ -49,6 +52,7 @@ describe('FeedPanel', () => {
         selectedFilters={[]}
         onToggleFilter={noop}
         onClearFilters={noop}
+        categoryGroups={defaultCategoryGroups}
       />
     )
     expect(screen.getByText('0%')).toBeInTheDocument()
@@ -70,6 +74,7 @@ describe('FeedPanel', () => {
         selectedFilters={[]}
         onToggleFilter={noop}
         onClearFilters={noop}
+        categoryGroups={defaultCategoryGroups}
       />
     )
     expect(screen.getByText('92%')).toBeInTheDocument()
@@ -82,6 +87,7 @@ describe('FeedPanel', () => {
         selectedFilters={[]}
         onToggleFilter={noop}
         onClearFilters={noop}
+        categoryGroups={defaultCategoryGroups}
         loading={true}
       />
     )
@@ -95,6 +101,7 @@ describe('FeedPanel', () => {
         selectedFilters={[]}
         onToggleFilter={noop}
         onClearFilters={noop}
+        categoryGroups={defaultCategoryGroups}
         error="Feed 500"
       />
     )
@@ -120,6 +127,7 @@ describe('FeedPanel', () => {
         selectedFilters={[]}
         onToggleFilter={noop}
         onClearFilters={noop}
+        categoryGroups={defaultCategoryGroups}
       />
     )
     const manual = screen.getByText('Manual dispatch message')
