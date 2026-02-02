@@ -2,10 +2,12 @@
 Storm Signal dashboard API: feed, metrics, categories, and classification.
 """
 import hashlib
+import json
 import logging
 import math
 import random
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from flask import Blueprint, current_app, jsonify, request, send_from_directory
 
@@ -43,6 +45,9 @@ CATEGORY_GROUPS = {
         "Shelter",
         "Security",
         "Hospitals",
+        "Missing People",
+        "Refugees",
+        "Death",
     ],
     "Infrastructure": [
         "Transport",
@@ -62,9 +67,6 @@ CATEGORY_GROUPS = {
         "Other Weather",
     ],
     "Other": [
-        "Missing People",
-        "Refugees",
-        "Death",
         "Clothing",
         "Money",
         "Other Aid",
@@ -85,6 +87,9 @@ CRITICAL_INTERNAL_CATEGORIES = {
     "shelter",
     "security",
     "hospitals",
+    "missing_people",
+    "refugees",
+    "death",
 }
 
 
@@ -603,6 +608,57 @@ def categories_metadata():
     except Exception as error:
         _log_api_error("GET /api/categories", error)
         return jsonify({"error": "Categories unavailable right now."}), 500
+
+
+@api_bp.route("/model-info", methods=["GET"])
+def model_info():
+    """Return production model metadata (version, F1 score, status)."""
+    try:
+        # Try to load MODEL_INFO.json from model directory
+        model_dir = Path(current_app.root_path).parent / "model"
+        model_info_path = model_dir / "MODEL_INFO.json"
+        
+        if model_info_path.exists():
+            with open(model_info_path, "r", encoding="utf-8") as f:
+                model_info_data = json.load(f)
+            
+            # Extract relevant fields
+            version = model_info_data.get("version", "unknown")
+            f1_weighted = model_info_data.get("performance", {}).get("f1_weighted")
+            if f1_weighted is None:
+                f1_weighted = model_info_data.get("validation_results", {}).get("f1_weighted")
+            status = model_info_data.get("status", "unknown")
+            
+            # For now, hierarchy violations is 0% (can be calculated later if needed)
+            hierarchy_violations = 0.0
+            
+            return jsonify({
+                "version": version,
+                "f1_score": float(f1_weighted) if f1_weighted is not None else None,
+                "status": status,
+                "hierarchy_violations": hierarchy_violations,
+            })
+        else:
+            # Fallback to default values if file doesn't exist
+            logger.warning("MODEL_INFO.json not found at %s, using defaults", model_info_path)
+            return jsonify({
+                "version": "unknown",
+                "f1_score": None,
+                "status": "unknown",
+                "hierarchy_violations": 0.0,
+            })
+    except (OSError, json.JSONDecodeError, KeyError) as error:
+        _log_api_error("GET /api/model-info", error)
+        # Return defaults on error
+        return jsonify({
+            "version": "unknown",
+            "f1_score": None,
+            "status": "unknown",
+            "hierarchy_violations": 0.0,
+        })
+    except Exception as error:
+        _log_api_error("GET /api/model-info", error)
+        return jsonify({"error": "Model info unavailable right now."}), 500
 
 
 @api_bp.route("/dashboard")

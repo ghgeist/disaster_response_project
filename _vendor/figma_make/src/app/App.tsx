@@ -6,6 +6,14 @@ import { MetricsPanel } from '@/app/components/dashboard/MetricsPanel';
 import { ClassificationPanel } from '@/app/components/dashboard/ClassificationPanel';
 import { Radar, Bell, Settings, UserCircle, Menu } from 'lucide-react';
 import { toApiName } from '@/app/utils/api';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/app/components/ui/tooltip';
+
+interface ModelInfo {
+  version: string;
+  f1_score: number | null;
+  status: string;
+  hierarchy_violations: number;
+}
 
 function mapFeedItem(item: { timestamp: string; [k: string]: unknown }): SignalItem {
   return {
@@ -20,6 +28,7 @@ export default function App() {
   const [feedError, setFeedError] = useState<string | null>(null);
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [showMobileBanner, setShowMobileBanner] = useState(true);
+  const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
   // Initialize isDesktop correctly to prevent flash on initial render
   const [isDesktop, setIsDesktop] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -44,6 +53,21 @@ export default function App() {
     };
   }, []);
 
+  // Fetch model metadata on mount
+  useEffect(() => {
+    fetch("/api/model-info")
+      .then((res) => {
+        if (!res.ok) throw new Error(`Model info ${res.status}`);
+        return res.json();
+      })
+      .then((data: ModelInfo) => {
+        setModelInfo(data);
+      })
+      .catch(() => {
+        // Silently fail - we'll use fallback values
+      });
+  }, []);
+
   useEffect(() => {
     setFeedLoading(true);
     setFeedError(null);
@@ -61,7 +85,13 @@ export default function App() {
       })
       .then((data: { items?: unknown[] }) => {
         const items = Array.isArray(data?.items) ? data.items : [];
-        setSignals(items.map((i) => mapFeedItem(i as { timestamp: string; [k: string]: unknown })));
+        const serverSignals = items.map((i) => mapFeedItem(i as { timestamp: string; [k: string]: unknown }));
+        
+        // Preserve manually dispatched items when updating from server
+        setSignals(prev => {
+          const manualDispatches = prev.filter(s => s.id.startsWith("MANUAL"));
+          return [...manualDispatches, ...serverSignals];
+        });
       })
       .catch((err) => setFeedError(err?.message ?? 'Failed to load feed'))
       .finally(() => setFeedLoading(false));
@@ -148,6 +178,14 @@ export default function App() {
         timestamp: ts
       };
 
+      // Scroll to top of feed to show dispatched item
+      setTimeout(() => {
+        const feedPanel = document.querySelector('[data-feed-panel]');
+        if (feedPanel) {
+          feedPanel.scrollTop = 0;
+        }
+      }, 100);
+
       return [newSignalWithFixedTime, ...prev];
     });
   };
@@ -194,10 +232,27 @@ export default function App() {
         </div>
         
         <div className="flex items-center gap-4">
-          <div className="hidden lg:flex items-center gap-2 text-xs text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200 font-medium tracking-wide">
-             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-             SYSTEM: OPERATIONAL
-          </div>
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <button 
+                type="button"
+                className="hidden lg:flex items-center gap-2 text-xs text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200 font-medium tracking-wide cursor-pointer hover:bg-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                aria-label="System status - hover for model details"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                SYSTEM: OPERATIONAL
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={8} className="bg-slate-900 text-white text-xs max-w-xs z-[100]">
+              {modelInfo ? (
+                <>
+                  Model version: {modelInfo.version} | {modelInfo.f1_score ? `${Math.round(modelInfo.f1_score * 100)}%` : 'N/A'} F1-score | {Math.round(modelInfo.hierarchy_violations)}% Hierarchy Violations
+                </>
+              ) : (
+                <>Loading model info...</>
+              )}
+            </TooltipContent>
+          </Tooltip>
           <button className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition-colors">
             <Settings className="w-5 h-5" />
           </button>

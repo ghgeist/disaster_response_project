@@ -12,12 +12,15 @@ from unittest.mock import patch
 import pytest
 
 from app.routes.api import (
+    CATEGORY_GROUPS,
+    CRITICAL_INTERNAL_CATEGORIES,
     _safe_category_display,
     _safe_float_prob,
     _safe_label_value,
     _safe_text_value,
     _simulated_probabilities,
     calculate_severity,
+    to_display_name,
 )
 
 
@@ -85,6 +88,110 @@ def test_calculate_severity_uses_only_critical_categories_for_max():
         "other_aid": 0.99,
     }
     assert calculate_severity(probs) == "LOW"
+
+
+def test_calculate_severity_treats_new_critical_categories_as_critical():
+    """Missing People, Refugees, and Death are treated as critical categories."""
+    # Test missing_people
+    probs_missing = {
+        "missing_people": 0.6,
+        "water": 0.7,
+    }
+    assert calculate_severity(probs_missing) == "HIGH"
+    
+    # Test refugees
+    probs_refugees = {
+        "refugees": 0.75,
+    }
+    assert calculate_severity(probs_refugees) == "MEDIUM"
+    
+    # Test death
+    probs_death = {
+        "death": 0.9,
+    }
+    assert calculate_severity(probs_death) == "HIGH"
+    
+    # Test combination of new critical categories
+    probs_combined = {
+        "missing_people": 0.6,
+        "refugees": 0.7,
+    }
+    assert calculate_severity(probs_combined) == "HIGH"
+
+
+# ---- Category Group Consistency Tests ----
+
+
+def _display_to_internal(display_name: str) -> str:
+    """Convert display name to internal name (reverse of to_display_name)."""
+    # Handle special cases
+    if display_name == "Search & Rescue":
+        return "search_and_rescue"
+    if display_name == "Medical Products":
+        return "medical_products"
+    if display_name == "Medical Help":
+        return "medical_help"
+    if display_name == "Missing People":
+        return "missing_people"
+    if display_name == "Other Infrastructure":
+        return "other_infrastructure"
+    if display_name == "Other Weather":
+        return "other_weather"
+    if display_name == "Other Aid":
+        return "other_aid"
+    if display_name == "Aid Centers":
+        return "aid_centers"
+    if display_name == "Child Alone":
+        return "child_alone"
+    if display_name == "Direct Report":
+        return "direct_report"
+    # Default: lowercase and replace spaces with underscores
+    return display_name.lower().replace(" ", "_")
+
+
+def test_critical_internal_categories_matches_critical_needs_group():
+    """CRITICAL_INTERNAL_CATEGORIES must match Critical Needs group in CATEGORY_GROUPS."""
+    critical_needs_display = CATEGORY_GROUPS["Critical Needs"]
+    critical_needs_internal = {_display_to_internal(name) for name in critical_needs_display}
+    
+    assert critical_needs_internal == CRITICAL_INTERNAL_CATEGORIES, (
+        f"CRITICAL_INTERNAL_CATEGORIES mismatch:\n"
+        f"  Expected (from Critical Needs): {sorted(critical_needs_internal)}\n"
+        f"  Actual: {sorted(CRITICAL_INTERNAL_CATEGORIES)}\n"
+        f"  Missing: {critical_needs_internal - CRITICAL_INTERNAL_CATEGORIES}\n"
+        f"  Extra: {CRITICAL_INTERNAL_CATEGORIES - critical_needs_internal}"
+    )
+
+
+def test_all_critical_needs_categories_have_display_name_mapping():
+    """All critical internal categories must have valid display name mappings."""
+    critical_needs_display = CATEGORY_GROUPS["Critical Needs"]
+    
+    for internal_cat in CRITICAL_INTERNAL_CATEGORIES:
+        display_name = to_display_name(internal_cat)
+        assert display_name in critical_needs_display, (
+            f"Critical category '{internal_cat}' maps to '{display_name}' "
+            f"which is not in Critical Needs group: {critical_needs_display}"
+        )
+
+
+def test_category_groups_contains_expected_critical_categories():
+    """Critical Needs group must contain Missing People, Refugees, and Death."""
+    critical_needs = CATEGORY_GROUPS["Critical Needs"]
+    assert "Missing People" in critical_needs, "Missing People must be in Critical Needs"
+    assert "Refugees" in critical_needs, "Refugees must be in Critical Needs"
+    assert "Death" in critical_needs, "Death must be in Critical Needs"
+
+
+def test_category_groups_other_does_not_contain_critical_categories():
+    """Other group must not contain categories that are in Critical Needs."""
+    other_group = CATEGORY_GROUPS["Other"]
+    critical_needs = CATEGORY_GROUPS["Critical Needs"]
+    
+    overlap = set(other_group) & set(critical_needs)
+    assert not overlap, (
+        f"Categories in both Other and Critical Needs (should not happen): {overlap}"
+    )
 
 
 # ---- Option A: Simulated probability bands (Tripwire #6) ----

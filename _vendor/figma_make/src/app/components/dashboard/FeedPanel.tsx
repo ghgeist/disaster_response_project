@@ -179,7 +179,7 @@ export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFil
       )}
       
       {/* Feed List */}
-      <div className="flex-1 overflow-y-auto p-0">
+      <div className="flex-1 overflow-y-auto p-0" data-feed-panel>
         {loading ? (
           <div className="flex flex-col items-center justify-center h-48 text-slate-500 text-sm">
             <span>Loading feed…</span>
@@ -204,12 +204,15 @@ export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFil
             const maxConf = Number.isFinite(rawMax) ? rawMax : 0;
             const isHighRisk = signal.riskLevel === "HIGH";
 
+            const isManualDispatch = signal.id.startsWith("MANUAL-");
+            
             return (
               <div 
                 key={`${signal.id}-${signal.timestamp.getTime()}-${index}`}
                 className={cn(
                   "p-2 border-b border-slate-200 hover:bg-white transition-colors cursor-default group",
-                  isHighRisk ? "bg-red-50/40" : "bg-slate-50/30"
+                  isHighRisk ? "bg-red-50/40" : "bg-slate-50/30",
+                  isManualDispatch && "border-l-4 border-l-blue-500 bg-blue-50/30"
                 )}
               >
                 {/* Compact Header: Time • Source • Priority • Conf */}
