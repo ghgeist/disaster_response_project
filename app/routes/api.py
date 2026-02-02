@@ -222,8 +222,15 @@ def _row_to_feed_item(row, category_columns: list) -> dict:
 
     probabilities = _simulated_probabilities(row, category_columns)
     risk_level = calculate_severity(probabilities)
+
+    # Exclude meta-categories (e.g., "related") from display output
+    display_probabilities = {
+        internal: conf
+        for internal, conf in probabilities.items()
+        if internal != "related"
+    }
     sorted_cats = sorted(
-        probabilities.items(),
+        display_probabilities.items(),
         key=lambda x: -x[1],
     )
     top_three = [to_display_name(internal) for internal, _ in sorted_cats[:3]]
@@ -371,6 +378,15 @@ def feed():
         if not category_columns:
             category_columns = []
 
+        # Filter to only show messages that are disaster-related (related=1)
+        # related can be 0 (not related), 1 (related), or 2 (unclassifiable)
+        if "related" in df.columns:
+            df = df.loc[df["related"] == 1].copy()
+
+        # Filter out meta-categories from category_columns before processing
+        # "related" is a meta-category indicating disaster-relevance, not a specific category
+        displayable_category_columns = [col for col in category_columns if col != "related"]
+
         limit_raw = request.args.get("limit", 25, type=int)
         offset_raw = request.args.get("offset", 0, type=int)
         limit = min(max(1, limit_raw if limit_raw is not None else 25), 100)
@@ -378,7 +394,7 @@ def feed():
         filter_cats = _get_feed_filter_categories()
 
         if filter_cats:
-            valid_cats = [c for c in filter_cats if c in category_columns]
+            valid_cats = [c for c in filter_cats if c in displayable_category_columns]
             if valid_cats:
                 mask = df[valid_cats].sum(axis=1) > 0
                 df = df.loc[mask]
@@ -399,7 +415,7 @@ def feed():
 
         items = []
         for _, row in slice_df.iterrows():
-            item = _row_to_feed_item(row.to_dict(), category_columns)
+            item = _row_to_feed_item(row.to_dict(), displayable_category_columns)
             items.append(item)
 
         payload = {

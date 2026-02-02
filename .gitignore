@@ -49,6 +49,7 @@ build/
 app/static/dashboard/assets/
 
 # Vite/React env (secrets, local overrides)
+.env
 .env.local
 .env.*.local
 
