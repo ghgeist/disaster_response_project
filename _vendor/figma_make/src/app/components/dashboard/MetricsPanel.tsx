@@ -67,10 +67,7 @@ export const MetricsPanel = ({ onCategoryClick }: MetricsPanelProps) => {
 
   return (
     <div className="h-full flex flex-col bg-slate-50 overflow-y-auto">
-      {/* Header (Cleaned up - duplicate LIVE badge removed) */}
-      <div className="pt-4 px-6"></div>
-
-      <div className="px-6 pb-6 space-y-6">
+      <div className="pt-4 px-6 pb-6 space-y-6">
         {/* KPI Cards */}
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">

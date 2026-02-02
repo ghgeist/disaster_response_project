@@ -768,6 +768,8 @@ app/
 8. **Desktop-Only Design**: Target 1280px+ width, no responsive breakpoints
 9. **Classification Endpoint**: Test Phase 0 first, then decide on enhancement approach
 10. **No Contract Tests Initially**: Manual testing first, add automated tests if needed
+11. **Dev Workflow**: Use "Dual-Terminal" approach (Python on 5000, Vite on 5173) for rapid dev; Python serves compiled assets in production.
+12. **Migration Strategy**: "Default to New" (Strangler Fig). Make React dashboard the root `/` route; move Jinja templates to `/legacy`.
 
 ---
 

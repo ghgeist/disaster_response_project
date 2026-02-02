@@ -13,6 +13,22 @@ function mapFeedItem(item: { timestamp: string; [k: string]: unknown }): SignalI
   } as SignalItem;
 }
 
+// Helper to map display names to API internal names
+const toApiName = (displayName: string) => {
+  if (displayName === "Search & Rescue") return "search_and_rescue";
+  if (displayName === "Other Infrastructure") return "other_infrastructure";
+  if (displayName === "Other Weather") return "other_weather";
+  if (displayName === "Other Aid") return "other_aid";
+  if (displayName === "Medical Help") return "medical_help";
+  if (displayName === "Medical Products") return "medical_products";
+  if (displayName === "Aid Centers") return "aid_centers";
+  if (displayName === "Child Alone") return "child_alone";
+  if (displayName === "Direct Report") return "direct_report";
+  if (displayName === "Missing People") return "missing_people";
+  
+  return displayName.toLowerCase().replace(/ /g, "_");
+};
+
 export default function App() {
   const [signals, setSignals] = useState<SignalItem[]>([]);
   const [feedLoading, setFeedLoading] = useState(true);
@@ -23,7 +39,14 @@ export default function App() {
   useEffect(() => {
     setFeedLoading(true);
     setFeedError(null);
-    fetch('/api/feed?limit=50')
+    
+    // Build Query Params with filters
+    const params = new URLSearchParams({ limit: '50' });
+    selectedFilters.forEach(cat => {
+      params.append('categories[]', toApiName(cat));
+    });
+
+    fetch(`/api/feed?${params.toString()}`)
       .then((res) => {
         if (!res.ok) throw new Error(`Feed ${res.status}`);
         return res.json();
@@ -34,7 +57,7 @@ export default function App() {
       })
       .catch((err) => setFeedError(err?.message ?? 'Failed to load feed'))
       .finally(() => setFeedLoading(false));
-  }, []);
+  }, [selectedFilters]); // Trigger re-fetch when filters change
 
   const handleToggleFilter = (category: string) => {
     setSelectedFilters(prev => 
@@ -56,7 +79,11 @@ export default function App() {
   };
 
   const filteredSignals = useMemo(() => {
+    // If filters are applied server-side, we can just return the signals directly
+    // However, keeping this local filter doesn't hurt and handles any optimistic updates or mixed states
     if (selectedFilters.length === 0) return signals;
+    // We still locally filter to ensure immediate UI consistency while fetch happens, 
+    // or if the API returns mixed results (though it shouldn't)
     return signals.filter(s => 
       s.categories.some(c => selectedFilters.includes(c))
     );

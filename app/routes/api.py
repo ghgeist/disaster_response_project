@@ -482,6 +482,20 @@ def _get_feed_filter_categories() -> list:
     return [n.strip() for n in names if n and isinstance(n, str)]
 
 
+def _prepare_displayable_data(df, category_columns: list):
+    """Return filtered df and displayable category columns for dashboard endpoints."""
+    if not category_columns:
+        category_columns = []
+    # Filter to only show messages that are disaster-related (related=1)
+    # related can be 0 (not related), 1 (related), or 2 (unclassifiable)
+    if df is not None and "related" in df.columns:
+        df = df.loc[df["related"] == 1].copy()
+    # Filter out meta-categories before processing
+    # "related" is a meta-category indicating disaster-relevance, not a specific category
+    displayable_category_columns = [col for col in category_columns if col != "related"]
+    return df, displayable_category_columns
+
+
 @api_bp.route("/feed", methods=["GET"])
 def feed():
     """Return paginated feed items from the database (binary labels + simulated confidences)."""
@@ -491,17 +505,7 @@ def feed():
             raise DataServiceError("Data service not configured.")
         df = data_service.get_data()
         category_columns = data_service.get_category_columns()
-        if not category_columns:
-            category_columns = []
-
-        # Filter to only show messages that are disaster-related (related=1)
-        # related can be 0 (not related), 1 (related), or 2 (unclassifiable)
-        if "related" in df.columns:
-            df = df.loc[df["related"] == 1].copy()
-
-        # Filter out meta-categories from category_columns before processing
-        # "related" is a meta-category indicating disaster-relevance, not a specific category
-        displayable_category_columns = [col for col in category_columns if col != "related"]
+        df, displayable_category_columns = _prepare_displayable_data(df, category_columns)
 
         limit_raw = request.args.get("limit", 25, type=int)
         offset_raw = request.args.get("offset", 0, type=int)
@@ -558,18 +562,8 @@ def metrics():
             raise DataServiceError("Data service not configured.")
         df = data_service.get_data()
         category_columns = data_service.get_category_columns()
-        if not category_columns:
-            category_columns = []
-        
-        # Filter to only show messages that are disaster-related (related=1)
-        # related can be 0 (not related), 1 (related), or 2 (unclassifiable)
-        if "related" in df.columns:
-            df = df.loc[df["related"] == 1].copy()
-        
-        # Filter out meta-categories from category_columns before processing
-        # "related" is a meta-category indicating disaster-relevance, not a specific category
-        displayable_category_columns = [col for col in category_columns if col != "related"]
-        
+        df, displayable_category_columns = _prepare_displayable_data(df, category_columns)
+
         payload = _build_metrics_response(df, displayable_category_columns)
         return jsonify(payload)
     except Exception as error:
@@ -586,16 +580,8 @@ def categories_metadata():
             raise DataServiceError("Data service not configured.")
         df = data_service.get_data()
         category_columns = data_service.get_category_columns() or []
-        
-        # Filter to only show messages that are disaster-related (related=1)
-        # related can be 0 (not related), 1 (related), or 2 (unclassifiable)
-        if "related" in df.columns:
-            df = df.loc[df["related"] == 1].copy()
-        
-        # Filter out meta-categories from category_columns before processing
-        # "related" is a meta-category indicating disaster-relevance, not a specific category
-        displayable_category_columns = [col for col in category_columns if col != "related"]
-        
+        df, displayable_category_columns = _prepare_displayable_data(df, category_columns)
+
         counts = (
             df[displayable_category_columns].fillna(0).sum().to_dict()
             if displayable_category_columns and not df.empty
