@@ -142,7 +142,7 @@ def generate_timestamp_for_id(raw_id) -> datetime:
 GENRE_TO_SOURCE = {
     "direct": "Direct Report",
     "news": "News",
-    "social": "X",
+    "social": "Social",
 }
 DEFAULT_SOURCE = "X"
 
@@ -553,7 +553,17 @@ def metrics():
         category_columns = data_service.get_category_columns()
         if not category_columns:
             category_columns = []
-        payload = _build_metrics_response(df, category_columns)
+        
+        # Filter to only show messages that are disaster-related (related=1)
+        # related can be 0 (not related), 1 (related), or 2 (unclassifiable)
+        if "related" in df.columns:
+            df = df.loc[df["related"] == 1].copy()
+        
+        # Filter out meta-categories from category_columns before processing
+        # "related" is a meta-category indicating disaster-relevance, not a specific category
+        displayable_category_columns = [col for col in category_columns if col != "related"]
+        
+        payload = _build_metrics_response(df, displayable_category_columns)
         return jsonify(payload)
     except Exception as error:
         _log_api_error("GET /api/metrics", error)
@@ -569,10 +579,20 @@ def categories_metadata():
             raise DataServiceError("Data service not configured.")
         df = data_service.get_data()
         category_columns = data_service.get_category_columns() or []
+        
+        # Filter to only show messages that are disaster-related (related=1)
+        # related can be 0 (not related), 1 (related), or 2 (unclassifiable)
+        if "related" in df.columns:
+            df = df.loc[df["related"] == 1].copy()
+        
+        # Filter out meta-categories from category_columns before processing
+        # "related" is a meta-category indicating disaster-relevance, not a specific category
+        displayable_category_columns = [col for col in category_columns if col != "related"]
+        
         counts = (
-            df[category_columns].fillna(0).sum().to_dict()
-            if category_columns and not df.empty
-            else {col: 0 for col in category_columns}
+            df[displayable_category_columns].fillna(0).sum().to_dict()
+            if displayable_category_columns and not df.empty
+            else {col: 0 for col in displayable_category_columns}
         )
         categories = [
             {
@@ -580,7 +600,7 @@ def categories_metadata():
                 "display": to_display_name(internal),
                 "count": _safe_label_value(counts.get(internal, 0)),
             }
-            for internal in sorted(category_columns)
+            for internal in sorted(displayable_category_columns)
         ]
         return jsonify({"categories": categories, "groups": CATEGORY_GROUPS})
     except Exception as error:
