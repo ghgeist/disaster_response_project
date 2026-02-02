@@ -697,8 +697,10 @@ def classify():
             try:
                 df = data_service.get_data()
                 category_columns = data_service.get_category_columns() or []
-                if category_columns and df is not None and not df.empty:
-                    sums = df[category_columns].fillna(0).sum()
+                # Filter to disaster-related messages (related == 1) for consistency with other endpoints
+                df, displayable_category_columns = _prepare_displayable_data(df, category_columns)
+                if displayable_category_columns and df is not None and not df.empty:
+                    sums = df[displayable_category_columns].fillna(0).sum()
                     category_volumes = sums.to_dict()
             except (DataServiceError, Exception) as data_error:
                 _log_api_error("POST /api/classify (data_service)", data_error)

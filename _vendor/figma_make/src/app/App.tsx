@@ -1,19 +1,12 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import type { SignalItem } from '@/app/data';
+import type { SignalItem, ModelInfo } from '@/app/data';
 import { FeedPanel } from '@/app/components/dashboard/FeedPanel';
 import { MetricsPanel } from '@/app/components/dashboard/MetricsPanel';
 import { ClassificationPanel } from '@/app/components/dashboard/ClassificationPanel';
 import { Radar, Bell, Settings, UserCircle, Menu } from 'lucide-react';
 import { toApiName } from '@/app/utils/api';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/app/components/ui/tooltip';
-
-interface ModelInfo {
-  version: string;
-  f1_score: number | null;
-  status: string;
-  hierarchy_violations: number;
-}
 
 function mapFeedItem(item: { timestamp: string; [k: string]: unknown }): SignalItem {
   return {
@@ -29,6 +22,7 @@ export default function App() {
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [showMobileBanner, setShowMobileBanner] = useState(true);
   const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
+  const justDispatchedRef = useRef(false);
   // Initialize isDesktop correctly to prevent flash on initial render
   const [isDesktop, setIsDesktop] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -97,6 +91,20 @@ export default function App() {
       .finally(() => setFeedLoading(false));
   }, [selectedFilters]); // Trigger re-fetch when filters change
 
+  // Scroll to top when a manual dispatch is added
+  useEffect(() => {
+    if (justDispatchedRef.current) {
+      const timeoutId = setTimeout(() => {
+        const feedPanel = document.querySelector('[data-feed-panel]');
+        if (feedPanel) {
+          feedPanel.scrollTop = 0;
+        }
+        justDispatchedRef.current = false;
+      }, 100);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [signals]);
+
   const handleToggleFilter = (category: string) => {
     setSelectedFilters(prev => 
       prev.includes(category) 
@@ -161,6 +169,9 @@ export default function App() {
       isTranslated: false
     };
 
+    // Mark that we just dispatched so useEffect can handle scrolling
+    justDispatchedRef.current = true;
+    
     setSignals(prev => {
       // Ensure the manual dispatch stays at the top by checking if we need to shim the timestamp
       let ts = new Date();
@@ -177,14 +188,6 @@ export default function App() {
         ...newSignal,
         timestamp: ts
       };
-
-      // Scroll to top of feed to show dispatched item
-      setTimeout(() => {
-        const feedPanel = document.querySelector('[data-feed-panel]');
-        if (feedPanel) {
-          feedPanel.scrollTop = 0;
-        }
-      }, 100);
 
       return [newSignalWithFixedTime, ...prev];
     });

@@ -1,17 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Badge } from "@/app/components/ui/common";
 import { Send, Sparkles, BarChart2, Ambulance, AlertOctagon, Trash2 } from "lucide-react";
 import { CRITICAL_CATEGORIES } from "@/app/data";
 
 interface ClassificationPanelProps {
   onDispatch?: (message: string, results: any) => void;
-}
-
-interface ModelInfo {
-  version: string;
-  f1_score: number | null;
-  status: string;
-  hierarchy_violations: number;
 }
 
 export const ClassificationPanel = ({ onDispatch }: ClassificationPanelProps) => {
@@ -23,22 +16,6 @@ export const ClassificationPanel = ({ onDispatch }: ClassificationPanelProps) =>
   const [isClassifying, setIsClassifying] = useState(false);
   const [hasNoCategories, setHasNoCategories] = useState(false);
   const [classifyError, setClassifyError] = useState<string | null>(null);
-  const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
-
-  useEffect(() => {
-    // Fetch model metadata on mount
-    fetch("/api/model-info")
-      .then((res) => {
-        if (!res.ok) throw new Error(`Model info ${res.status}`);
-        return res.json();
-      })
-      .then((data: ModelInfo) => {
-        setModelInfo(data);
-      })
-      .catch(() => {
-        // Silently fail - we'll use fallback values
-      });
-  }, []);
 
   const handleClassify = () => {
     if (!inputText.trim()) return;
@@ -116,12 +93,6 @@ export const ClassificationPanel = ({ onDispatch }: ClassificationPanelProps) =>
     cat.meetsThreshold !== undefined ? !!cat.meetsThreshold : cat.conf > 0.2;
   const highConfCats = result?.categories.filter((c: any) => isAboveThreshold(c)) || [];
   const lowConfCats = result?.categories.filter((c: any) => !isAboveThreshold(c)) || [];
-
-  // Format version and F1 score for badge
-  const versionDisplay = modelInfo?.version || "v2.1-prod";
-  const f1Display = modelInfo?.f1_score 
-    ? `${Math.round(modelInfo.f1_score * 100)}%`
-    : "94%";
 
   return (
     <div className="h-full flex flex-col bg-white relative">

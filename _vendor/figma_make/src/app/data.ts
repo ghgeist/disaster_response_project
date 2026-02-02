@@ -21,6 +21,13 @@ export interface SignalItem {
   isTranslated: boolean;
 }
 
+export interface ModelInfo {
+  version: string;
+  f1_score: number | null;
+  status: string;
+  hierarchy_violations: number;
+}
+
 // Category Constants
 export const CATEGORY_GROUPS = {
   "Critical Needs": [
