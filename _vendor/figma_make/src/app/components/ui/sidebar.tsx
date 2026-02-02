@@ -81,11 +81,16 @@ function SidebarProvider({
   const isMobile = useIsMobile();
   const [openMobile, setOpenMobile] = React.useState(false);
 
-  // Initialize from cookie when present so returning users don't see a flash.
-  const [_open, _setOpen] = React.useState(() => {
+  // Initialize from defaultOpen to avoid hydration mismatch.
+  const [_open, _setOpen] = React.useState(defaultOpen);
+
+  // Read cookie on mount to restore state.
+  React.useEffect(() => {
     const fromCookie = readSidebarStateFromCookie();
-    return fromCookie ?? defaultOpen;
-  });
+    if (fromCookie !== null) {
+      _setOpen(fromCookie);
+    }
+  }, []);
   const open = openProp ?? _open;
   const setOpen = React.useCallback(
     (value: boolean | ((value: boolean) => boolean)) => {
@@ -393,7 +398,7 @@ function SidebarContent({ className, ...props }: React.ComponentProps<"div">) {
       data-slot="sidebar-content"
       data-sidebar="content"
       className={cn(
-        "flex min-h-0 flex-1 flex-col gap-2 overflow-auto group-data-[collapsible=icon]:overflow-hidden",
+        "flex min-h-0 flex-1 flex-col gap-2 overflow-auto scrollbar-thin group-data-[collapsible=icon]:overflow-hidden",
         className,
       )}
       {...props}

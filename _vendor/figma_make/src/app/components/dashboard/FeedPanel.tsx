@@ -79,7 +79,7 @@ export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFil
               <Filter className="w-4 h-4" />
             </button>
           </PopoverTrigger>
-          <PopoverContent align="end" className="w-[300px] p-0 overflow-hidden" sideOffset={8}>
+          <PopoverContent align="end" className="w-[300px] min-w-[280px] max-w-[min(90vw,360px)] p-0 overflow-hidden" sideOffset={8}>
             <div className="p-3 border-b border-slate-100 bg-slate-50/50">
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-slate-400" />
@@ -92,7 +92,7 @@ export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFil
               </div>
             </div>
 
-            <div className="p-0 max-h-[400px] overflow-y-auto">
+            <div className="p-0 max-h-[400px] overflow-y-auto scrollbar-thin">
               <div className="p-3">
                 <div className="flex justify-between items-center mb-3">
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Active Filters</span>
@@ -132,16 +132,17 @@ export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFil
                       </h4>
                       <div className="space-y-1.5">
                         {categories.map(cat => (
-                          <div key={cat} className="flex items-center gap-2">
+                          <div key={cat} className="flex items-center gap-2 min-w-0">
                             <Checkbox 
                               id={`filter-${cat}`}
                               checked={selectedFilters.includes(cat)}
                               onCheckedChange={() => onToggleFilter(cat)}
-                              className="w-3.5 h-3.5 rounded-sm border-slate-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                              className="w-3.5 h-3.5 shrink-0 rounded-sm border-slate-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
                             />
                             <label 
                               htmlFor={`filter-${cat}`}
-                              className="text-xs text-slate-600 cursor-pointer select-none leading-none"
+                              className="text-xs text-slate-600 cursor-pointer select-none leading-none min-w-0 truncate"
+                              title={cat}
                             >
                               {cat}
                             </label>
@@ -183,7 +184,7 @@ export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFil
       )}
       
       {/* Feed List */}
-      <div className="flex-1 overflow-y-auto p-0" data-feed-panel>
+      <div className="flex-1 overflow-y-auto p-0 scrollbar-thin" data-feed-panel>
         {loading ? (
           <div className="p-3 space-y-3" aria-busy="true" aria-live="polite">
             <span className="sr-only">Loading feed…</span>
