@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { Activity, BarChart3, TrendingUp, AlertCircle } from "lucide-react";
+import { Activity, BarChart3, TrendingUp } from "lucide-react";
 
 interface MetricsData {
   volumeToday: number;
@@ -16,7 +16,11 @@ const defaultMetrics: MetricsData = {
   topCategories: [],
 };
 
-export const MetricsPanel = () => {
+interface MetricsPanelProps {
+  onCategoryClick?: (category: string) => void;
+}
+
+export const MetricsPanel = ({ onCategoryClick }: MetricsPanelProps) => {
   const [metrics, setMetrics] = useState<MetricsData>(defaultMetrics);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,19 +60,14 @@ export const MetricsPanel = () => {
     );
   }
 
-  const maxCatCount = Math.max(metrics.topCategories[0]?.count ?? 0, 1);
+  // Calculate global max if list is not empty
+  const maxCatCount = metrics.topCategories.length > 0
+    ? Math.max(...metrics.topCategories.map(c => c.count), 1)
+    : 1;
 
   return (
     <div className="h-full flex flex-col bg-slate-50 overflow-y-auto">
-      {/* Header with Live Badge */}
-      <div className="p-4 flex justify-end">
-        <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-emerald-50 border border-emerald-200 rounded text-[10px] font-medium text-emerald-700">
-          <AlertCircle className="w-3 h-3 text-emerald-500" />
-          LIVE
-        </div>
-      </div>
-
-      <div className="px-6 pb-6 space-y-6">
+      <div className="pt-4 px-6 pb-6 space-y-6">
         {/* KPI Cards */}
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
@@ -110,7 +109,12 @@ export const MetricsPanel = () => {
                   tick={{fontSize: 10, fill: '#94a3b8'}} 
                   interval="preserveStartEnd"
                 />
-                <YAxis hide domain={['dataMin - 10', 'dataMax + 10']} />
+                <YAxis 
+                  width={30}
+                  tick={{fontSize: 10, fill: '#94a3b8'}}
+                  axisLine={false}
+                  tickLine={false}
+                />
                 <Tooltip 
                   contentStyle={{background: '#1e293b', border: 'none', borderRadius: '4px', fontSize: '10px', color: 'white'}}
                   itemStyle={{color: 'white'}}
@@ -135,7 +139,11 @@ export const MetricsPanel = () => {
           </h3>
           <div className="space-y-3">
             {metrics.topCategories.map((cat, i) => (
-              <div key={cat.name} className="flex items-center gap-3">
+              <div 
+                key={cat.name} 
+                className="flex items-center gap-3 cursor-pointer hover:bg-slate-50 rounded p-1 -mx-1 transition-colors"
+                onClick={() => onCategoryClick?.(cat.name)}
+              >
                 <div className="w-6 text-[10px] font-mono text-slate-400 text-right">0{i+1}</div>
                 <div className="flex-1">
                   <div className="flex justify-between text-xs mb-1">
@@ -144,7 +152,7 @@ export const MetricsPanel = () => {
                   </div>
                   <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                     <div 
-                      className="h-full bg-slate-800 rounded-full" 
+                      className="h-full bg-slate-800 rounded-full transition-all duration-500" 
                       style={{ width: `${(cat.count / maxCatCount) * 100}%` }}
                     />
                   </div>

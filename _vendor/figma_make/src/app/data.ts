@@ -21,28 +21,38 @@ export interface SignalItem {
   isTranslated: boolean;
 }
 
-// Category Constants
-export const CATEGORY_GROUPS = {
+export interface ModelInfo {
+  version: string;
+  f1_score: number | null;
+  status: string;
+  hierarchy_violations: number;
+}
+
+/** Category group name -> list of display category names. Runtime source: GET /api/categories. */
+export type CategoryGroups = Record<string, string[]>;
+
+/** Fallback for initial render and mock data only; runtime source is GET /api/categories. */
+export const DEFAULT_CATEGORY_GROUPS: CategoryGroups = {
   "Critical Needs": [
-    "Medical Help", "Medical Products", "Search & Rescue", "Water", "Food", 
-    "Shelter", "Security", "Hospitals"
+    "Medical Help", "Medical Products", "Search & Rescue", "Water", "Food",
+    "Shelter", "Security", "Hospitals", "Missing People", "Refugees", "Death"
   ],
   "Infrastructure": [
-    "Transport", "Buildings", "Electricity", "Tools", "Shops", 
+    "Transport", "Buildings", "Electricity", "Tools", "Shops",
     "Aid Centers", "Other Infrastructure"
   ],
   "Weather": [
     "Floods", "Storm", "Fire", "Earthquake", "Cold", "Other Weather"
   ],
   "Other": [
-    "Missing People", "Refugees", "Death", "Clothing", "Money", 
+    "Clothing", "Money",
     "Other Aid", "Military", "Child Alone", "Request", "Offer", "Direct Report"
   ]
 };
 
-export const ALL_CATEGORIES = Object.values(CATEGORY_GROUPS).flat();
+export const ALL_CATEGORIES = Object.values(DEFAULT_CATEGORY_GROUPS).flat();
 
-export const CRITICAL_CATEGORIES = CATEGORY_GROUPS["Critical Needs"];
+export const CRITICAL_CATEGORIES = DEFAULT_CATEGORY_GROUPS["Critical Needs"];
 
 // Helper to calculate severity
 const calculateSeverity = (classifications: Classification[]): RiskLevel => {

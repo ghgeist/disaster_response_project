@@ -6,7 +6,7 @@ Run this script from the workspace root directory.
 import os
 from pathlib import Path
 
-from app.app import create_app
+from dotenv import load_dotenv
 
 
 def check_dashboard_build():
@@ -46,15 +46,20 @@ def check_dashboard_build():
 
 
 if __name__ == '__main__':
+    load_dotenv()
+    from app.app import create_app
+
     check_dashboard_build()
     app = create_app()
 
     # Replit Autoscale requires binding to 0.0.0.0:$PORT
     # Priority: $PORT env var (for Replit) > config > default
+    host = app.config.get('HOST', '0.0.0.0')
     port = int(os.environ.get('PORT', app.config.get('PORT', 5000)))
+    app.logger.info("Startup PID %s listening on %s:%s", os.getpid(), host, port)
 
     app.run(
-        host=app.config.get('HOST', '0.0.0.0'),
+        host=host,
         port=port,
         debug=app.config.get('DEBUG', False)
     )

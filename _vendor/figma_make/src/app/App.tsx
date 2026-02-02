@@ -1,10 +1,13 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import type { SignalItem } from '@/app/data';
+import type { SignalItem, ModelInfo, CategoryGroups } from '@/app/data';
+import { DEFAULT_CATEGORY_GROUPS } from '@/app/data';
 import { FeedPanel } from '@/app/components/dashboard/FeedPanel';
 import { MetricsPanel } from '@/app/components/dashboard/MetricsPanel';
 import { ClassificationPanel } from '@/app/components/dashboard/ClassificationPanel';
 import { Radar, Bell, Settings, UserCircle, Menu } from 'lucide-react';
+import { toApiName, getCategories } from '@/app/utils/api';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/app/components/ui/tooltip';
 
 function mapFeedItem(item: { timestamp: string; [k: string]: unknown }): SignalItem {
   return {
@@ -19,22 +22,102 @@ export default function App() {
   const [feedError, setFeedError] = useState<string | null>(null);
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [showMobileBanner, setShowMobileBanner] = useState(true);
+  const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
+  const [categoryGroups, setCategoryGroups] = useState<CategoryGroups>(DEFAULT_CATEGORY_GROUPS);
+  const justDispatchedRef = useRef(false);
+  // Initialize isDesktop correctly to prevent flash on initial render
+  const [isDesktop, setIsDesktop] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(min-width: 1024px)").matches;
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(min-width: 1024px)");
+    const handleChange = (event: MediaQueryListEvent) => {
+      setIsDesktop(event.matches);
+    };
+
+    mediaQuery.addEventListener("change", handleChange);
+
+    return () => {
+      mediaQuery.removeEventListener("change", handleChange);
+    };
+  }, []);
+
+  // Fetch category groups from backend (single source of truth)
+  useEffect(() => {
+    getCategories()
+      .then((data) => setCategoryGroups(data.groups))
+      .catch(() => { /* keep DEFAULT_CATEGORY_GROUPS */ });
+  }, []);
+
+  // Fetch model metadata on mount
+  useEffect(() => {
+    fetch("/api/model-info")
+      .then((res) => {
+        if (!res.ok) throw new Error(`Model info ${res.status}`);
+        return res.json();
+      })
+      .then((data: ModelInfo) => {
+        setModelInfo(data);
+      })
+      .catch(() => {
+        // Set fallback values when API fails
+        setModelInfo({
+          version: "unavailable",
+          f1_score: null,
+          status: "unknown",
+          hierarchy_violations: 0,
+        });
+      });
+  }, []);
 
   useEffect(() => {
     setFeedLoading(true);
     setFeedError(null);
-    fetch('/api/feed?limit=50')
+    
+    // Build Query Params with filters
+    const params = new URLSearchParams({ limit: '15' });
+    selectedFilters.forEach(cat => {
+      params.append('categories[]', toApiName(cat));
+    });
+
+    fetch(`/api/feed?${params.toString()}`)
       .then((res) => {
         if (!res.ok) throw new Error(`Feed ${res.status}`);
         return res.json();
       })
       .then((data: { items?: unknown[] }) => {
         const items = Array.isArray(data?.items) ? data.items : [];
-        setSignals(items.map((i) => mapFeedItem(i as { timestamp: string; [k: string]: unknown })));
+        const serverSignals = items.map((i) => mapFeedItem(i as { timestamp: string; [k: string]: unknown }));
+        
+        // Preserve manually dispatched items when updating from server
+        setSignals(prev => {
+          const manualDispatches = prev.filter(s => s.id.startsWith("MANUAL"));
+          return [...manualDispatches, ...serverSignals];
+        });
       })
       .catch((err) => setFeedError(err?.message ?? 'Failed to load feed'))
       .finally(() => setFeedLoading(false));
-  }, []);
+  }, [selectedFilters]); // Trigger re-fetch when filters change
+
+  // Scroll to top when a manual dispatch is added
+  useEffect(() => {
+    if (justDispatchedRef.current) {
+      const timeoutId = setTimeout(() => {
+        const feedPanel = document.querySelector('[data-feed-panel]');
+        if (feedPanel) {
+          feedPanel.scrollTop = 0;
+        }
+        justDispatchedRef.current = false;
+      }, 100);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [signals]);
 
   const handleToggleFilter = (category: string) => {
     setSelectedFilters(prev => 
@@ -44,16 +127,85 @@ export default function App() {
     );
   };
 
+  // Handler for drill-down from metrics (only adds if not present)
+  const handleAddFilter = (category: string) => {
+    setSelectedFilters(prev => 
+      prev.includes(category) ? prev : [...prev, category]
+    );
+  };
+
   const handleClearFilters = () => {
     setSelectedFilters([]);
   };
 
   const filteredSignals = useMemo(() => {
-    if (selectedFilters.length === 0) return signals;
-    return signals.filter(s => 
-      s.categories.some(c => selectedFilters.includes(c))
-    );
+    let result = signals;
+    // If filters are applied server-side, we can just return the signals directly
+    // However, keeping this local filter doesn't hurt and handles any optimistic updates or mixed states
+    if (selectedFilters.length > 0) {
+      result = signals.filter(s => 
+        s.categories.some(c => selectedFilters.includes(c))
+      );
+    }
+    
+    // Force strict sort by timestamp descending (Newest First)
+    // AND ensure manual dispatches are always pinned to the top for immediate feedback
+    const manuals = result.filter(s => s.id.startsWith("MANUAL"));
+    const others = result.filter(s => !s.id.startsWith("MANUAL"));
+    
+    others.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    
+    // Sort manuals by time (if multiple)
+    manuals.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+    return [...manuals, ...others].slice(0, 15);
   }, [signals, selectedFilters]);
+
+  // Handler for dispatching from classification panel
+  const handleDispatch = (message: string, results: any) => {
+    // Create a new signal item
+    const newSignal: SignalItem = {
+      id: `MANUAL-${Date.now()}`,
+      timestamp: new Date(),
+      source: "Manual Dispatch",
+      content: message,
+      originalContent: null,
+      language: "en",
+      riskLevel: results.severity,
+      categories: results.categories
+        .filter((c: any) => c.conf > 0.4 && c.name.toLowerCase() !== "related")
+        .map((c: any) => c.name)
+        .slice(0, 3), // Top 3
+      classifications: results.categories.map((c: any) => ({
+        category: c.name,
+        confidence: c.conf
+      })),
+      isTranslated: false
+    };
+
+    // Mark that we just dispatched so useEffect can handle scrolling
+    justDispatchedRef.current = true;
+    
+    setSignals(prev => {
+      // Ensure the manual dispatch stays at the top by checking if we need to shim the timestamp
+      let ts = new Date();
+      if (prev.length > 0) {
+        const latest = prev[0].timestamp;
+        if (latest > ts) {
+          // If the latest item is in the future (due to mock data generation), 
+          // set our manual item to be 1 second ahead of it.
+          ts = new Date(latest.getTime() + 1000); 
+        }
+      }
+
+      const newSignalWithFixedTime: SignalItem = {
+        ...newSignal,
+        timestamp: ts
+      };
+
+      return [newSignalWithFixedTime, ...prev];
+    });
+  };
 
   const ResizeHandle = () => (
     <PanelResizeHandle className="w-1.5 bg-slate-50 hover:bg-blue-500 transition-colors flex items-center justify-center group focus:outline-none focus:bg-blue-500 border-x border-slate-200">
@@ -92,21 +244,38 @@ export default function App() {
             <div className="bg-blue-600 p-1 rounded-sm">
               <Radar className="w-4 h-4 text-white" />
             </div>
-            <h1 className="text-lg font-bold tracking-tight text-slate-900">STORM SIGNAL <span className="text-slate-400 font-normal text-sm ml-2 hidden xl:inline">INTELLIGENCE DASHBOARD</span></h1>
+            <h1 className="text-lg font-bold tracking-tight text-slate-900">STORM SIGNAL</h1>
           </div>
         </div>
         
         <div className="flex items-center gap-4">
-          <div className="hidden lg:flex items-center gap-2 text-xs text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
-             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-             LIVE STREAM ACTIVE
-          </div>
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <button 
+                type="button"
+                className="hidden lg:flex items-center gap-2 text-xs text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200 font-medium tracking-wide cursor-pointer hover:bg-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                aria-label="System status - hover for model details"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                SYSTEM: OPERATIONAL
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={8} className="bg-slate-900 text-white text-xs max-w-xs z-[100]">
+              {modelInfo ? (
+                <>
+                  Model version: {modelInfo.version} | {modelInfo.f1_score !== null ? `${Math.round(modelInfo.f1_score * 100)}%` : 'N/A'} F1-score | {Math.round(modelInfo.hierarchy_violations)}% Hierarchy Violations
+                </>
+              ) : (
+                <>Loading model info...</>
+              )}
+            </TooltipContent>
+          </Tooltip>
+          <button className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition-colors">
+            <Settings className="w-5 h-5" />
+          </button>
           <button className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition-colors relative">
             <Bell className="w-5 h-5" />
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-          </button>
-          <button className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition-colors">
-            <Settings className="w-5 h-5" />
           </button>
           <div className="h-6 w-px bg-slate-200 mx-1"></div>
           <button className="flex items-center gap-2 pl-1 pr-2 py-1 hover:bg-slate-100 rounded-full transition-colors group">
@@ -121,48 +290,50 @@ export default function App() {
 
       {/* 3-Panel Resizable Layout */}
       <main className="flex-1 overflow-hidden relative">
-        {/* Desktop Layout */}
-        <div className="hidden lg:block h-full w-full">
-          <PanelGroup direction="horizontal">
-            {/* Left Panel: Feed & Filters */}
-            <Panel defaultSize={40} minSize={25} order={1} className="bg-white">
+        {isDesktop ? (
+          <div className="h-full w-full">
+            <PanelGroup direction="horizontal">
+              {/* Left Panel: Feed & Filters */}
+              <Panel defaultSize={40} minSize={25} order={1} className="bg-white">
               <FeedPanel 
                 signals={filteredSignals} 
                 selectedFilters={selectedFilters}
                 onToggleFilter={handleToggleFilter}
                 onClearFilters={handleClearFilters}
+                categoryGroups={categoryGroups}
                 loading={feedLoading}
                 error={feedError}
               />
-            </Panel>
-            
-            <ResizeHandle />
-            
-            {/* Center Panel: Metrics */}
-            <Panel defaultSize={35} minSize={20} order={2} className="bg-slate-50">
-              <MetricsPanel />
-            </Panel>
-            
-            <ResizeHandle />
-            
-            {/* Right Panel: Classification */}
-            <Panel defaultSize={25} minSize={15} collapsible order={3} className="bg-white">
-              <ClassificationPanel />
-            </Panel>
-          </PanelGroup>
-        </div>
-
-        {/* Mobile Layout Fallback */}
-        <div className="lg:hidden h-full overflow-y-auto">
-          <FeedPanel 
-            signals={filteredSignals} 
-            selectedFilters={selectedFilters}
-            onToggleFilter={handleToggleFilter}
-            onClearFilters={handleClearFilters}
-            loading={feedLoading}
-            error={feedError}
-          />
-        </div>
+              </Panel>
+              
+              <ResizeHandle />
+              
+              {/* Center Panel: Metrics */}
+              <Panel defaultSize={35} minSize={20} order={2} className="bg-slate-50">
+                <MetricsPanel onCategoryClick={handleAddFilter} />
+              </Panel>
+              
+              <ResizeHandle />
+              
+              {/* Right Panel: Classification */}
+              <Panel defaultSize={25} minSize={15} collapsible order={3} className="bg-white">
+                <ClassificationPanel onDispatch={handleDispatch} />
+              </Panel>
+            </PanelGroup>
+          </div>
+        ) : (
+          <div className="h-full overflow-y-auto">
+            <FeedPanel 
+              signals={filteredSignals} 
+              selectedFilters={selectedFilters}
+              onToggleFilter={handleToggleFilter}
+              onClearFilters={handleClearFilters}
+              categoryGroups={categoryGroups}
+              loading={feedLoading}
+              error={feedError}
+            />
+          </div>
+        )}
       </main>
     </div>
   );

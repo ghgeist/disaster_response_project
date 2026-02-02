@@ -45,15 +45,22 @@ build/
 *.min.js
 *.min.css
 
-# React / Vite dashboard (built from _vendor/figma_make; copy dist/ → app/static/dashboard/)
-app/static/dashboard/assets/
+# React / Vite dashboard (built from _vendor/figma_make; copy dist/ -> app/static/dashboard/)
+# We WANT to track these assets so deployment doesn't require a node build step
+# app/static/dashboard/assets/
 
 # Vite/React env (secrets, local overrides)
+.env
 .env.local
 .env.*.local
 
-# Vendor directories (treat as read-only upstream)
-_vendor/
+# Vendor directories
+# ALLOW figma_make so we track the source code
+!_vendor/figma_make/
+
+# ...but ignore its dependencies and build artifacts
+_vendor/figma_make/node_modules/
+_vendor/figma_make/dist/
 
 # --- Catch accidental weird files
 =*

@@ -21,6 +21,8 @@ The disaster response classification system faces extreme class imbalance across
 - `shops`: 120 examples (0.46%)
 - `offer`: 118 examples (0.45%)
 
+Recent spot checks show the production model can miss labels on short, low-context inputs (for example, single-word prompts like "water" can fall below the `water` threshold). This reinforces the need to address data quality (better translations, richer context) before sampling strategies are likely to help.
+
 The project initially considered multi-label sampling approaches (SMOTE, ADASYN) to address class imbalance, with validation scripts (`scripts/validate_multilabel_sampling.py`) implemented to test these methods. However, data quality limitations revealed fundamental incompatibilities with sampling-based approaches.
 
 ## Decision
