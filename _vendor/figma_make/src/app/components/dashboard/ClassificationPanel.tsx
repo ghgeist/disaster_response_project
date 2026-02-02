@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Badge } from "@/app/components/ui/common";
-import { Send, Sparkles, BarChart2, Ambulance, AlertOctagon, Trash2 } from "lucide-react";
+import { Send, Sparkles, BarChart2, Ambulance, AlertOctagon, Trash2, Loader2 } from "lucide-react";
 import { CRITICAL_CATEGORIES } from "@/app/data";
 
 export interface ClassificationCategory {
@@ -136,7 +136,12 @@ e.g. 'please help me I need food and water'"
             disabled={!inputText.trim() || isClassifying}
             className="w-full bg-slate-900 text-white text-xs font-medium py-2 rounded shadow-sm flex items-center justify-center gap-2 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
-            {isClassifying ? "Processing..." : (
+            {isClassifying ? (
+              <>
+                <Loader2 className="w-3 h-3 animate-spin" />
+                Processing...
+              </>
+            ) : (
               <>
                 <Send className="w-3 h-3" /> Run Classification
               </>
