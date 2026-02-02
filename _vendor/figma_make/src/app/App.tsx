@@ -5,15 +5,92 @@ import { DEFAULT_CATEGORY_GROUPS } from '@/app/data';
 import { FeedPanel } from '@/app/components/dashboard/FeedPanel';
 import { MetricsPanel } from '@/app/components/dashboard/MetricsPanel';
 import { ClassificationPanel } from '@/app/components/dashboard/ClassificationPanel';
-import { Radar, Bell, Settings, UserCircle, Menu } from 'lucide-react';
+import { Radar, Bell, Settings, UserCircle, Menu, LayoutDashboard, FileBarChart } from 'lucide-react';
 import { toApiName, getCategories } from '@/app/utils/api';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/app/components/ui/tooltip';
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  useSidebar,
+} from '@/app/components/ui/sidebar';
 
 function mapFeedItem(item: { timestamp: string; [k: string]: unknown }): SignalItem {
   return {
     ...item,
     timestamp: new Date(item.timestamp),
   } as SignalItem;
+}
+
+function DashboardHeader({ modelInfo }: { modelInfo: ModelInfo | null }) {
+  const { toggleSidebar } = useSidebar();
+  return (
+    <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4 flex-shrink-0 z-50">
+      <div className="flex items-center gap-4">
+        <button
+          type="button"
+          aria-label="Open menu"
+          className="p-1.5 hover:bg-slate-100 rounded text-slate-500 hover:text-slate-900 transition-colors"
+          onClick={toggleSidebar}
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+        <div className="flex items-center gap-2">
+          <div className="bg-blue-600 p-1 rounded-sm">
+            <Radar className="w-4 h-4 text-white" />
+          </div>
+          <h1 className="text-lg font-bold tracking-tight text-slate-900">STORM SIGNAL</h1>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <Tooltip delayDuration={300}>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              className="hidden lg:flex items-center gap-2 text-xs text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200 font-medium tracking-wide cursor-pointer hover:bg-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              aria-label="System status - hover for model details"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              SYSTEM: OPERATIONAL
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" sideOffset={8} className="bg-slate-900 text-white text-xs max-w-xs z-[100]">
+            {modelInfo ? (
+              <>
+                Model version: {modelInfo.version} | {modelInfo.f1_score !== null ? `${Math.round(modelInfo.f1_score * 100)}%` : 'N/A'} F1-score | {Math.round(modelInfo.hierarchy_violations)}% Hierarchy Violations
+              </>
+            ) : (
+              <>Loading model info...</>
+            )}
+          </TooltipContent>
+        </Tooltip>
+        <button className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition-colors">
+          <Settings className="w-5 h-5" />
+        </button>
+        <button className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition-colors relative">
+          <Bell className="w-5 h-5" />
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+        </button>
+        <div className="h-6 w-px bg-slate-200 mx-1"></div>
+        <button className="flex items-center gap-2 pl-1 pr-2 py-1 hover:bg-slate-100 rounded-full transition-colors group">
+          <UserCircle className="w-7 h-7 text-slate-300 group-hover:text-slate-400 transition-colors" />
+          <div className="flex flex-col items-start leading-none">
+            <span className="text-xs font-bold text-slate-700">Operator_7</span>
+            <span className="text-[10px] text-slate-400">Level 3 Clearance</span>
+          </div>
+        </button>
+      </div>
+    </header>
+  );
 }
 
 export default function App() {
@@ -213,83 +290,66 @@ export default function App() {
     </PanelResizeHandle>
   );
 
+  const sidebarTheme =
+    "bg-white border-r border-slate-200 shadow-sm [--sidebar:#ffffff] [--sidebar-foreground:#111827] [--sidebar-accent:#f1f5f9] [--sidebar-accent-foreground:#111827] [--sidebar-border:#e2e8f0] [--sidebar-ring:#94a3b8]";
+
   return (
-    <div className="h-screen w-full flex flex-col bg-slate-50 font-sans text-slate-900 overflow-hidden">
-      {/* Mobile Warning Banner */}
-      <div className="lg:hidden fixed inset-0 z-[100] bg-slate-900/90 flex items-center justify-center p-6 backdrop-blur-sm">
-        <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm text-center">
-          <Radar className="w-12 h-12 text-blue-500 mx-auto mb-4" />
-          <h2 className="text-lg font-bold text-slate-900 mb-2">Desktop Optimized</h2>
-          <p className="text-sm text-slate-600 mb-4">
-            Storm Signal is optimized for desktop viewing. Please access from a larger screen for the full experience.
-          </p>
-          {showMobileBanner && (
-             <button 
-               onClick={() => setShowMobileBanner(false)}
-               className="text-xs text-slate-400 hover:text-slate-600 underline"
-             >
-               Dismiss (View Anyway)
-             </button>
-          )}
-        </div>
-      </div>
-
-      {/* Global Header - Light Theme */}
-      <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4 flex-shrink-0 z-50">
-        <div className="flex items-center gap-4">
-          <button className="p-1.5 hover:bg-slate-100 rounded text-slate-500 hover:text-slate-900 transition-colors">
-            <Menu className="w-5 h-5" />
-          </button>
-          <div className="flex items-center gap-2">
-            <div className="bg-blue-600 p-1 rounded-sm">
-              <Radar className="w-4 h-4 text-white" />
-            </div>
-            <h1 className="text-lg font-bold tracking-tight text-slate-900">STORM SIGNAL</h1>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-4">
-          <Tooltip delayDuration={300}>
-            <TooltipTrigger asChild>
-              <button 
-                type="button"
-                className="hidden lg:flex items-center gap-2 text-xs text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200 font-medium tracking-wide cursor-pointer hover:bg-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                aria-label="System status - hover for model details"
-              >
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                SYSTEM: OPERATIONAL
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" sideOffset={8} className="bg-slate-900 text-white text-xs max-w-xs z-[100]">
-              {modelInfo ? (
-                <>
-                  Model version: {modelInfo.version} | {modelInfo.f1_score !== null ? `${Math.round(modelInfo.f1_score * 100)}%` : 'N/A'} F1-score | {Math.round(modelInfo.hierarchy_violations)}% Hierarchy Violations
-                </>
-              ) : (
-                <>Loading model info...</>
+    <SidebarProvider className={sidebarTheme}>
+      <Sidebar className={sidebarTheme}>
+        <SidebarHeader />
+        <SidebarContent>
+          <SidebarGroup className="p-4">
+            <SidebarGroupLabel className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              Dashboards
+            </SidebarGroupLabel>
+            <SidebarGroupContent className="mt-2">
+              <SidebarMenu className="space-y-0.5">
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild className="rounded-md text-slate-900 hover:bg-slate-100 hover:text-slate-900 data-[active=true]:bg-slate-100">
+                    <a href="/api/dashboard">
+                      <LayoutDashboard className="h-4 w-4 text-slate-600" />
+                      <span>Dashboard</span>
+                    </a>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild className="rounded-md text-slate-900 hover:bg-slate-100 hover:text-slate-900">
+                    <a href="/api/model-info-dashboard">
+                      <FileBarChart className="h-4 w-4 text-slate-600" />
+                      <span>Model Information</span>
+                    </a>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+      </Sidebar>
+      <SidebarInset>
+        <div className="h-screen w-full flex flex-col bg-slate-50 font-sans text-slate-900 overflow-hidden">
+          {/* Mobile Warning Banner */}
+          <div className="lg:hidden fixed inset-0 z-[100] bg-slate-900/90 flex items-center justify-center p-6 backdrop-blur-sm">
+            <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm text-center">
+              <Radar className="w-12 h-12 text-blue-500 mx-auto mb-4" />
+              <h2 className="text-lg font-bold text-slate-900 mb-2">Desktop Optimized</h2>
+              <p className="text-sm text-slate-600 mb-4">
+                Storm Signal is optimized for desktop viewing. Please access from a larger screen for the full experience.
+              </p>
+              {showMobileBanner && (
+                <button
+                  onClick={() => setShowMobileBanner(false)}
+                  className="text-xs text-slate-400 hover:text-slate-600 underline"
+                >
+                  Dismiss (View Anyway)
+                </button>
               )}
-            </TooltipContent>
-          </Tooltip>
-          <button className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition-colors">
-            <Settings className="w-5 h-5" />
-          </button>
-          <button className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition-colors relative">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-          </button>
-          <div className="h-6 w-px bg-slate-200 mx-1"></div>
-          <button className="flex items-center gap-2 pl-1 pr-2 py-1 hover:bg-slate-100 rounded-full transition-colors group">
-            <UserCircle className="w-7 h-7 text-slate-300 group-hover:text-slate-400 transition-colors" />
-            <div className="flex flex-col items-start leading-none">
-              <span className="text-xs font-bold text-slate-700">Operator_7</span>
-              <span className="text-[10px] text-slate-400">Level 3 Clearance</span>
             </div>
-          </button>
-        </div>
-      </header>
+          </div>
 
-      {/* 3-Panel Resizable Layout */}
-      <main className="flex-1 overflow-hidden relative">
+          <DashboardHeader modelInfo={modelInfo} />
+
+          {/* 3-Panel Resizable Layout */}
+          <main className="flex-1 overflow-hidden relative">
         {isDesktop ? (
           <div className="h-full w-full">
             <PanelGroup direction="horizontal">
@@ -323,8 +383,8 @@ export default function App() {
           </div>
         ) : (
           <div className="h-full overflow-y-auto">
-            <FeedPanel 
-              signals={filteredSignals} 
+            <FeedPanel
+              signals={filteredSignals}
               selectedFilters={selectedFilters}
               onToggleFilter={handleToggleFilter}
               onClearFilters={handleClearFilters}
@@ -334,7 +394,9 @@ export default function App() {
             />
           </div>
         )}
-      </main>
-    </div>
+          </main>
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

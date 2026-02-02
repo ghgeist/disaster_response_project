@@ -125,7 +125,7 @@ const HeatmapCell = ({ category }: { category: { name: string; recall: number, t
       </div>
       <span className="font-semibold text-sm truncate mb-2 leading-tight">{category.name}</span>
       <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-        <div className="h-full rounded-full transition-all" style={{ width: `${category.recall}%` }} className={barColor} />
+        <div className={cn("h-full rounded-full transition-all", barColor)} style={{ width: `${category.recall}%` }} />
       </div>
     </div>
   );

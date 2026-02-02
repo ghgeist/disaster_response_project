@@ -10,15 +10,38 @@ import {
   Radar,
   Info,
   Loader2,
+  LayoutDashboard,
+  FileBarChart,
 } from 'lucide-react';
 import { cn } from "@/app/components/ui/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  useSidebar,
+} from "@/app/components/ui/sidebar";
 
 // --- Header Component (Storm Signal) ---
-const StormHeader = () => (
+function StormHeader() {
+  const { toggleSidebar } = useSidebar();
+  return (
   <header className="h-16 bg-white border-b border-gray-200 px-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
     <div className="flex items-center gap-4">
-      <button className="p-2 hover:bg-gray-100 rounded-md text-gray-500 transition-colors">
+      <button
+        type="button"
+        aria-label="Open menu"
+        className="p-2 hover:bg-gray-100 rounded-md text-gray-500 transition-colors"
+        onClick={toggleSidebar}
+      >
         <Menu className="h-5 w-5" />
       </button>
       <div className="flex items-center gap-3">
@@ -56,7 +79,8 @@ const StormHeader = () => (
       </div>
     </div>
   </header>
-);
+  );
+}
 
 // --- Metric Card Component ---
 const MetricCard = ({ label, value, tooltip }: { label: string; value: string; tooltip: string }) => (
@@ -178,17 +202,15 @@ export function ModelInformationDashboard() {
       }));
   const sortedCategories = [...processedCategories].sort((a, b) => b.adjustedF1 - a.adjustedF1);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#F8FAFC] font-sans text-gray-900 flex flex-col items-center justify-center gap-4">
-        <StormHeader />
+  const appContent = loading ? (
+    <div className="min-h-screen bg-[#F8FAFC] font-sans text-gray-900 flex flex-col">
+      <StormHeader />
+      <div className="flex-1 flex flex-col items-center justify-center gap-4">
         <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
         <p className="text-sm text-gray-500">Loading model information…</p>
       </div>
-    );
-  }
-
-  return (
+    </div>
+  ) : (
     <div className="min-h-screen bg-[#F8FAFC] font-sans text-gray-900 flex flex-col">
       <StormHeader />
 
@@ -266,5 +288,46 @@ export function ModelInformationDashboard() {
           </main>
       </div>
     </div>
+  );
+
+  const sidebarTheme =
+    "bg-white border-r border-gray-200 shadow-sm [--sidebar:#ffffff] [--sidebar-foreground:#111827] [--sidebar-accent:#f3f4f6] [--sidebar-accent-foreground:#111827] [--sidebar-border:#e5e7eb] [--sidebar-ring:#9ca3af]";
+
+  return (
+    <SidebarProvider className={sidebarTheme}>
+      <Sidebar className={sidebarTheme}>
+        <SidebarHeader />
+        <SidebarContent className="bg-white">
+          <SidebarGroup className="p-4">
+            <SidebarGroupLabel className="text-xs font-medium uppercase tracking-wide text-gray-500">
+              Dashboards
+            </SidebarGroupLabel>
+            <SidebarGroupContent className="mt-2">
+              <SidebarMenu className="space-y-0.5">
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild className="rounded-md text-gray-900 hover:bg-gray-100 hover:text-gray-900">
+                    <a href="/api/dashboard">
+                      <LayoutDashboard className="h-4 w-4 text-gray-600" />
+                      <span>Dashboard</span>
+                    </a>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild className="rounded-md bg-gray-100 font-medium text-gray-900 hover:bg-gray-100 hover:text-gray-900 data-[active=true]:bg-gray-100">
+                    <a href="/api/model-info-dashboard">
+                      <FileBarChart className="h-4 w-4 text-gray-600" />
+                      <span>Model Information</span>
+                    </a>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+      </Sidebar>
+      <SidebarInset>
+        {appContent}
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
