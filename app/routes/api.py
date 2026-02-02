@@ -610,12 +610,196 @@ def categories_metadata():
         return jsonify({"error": "Categories unavailable right now."}), 500
 
 
+def _get_model_dir() -> Path:
+    """Return path to project model/ directory."""
+    return Path(current_app.root_path).parent / "model"
+
+
+def _find_production_thresholds_file(model_dir: Path) -> Path | None:
+    """
+    Find production thresholds file: newest *_thresholds.json excluding optimized_*;
+    if none, newest including optimized_*. Else None.
+    """
+    if not model_dir.is_dir():
+        return None
+    candidates = [
+        f for f in model_dir.iterdir()
+        if f.is_file() and f.name.endswith("_thresholds.json") and not f.name.startswith("optimized_")
+    ]
+    if candidates:
+        return max(candidates, key=lambda p: p.stat().st_mtime)
+    fallback = [
+        f for f in model_dir.iterdir()
+        if f.is_file() and f.name.endswith("_thresholds.json")
+    ]
+    if fallback:
+        return max(fallback, key=lambda p: p.stat().st_mtime)
+    return None
+
+
+def _build_model_info_dashboard_payload() -> dict:
+    """
+    Build single payload for Model Information dashboard.
+    Deterministic thresholds file; categories/criticalThresholds from category_stats;
+    metrics f1 from MODEL_INFO, precision/recall weighted from category_stats;
+    registry allowlist .json/.csv/.md/.pkl; no NaN/Infinity in JSON.
+    """
+    model_dir = _get_model_dir()
+    generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+
+    model_info_data = {}
+    model_info_path = model_dir / "MODEL_INFO.json"
+    if model_info_path.exists():
+        try:
+            with open(model_info_path, "r", encoding="utf-8") as f:
+                model_info_data = json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            logger.warning("MODEL_INFO.json read failed: %s", e)
+
+    version = model_info_data.get("version", "unknown")
+    if not isinstance(version, str):
+        version = "unknown"
+    last_updated = model_info_data.get("promotion_timestamp")
+    if last_updated is None or (
+        isinstance(last_updated, float) and (math.isnan(last_updated) or math.isinf(last_updated))
+    ):
+        last_updated = None
+    else:
+        last_updated = str(last_updated)
+    status = model_info_data.get("status", "unknown")
+    if not isinstance(status, str):
+        status = "unknown"
+
+    f1_weighted = model_info_data.get("performance", {}).get("f1_weighted")
+    if f1_weighted is None:
+        f1_weighted = model_info_data.get("validation_results", {}).get("f1_weighted")
+    f1_metric = _safe_float_prob(f1_weighted) if f1_weighted is not None else 0.0
+
+    thresholds_path = _find_production_thresholds_file(model_dir)
+    stem = "unknown"
+    category_stats_list: list = []
+    critical_thresholds_list: list = []
+
+    if thresholds_path is not None:
+        try:
+            with open(thresholds_path, "r", encoding="utf-8") as f:
+                thresh_data = json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            logger.warning("Thresholds file read failed %s: %s", thresholds_path, e)
+        else:
+            meta = thresh_data.get("metadata") or {}
+            model_ref = meta.get("model")
+            if isinstance(model_ref, str) and model_ref:
+                stem = Path(model_ref).stem
+            category_stats_list = thresh_data.get("category_stats") or []
+            if not isinstance(category_stats_list, list):
+                category_stats_list = []
+
+            for stat in category_stats_list:
+                if not isinstance(stat, dict):
+                    continue
+                if stat.get("type") == "critical":
+                    key = stat.get("category")
+                    if key is None:
+                        continue
+                    label = _safe_category_display(key)
+                    thresh_val = stat.get("threshold")
+                    critical_thresholds_list.append({
+                        "key": str(key),
+                        "label": label,
+                        "threshold": _safe_float_prob(thresh_val),
+                    })
+
+    categories_payload = []
+    total_support = 0.0
+    weighted_precision = 0.0
+    weighted_recall = 0.0
+    for stat in category_stats_list:
+        if not isinstance(stat, dict):
+            continue
+        key = stat.get("category")
+        if key is None:
+            continue
+        label = _safe_category_display(key)
+        support_val = stat.get("support")
+        try:
+            sup = float(support_val) if support_val is not None else 0.0
+        except (TypeError, ValueError):
+            sup = 0.0
+        if math.isnan(sup) or math.isinf(sup) or sup < 0:
+            sup = 0.0
+        total_support += sup
+        prec = _safe_float_prob(stat.get("precision"))
+        rec = _safe_float_prob(stat.get("actual_recall")) if "actual_recall" in stat else _safe_float_prob(stat.get("recall"))
+        weighted_precision += prec * sup
+        weighted_recall += rec * sup
+        categories_payload.append({
+            "key": str(key),
+            "label": label,
+            "f1": _safe_float_prob(stat.get("f1")),
+            "precision": prec,
+            "recall": rec,
+            "support": int(sup),
+        })
+
+    if total_support > 0:
+        precision_overall = weighted_precision / total_support
+        recall_overall = weighted_recall / total_support
+    else:
+        precision_overall = 0.0
+        recall_overall = 0.0
+    if math.isnan(precision_overall) or math.isinf(precision_overall):
+        precision_overall = 0.0
+    if math.isnan(recall_overall) or math.isinf(recall_overall):
+        recall_overall = 0.0
+
+    registry_allowlist = {".json", ".csv", ".md", ".pkl"}
+    registry_list = []
+    if model_dir.is_dir():
+        for f in model_dir.iterdir():
+            if not f.is_file():
+                continue
+            suf = f.suffix.lower()
+            if suf not in registry_allowlist:
+                continue
+            try:
+                size = f.stat().st_size
+            except OSError:
+                size = 0
+            registry_list.append({
+                "name": f.name,
+                "size": size,
+                "type": suf.lstrip("."),
+            })
+    registry_list.sort(key=lambda x: x["name"])
+
+    model_id_upper = stem.upper().replace("-", "_") if stem != "unknown" else stem
+
+    return {
+        "model": {
+            "id": model_id_upper,
+            "version": version,
+            "lastUpdated": last_updated,
+            "status": status,
+            "generatedAt": generated_at,
+        },
+        "metrics": {
+            "f1": round(f1_metric, 4),
+            "precision": round(precision_overall, 4),
+            "recall": round(recall_overall, 4),
+        },
+        "categories": categories_payload,
+        "criticalThresholds": critical_thresholds_list,
+        "registry": registry_list,
+    }
+
+
 @api_bp.route("/model-info", methods=["GET"])
 def model_info():
     """Return production model metadata (version, F1 score, status)."""
     try:
         # Try to load MODEL_INFO.json from model directory
-        model_dir = Path(current_app.root_path).parent / "model"
+        model_dir = _get_model_dir()
         model_info_path = model_dir / "MODEL_INFO.json"
         
         if model_info_path.exists():
@@ -659,6 +843,44 @@ def model_info():
     except Exception as error:
         _log_api_error("GET /api/model-info", error)
         return jsonify({"error": "Model info unavailable right now."}), 500
+
+
+@api_bp.route("/model-info/dashboard", methods=["GET"])
+def model_info_dashboard():
+    """Return single payload for Model Information dashboard (model, metrics, categories, criticalThresholds, registry)."""
+    try:
+        payload = _build_model_info_dashboard_payload()
+        return jsonify(payload)
+    except Exception as error:
+        _log_api_error("GET /api/model-info/dashboard", error)
+        return jsonify({"error": "Model info dashboard unavailable right now."}), 500
+
+
+@api_bp.route("/model-info-dashboard")
+def model_info_dashboard_spa():
+    """Serve Model Information dashboard SPA (index.html)."""
+    static_folder = current_app.static_folder
+    return send_from_directory(
+        static_folder, "model_info_dashboard/index.html", mimetype="text/html"
+    )
+
+
+@api_bp.route("/model-info-dashboard/", defaults={"path": ""})
+@api_bp.route("/model-info-dashboard/<path:path>")
+def model_info_dashboard_spa_path(path):
+    """Serve Model Information dashboard assets or index.html for SPA fallback."""
+    static_folder = Path(current_app.static_folder)
+    dashboard_dir = static_folder / "model_info_dashboard"
+    if not path:
+        return send_from_directory(
+            static_folder, "model_info_dashboard/index.html", mimetype="text/html"
+        )
+    file_path = dashboard_dir / path
+    if file_path.is_file() and file_path.resolve().is_relative_to(dashboard_dir.resolve()):
+        return send_from_directory(str(dashboard_dir), path)
+    return send_from_directory(
+        static_folder, "model_info_dashboard/index.html", mimetype="text/html"
+    )
 
 
 @api_bp.route("/dashboard")

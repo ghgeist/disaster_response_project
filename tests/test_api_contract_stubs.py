@@ -511,3 +511,74 @@ def test_api_responses_contain_no_nan_or_infinity(client):
     classify_resp = client.post("/api/classify", json={"message": "Need water and medical aid"})
     assert classify_resp.status_code == 200
     assert _json_contains_no_nan_or_infinity(classify_resp.get_json()), "POST /api/classify must not emit NaN/Infinity"
+
+    dashboard_resp = client.get("/api/model-info/dashboard")
+    assert dashboard_resp.status_code == 200
+    assert _json_contains_no_nan_or_infinity(dashboard_resp.get_json()), "GET /api/model-info/dashboard must not emit NaN/Infinity"
+
+
+def test_api_model_info_dashboard_contract(client):
+    """GET /api/model-info/dashboard returns contract shape: model, metrics, categories, criticalThresholds, registry."""
+    response = client.get("/api/model-info/dashboard")
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload is not None
+    for key in ("model", "metrics", "categories", "criticalThresholds", "registry"):
+        assert key in payload, f"Missing key: {key}"
+
+    model = payload["model"]
+    for key in ("id", "version", "lastUpdated", "status", "generatedAt"):
+        assert key in model, f"model missing key: {key}"
+
+    metrics = payload["metrics"]
+    for key in ("f1", "precision", "recall"):
+        assert key in metrics, f"metrics missing key: {key}"
+    assert isinstance(metrics["f1"], (int, float))
+    assert isinstance(metrics["precision"], (int, float))
+    assert isinstance(metrics["recall"], (int, float))
+
+    categories = payload["categories"]
+    assert isinstance(categories, list)
+    if categories:
+        cat = categories[0]
+        for key in ("key", "label", "f1", "precision", "recall", "support"):
+            assert key in cat, f"categories[0] missing key: {key}"
+
+    critical = payload["criticalThresholds"]
+    assert isinstance(critical, list)
+    if critical:
+        ct = critical[0]
+        for key in ("key", "label", "threshold"):
+            assert key in ct, f"criticalThresholds[0] missing key: {key}"
+
+    registry = payload["registry"]
+    assert isinstance(registry, list)
+    if registry:
+        reg = registry[0]
+        for key in ("name", "size", "type"):
+            assert key in reg, f"registry[0] missing key: {key}"
+
+    assert _json_contains_no_nan_or_infinity(payload), "Dashboard payload must not contain NaN/Infinity"
+
+
+def test_model_info_dashboard_null_realism(client, tmp_path):
+    """When model dir has no MODEL_INFO or no thresholds file, dashboard returns 200 with sensible defaults and no NaN."""
+    from unittest.mock import patch
+
+    # Empty model dir: no MODEL_INFO.json, no *_thresholds.json
+    with patch("app.routes.api._get_model_dir", return_value=tmp_path):
+        response = client.get("/api/model-info/dashboard")
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload is not None
+    assert "model" in payload
+    assert payload["model"]["id"] in ("unknown", "UNKNOWN")
+    assert payload["model"]["version"] == "unknown"
+    assert "metrics" in payload
+    assert payload["metrics"]["f1"] == 0.0
+    assert payload["metrics"]["precision"] == 0.0
+    assert payload["metrics"]["recall"] == 0.0
+    assert payload["categories"] == []
+    assert payload["criticalThresholds"] == []
+    assert isinstance(payload["registry"], list)
+    assert _json_contains_no_nan_or_infinity(payload), "Dashboard with empty model dir must not emit NaN/Infinity"
