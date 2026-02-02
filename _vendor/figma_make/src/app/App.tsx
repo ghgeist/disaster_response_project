@@ -58,7 +58,13 @@ export default function App() {
         setModelInfo(data);
       })
       .catch(() => {
-        // Silently fail - we'll use fallback values
+        // Set fallback values when API fails
+        setModelInfo({
+          version: "unavailable",
+          f1_score: null,
+          status: "unknown",
+          hierarchy_violations: 0,
+        });
       });
   }, []);
 
