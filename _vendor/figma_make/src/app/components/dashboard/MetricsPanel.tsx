@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { Activity, BarChart3, TrendingUp } from "lucide-react";
+import { Skeleton } from "@/app/components/ui/skeleton";
 
 interface MetricsData {
   volumeToday: number;
@@ -47,8 +48,42 @@ export const MetricsPanel = ({ onCategoryClick }: MetricsPanelProps) => {
 
   if (loading) {
     return (
-      <div className="h-full flex flex-col bg-slate-50 overflow-y-auto items-center justify-center text-slate-500 text-sm">
-        Loading metrics…
+      <div className="h-full flex flex-col bg-slate-50 overflow-y-auto" aria-busy="true" aria-live="polite">
+        <span className="sr-only">Loading metrics…</span>
+        <div className="pt-4 px-6 pb-6 space-y-6">
+          <div className="grid grid-cols-2 gap-4">
+            {Array.from({ length: 2 }).map((_, index) => (
+              <div key={`metric-skeleton-${index}`} className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm space-y-3">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-7 w-24" />
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm space-y-3">
+            <Skeleton className="h-3 w-40" />
+            <Skeleton className="h-[150px] w-full" />
+          </div>
+
+          <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm space-y-4">
+            <Skeleton className="h-3 w-32" />
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div key={`category-skeleton-${index}`} className="flex items-center gap-3">
+                  <Skeleton className="h-3 w-6" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-3 w-32" />
+                    <Skeleton className="h-2 w-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="text-[10px] text-slate-400 text-center pt-4 border-t border-slate-200 border-dashed">
+            <Skeleton className="h-3 w-40 mx-auto" />
+          </div>
+        </div>
       </div>
     );
   }

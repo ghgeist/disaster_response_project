@@ -9,12 +9,12 @@ import {
   User,
   Radar,
   Info,
-  Loader2,
   LayoutDashboard,
   FileBarChart,
 } from 'lucide-react';
 import { cn } from "@/app/components/ui/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
+import { Skeleton } from "@/app/components/ui/skeleton";
 import {
   SidebarProvider,
   Sidebar,
@@ -192,9 +192,39 @@ export function ModelInformationDashboard() {
   const appContent = loading ? (
     <div className="min-h-screen bg-[#F8FAFC] font-sans text-gray-900 flex flex-col">
       <StormHeader />
-      <div className="flex-1 flex flex-col items-center justify-center gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-        <p className="text-sm text-gray-500">Loading model information…</p>
+      <div className="flex-1 overflow-y-auto p-8" aria-busy="true" aria-live="polite">
+        <span className="sr-only">Loading model information…</span>
+        <div className="max-w-[1400px] mx-auto space-y-8">
+          <div className="flex justify-between items-end border-b border-gray-200 pb-4">
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-4 w-64" />
+            </div>
+            <Skeleton className="h-8 w-24" />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={`metric-card-skeleton-${index}`} className="bg-white border border-gray-200 p-5 h-24 rounded-none shadow-sm space-y-3">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-8 w-20" />
+              </div>
+            ))}
+          </div>
+
+          <div className="space-y-4">
+            <Skeleton className="h-4 w-72" />
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {Array.from({ length: 8 }).map((_, index) => (
+                <div key={`matrix-skeleton-${index}`} className="border border-gray-200 h-24 bg-white rounded-none shadow-sm p-3 space-y-3">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-2 w-full" />
+                  <Skeleton className="h-5 w-12" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   ) : (
