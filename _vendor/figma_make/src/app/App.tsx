@@ -41,7 +41,6 @@ export default function App() {
       setIsDesktop(event.matches);
     };
 
-    setIsDesktop(mediaQuery.matches);
     mediaQuery.addEventListener("change", handleChange);
 
     return () => {
