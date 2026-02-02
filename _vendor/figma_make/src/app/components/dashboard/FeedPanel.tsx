@@ -172,7 +172,7 @@ export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFil
               </button>
             </Badge>
           ))}
-          <button onClick={onClearFilters} className="text-[10px] text-blue-600 hover:text-blue-700 hover:underline ml-1 font-medium">
+          <button onClick={() => { onClearFilters(); setHideLowConfidence(false); }} className="text-[10px] text-blue-600 hover:text-blue-700 hover:underline ml-1 font-medium">
             Clear all
           </button>
         </div>

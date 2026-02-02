@@ -113,7 +113,7 @@ e.g. 'please help me I need food and water'"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
+              if (e.key === 'Enter' && !e.shiftKey && !isClassifying) {
                 e.preventDefault();
                 handleClassify();
               }
