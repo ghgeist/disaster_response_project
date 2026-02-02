@@ -652,6 +652,25 @@ def classify():
         payload = _build_simplified_classification(
             prediction_result, category_volumes, thresholds_map
         )
+
+        debug_flag = (request.args.get("debug") or "").strip().lower()
+        if debug_flag in {"1", "true", "yes", "on"}:
+            raw_probs = prediction_result.get("probabilities") or {}
+            raw_labels = prediction_result.get("labels") or {}
+            payload["debug"] = {
+                "probabilities": {
+                    key: round(_safe_float_prob(value), 4)
+                    for key, value in raw_probs.items()
+                },
+                "thresholds": {
+                    key: round(_safe_float_prob(value), 4)
+                    for key, value in thresholds_map.items()
+                },
+                "labels": {
+                    key: _safe_label_value(value)
+                    for key, value in raw_labels.items()
+                },
+            }
         return jsonify(payload)
     except (ValueError, ModelServiceError) as error:
         _log_api_error("POST /api/classify", error)

@@ -22,6 +22,7 @@ export default function App() {
   const [showMobileBanner, setShowMobileBanner] = useState(true);
 
   useEffect(() => {
+    console.log("STORM SIGNAL: VERSION DISPATCH FIX APPLIED 2");
     setFeedLoading(true);
     setFeedError(null);
     
@@ -64,14 +65,18 @@ export default function App() {
   };
 
   const filteredSignals = useMemo(() => {
+    let result = signals;
     // If filters are applied server-side, we can just return the signals directly
     // However, keeping this local filter doesn't hurt and handles any optimistic updates or mixed states
-    if (selectedFilters.length === 0) return signals;
-    // We still locally filter to ensure immediate UI consistency while fetch happens, 
-    // or if the API returns mixed results (though it shouldn't)
-    return signals.filter(s => 
-      s.categories.some(c => selectedFilters.includes(c))
-    );
+    if (selectedFilters.length > 0) {
+      result = signals.filter(s => 
+        s.categories.some(c => selectedFilters.includes(c))
+      );
+    }
+    
+    // Force strict sort by timestamp descending (Newest First) to ensure 
+    // manual dispatches (which are 'Now') appear at the top
+    return [...result].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
   }, [signals, selectedFilters]);
 
   // Handler for dispatching from classification panel
@@ -86,7 +91,7 @@ export default function App() {
       language: "en",
       riskLevel: results.severity,
       categories: results.categories
-        .filter((c: any) => (c.meetsThreshold ?? c.conf > 0.5))
+        .filter((c: any) => c.conf > 0.4 && c.name.toLowerCase() !== "related")
         .map((c: any) => c.name)
         .slice(0, 3), // Top 3
       classifications: results.categories.map((c: any) => ({
@@ -96,7 +101,25 @@ export default function App() {
       isTranslated: false
     };
 
-    setSignals(prev => [newSignal, ...prev]);
+    setSignals(prev => {
+      // Ensure the manual dispatch stays at the top by checking if we need to shim the timestamp
+      let ts = new Date();
+      if (prev.length > 0) {
+        const latest = prev[0].timestamp;
+        if (latest > ts) {
+          // If the latest item is in the future (due to mock data generation), 
+          // set our manual item to be 1 second ahead of it.
+          ts = new Date(latest.getTime() + 1000); 
+        }
+      }
+
+      const newSignalWithFixedTime: SignalItem = {
+        ...newSignal,
+        timestamp: ts
+      };
+
+      return [newSignalWithFixedTime, ...prev];
+    });
   };
 
   const ResizeHandle = () => (

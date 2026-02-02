@@ -253,7 +253,9 @@ export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFil
 
                 {/* Tags */}
                 <div className="flex flex-wrap gap-1">
-                  {signal.categories.map(cat => (
+                  {signal.categories
+                    .filter(cat => cat.toLowerCase() !== "related") // Filter out 'related' tag
+                    .map(cat => (
                     <span key={cat} className="text-[10px] px-1.5 py-0 bg-blue-50/50 text-blue-700 border border-blue-100 rounded">
                       {cat}
                     </span>
