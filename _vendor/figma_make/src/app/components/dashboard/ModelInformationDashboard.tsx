@@ -21,7 +21,6 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
@@ -33,21 +32,21 @@ import {
 function StormHeader() {
   const { toggleSidebar } = useSidebar();
   return (
-  <header className="h-16 bg-white border-b border-gray-200 px-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+  <header className="h-16 bg-white border-b border-slate-200 px-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
     <div className="flex items-center gap-4">
       <button
         type="button"
         aria-label="Open menu"
-        className="p-2 hover:bg-gray-100 rounded-md text-gray-500 transition-colors"
+        className="p-2 hover:bg-slate-100 rounded-md text-slate-500 transition-colors"
         onClick={toggleSidebar}
       >
         <Menu className="h-5 w-5" />
       </button>
       <div className="flex items-center gap-3">
-        <div className="h-8 w-8 bg-[#6366F1] rounded-lg flex items-center justify-center text-white shadow-sm">
+        <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-sm">
           <Radar className="h-5 w-5" />
         </div>
-        <span className="text-lg font-bold text-gray-900 tracking-tight">STORM SIGNAL</span>
+        <span className="text-lg font-bold text-slate-900 tracking-tight">STORM SIGNAL</span>
       </div>
     </div>
 
@@ -57,23 +56,23 @@ function StormHeader() {
         <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wide">System: Operational</span>
       </div>
 
-      <div className="flex items-center text-gray-400 gap-1">
-        <button className="p-2 hover:bg-gray-100 rounded-full transition-colors hover:text-gray-600"><Settings className="h-5 w-5" /></button>
-        <button className="p-2 hover:bg-gray-100 rounded-full transition-colors hover:text-gray-600 relative">
+      <div className="flex items-center text-slate-400 gap-1">
+        <button className="p-2 hover:bg-slate-100 rounded-full transition-colors hover:text-slate-600"><Settings className="h-5 w-5" /></button>
+        <button className="p-2 hover:bg-slate-100 rounded-full transition-colors hover:text-slate-600 relative">
            <Bell className="h-5 w-5" />
            <span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full border-2 border-white"></span>
         </button>
       </div>
 
-      <div className="h-8 w-px bg-gray-200 mx-2 hidden md:block"></div>
+      <div className="h-8 w-px bg-slate-200 mx-2 hidden md:block"></div>
 
       <div className="flex items-center gap-3 hidden md:flex">
-        <div className="h-9 w-9 bg-gray-50 rounded-full flex items-center justify-center text-gray-400 border border-gray-200">
+        <div className="h-9 w-9 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 border border-slate-200">
           <User className="h-5 w-5" />
         </div>
         <div className="text-left">
-          <div className="text-sm font-bold text-gray-900 leading-none">Operator_7</div>
-          <div className="text-[10px] text-gray-500 mt-1 font-medium">Level 3 Clearance</div>
+          <div className="text-sm font-bold text-slate-900 leading-none">Operator_7</div>
+          <div className="text-[10px] text-slate-500 mt-1 font-medium">Level 3 Clearance</div>
         </div>
       </div>
     </div>
@@ -82,21 +81,21 @@ function StormHeader() {
 }
 
 const MetricCard = ({ label, value, tooltip }: { label: string; value: string; tooltip: string }) => (
-  <div className="bg-white border border-gray-200 p-5 flex flex-col justify-between h-24 hover:border-gray-400 transition-colors rounded-none shadow-sm">
+  <div className="bg-white border border-slate-200 p-5 flex flex-col justify-between h-24 hover:border-slate-400 transition-colors rounded-none shadow-sm">
     <Tooltip>
         <TooltipTrigger asChild>
             <div className="flex items-center gap-1.5 w-fit cursor-help group">
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest group-hover:text-gray-600 transition-colors">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider group-hover:text-slate-600 transition-colors">
                     {label}
                 </span>
-                <Info className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-600 transition-colors" />
+                <Info className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 transition-colors" />
             </div>
         </TooltipTrigger>
         <TooltipContent className="max-w-[200px] bg-slate-900 text-slate-50 border-slate-800">
             <p className="font-sans normal-case tracking-normal">{tooltip}</p>
         </TooltipContent>
     </Tooltip>
-    <span className="text-4xl font-mono font-bold text-gray-900 tracking-tighter">{value}</span>
+    <span className="text-4xl font-mono font-bold text-slate-900 tracking-tighter">{value}</span>
   </div>
 );
 
@@ -118,8 +117,8 @@ const MatrixCell = ({ category }: { category: { name: string; f1: number; adjust
     }
 
     return (
-        <div className="flex flex-col p-3 border border-gray-200 h-24 bg-white hover:border-gray-400 transition-colors rounded-none relative overflow-hidden group">
-             <span className="text-xs font-bold uppercase truncate w-full leading-tight text-gray-700 mb-1" title={category.name}>
+        <div className="flex flex-col p-3 border border-slate-200 h-24 bg-white hover:border-slate-400 transition-colors rounded-none relative overflow-hidden group">
+             <span className="text-xs font-bold uppercase truncate w-full leading-tight text-slate-700 mb-1" title={category.name}>
                  {category.name}
              </span>
 
@@ -128,7 +127,7 @@ const MatrixCell = ({ category }: { category: { name: string; f1: number; adjust
              </div>
 
              <div className="flex flex-col mt-auto">
-                <span className="text-lg font-mono font-bold text-gray-900 leading-tight">
+                <span className="text-lg font-mono font-bold text-slate-900 leading-tight">
                     {rawPercentage}%
                 </span>
              </div>
@@ -190,12 +189,12 @@ export function ModelInformationDashboard() {
   const sortedCategories = [...processedCategories].sort((a, b) => b.adjustedF1 - a.adjustedF1);
 
   const appContent = loading ? (
-    <div className="min-h-screen bg-[#F8FAFC] font-sans text-gray-900 flex flex-col">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col">
       <StormHeader />
       <div className="flex-1 overflow-y-auto p-8" aria-busy="true" aria-live="polite">
         <span className="sr-only">Loading model information…</span>
         <div className="max-w-[1400px] mx-auto space-y-8">
-          <div className="flex justify-between items-end border-b border-gray-200 pb-4">
+          <div className="flex justify-between items-end border-b border-slate-200 pb-4">
             <div className="space-y-2">
               <Skeleton className="h-6 w-48" />
               <Skeleton className="h-4 w-64" />
@@ -205,7 +204,7 @@ export function ModelInformationDashboard() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {Array.from({ length: 3 }).map((_, index) => (
-              <div key={`metric-card-skeleton-${index}`} className="bg-white border border-gray-200 p-5 h-24 rounded-none shadow-sm space-y-3">
+              <div key={`metric-card-skeleton-${index}`} className="bg-white border border-slate-200 p-5 h-24 rounded-none shadow-sm space-y-3">
                 <Skeleton className="h-3 w-24" />
                 <Skeleton className="h-8 w-20" />
               </div>
@@ -216,7 +215,7 @@ export function ModelInformationDashboard() {
             <Skeleton className="h-4 w-72" />
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {Array.from({ length: 8 }).map((_, index) => (
-                <div key={`matrix-skeleton-${index}`} className="border border-gray-200 h-24 bg-white rounded-none shadow-sm p-3 space-y-3">
+                <div key={`matrix-skeleton-${index}`} className="border border-slate-200 h-24 bg-white rounded-none shadow-sm p-3 space-y-3">
                   <Skeleton className="h-3 w-24" />
                   <Skeleton className="h-2 w-full" />
                   <Skeleton className="h-5 w-12" />
@@ -228,7 +227,7 @@ export function ModelInformationDashboard() {
       </div>
     </div>
   ) : (
-    <div className="min-h-screen bg-[#F8FAFC] font-sans text-gray-900 flex flex-col">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col">
       <StormHeader />
 
       <div className="flex flex-1 overflow-hidden">
@@ -240,13 +239,13 @@ export function ModelInformationDashboard() {
                 </div>
               )}
               <div className="max-w-[1400px] mx-auto space-y-8">
-                  <div className="flex justify-between items-end border-b border-gray-200 pb-4">
+                  <div className="flex justify-between items-end border-b border-slate-200 pb-4">
                       <div>
                           <div className="flex items-center gap-3 mb-1">
-                              <h1 className="text-2xl font-bold text-gray-900 tracking-tight uppercase">{modelId}</h1>
-                              <Badge className="rounded-none bg-gray-900 text-white hover:bg-gray-800 font-mono text-xs">v{modelVersion}</Badge>
+                              <h1 className="text-2xl font-bold text-slate-900 tracking-tight uppercase">{modelId}</h1>
+                              <Badge className="rounded-none bg-slate-900 text-white hover:bg-slate-800 font-mono text-xs">v{modelVersion}</Badge>
                           </div>
-                          <p className="text-sm text-gray-500 font-mono">Last Synced: {lastSynced ? new Date(lastSynced).toISOString() : "—"}</p>
+                          <p className="text-sm text-slate-500 font-mono">Last Synced: {lastSynced ? new Date(lastSynced).toISOString() : "—"}</p>
                       </div>
                       <div className="text-right">
                       </div>
@@ -275,8 +274,8 @@ export function ModelInformationDashboard() {
                           <Tooltip>
                               <TooltipTrigger asChild>
                                   <div className="flex items-center gap-1.5 w-fit cursor-help group">
-                                      <h2 className="text-sm font-bold text-gray-900 uppercase tracking-widest">PERFORMANCE MATRIX (F1 BY CATEGORY)</h2>
-                                      <Info className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-600 transition-colors" />
+                                      <h2 className="text-xs font-bold text-slate-700 uppercase tracking-wider">PERFORMANCE MATRIX (F1 BY CATEGORY)</h2>
+                                      <Info className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 transition-colors" />
                                   </div>
                               </TooltipTrigger>
                               <TooltipContent className="max-w-[260px] bg-slate-900 text-slate-50 border-slate-800">
@@ -302,7 +301,7 @@ export function ModelInformationDashboard() {
   );
 
   const sidebarTheme =
-    "bg-white border-r border-gray-200 shadow-sm [--sidebar:#ffffff] [--sidebar-foreground:#111827] [--sidebar-accent:#f3f4f6] [--sidebar-accent-foreground:#111827] [--sidebar-border:#e5e7eb] [--sidebar-ring:#9ca3af]";
+    "bg-white border-r border-slate-200 shadow-sm [--sidebar:#ffffff] [--sidebar-foreground:#111827] [--sidebar-accent:#f1f5f9] [--sidebar-accent-foreground:#111827] [--sidebar-border:#e2e8f0] [--sidebar-ring:#94a3b8]";
 
   return (
     <SidebarProvider className={sidebarTheme}>
@@ -310,24 +309,21 @@ export function ModelInformationDashboard() {
         <SidebarHeader />
         <SidebarContent className="bg-white">
           <SidebarGroup className="p-4">
-            <SidebarGroupLabel className="text-xs font-medium uppercase tracking-wide text-gray-500">
-              Dashboards
-            </SidebarGroupLabel>
-            <SidebarGroupContent className="mt-2">
+            <SidebarGroupContent>
               <SidebarMenu className="space-y-0.5">
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild className="rounded-md text-gray-900 hover:bg-gray-100 hover:text-gray-900">
+                  <SidebarMenuButton asChild className="rounded-md text-slate-900 hover:bg-slate-100 hover:text-slate-900">
                     <a href="/api/dashboard">
-                      <LayoutDashboard className="h-4 w-4 text-gray-600" />
-                      <span>Dashboard</span>
+                      <LayoutDashboard className="h-4 w-4 text-slate-600" />
+                      <span>Overview</span>
                     </a>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild className="rounded-md bg-gray-100 font-medium text-gray-900 hover:bg-gray-100 hover:text-gray-900 data-[active=true]:bg-gray-100">
+                  <SidebarMenuButton asChild isActive className="rounded-md text-slate-900 hover:bg-slate-100 hover:text-slate-900 data-[active=true]:bg-slate-100 data-[active=true]:font-medium">
                     <a href="/api/model-info-dashboard">
-                      <FileBarChart className="h-4 w-4 text-gray-600" />
-                      <span>Model Information</span>
+                      <FileBarChart className="h-4 w-4 text-slate-600" />
+                      <span>Production Model</span>
                     </a>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

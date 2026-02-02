@@ -107,7 +107,7 @@ export const ClassificationPanel = ({ onDispatch }: ClassificationPanelProps) =>
   const lowConfCats = result?.categories.filter((c: ClassificationCategory) => !isAboveThreshold(c)) || [];
 
   return (
-    <div className="h-full flex flex-col bg-white relative">
+    <div className="h-full flex flex-col bg-white relative min-w-[260px] overflow-x-auto overflow-y-hidden scrollbar-thin">
       {/* Header */}
       <div className="p-3 border-b border-slate-200 bg-white flex-shrink-0 sticky top-0 z-10 pb-0">
         <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
@@ -154,7 +154,7 @@ e.g. 'please help me I need food and water'"
       </div>
 
       {/* Main Scrollable Content - Results Only */}
-      <div className="flex-1 overflow-y-auto p-4 pb-24">
+      <div className="flex-1 overflow-y-auto p-4 pb-24 scrollbar-thin">
         {/* Results */}
         {hasNoCategories && (
           <div className="animate-in fade-in slide-in-from-top-2 duration-300 flex-1 flex flex-col">

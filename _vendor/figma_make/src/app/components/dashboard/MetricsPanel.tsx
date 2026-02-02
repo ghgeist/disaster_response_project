@@ -48,7 +48,7 @@ export const MetricsPanel = ({ onCategoryClick }: MetricsPanelProps) => {
 
   if (loading) {
     return (
-      <div className="h-full flex flex-col bg-slate-50 overflow-y-auto" aria-busy="true" aria-live="polite">
+      <div className="h-full flex flex-col bg-slate-50 overflow-y-auto min-w-0 scrollbar-thin" aria-busy="true" aria-live="polite">
         <span className="sr-only">Loading metrics…</span>
         <div className="pt-4 px-6 pb-6 space-y-6">
           <div className="grid grid-cols-2 gap-4">
@@ -89,7 +89,7 @@ export const MetricsPanel = ({ onCategoryClick }: MetricsPanelProps) => {
   }
   if (error) {
     return (
-      <div className="h-full flex flex-col bg-slate-50 overflow-y-auto items-center justify-center text-red-600 text-sm px-4 text-center">
+      <div className="h-full flex flex-col bg-slate-50 overflow-y-auto min-w-0 scrollbar-thin items-center justify-center text-red-600 text-sm px-4 text-center">
         {error}
       </div>
     );
@@ -101,13 +101,13 @@ export const MetricsPanel = ({ onCategoryClick }: MetricsPanelProps) => {
     : 1;
 
   return (
-    <div className="h-full flex flex-col bg-slate-50 overflow-y-auto">
+    <div className="h-full flex flex-col bg-slate-50 overflow-y-auto min-w-0 scrollbar-thin">
       <div className="pt-4 px-6 pb-6 space-y-6">
         {/* KPI Cards */}
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
             <div className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Vol Today</div>
-            <div className="text-2xl font-bold text-slate-900 flex items-baseline gap-2">
+            <div className="text-2xl font-bold text-slate-900 flex items-baseline gap-2 flex-wrap">
               {metrics.volumeToday.toLocaleString()}
               <span className="text-[10px] text-emerald-600 font-medium bg-emerald-50 px-1.5 rounded flex items-center">
                 <TrendingUp className="w-2.5 h-2.5 mr-0.5" /> +5%
@@ -116,7 +116,7 @@ export const MetricsPanel = ({ onCategoryClick }: MetricsPanelProps) => {
           </div>
           <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
             <div className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Flagged</div>
-            <div className="text-2xl font-bold text-slate-900 flex items-baseline gap-2">
+            <div className="text-2xl font-bold text-slate-900 flex items-baseline gap-2 flex-wrap">
               <span className="text-red-600">{metrics.flaggedRate}%</span>
               <span className="text-xs text-slate-400 font-normal">of total</span>
             </div>
