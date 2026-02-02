@@ -20,14 +20,33 @@ export default function App() {
   const [feedError, setFeedError] = useState<string | null>(null);
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [showMobileBanner, setShowMobileBanner] = useState(true);
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [dispatchScrollKey, setDispatchScrollKey] = useState(0);
 
   useEffect(() => {
-    console.log("STORM SIGNAL: VERSION DISPATCH FIX APPLIED 2");
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(min-width: 1024px)");
+    const handleChange = (event: MediaQueryListEvent) => {
+      setIsDesktop(event.matches);
+    };
+
+    setIsDesktop(mediaQuery.matches);
+    mediaQuery.addEventListener("change", handleChange);
+
+    return () => {
+      mediaQuery.removeEventListener("change", handleChange);
+    };
+  }, []);
+
+  useEffect(() => {
     setFeedLoading(true);
     setFeedError(null);
     
     // Build Query Params with filters
-    const params = new URLSearchParams({ limit: '50' });
+    const params = new URLSearchParams({ limit: '15' });
     selectedFilters.forEach(cat => {
       params.append('categories[]', toApiName(cat));
     });
@@ -74,9 +93,17 @@ export default function App() {
       );
     }
     
-    // Force strict sort by timestamp descending (Newest First) to ensure 
-    // manual dispatches (which are 'Now') appear at the top
-    return [...result].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    // Force strict sort by timestamp descending (Newest First)
+    // AND ensure manual dispatches are always pinned to the top for immediate feedback
+    const manuals = result.filter(s => s.id.startsWith("MANUAL"));
+    const others = result.filter(s => !s.id.startsWith("MANUAL"));
+    
+    others.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    
+    // Sort manuals by time (if multiple)
+    manuals.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+    return [...manuals, ...others].slice(0, 15);
   }, [signals, selectedFilters]);
 
   // Handler for dispatching from classification panel
@@ -120,6 +147,7 @@ export default function App() {
 
       return [newSignalWithFixedTime, ...prev];
     });
+    setDispatchScrollKey(prev => prev + 1);
   };
 
   const ResizeHandle = () => (
@@ -188,48 +216,50 @@ export default function App() {
 
       {/* 3-Panel Resizable Layout */}
       <main className="flex-1 overflow-hidden relative">
-        {/* Desktop Layout */}
-        <div className="hidden lg:block h-full w-full">
-          <PanelGroup direction="horizontal">
-            {/* Left Panel: Feed & Filters */}
-            <Panel defaultSize={40} minSize={25} order={1} className="bg-white">
-              <FeedPanel 
-                signals={filteredSignals} 
-                selectedFilters={selectedFilters}
-                onToggleFilter={handleToggleFilter}
-                onClearFilters={handleClearFilters}
-                loading={feedLoading}
-                error={feedError}
-              />
-            </Panel>
-            
-            <ResizeHandle />
-            
-            {/* Center Panel: Metrics */}
-            <Panel defaultSize={35} minSize={20} order={2} className="bg-slate-50">
-              <MetricsPanel onCategoryClick={handleAddFilter} />
-            </Panel>
-            
-            <ResizeHandle />
-            
-            {/* Right Panel: Classification */}
-            <Panel defaultSize={25} minSize={15} collapsible order={3} className="bg-white">
-              <ClassificationPanel onDispatch={handleDispatch} />
-            </Panel>
-          </PanelGroup>
-        </div>
-
-        {/* Mobile Layout Fallback */}
-        <div className="lg:hidden h-full overflow-y-auto">
-          <FeedPanel 
-            signals={filteredSignals} 
-            selectedFilters={selectedFilters}
-            onToggleFilter={handleToggleFilter}
-            onClearFilters={handleClearFilters}
-            loading={feedLoading}
-            error={feedError}
-          />
-        </div>
+        {isDesktop ? (
+          <div className="h-full w-full">
+            <PanelGroup direction="horizontal">
+              {/* Left Panel: Feed & Filters */}
+              <Panel defaultSize={40} minSize={25} order={1} className="bg-white">
+                <FeedPanel 
+                  signals={filteredSignals} 
+                  selectedFilters={selectedFilters}
+                  onToggleFilter={handleToggleFilter}
+                  onClearFilters={handleClearFilters}
+                  loading={feedLoading}
+                  error={feedError}
+                scrollToTopKey={dispatchScrollKey}
+                />
+              </Panel>
+              
+              <ResizeHandle />
+              
+              {/* Center Panel: Metrics */}
+              <Panel defaultSize={35} minSize={20} order={2} className="bg-slate-50">
+                <MetricsPanel onCategoryClick={handleAddFilter} />
+              </Panel>
+              
+              <ResizeHandle />
+              
+              {/* Right Panel: Classification */}
+              <Panel defaultSize={25} minSize={15} collapsible order={3} className="bg-white">
+                <ClassificationPanel onDispatch={handleDispatch} />
+              </Panel>
+            </PanelGroup>
+          </div>
+        ) : (
+          <div className="h-full overflow-y-auto">
+            <FeedPanel 
+              signals={filteredSignals} 
+              selectedFilters={selectedFilters}
+              onToggleFilter={handleToggleFilter}
+              onClearFilters={handleClearFilters}
+              loading={feedLoading}
+              error={feedError}
+              scrollToTopKey={dispatchScrollKey}
+            />
+          </div>
+        )}
       </main>
     </div>
   );

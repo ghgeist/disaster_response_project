@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
 import { SignalItem, CATEGORY_GROUPS } from "@/app/data";
 import { Badge, cn } from "@/app/components/ui/common";
@@ -14,6 +14,7 @@ interface FeedPanelProps {
   onClearFilters: () => void;
   loading?: boolean;
   error?: string | null;
+  scrollToTopKey?: number;
 }
 
 const SourceIcon = ({ source }: { source: string }) => {
@@ -24,9 +25,73 @@ const SourceIcon = ({ source }: { source: string }) => {
   return <MessageSquare className="w-3 h-3" />;
 };
 
-export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFilters, loading, error }: FeedPanelProps) => {
+const getScrollParent = (element: HTMLElement | null): HTMLElement | null => {
+  if (!element || typeof window === "undefined") {
+    return null;
+  }
+
+  let current: HTMLElement | null = element.parentElement;
+  while (current) {
+    const style = window.getComputedStyle(current);
+    const overflowY = style.overflowY;
+    const isScrollable = (overflowY === "auto" || overflowY === "scroll") && current.scrollHeight > current.clientHeight;
+    if (isScrollable) {
+      return current;
+    }
+    current = current.parentElement;
+  }
+
+  return document.scrollingElement as HTMLElement | null;
+};
+
+export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFilters, loading, error, scrollToTopKey }: FeedPanelProps) => {
   const [hideLowConfidence, setHideLowConfidence] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const feedScrollRef = useRef<HTMLDivElement | null>(null);
+  const lastManualIdRef = useRef<string | null>(null);
+  const firstItemRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (scrollToTopKey === undefined) {
+      return;
+    }
+
+    const scrollEl = feedScrollRef.current;
+    if (scrollEl) {
+      scrollEl.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    if (firstItemRef.current) {
+      const scrollParent = getScrollParent(firstItemRef.current);
+      if (scrollParent) {
+        scrollParent.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      firstItemRef.current.scrollIntoView({ block: "start", behavior: "smooth" });
+    }
+
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [scrollToTopKey]);
+
+  useEffect(() => {
+    const first = signals[0];
+    if (!first || !first.id.startsWith("MANUAL")) {
+      return;
+    }
+
+    if (lastManualIdRef.current === first.id) {
+      return;
+    }
+
+    lastManualIdRef.current = first.id;
+    const scrollEl = feedScrollRef.current;
+    if (!scrollEl) {
+      return;
+    }
+
+    scrollEl.scrollTo({ top: 0, behavior: "smooth" });
+  }, [signals]);
 
   const displaySignals = hideLowConfidence 
     ? signals.filter(s => {
@@ -179,7 +244,7 @@ export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFil
       )}
       
       {/* Feed List */}
-      <div className="flex-1 overflow-y-auto p-0">
+      <div className="flex-1 overflow-y-auto p-0" ref={feedScrollRef} style={{ overflowAnchor: "none" }}>
         {loading ? (
           <div className="flex flex-col items-center justify-center h-48 text-slate-500 text-sm">
             <span>Loading feed…</span>
@@ -198,7 +263,7 @@ export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFil
             </button>
           </div>
         ) : (
-          displaySignals.map((signal) => {
+          displaySignals.map((signal, index) => {
             const confidences = signal.classifications?.map((c) => c.confidence) ?? [];
             const rawMax = confidences.length > 0 ? Math.max(...confidences) : 0;
             const maxConf = Number.isFinite(rawMax) ? rawMax : 0;
@@ -206,7 +271,8 @@ export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFil
 
             return (
               <div 
-                key={signal.id}
+                key={`${signal.id}-${index}`}
+                ref={index === 0 ? firstItemRef : undefined}
                 className={cn(
                   "p-2 border-b border-slate-200 hover:bg-white transition-colors cursor-default group",
                   isHighRisk ? "bg-red-50/40" : "bg-slate-50/30"

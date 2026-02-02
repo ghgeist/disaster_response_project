@@ -109,7 +109,7 @@ export const ClassificationPanel = ({ onDispatch }: ClassificationPanelProps) =>
           <textarea
             className="w-full text-xs p-3 rounded border border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none min-h-[80px] resize-none bg-slate-50 text-slate-700 placeholder:text-slate-500"
             placeholder="Paste a raw message to test classification model...
-e.g. 'Flash flood in sector 7, need immediate evacuation support...'"
+e.g. 'please help me I need food and water'"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={(e) => {
