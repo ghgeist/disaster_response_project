@@ -50,6 +50,7 @@ def index():
 
 
 @home_bp.route("/dashboard")
+@home_bp.route("/dashboard/", defaults={"path": ""})
 @home_bp.route("/dashboard/<path:path>")
 def dashboard(path: str | None = None):
     """Serve Storm Signal dashboard SPA (React app)."""
@@ -60,6 +61,7 @@ def dashboard(path: str | None = None):
 
 
 @home_bp.route("/production-model")
+@home_bp.route("/production-model/", defaults={"path": ""})
 @home_bp.route("/production-model/<path:path>")
 def production_model(path: str | None = None):
     """Serve Model Information dashboard SPA (React app)."""
