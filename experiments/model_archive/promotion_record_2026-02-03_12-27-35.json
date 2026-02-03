@@ -1,0 +1,33 @@
+{
+  "promotion": {
+    "promoted_model": "C:\\Users\\grant\\OneDrive\\Documents\\udacity_data_science_program\\05_disaster_response_project\\model\\disaster_lr_v25-11-06_prod_2026-02-03.pkl",
+    "source_candidate": "C:\\Users\\grant\\OneDrive\\Documents\\udacity_data_science_program\\05_disaster_response_project\\experiments\\experimental_runs\\2025-11-06-vocab15k-promotion",
+    "promotion_timestamp": "2026-02-03T12:27:35.878809",
+    "version": "v25-11-06",
+    "validation_results": {
+      "model_path": "C:\\Users\\grant\\OneDrive\\Documents\\udacity_data_science_program\\05_disaster_response_project\\experiments\\experimental_runs\\2025-11-06-vocab15k-promotion\\lr_vocab15k_model.pkl",
+      "model_size_mb": 4.5292463302612305,
+      "f1_weighted": 0.9378885556731942,
+      "f1_micro": 0.650175654630401,
+      "model_hash": "9438334f2d3884dd9e475aabb32ab50032cb49b0b2fd0c61756b60acf7c70a90",
+      "validation_passed": true,
+      "validation_errors": []
+    },
+    "metadata_files": {
+      "MODEL_INFO.json": "C:\\Users\\grant\\OneDrive\\Documents\\udacity_data_science_program\\05_disaster_response_project\\model\\MODEL_INFO.json"
+    },
+    "status": "promoted"
+  },
+  "archive": {
+    "archived_model": "C:\\Users\\grant\\OneDrive\\Documents\\udacity_data_science_program\\05_disaster_response_project\\model\\disaster_rf_prod_2026-01-22.pkl",
+    "archive_timestamp": "2026-02-03_12-27-35",
+    "model_size_mb": 31.343624114990234,
+    "model_hash": "acd54433a6d7f31e44a7dc2e529c5b8a5792268553f4cf95d0b68dad8d5b0aa3",
+    "archived_metadata": {
+      "_thresholds.json": "C:\\Users\\grant\\OneDrive\\Documents\\udacity_data_science_program\\05_disaster_response_project\\experiments\\model_archive\\disaster_rf_prod_2026-01-22_2026-02-03_12-27-35_thresholds.json",
+      "model_info": "C:\\Users\\grant\\OneDrive\\Documents\\udacity_data_science_program\\05_disaster_response_project\\experiments\\model_archive\\MODEL_INFO_disaster_rf_prod_2026-01-22_2026-02-03_12-27-35.json"
+    },
+    "status": "archived"
+  },
+  "timestamp": "2026-02-03_12-27-35"
+}

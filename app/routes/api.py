@@ -775,6 +775,10 @@ def _build_model_info_dashboard_payload() -> dict:
 
     model_id_upper = stem.upper().replace("-", "_") if stem != "unknown" else stem
 
+    # Extract algorithm information from MODEL_INFO.json
+    algorithm_code = model_info_data.get("algorithm", "unknown")
+    algorithm_name = model_info_data.get("algorithm_name", "Unknown")
+
     return {
         "model": {
             "id": model_id_upper,
@@ -782,6 +786,8 @@ def _build_model_info_dashboard_payload() -> dict:
             "lastUpdated": last_updated,
             "status": status,
             "generatedAt": generated_at,
+            "algorithm": algorithm_code,
+            "algorithmName": algorithm_name,
         },
         "metrics": {
             "f1": round(f1_metric, 4),

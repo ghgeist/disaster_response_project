@@ -285,19 +285,28 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
     """Promote validated candidate model to production."""
 
     # Ensure candidate_model path is absolute and resolved
-    candidate_model = Path(validation_results['model_path'])
+    # The validation_results['model_path'] might be relative or absolute
+    candidate_model_str = validation_results['model_path']
+    candidate_model = Path(candidate_model_str)
+    
+    # Resolve the path - if it's relative, resolve from current working directory
+    # If that doesn't work, try resolving relative to candidate_dir
     if not candidate_model.is_absolute():
-        # If relative, resolve relative to candidate_dir
-        candidate_model = (candidate_dir / candidate_model.name).resolve()
+        candidate_model = candidate_model.resolve()
+        if not candidate_model.exists():
+            # Try resolving relative to candidate_dir
+            candidate_model = (candidate_dir / Path(candidate_model_str).name).resolve()
     else:
         candidate_model = candidate_model.resolve()
     
     # Ensure candidate_model exists
     if not candidate_model.exists():
-        raise FileNotFoundError(f"Candidate model file not found: {candidate_model}")
+        raise FileNotFoundError(
+            f"Candidate model file not found: {candidate_model}\n"
+            f"  Original path: {candidate_model_str}\n"
+            f"  Candidate dir: {candidate_dir}"
+        )
     
-    timestamp = datetime.now().strftime("%Y-%m-%d")
-
     # Detect algorithm type from the model file
     algorithm_code = detect_algorithm_type(candidate_model)
     if algorithm_code == 'unknown':
@@ -307,20 +316,55 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
     algorithm_names = {'rf': 'RandomForest', 'lr': 'LogisticRegression'}
     print(f"🔍 Detected algorithm: {algorithm_names.get(algorithm_code, algorithm_code)}")
 
-    # Generate production model name
+    # Extract training date from candidate directory name (e.g., "2025-11-06-vocab15k-promotion" -> "2025-11-06")
+    # The date should be the training date, not the promotion date, per naming standard
     version_parts = candidate_dir.name.split('-')
-    if len(version_parts) >= 3 and version_parts[0].isdigit():
-        version = f"v{version_parts[0][-2:]}-{version_parts[1]}-{version_parts[2][:2]}"
+    training_date = None
+    if len(version_parts) >= 3 and version_parts[0].isdigit() and len(version_parts[0]) == 4:
+        # Directory name starts with YYYY-MM-DD format
+        training_date = f"{version_parts[0]}-{version_parts[1]}-{version_parts[2]}"
+        version = f"v{version_parts[0][-2:]}-{version_parts[1]}-{version_parts[2]}"
     else:
-        version = f"v{timestamp.replace('-', '')[:6]}"
+        # Fallback: try to get date from training_log.json or use promotion date
+        training_log_path = candidate_dir / "training_log.json"
+        if training_log_path.exists():
+            try:
+                with open(training_log_path, "r", encoding="utf-8") as f:
+                    log_data = json.load(f)
+                    timestamp_str = log_data.get("timestamp", "")
+                    if timestamp_str:
+                        # Parse ISO timestamp to get date
+                        from datetime import datetime as dt
+                        training_date_obj = dt.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+                        training_date = training_date_obj.strftime("%Y-%m-%d")
+                        version = f"v{training_date[-2:]}-{training_date[5:7]}-{training_date[8:10]}"
+            except Exception:
+                pass
+        
+        # Final fallback: use promotion date
+        if training_date is None:
+            training_date = datetime.now().strftime("%Y-%m-%d")
+            version = f"v{training_date.replace('-', '')[:6]}"
 
-    prod_model_name = f"disaster_{algorithm_code}_{version}_prod_{timestamp}.pkl"
+    prod_model_name = f"disaster_{algorithm_code}_{version}_prod_{training_date}.pkl"
     prod_model_path = model_dir / prod_model_name
     base_name = prod_model_path.stem
 
     # Copy model file
     print(f"📋 Copying model from {candidate_model.name} to {prod_model_name}...")
-    shutil.copy2(candidate_model, prod_model_path)
+    print(f"   Source: {candidate_model}")
+    print(f"   Destination: {prod_model_path}")
+    try:
+        shutil.copy2(candidate_model, prod_model_path)
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to copy model file:\n"
+            f"  Source: {candidate_model}\n"
+            f"  Source exists: {candidate_model.exists()}\n"
+            f"  Destination: {prod_model_path}\n"
+            f"  Destination parent exists: {prod_model_path.parent.exists()}\n"
+            f"  Error: {e}"
+        ) from e
     
     # Verify the copied file matches expected hash
     copied_hash = compute_model_hash(prod_model_path)
@@ -441,10 +485,16 @@ def main():
     args = parser.parse_args()
 
     # Setup paths
-    project_root = Path(__file__).parent.parent
+    # Script is in scripts/07_operations/, so go up 2 levels to get project root
+    project_root = Path(__file__).parent.parent.parent
     candidate_dir = Path(args.candidate_dir)
-    model_dir = project_root / "model"
-    archive_dir = project_root / "experiments" / "model_archive"
+    if not candidate_dir.is_absolute():
+        candidate_dir = (project_root / candidate_dir).resolve()
+    else:
+        candidate_dir = candidate_dir.resolve()
+    
+    model_dir = (project_root / "model").resolve()
+    archive_dir = (project_root / "experiments" / "model_archive").resolve()
 
     if not candidate_dir.exists():
         print(f"❌ Candidate directory not found: {candidate_dir}")

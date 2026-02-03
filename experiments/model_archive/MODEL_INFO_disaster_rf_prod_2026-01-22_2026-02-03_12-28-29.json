@@ -1,7 +1,7 @@
 {
   "sha256": "9438334f2d3884dd9e475aabb32ab50032cb49b0b2fd0c61756b60acf7c70a90",
   "promoted_from": "C:\\Users\\grant\\OneDrive\\Documents\\udacity_data_science_program\\05_disaster_response_project\\experiments\\experimental_runs\\2025-11-06-vocab15k-promotion",
-  "promotion_timestamp": "2026-02-03T12:28:29.427768",
+  "promotion_timestamp": "2026-02-03T12:27:35.877241",
   "model_size_mb": 4.5292463302612305,
   "algorithm": "lr",
   "algorithm_name": "LogisticRegression",

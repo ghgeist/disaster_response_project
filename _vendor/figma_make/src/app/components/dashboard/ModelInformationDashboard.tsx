@@ -170,6 +170,8 @@ export function ModelInformationDashboard() {
   const modelId = payload?.model?.id ?? MODEL_METRICS.id;
   const modelVersion = payload?.model?.version ?? MODEL_METRICS.version;
   const lastSynced = payload?.model?.generatedAt ?? payload?.model?.lastUpdated ?? MODEL_METRICS.lastUpdated;
+  const algorithmCode = payload?.model?.algorithm ?? "unknown";
+  const algorithmName = payload?.model?.algorithmName ?? "Unknown";
   const f1Pct = payload?.metrics != null ? Math.round(payload.metrics.f1 * 100) : MODEL_METRICS.f1Score;
   const precisionPct = payload?.metrics != null ? Math.round(payload.metrics.precision * 100) : MODEL_METRICS.precision;
   const recallPct = payload?.metrics != null ? Math.round(payload.metrics.recall * 100) : MODEL_METRICS.recall;
@@ -244,6 +246,11 @@ export function ModelInformationDashboard() {
                           <div className="flex items-center gap-3 mb-1">
                               <h1 className="text-2xl font-bold text-slate-900 tracking-tight uppercase">{modelId}</h1>
                               <Badge className="rounded-none bg-slate-900 text-white hover:bg-slate-800 font-mono text-xs">v{modelVersion}</Badge>
+                              {algorithmCode !== "unknown" && (
+                                <Badge className="rounded-none bg-blue-600 text-white hover:bg-blue-700 font-mono text-xs">
+                                  {algorithmName}
+                                </Badge>
+                              )}
                           </div>
                           <p className="text-sm text-slate-500 font-mono">Last Synced: {lastSynced ? new Date(lastSynced).toISOString() : "—"}</p>
                       </div>
