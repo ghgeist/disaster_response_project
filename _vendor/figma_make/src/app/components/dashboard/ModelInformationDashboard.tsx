@@ -2,26 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Badge } from "@/app/components/ui/badge";
 import { MODEL_METRICS, CATEGORIES } from "@/app/data/model_info_fallbacks";
 import { fetchDashboard } from "@/app/data/model_info_api";
-import {
-  Info,
-  LayoutDashboard,
-  FileBarChart,
-} from 'lucide-react';
+import { Info } from 'lucide-react';
 import { cn } from "@/app/components/ui/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
 import { Skeleton } from "@/app/components/ui/skeleton";
-import {
-  SidebarProvider,
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-} from "@/app/components/ui/sidebar";
+import { DashboardSidebar } from './DashboardSidebar';
 import { StormHeader } from './StormHeader';
 
 const MetricCard = ({ label, value, tooltip }: { label: string; value: string; tooltip: string }) => (
@@ -244,49 +229,9 @@ export function ModelInformationDashboard() {
     </div>
   );
 
-  const sidebarTheme =
-    "bg-white border-r border-slate-200 shadow-sm [--sidebar:#ffffff] [--sidebar-foreground:#111827] [--sidebar-accent:#f1f5f9] [--sidebar-accent-foreground:#111827] [--sidebar-border:#e2e8f0] [--sidebar-ring:#94a3b8]";
-
   return (
-    <SidebarProvider className={sidebarTheme}>
-      <Sidebar className={sidebarTheme}>
-        <SidebarHeader />
-        <SidebarContent className="bg-white">
-          <SidebarGroup className="p-4">
-            <SidebarGroupContent>
-              <SidebarMenu className="space-y-0.5">
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild className="rounded-md text-slate-900 hover:bg-slate-100 hover:text-slate-900">
-                    <a href="/api/dashboard">
-                      <LayoutDashboard className="h-4 w-4 text-slate-600" />
-                      <span>Overview</span>
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive className="rounded-md text-slate-900 hover:bg-slate-100 hover:text-slate-900 data-[active=true]:bg-slate-100 data-[active=true]:font-medium">
-                    <a href="/api/model-info-dashboard">
-                      <FileBarChart className="h-4 w-4 text-slate-600" />
-                      <span>Production Model</span>
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild className="rounded-md text-slate-900 hover:bg-slate-100 hover:text-slate-900">
-                    <a href="/api/about">
-                      <Info className="h-4 w-4 text-slate-600" />
-                      <span>About</span>
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </SidebarContent>
-      </Sidebar>
-      <SidebarInset>
-        {appContent}
-      </SidebarInset>
-    </SidebarProvider>
+    <DashboardSidebar activePage="production-model">
+      {appContent}
+    </DashboardSidebar>
   );
 }
