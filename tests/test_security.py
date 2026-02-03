@@ -42,13 +42,33 @@ class TestSecureSubprocess:
         ("path", "message"),
         [
             ("../../../etc/passwd", "Path traversal detected"),
-            ("/etc/passwd", "Absolute paths not allowed"),
         ],
     )
     def test_validate_file_path_invalid_inputs(self, path: str, message: str) -> None:
         """Test that invalid file paths are rejected with clear errors."""
+        # PRESERVED: Path validation security checks
+        # TRANSFORMED: Test made platform-aware (removed Unix-specific absolute path test)
+        # ADDED: Separate test for absolute path validation that works on all platforms
         with pytest.raises(SecureSubprocessError, match=message):
             validate_file_path(path)
+
+    def test_validate_file_path_absolute_paths_rejected(self) -> None:
+        """Test that absolute paths are rejected (platform-aware)."""
+        # PRESERVED: Absolute path rejection security check
+        # TRANSFORMED: Test made platform-aware (works on Windows and Unix)
+        # ADDED: Platform-specific absolute path test
+        import platform
+        
+        if platform.system() == "Windows":
+            # On Windows, use a Windows-style absolute path
+            absolute_path = "C:\\Windows\\System32\\config\\sam"
+        else:
+            # On Unix-like systems, use Unix-style absolute path
+            absolute_path = "/etc/passwd"
+        
+        with pytest.raises(SecureSubprocessError, match="Absolute paths not allowed"):
+            # Use must_exist=False to test absolute path validation without file existence check
+            validate_file_path(absolute_path, must_exist=False)
 
     def test_validate_file_path_nonexistent(self) -> None:
         """Test that nonexistent files are rejected when must_exist=True."""
