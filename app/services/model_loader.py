@@ -83,16 +83,61 @@ class ModelLoader:
         return None
 
     def _load_model_with_version_check(self, file_path: Path) -> Any:
+        """
+        Load model with version checking that allows patch version differences.
+        
+        PRESERVED: Model loading behavior, error handling for major/minor version mismatches
+        TRANSFORMED: Version check strictness (strict → allows patch versions)
+        ADDED: Patch version tolerance for sklearn compatibility
+        """
+        import re
+        
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always", InconsistentVersionWarning)
             model = joblib.load(file_path)
 
         for warning in caught:
             if issubclass(warning.category, InconsistentVersionWarning):
-                logger.error("scikit-learn version mismatch detected: %s", warning.message)
-                raise ModelServiceError(
-                    "Model was trained with a different scikit-learn version. "
-                    "Retrain the model or install a matching scikit-learn version."
+                warning_msg = str(warning.message)
+                logger.warning("scikit-learn version mismatch detected: %s", warning_msg)
+                
+                # Extract version numbers from warning message
+                # Format: "Trying to unpickle estimator X from version A.B.C when using version D.E.F"
+                version_match = re.search(
+                    r'from version (\d+)\.(\d+)\.(\d+) when using version (\d+)\.(\d+)\.(\d+)',
+                    warning_msg
                 )
+                
+                if version_match:
+                    train_major, train_minor, train_patch = map(int, version_match.groups()[:3])
+                    runtime_major, runtime_minor, runtime_patch = map(int, version_match.groups()[3:])
+                    
+                    # Only fail on major/minor version differences, allow patch version differences
+                    if train_major != runtime_major or train_minor != runtime_minor:
+                        logger.error(
+                            "scikit-learn major/minor version mismatch: "
+                            "model trained with %d.%d.%d, runtime has %d.%d.%d",
+                            train_major, train_minor, train_patch,
+                            runtime_major, runtime_minor, runtime_patch
+                        )
+                        raise ModelServiceError(
+                            "Model was trained with a different scikit-learn major/minor version. "
+                            "Retrain the model or install a matching scikit-learn version."
+                        )
+                    else:
+                        # Patch version difference - log warning but allow
+                        logger.info(
+                            "Allowing patch version difference: "
+                            "model trained with %d.%d.%d, runtime has %d.%d.%d",
+                            train_major, train_minor, train_patch,
+                            runtime_major, runtime_minor, runtime_patch
+                        )
+                else:
+                    # If we can't parse version, be conservative and fail
+                    logger.error("scikit-learn version mismatch detected: %s", warning_msg)
+                    raise ModelServiceError(
+                        "Model was trained with a different scikit-learn version. "
+                        "Retrain the model or install a matching scikit-learn version."
+                    )
 
         return model
