@@ -1,8 +1,17 @@
 # Standard Cursor Integration for All Agents
 
-**Status**: Canonical Reference - Include in all agent prompts  
-**Version**: 1.0  
-**Last Updated**: 2025-09-12
+**Status**: Canonical Reference - Include in all agent prompts for Cursor IDE  
+**Version**: 2.0  
+**Last Updated**: 2026-02-03
+
+## PLATFORM DETECTION
+
+**If you're running in Cursor IDE**: Use this integration standard (`_cursor-integration-standard.md`)  
+**If you're running in Claude Code**: Use `docs/agents/_claude-code-integration-standard.md`  
+**If you're running in Gemini CLI**: Use `docs/agents/_gemini-cli-integration-standard.md`  
+**If you're running in Codex**: Use `docs/agents/_codex-integration-standard.md`
+
+**See**: `docs/agents/_platform-detection-guide.md` for platform detection and tool mapping details.
 
 ## CURSOR INTEGRATION (STANDARD)
 
