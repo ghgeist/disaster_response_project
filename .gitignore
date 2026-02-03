@@ -64,6 +64,3 @@ _vendor/figma_make/dist/
 
 # --- Catch accidental weird files
 =*
-
-#folders
-docs/agents/checks/

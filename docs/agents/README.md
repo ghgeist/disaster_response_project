@@ -46,10 +46,8 @@ All agents support **multi-platform** usage:
 - **`_session-management-core.md`** - Mandatory session management rules
 - **`session-management-best-practices.md`** - Comprehensive session management guide
 
-### Templates & Checks
+### Templates
 - **`agent-type-objective-template.md`** - Template for creating new agents
-- **`checks/system_composition_check.md`** - Compositional sanity check framework
-- **`checks/topology_check.md`** - Structural topology read framework
 
 ## Archive
 
