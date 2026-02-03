@@ -24,6 +24,7 @@ def main():
     print()
     
     # Check which one the app will use (simulate the logic)
+    # Matches _find_production_thresholds_file in app/routes/api.py
     candidates = [
         f for f in model_dir.iterdir()
         if f.is_file() and f.name.endswith("_thresholds.json") and not f.name.startswith("optimized_")
@@ -36,15 +37,14 @@ def main():
             model_ref = data.get('metadata', {}).get('model', 'unknown')
             print(f"   References: {model_ref}")
     else:
-        fallback = [
+        print("❌ No threshold file found (app will return None)")
+        # Check if optimized_* files exist but are ignored
+        optimized_files = [
             f for f in model_dir.iterdir()
-            if f.is_file() and f.name.endswith("_thresholds.json")
+            if f.is_file() and f.name.endswith("_thresholds.json") and f.name.startswith("optimized_")
         ]
-        if fallback:
-            thresholds_path = max(fallback, key=lambda p: p.stat().st_mtime)
-            print(f"✅ App will use (fallback): {thresholds_path.name}")
-        else:
-            print("❌ No threshold file found")
+        if optimized_files:
+            print(f"   Note: {len(optimized_files)} optimized_* threshold file(s) exist but are ignored by the app")
     
     # Check current model
     current_model = model_dir / "disaster_lr_v25-11-06_prod_2025-11-06.pkl"
