@@ -76,7 +76,7 @@ class ChartGenerator:
             return genre_names, genre_related_counts
 
         except Exception as e:
-            logger.error(f"Error preparing genre data: {e}")
+            logger.error("Error preparing genre data: %s", e)
             raise
 
     @staticmethod
@@ -122,7 +122,7 @@ class ChartGenerator:
             return {'data': traces, 'layout': layout}
 
         except Exception as e:
-            logger.error(f"Error creating genre visual: {e}")
+            logger.error("Error creating genre visual: %s", e)
             raise
 
     @staticmethod
@@ -163,7 +163,7 @@ class ChartGenerator:
             return df_filtered
 
         except Exception as e:
-            logger.error(f"Error classifying message types: {e}")
+            logger.error("Error classifying message types: %s", e)
             raise
 
     @staticmethod
@@ -201,7 +201,7 @@ class ChartGenerator:
             return {'data': [trace], 'layout': layout}
 
         except Exception as e:
-            logger.error(f"Error plotting message types: {e}")
+            logger.error("Error plotting message types: %s", e)
             raise
 
     # --- Performance Deep Dive visualizations ---
@@ -227,5 +227,5 @@ class ChartGenerator:
 
             return {"data": [trace_base, trace_opt], "layout": layout}
         except Exception as e:
-            logger.error(f"Error creating performance visual: {e}")
+            logger.error("Error creating performance visual: %s", e)
             raise

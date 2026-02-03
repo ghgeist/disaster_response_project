@@ -62,7 +62,12 @@ def apply_hierarchy(
         if label in adjusted_thresholds:
             original_threshold = adjusted_thresholds[label]
             adjusted_thresholds[label] = max(0.0, original_threshold - critical_threshold_reduction)
-            logger.debug(f"Critical label {label}: threshold {original_threshold:.3f} → {adjusted_thresholds[label]:.3f}")
+            logger.debug(
+                "Critical label %s: threshold %.3f → %.3f",
+                label,
+                original_threshold,
+                adjusted_thresholds[label],
+            )
 
     # Track adjustments for logging
     prob_adjustments = 0
@@ -90,7 +95,12 @@ def apply_hierarchy(
             old_prob = adjusted_probs[parent]
             adjusted_probs[parent] = max_child_prob
             prob_adjustments += 1
-            logger.debug(f"Boosted {parent} prob: {old_prob:.3f} → {max_child_prob:.3f}")
+            logger.debug(
+                "Boosted %s prob: %.3f → %.3f",
+                parent,
+                old_prob,
+                max_child_prob,
+            )
 
         # Enforce children ≤ parent for probabilities
         for child in valid_children:
@@ -98,7 +108,12 @@ def apply_hierarchy(
                 old_prob = adjusted_probs[child]
                 adjusted_probs[child] = adjusted_probs[parent]
                 prob_adjustments += 1
-                logger.debug(f"Clamped {child} prob: {old_prob:.3f} → {adjusted_probs[parent]:.3f}")
+                logger.debug(
+                    "Clamped %s prob: %.3f → %.3f",
+                    child,
+                    old_prob,
+                    adjusted_probs[parent],
+                )
 
     # Phase 2: Generate binary predictions using adjusted thresholds
     binary_predictions = {}
@@ -123,11 +138,20 @@ def apply_hierarchy(
             if binary_predictions[parent] == 0:
                 binary_predictions[parent] = 1
                 parent_activations += 1
-                logger.debug(f"Forced {parent}=1 due to active children: {[c for c in valid_children if binary_predictions[c] == 1]}")
+                active_children = [c for c in valid_children if binary_predictions[c] == 1]
+                logger.debug(
+                    "Forced %s=1 due to active children: %s",
+                    parent,
+                    active_children,
+                )
 
     # Log summary of adjustments
     if prob_adjustments > 0 or parent_activations > 0:
-        logger.info(f"Hierarchy adjustments: {prob_adjustments} probability fixes, {parent_activations} parent activations")
+        logger.info(
+            "Hierarchy adjustments: %s probability fixes, %s parent activations",
+            prob_adjustments,
+            parent_activations,
+        )
 
     return adjusted_probs, binary_predictions
 
@@ -168,7 +192,13 @@ def count_violations(
         for child in valid_children:
             if probs[child] > probs[parent]:
                 violations += 1
-                logger.debug(f"Violation: {child} ({probs[child]:.3f}) > {parent} ({probs[parent]:.3f})")
+                logger.debug(
+                    "Violation: %s (%.3f) > %s (%.3f)",
+                    child,
+                    probs[child],
+                    parent,
+                    probs[parent],
+                )
 
     return violations
 
@@ -200,7 +230,7 @@ def optimize_critical_thresholds(
 
     for label in critical_labels:
         if label not in name_to_idx:
-            logger.warning(f"Critical label {label} not found in label_names")
+            logger.warning("Critical label %s not found in label_names", label)
             continue
 
         idx = name_to_idx[label]
@@ -209,7 +239,10 @@ def optimize_critical_thresholds(
 
         # Skip if no positive examples
         if np.sum(y_true_label) == 0:
-            logger.warning(f"No positive examples for critical label {label}, using default threshold")
+            logger.warning(
+                "No positive examples for critical label %s, using default threshold",
+                label,
+            )
             thresholds[label] = 0.5
             continue
 
@@ -224,10 +257,19 @@ def optimize_critical_thresholds(
             chosen = float(thresh[max(0, min(best_idx, len(thresh)-1))]) if len(thresh) else 0.5
             thresholds[label] = chosen
 
-            logger.info(f"Optimized threshold for {label}: {chosen:.3f} (target recall: {target_recall})")
+            logger.info(
+                "Optimized threshold for %s: %.3f (target recall: %s)",
+                label,
+                chosen,
+                target_recall,
+            )
 
         except Exception as e:
-            logger.warning(f"Failed to optimize threshold for {label}: {e}, using default")
+            logger.warning(
+                "Failed to optimize threshold for %s: %s, using default",
+                label,
+                e,
+            )
             thresholds[label] = 0.5
 
     return thresholds

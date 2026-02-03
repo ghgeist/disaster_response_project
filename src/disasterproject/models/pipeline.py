@@ -133,7 +133,11 @@ class WeightedMultiOutputClassifier(MultiOutputClassifier):
 
             # Handle zero-positive labels (only class 0 present)
             if len(classes) == 1:
-                logger.warning(f"Label {i} has only class {classes[0]}, using DummyClassifier")
+                logger.warning(
+                    "Label %s has only class %s, using DummyClassifier",
+                    i,
+                    classes[0],
+                )
                 estimator = DummyClassifier(strategy='constant', constant=classes[0])
             else:
                 # Clone base estimator
@@ -142,7 +146,11 @@ class WeightedMultiOutputClassifier(MultiOutputClassifier):
                 # Set class weights if available
                 if self.class_weights_list and i < len(self.class_weights_list) and hasattr(estimator, 'class_weight'):
                     estimator.class_weight = self.class_weights_list[i]
-                    logger.info(f"Label {i}: Applied weights {self.class_weights_list[i]}")
+                    logger.info(
+                        "Label %s: Applied weights %s",
+                        i,
+                        self.class_weights_list[i],
+                    )
 
             # Fit estimator
             estimator.fit(X, column, sample_weight=sample_weight)

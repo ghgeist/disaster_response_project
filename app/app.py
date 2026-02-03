@@ -52,17 +52,24 @@ def create_app(config_class=Config):
 
         # Only log NLTK setup results on first initialization to prevent duplicate logs
         if is_first_init and nltk_setup_results["success"]:
-            app.logger.info(f"NLTK setup completed successfully in {nltk_setup_results['setup_time_ms']}ms")
-            app.logger.info(f"Loaded resources: {[r['name'] for r in nltk_setup_results['resources_loaded']]}")
+            app.logger.info(
+                "NLTK setup completed successfully in %sms",
+                nltk_setup_results['setup_time_ms'],
+            )
+            loaded_resources = [r['name'] for r in nltk_setup_results['resources_loaded']]
+            app.logger.info("Loaded resources: %s", loaded_resources)
         elif is_first_init:
-            app.logger.warning(f"NLTK setup completed with warnings in {nltk_setup_results['setup_time_ms']}ms")
+            app.logger.warning(
+                "NLTK setup completed with warnings in %sms",
+                nltk_setup_results['setup_time_ms'],
+            )
             for error in nltk_setup_results.get("errors", []):
-                app.logger.warning(f"NLTK setup warning: {error}")
+                app.logger.warning("NLTK setup warning: %s", error)
 
     except NLTKSetupError as e:
         # Critical NLTK setup failure
         if is_first_init:
-            app.logger.error(f"Critical NLTK setup failure: {e}")
+            app.logger.error("Critical NLTK setup failure: %s", e)
             app.logger.error("Application will continue but may experience performance issues")
         nltk_setup_results = {
             "success": False,
@@ -72,7 +79,7 @@ def create_app(config_class=Config):
     except Exception as e:
         # Unexpected error during NLTK setup
         if is_first_init:
-            app.logger.error(f"Unexpected error during NLTK setup: {e}")
+            app.logger.error("Unexpected error during NLTK setup: %s", e)
             app.logger.error("Application will continue but may experience performance issues")
         nltk_setup_results = {
             "success": False,
@@ -92,36 +99,37 @@ def create_app(config_class=Config):
         if app.debug:
             # In debug mode, log all validation details
             for info_msg in validation_results.get('info', []):
-                app.logger.info(f"Config validation: {info_msg}")
+                app.logger.info("Config validation: %s", info_msg)
         else:
             # In production, log a summary unless there are issues
             if validation_results['info']:
                 info_count = len(validation_results['info'])
-                app.logger.info(f"Config validation: {info_count} checks passed")
+                app.logger.info("Config validation: %s checks passed", info_count)
                 # Log summary of what was validated
                 key_validations = [msg for msg in validation_results['info'] if any(
                     key in msg.lower() for key in ['directory', 'file', 'database', 'model']
                 )]
                 if key_validations:
-                    app.logger.debug(f"Validation details: {', '.join(key_validations[:3])}")
+                    validation_details = ', '.join(key_validations[:3])
+                    app.logger.debug("Validation details: %s", validation_details)
 
         for warning_msg in validation_results.get('warnings', []):
-            app.logger.warning(f"Config validation: {warning_msg}")
+            app.logger.warning("Config validation: %s", warning_msg)
 
         for error_msg in validation_results.get('errors', []):
-            app.logger.error(f"Config validation: {error_msg}")
+            app.logger.error("Config validation: %s", error_msg)
     else:
         # On subsequent initializations, only log errors/warnings
         for warning_msg in validation_results.get('warnings', []):
-            app.logger.warning(f"Config validation: {warning_msg}")
+            app.logger.warning("Config validation: %s", warning_msg)
 
         for error_msg in validation_results.get('errors', []):
-            app.logger.error(f"Config validation: {error_msg}")
+            app.logger.error("Config validation: %s", error_msg)
 
     # Check if validation failed
     if not validation_results['valid']:
         error_summary = "; ".join(validation_results['errors'])
-        app.logger.critical(f"Configuration validation failed: {error_summary}")
+        app.logger.critical("Configuration validation failed: %s", error_summary)
         raise RuntimeError(f"Application configuration is invalid: {error_summary}")
 
     # Initialize Flask-WTF CSRF protection
