@@ -107,10 +107,18 @@ Previous work optimized NLTK performance (60-70% improvement). Current focus is 
 3. ✅ Select highest-impact optimization
 4. ✅ Implement with explicit transformation documentation
 5. ✅ Validate functionality preserved
-6. ⏭️ Measure performance impact (requires production profiling or load testing)
+6. ✅ Scan repository for similar improvements
+7. ⏭️ Measure performance impact (requires production profiling or load testing)
+
+**Repository Scan Results**:
+- ✅ Production code well-optimized (uses vectorized pandas operations)
+- ✅ No other critical `iterrows()` usage in production code
+- ⚠️ Scripts/notebooks have `iterrows()` but are non-production (low priority)
+- 📊 See `2026-02-03-performance-scan-report.md` for detailed findings
 
 **Future Optimizations** (Lower Priority):
-- Consider database-level pagination for very large datasets
+- Consider database-level pagination for very large datasets (>100K rows)
 - Add performance monitoring for API response times
 - Profile memory usage patterns if memory becomes a concern
 - Optimize `_improved_simulated_probabilities` if it becomes a bottleneck
+- Review `.copy()` usage in `_prepare_displayable_data` (may be necessary for defensive programming)
