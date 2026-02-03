@@ -455,10 +455,12 @@ def _build_simplified_classification(
             "avgConfidence": 0.0,
         }
     threshold_default = 0.5
+    # Exclude meta-category "related" (disaster-relevance) from detection results
     above_threshold = [
         (internal, prob)
         for internal, prob in probabilities.items()
-        if _safe_float_prob(prob)
+        if internal != "related"
+        and _safe_float_prob(prob)
         >= _safe_float_prob(thresholds_map.get(internal, threshold_default))
     ]
     above_threshold.sort(key=lambda x: -_safe_float_prob(x[1]))
