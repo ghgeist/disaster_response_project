@@ -66,10 +66,11 @@ The Flask app uses auto-discovery to find the latest production model:
 
 ### Optional Files
 
-- `{model_name}_thresholds.json` - Per-category classification thresholds
-- `optimized_critical_thresholds.json` - Legacy thresholds file (fallback)
-- `optimized_all_thresholds.json` - All-category thresholds
+- `{model_name}_thresholds.json` - Per-category classification thresholds (preferred)
+- `thresholds.json` - Legacy fallback thresholds file
 - `performance_metrics.csv` - Detailed performance metrics
+
+**Deprecated**: `optimized_critical_thresholds.json` and `optimized_all_thresholds.json` are deprecated and have been removed. Use model-specific naming (`{model_stem}_thresholds.json`) instead.
 
 ### MODEL_INFO.json Structure
 

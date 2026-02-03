@@ -617,23 +617,20 @@ def _get_model_dir() -> Path:
 
 def _find_production_thresholds_file(model_dir: Path) -> Path | None:
     """
-    Find production thresholds file: newest *_thresholds.json excluding optimized_*;
-    if none, newest including optimized_*. Else None.
+    Find production thresholds file: newest *_thresholds.json file.
+    
+    Note: optimized_* files are deprecated. Use model-specific naming:
+    {model_stem}_thresholds.json (e.g., disaster_lr_v25-11-06_prod_2025-11-06_thresholds.json)
     """
     if not model_dir.is_dir():
         return None
+    # Only look for model-specific threshold files (excludes deprecated optimized_* files)
     candidates = [
         f for f in model_dir.iterdir()
         if f.is_file() and f.name.endswith("_thresholds.json") and not f.name.startswith("optimized_")
     ]
     if candidates:
         return max(candidates, key=lambda p: p.stat().st_mtime)
-    fallback = [
-        f for f in model_dir.iterdir()
-        if f.is_file() and f.name.endswith("_thresholds.json")
-    ]
-    if fallback:
-        return max(fallback, key=lambda p: p.stat().st_mtime)
     return None
 
 
