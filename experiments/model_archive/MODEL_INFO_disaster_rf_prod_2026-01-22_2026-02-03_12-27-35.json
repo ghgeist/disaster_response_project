@@ -1,0 +1,21 @@
+{
+  "sha256": "b2db77583fe6c818ebaccac2e4f7f4a7e2287ae9246fb90f1b0d4149d8340f9f",
+  "promoted_from": "experiments/experimental_runs/2025-11-06-vocab15k-promotion",
+  "promotion_timestamp": "2026-01-22T14:09:03.073420",
+  "model_size_mb": 4.586163520812988,
+  "validation_results": {
+    "model_path": "experiments/experimental_runs/2025-11-06-vocab15k-promotion/lr_vocab15k_model.pkl",
+    "model_size_mb": 4.586163520812988,
+    "f1_weighted": 0.9378885556731942,
+    "f1_micro": 0.650175654630401,
+    "model_hash": "b2db77583fe6c818ebaccac2e4f7f4a7e2287ae9246fb90f1b0d4149d8340f9f",
+    "validation_passed": true,
+    "validation_errors": []
+  },
+  "performance": {
+    "f1_weighted": 0.9378885556731942,
+    "f1_micro": 0.650175654630401
+  },
+  "version": "v25-11-06",
+  "status": "production"
+}

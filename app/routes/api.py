@@ -9,6 +9,8 @@ import random
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import pandas as pd
+
 from flask import Blueprint, current_app, jsonify, redirect, request
 
 from app.extensions import csrf
@@ -617,30 +619,147 @@ def _get_model_dir() -> Path:
 
 def _find_production_thresholds_file(model_dir: Path) -> Path | None:
     """
-    Find production thresholds file: newest *_thresholds.json excluding optimized_*;
-    if none, newest including optimized_*. Else None.
+    Find production thresholds file: newest *_thresholds.json file.
+    
+    Note: optimized_* files are deprecated. Use model-specific naming:
+    {model_stem}_thresholds.json (e.g., disaster_lr_v25-11-06_prod_2025-11-06_thresholds.json)
     """
     if not model_dir.is_dir():
         return None
+    # Only look for model-specific threshold files (excludes deprecated optimized_* files)
     candidates = [
         f for f in model_dir.iterdir()
         if f.is_file() and f.name.endswith("_thresholds.json") and not f.name.startswith("optimized_")
     ]
     if candidates:
         return max(candidates, key=lambda p: p.stat().st_mtime)
-    fallback = [
-        f for f in model_dir.iterdir()
-        if f.is_file() and f.name.endswith("_thresholds.json")
-    ]
-    if fallback:
-        return max(fallback, key=lambda p: p.stat().st_mtime)
     return None
+
+
+def _discover_production_metrics_file(model_dir: Path, model_stem: str | None = None) -> Path | None:
+    """
+    Discover the production performance_metrics.csv file based on the current production model.
+    
+    If model_stem is provided (and not "unknown"), uses it directly to construct the metrics
+    filename. Otherwise, finds the latest production model file and derives the metrics filename
+    from it. This ensures metrics match the model referenced by the thresholds file.
+    
+    Args:
+        model_dir: Directory containing production models
+        model_stem: Optional model stem (without .pkl extension) to use for metrics discovery.
+                   If provided and not "unknown", uses this directly instead of discovering
+                   the newest model file.
+        
+    Returns:
+        Path to the metrics file if found, None otherwise
+    """
+    if not model_dir.is_dir():
+        return None
+    
+    # If model_stem is provided and valid, use it directly to ensure alignment with thresholds
+    if model_stem and model_stem != "unknown":
+        metrics_file = model_dir / f"{model_stem}_performance_metrics.csv"
+        if metrics_file.exists():
+            return metrics_file
+        # Fall through to fallback discovery if model-specific file doesn't exist
+    
+    # Fallback: Find the latest production model file (same logic as app/config.py)
+    pattern = 'disaster_*_prod_*.pkl'
+    model_files = list(model_dir.glob(pattern))
+    
+    if not model_files:
+        # Check for legacy naming as final fallback
+        legacy_metrics = model_dir / "performance_metrics.csv"
+        if legacy_metrics.exists():
+            return legacy_metrics
+        return None
+    
+    # Sort by modification time (newest first) and take the latest
+    model_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    latest_model = model_files[0]
+    
+    # Extract base name (without .pkl extension) and construct metrics filename
+    base_name = latest_model.stem
+    metrics_file = model_dir / f"{base_name}_performance_metrics.csv"
+    
+    if metrics_file.exists():
+        return metrics_file
+    
+    # Final fallback: check for legacy naming
+    legacy_metrics = model_dir / "performance_metrics.csv"
+    if legacy_metrics.exists():
+        return legacy_metrics
+    
+    return None
+
+
+def _load_category_stats_from_metrics_csv(metrics_path: Path, thresholds_data: dict) -> list:
+    """
+    Load category statistics from performance_metrics.csv file.
+    
+    Converts the CSV format to category_stats format expected by the dashboard.
+    
+    Args:
+        metrics_path: Path to performance_metrics.csv file
+        thresholds_data: Thresholds JSON data (for determining critical categories)
+        
+    Returns:
+        List of category stats dictionaries
+    """
+    try:
+        df = pd.read_csv(metrics_path)
+        
+        # Get critical categories from thresholds if available
+        critical_categories = set()
+        if thresholds_data:
+            critical_thresholds = thresholds_data.get("critical_only", {})
+            critical_categories = set(critical_thresholds.keys())
+        
+        category_stats = []
+        
+        # Group by category and get weighted avg metrics
+        for category in df['category'].unique():
+            cat_df = df[df['category'] == category]
+            weighted_avg = cat_df[cat_df['output_class'].astype(str).str.lower() == 'weighted avg']
+            
+            if weighted_avg.empty:
+                continue
+            
+            row = weighted_avg.iloc[0]
+            category_name = str(category)
+            
+            # Determine if critical based on thresholds file
+            is_critical = category_name in critical_categories
+            
+            stat = {
+                "category": category_name,
+                "type": "critical" if is_critical else "non-critical",
+                "threshold": 0.5,  # Default threshold if not in thresholds file
+                "precision": float(row.get('precision', 0.0)),
+                "recall": float(row.get('recall', 0.0)),
+                "f1": float(row.get('f1-score', 0.0)),
+                "support": float(row.get('support', 0.0)),
+            }
+            
+            # Try to get actual threshold from thresholds file
+            if thresholds_data:
+                thresholds = thresholds_data.get("thresholds", {})
+                if category_name in thresholds:
+                    stat["threshold"] = float(thresholds[category_name])
+            
+            category_stats.append(stat)
+        
+        return category_stats
+    except Exception as e:
+        logger.warning("Failed to load category stats from metrics CSV %s: %s", metrics_path, e)
+        return []
 
 
 def _build_model_info_dashboard_payload() -> dict:
     """
     Build single payload for Model Information dashboard.
-    Deterministic thresholds file; categories/criticalThresholds from category_stats;
+    Category stats loaded from performance_metrics.csv (model-specific naming);
+    thresholds file used for threshold values and critical category determination;
     metrics f1 from MODEL_INFO, precision/recall weighted from category_stats;
     registry allowlist .json/.csv/.md/.pkl; no NaN/Infinity in JSON.
     """
@@ -679,7 +798,9 @@ def _build_model_info_dashboard_payload() -> dict:
     stem = "unknown"
     category_stats_list: list = []
     critical_thresholds_list: list = []
+    thresh_data = {}
 
+    # Load thresholds file for threshold values and critical category determination
     if thresholds_path is not None:
         try:
             with open(thresholds_path, "r", encoding="utf-8") as f:
@@ -691,24 +812,31 @@ def _build_model_info_dashboard_payload() -> dict:
             model_ref = meta.get("model")
             if isinstance(model_ref, str) and model_ref:
                 stem = Path(model_ref).stem
-            category_stats_list = thresh_data.get("category_stats") or []
-            if not isinstance(category_stats_list, list):
-                category_stats_list = []
 
-            for stat in category_stats_list:
-                if not isinstance(stat, dict):
-                    continue
-                if stat.get("type") == "critical":
-                    key = stat.get("category")
-                    if key is None:
-                        continue
-                    label = _safe_category_display(key)
-                    thresh_val = stat.get("threshold")
-                    critical_thresholds_list.append({
-                        "key": str(key),
-                        "label": label,
-                        "threshold": _safe_float_prob(thresh_val),
-                    })
+    # Always load category stats from performance_metrics.csv (primary source)
+    # Use the same model stem from thresholds metadata to ensure metrics match the model ID
+    metrics_path = _discover_production_metrics_file(model_dir, model_stem=stem)
+    if metrics_path is not None:
+        logger.debug("Loading category stats from performance_metrics.csv: %s", metrics_path)
+        category_stats_list = _load_category_stats_from_metrics_csv(metrics_path, thresh_data)
+    else:
+        logger.warning("Performance metrics file not found, category stats will be empty")
+
+    # Extract critical thresholds from loaded stats
+    for stat in category_stats_list:
+        if not isinstance(stat, dict):
+            continue
+        if stat.get("type") == "critical":
+            key = stat.get("category")
+            if key is None:
+                continue
+            label = _safe_category_display(key)
+            thresh_val = stat.get("threshold")
+            critical_thresholds_list.append({
+                "key": str(key),
+                "label": label,
+                "threshold": _safe_float_prob(thresh_val),
+            })
 
     categories_payload = []
     total_support = 0.0
@@ -775,6 +903,10 @@ def _build_model_info_dashboard_payload() -> dict:
 
     model_id_upper = stem.upper().replace("-", "_") if stem != "unknown" else stem
 
+    # Extract algorithm information from MODEL_INFO.json
+    algorithm_code = model_info_data.get("algorithm", "unknown")
+    algorithm_name = model_info_data.get("algorithm_name", "Unknown")
+
     return {
         "model": {
             "id": model_id_upper,
@@ -782,6 +914,8 @@ def _build_model_info_dashboard_payload() -> dict:
             "lastUpdated": last_updated,
             "status": status,
             "generatedAt": generated_at,
+            "algorithm": algorithm_code,
+            "algorithmName": algorithm_name,
         },
         "metrics": {
             "f1": round(f1_metric, 4),

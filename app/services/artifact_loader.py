@@ -30,10 +30,11 @@ class ModelArtifactLoader:
     def _load_thresholds(self) -> Optional[Dict[str, float]]:
         model_dir = self.model_path.parent
         model_stem = self.model_path.stem
+        # Standard naming: {model_stem}_thresholds.json (preferred)
+        # Legacy fallback: thresholds.json (for backward compatibility)
+        # Note: optimized_* files are deprecated - use model-specific naming instead
         thresholds_candidates = [
             model_dir / f"{model_stem}_thresholds.json",
-            model_dir / "optimized_critical_thresholds.json",
-            model_dir / "optimized_all_thresholds.json",
             model_dir / "thresholds.json",
         ]
 

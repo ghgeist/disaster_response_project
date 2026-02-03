@@ -370,7 +370,7 @@ def _build_performance_summary(
     return summary
 
 
-def evaluate_model_to_model_folder(model, X_test, Y_test, category_names, model_dir="model"):
+def evaluate_model_to_model_folder(model, X_test, Y_test, category_names, model_dir="model", model_filename=None):
     """
     Evaluate model with both baseline and hierarchy-corrected predictions.
 
@@ -380,6 +380,8 @@ def evaluate_model_to_model_folder(model, X_test, Y_test, category_names, model_
         Y_test: Test labels
         category_names: List of category names
         model_dir: Directory to save results (default: "model")
+        model_filename: Optional model filename (without path) to use for metrics naming.
+                       If None, uses legacy "performance_metrics.csv" naming.
 
     Returns:
         dict: Performance summary including hierarchy comparison
@@ -414,7 +416,16 @@ def evaluate_model_to_model_folder(model, X_test, Y_test, category_names, model_
         ]
 
         os.makedirs(model_dir, exist_ok=True)
-        results_file_path = os.path.join(model_dir, "performance_metrics.csv")
+        
+        # Use model-specific naming if model_filename is provided
+        if model_filename:
+            # Extract base name (without .pkl extension and path)
+            base_name = os.path.splitext(os.path.basename(model_filename))[0]
+            results_file_path = os.path.join(model_dir, f"{base_name}_performance_metrics.csv")
+        else:
+            # Legacy naming for backwards compatibility
+            results_file_path = os.path.join(model_dir, "performance_metrics.csv")
+        
         results_df.to_csv(results_file_path, index=False)
         logging.info("Performance metrics saved to: %s", results_file_path)
 
@@ -741,8 +752,10 @@ def main():
     # Evaluate model and save to model folder
     logging.info('Evaluating model and saving results to model/ directory...')
     model_dir = os.path.dirname(args.model_out) or "model"
+    # Extract model filename for metrics naming
+    model_filename = os.path.basename(args.model_out) if args.model_out else None
     performance_summary = evaluate_model_to_model_folder(
-        model, X_test, Y_test, TARGET_COLUMNS, model_dir
+        model, X_test, Y_test, TARGET_COLUMNS, model_dir, model_filename=model_filename
     )
 
     # Save model
@@ -815,7 +828,13 @@ def main():
     print('\nProduction Model Created Successfully!')
     print(f"{'='*60}")
     print(f'Model: {args.model_out}')
-    print(f'Performance: {model_dir}/performance_metrics.csv')
+    # Show metrics file path (model-specific if available)
+    if model_filename:
+        base_name = os.path.splitext(model_filename)[0]
+        metrics_file = f"{base_name}_performance_metrics.csv"
+    else:
+        metrics_file = "performance_metrics.csv"
+    print(f'Performance: {model_dir}/{metrics_file}')
     print(f'Training Log: {training_log_path}')
     print(f'Training Time: {train_time:.2f} seconds')
     print(f"{'='*60}")

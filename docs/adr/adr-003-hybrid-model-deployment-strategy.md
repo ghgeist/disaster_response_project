@@ -37,15 +37,18 @@ We have implemented a **Hybrid Model Deployment Strategy** with the following co
 - Preserves existing model without retraining requirements
 
 ### 2. Standardized Model Naming Convention
-- **Format**: `{domain}_{algorithm}_{version}_{environment}_{date}.pkl`
-- **Current production model**: `disaster_rf_v1-2-0_prod_2025-09-11.pkl`
-- **Artifact consistency**: All supporting files follow same naming pattern
-- **Semantic versioning**: Clear version progression with environment indicators
+- **Format**: `{domain}_{algorithm}_{version}_prod_{training_date}.pkl`
+- **Current production model** (as of 2026-02-03): `disaster_lr_v25-11-06_prod_2025-11-06.pkl`
+- **Version format**: Date-based `v{YY}-{MM}-{DD}` derived from training date (e.g., `v25-11-06`)
+- **Artifact consistency**: All supporting files follow same naming pattern with model-specific suffixes
+- **Algorithm detection**: Automatic during promotion via `scripts/07_operations/promote_model.py`
+- **Note**: Version format changed from semantic (`v1-2-0`) to date-based (`v25-11-06`) for better traceability
 
 #### Legacy Artifact Handling
 - Renamed `classifier.pkl` to `legacy_classifier.pkl` and moved it to `model/legacy/`
-- Updated internal scripts to reference the versioned production artifact `model/disaster_rf_v1-2-0_prod_2025-09-11.pkl`
+- Updated internal scripts to reference the versioned production artifact
 - Historical documentation may still reference `model/classifier.pkl` for archival context
+- **Current production model**: `disaster_lr_v25-11-06_prod_2025-11-06.pkl` (LogisticRegression, date-based versioning)
 
 ### 3. Hybrid Deployment Architecture
 - **Production Environment**: Google Drive model storage (required)
@@ -152,10 +155,13 @@ We have implemented a **Hybrid Model Deployment Strategy** with the following co
 
 ## References
 
-- [Model Naming Convention Documentation](../standards/model-naming.md)
+- [Model Naming Convention Documentation](../standards/model-naming.md) - Updated to reflect date-based versioning
+- [Model README](../../model/README.md) - Current production model details and promotion workflow
 - [Deployment Configuration Guide](../runbooks/deployment.md)
 - [Google Drive Model Storage](https://drive.google.com/file/d/1s_sBXnUdJ-rWm4-YEsDixHCbxBca-oXh/view)
 - [ADR-002: Tokenization Trade-offs](adr-002-tokenization-trade-offs.md)
+- [ADR-006: Model Artifact Naming Standard](adr-006-model-artifact-naming-standard.md) - Detailed naming convention
+- [ADR-009: Algorithm Selection](adr-009-algorithm-selection-logistic-regression-over-random-forest.md) - Current algorithm (LogisticRegression)
 
 ## Implementation Status
 
@@ -166,6 +172,8 @@ We have implemented a **Hybrid Model Deployment Strategy** with the following co
 - ✅ **Testing framework**: All deployment scenarios validated
 - ✅ **Documentation**: Complete team guidelines established
 - ✅ **Legacy artifact archived**: `model/legacy/legacy_classifier.pkl` with scripts updated to use versioned artifact
+- ✅ **Version format migration**: Switched from semantic versioning (`v1-2-0`) to date-based (`v25-11-06`) as of 2025-11-06
+- ✅ **Algorithm detection**: Automatic algorithm detection implemented in promotion script
 
 ## Migration Path
 
