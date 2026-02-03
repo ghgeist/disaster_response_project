@@ -22,10 +22,11 @@
 
 ## Highlights
 
-- Model size reduced ~1000× enabling lightweight deployments.
-- Load time dropped ~99% through on-demand initialization.
-- Critical-label recall improved via targeted retraining.
-- Clear model naming and local file-based deployment.
+- **Model Size**: 4.53 MB (93% reduction from 67.69 MB) enabling lightweight deployments
+- **Performance**: 92.76% F1-score with 65% critical recall for safety-critical categories
+- **Load Time**: <0.1s through optimized initialization
+- **Architecture**: LogisticRegression with TF-IDF vectorization for fast inference
+- **Production Ready**: Local file-based deployment with modular Flask architecture
 
 ## Project Overview
 
@@ -140,14 +141,22 @@ run.py                           # Application entry point
 
 ```bash
 # Create virtual environment (local development only)
-python -m venv venv
+python -m venv .venv
 
-# Activate virtual environment
+# Recommended: Use the interpreter directly without activation
 # On Windows:
-venv\Scripts\activate
+.\.venv\Scripts\python -m pip install -r requirements.txt
 # On macOS/Linux:
-source venv/bin/activate
+./.venv/bin/python -m pip install -r requirements.txt
+
+# Alternative: Activate virtual environment (if preferred)
+# On Windows:
+.venv\Scripts\activate
+# On macOS/Linux:
+source .venv/bin/activate
 ```
+
+**For CI/Automation**: Use `bash scripts/ci.sh` which automatically creates `.venv` if missing and installs dependencies.
 
 ### Installation
 
@@ -204,7 +213,7 @@ source venv/bin/activate
 
    Prerequisites for the app to start successfully:
    - Database present at `data/02_stg/stg_disaster_response.db` (run Data Setup if missing)
-   - Model available in `model/` directory (e.g., `disaster_rf_*_prod_*.pkl` - see `app/config.py` for exact filename)
+   - Model available in `model/` directory (e.g., `disaster_lr_*_prod_*.pkl` - see `app/config.py` for exact filename)
 
 ### Replit Deployment
 
@@ -212,29 +221,29 @@ The Flask application is optimized for production deployment on Replit with **Au
 
 1. **Import the project** into your Replit workspace
 2. **Dependencies automatically installed** during deployment build process
-3. **Upload the model file**:
-   - **For files < 100MB**: Use Replit's GUI uploader (Files → Upload File)
-   - **For files > 100MB**: Use `scp` (SSH) to upload directly:
+3. **Upload the model file** (4.53 MB production model):
+   - Use Replit's GUI uploader (Files → Upload File) to upload `model/disaster_lr_v25-11-06_prod_2025-11-06.pkl`
+   - Or use `scp` (SSH) for direct upload:
      ```powershell
      # PowerShell (Windows)
-     scp -i $env:USERPROFILE/.ssh/replit -P 22 model/your-model-file.pkl username@your-repl-id.replit.dev:~/
+     scp -i $env:USERPROFILE/.ssh/replit -P 22 model/disaster_lr_v25-11-06_prod_2025-11-06.pkl username@your-repl-id.replit.dev:~/
      ```
      ```bash
      # macOS/Linux
-     scp -i ~/.ssh/replit -P 22 model/your-model-file.pkl username@your-repl-id.replit.dev:~/
+     scp -i ~/.ssh/replit -P 22 model/disaster_lr_v25-11-06_prod_2025-11-06.pkl username@your-repl-id.replit.dev:~/
      ```
      Then in Replit Shell, move it to the model directory:
      ```bash
      cd workspace
-     mv ~/your-model-file.pkl model/
-     ls -lh model/your-model-file.pkl  # Verify
+     mv ~/disaster_lr_v25-11-06_prod_2025-11-06.pkl model/
+     ls -lh model/disaster_lr_v25-11-06_prod_2025-11-06.pkl  # Verify
      ```
    - **To find your Replit SSH connection info**: Run `echo $REPLIT_SSH_HOST` in Replit Shell
 4. **Ensure the SQLite DB exists** at `data/02_stg/stg_disaster_response.db` (upload it or adjust config)
 5. **Run the application**: Click the "Run" button in Replit
 6. **Access the app**: Use the provided Replit URL
 
-**Note**: The app requires the model file to be present in the `model/` directory. The database file must also exist for the app to function.
+**Note**: The app requires the model file to be present in the `model/` directory. The application auto-discovers the latest production model matching the pattern `disaster_*_prod_*.pkl`. The database file must also exist for the app to function.
 
 ## 📊 Data
 
@@ -266,9 +275,10 @@ The machine learning pipeline consists of three main stages:
 - **N-gram Support**: Configurable unigram and bigram features
 
 ### 3. Multi-label Classification
-- **Algorithm**: RandomForestClassifier with MultiOutputClassifier
-- **Sampling Strategies**: Baseline, SMOTE, ADASYN, and conservative sampling
+- **Algorithm**: LogisticRegression with MultiOutputClassifier (production)
+- **Class Weighting**: Balanced class weights to handle imbalanced data (preferred over sampling)
 - **Hyperparameter Tuning**: GridSearchCV for optimization
+- **Vocabulary Optimization**: 15K features (reduced from 230K) for efficient deployment
 
 ## 🧪 Experimentation
 
@@ -298,9 +308,12 @@ Experiments are organized in the `experiments/` directory with the following str
 ### Available Experiments
 
 - **baseline_no_sampling**: No class balancing applied
-- **smote_conservative**: SMOTE with conservative parameters
-- **adasyn_moderate**: ADASYN with moderate parameters  
-- **conservative_sampling**: Very conservative SMOTE approach
+- **class_weighting**: Balanced class weights (production approach, preferred over sampling)
+- **smote_conservative**: SMOTE with conservative parameters (legacy)
+- **adasyn_moderate**: ADASYN with moderate parameters (legacy)
+- **conservative_sampling**: Very conservative SMOTE approach (legacy)
+
+**Note**: Current production model uses class weighting rather than sampling strategies. See [ADR-008](../docs/adr/adr-008-class-weighting-over-sampling.md) for rationale.
 
 ### Running Experiments
 
@@ -356,7 +369,7 @@ The application follows a clean separation of concerns:
 - **Data Visualization**: Interactive charts showing message distribution and categories
 - **Model Performance**: Visual representation of model metrics
 - **Responsive Design**: Tailwind CSS-based modern interface
-- **Cloud Deployment**: Optimized for Replit deployment with automatic model downloading
+- **Cloud Deployment**: Optimized for Replit deployment with local file-based model storage
 
 ### Routes
 
@@ -435,7 +448,8 @@ python run.py
 The application is pre-configured for Replit deployment:
 - **Port Configuration**: Automatically uses Replit's assigned port
 - **Error Handling**: Robust error handling for cloud deployment scenarios
-- **Model Management**: Model files must be uploaded to the `model/` directory
+- **Model Management**: Production model files (4.53 MB) must be uploaded to the `model/` directory
+- **Auto-Discovery**: Application automatically discovers the latest production model matching `disaster_*_prod_*.pkl` pattern
 
 For complete application documentation, see [app/README.md](app/README.md).
 
@@ -507,6 +521,17 @@ gunicorn --bind 0.0.0.0:5000 --workers 2 --timeout 120 wsgi:application
 
 The system evaluates models using comprehensive metrics:
 
+### Current Production Model Performance
+
+**Model**: `disaster_lr_v25-11-06_prod_2025-11-06.pkl`
+- **Algorithm**: LogisticRegression with TF-IDF
+- **Model Size**: 4.53 MB
+- **F1-Score (Weighted)**: 92.76%
+- **F1-Score (Micro)**: 65.02%
+- **Critical Recall**: 65% average across 8 safety-critical categories
+- **Vocabulary Size**: 15K features (optimized from 230K)
+- **Load Time**: <0.1s
+
 ### Key Metrics
 - **Precision**: Accuracy of positive predictions per category
 - **Recall**: Ability to find all positive instances per category
@@ -515,7 +540,7 @@ The system evaluates models using comprehensive metrics:
 
 ### Evaluation Approach
 - **Multi-label Classification**: Handles overlapping categories
-- **Class Imbalance**: Addresses skewed category distributions
+- **Class Imbalance**: Balanced using class weighting (preferred over sampling strategies)
 - **Cross-validation**: Robust performance estimation
 
 ### Hierarchy Post-Processing
