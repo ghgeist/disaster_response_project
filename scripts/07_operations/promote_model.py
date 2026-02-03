@@ -379,14 +379,14 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
                         from datetime import datetime as dt
                         training_date_obj = dt.fromisoformat(timestamp_str.replace("Z", "+00:00"))
                         training_date = training_date_obj.strftime("%Y-%m-%d")
-                        version = f"v{training_date[-2:]}-{training_date[5:7]}-{training_date[8:10]}"
+                        version = f"v{training_date[2:4]}-{training_date[5:7]}-{training_date[8:10]}"
             except Exception:
                 pass
         
         # Final fallback: use promotion date
         if training_date is None:
             training_date = datetime.now().strftime("%Y-%m-%d")
-            version = f"v{training_date.replace('-', '')[:6]}"
+            version = f"v{training_date[2:4]}-{training_date[5:7]}-{training_date[8:10]}"
 
     prod_model_name = f"disaster_{algorithm_code}_{version}_prod_{training_date}.pkl"
     prod_model_path = model_dir / prod_model_name
@@ -412,6 +412,12 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
     copied_hash = compute_model_hash(prod_model_path)
     expected_hash = validation_results['model_hash']
     if copied_hash != expected_hash:
+        # Clean up corrupted file before raising exception
+        try:
+            prod_model_path.unlink()
+            print(f"🗑️  Removed corrupted model file: {prod_model_path}")
+        except Exception as cleanup_error:
+            print(f"⚠️  Warning: Failed to remove corrupted file: {cleanup_error}")
         raise ValueError(
             f"Model file integrity check failed!\n"
             f"  Expected hash: {expected_hash}\n"
