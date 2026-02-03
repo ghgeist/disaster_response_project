@@ -5,7 +5,7 @@ import { DEFAULT_CATEGORY_GROUPS } from '@/app/data';
 import { FeedPanel } from '@/app/components/dashboard/FeedPanel';
 import { MetricsPanel } from '@/app/components/dashboard/MetricsPanel';
 import { ClassificationPanel } from '@/app/components/dashboard/ClassificationPanel';
-import { Radar, Bell, Settings, UserCircle, Menu, LayoutDashboard, FileBarChart } from 'lucide-react';
+import { Radar, Bell, Settings, UserCircle, Menu, LayoutDashboard, FileBarChart, Info } from 'lucide-react';
 import { toApiName, getCategories } from '@/app/utils/api';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/app/components/ui/tooltip';
 import {
@@ -75,9 +75,8 @@ function DashboardHeader({ modelInfo }: { modelInfo: ModelInfo | null }) {
         <button className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition-colors">
           <Settings className="w-5 h-5" />
         </button>
-        <button className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition-colors relative">
+        <button className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition-colors">
           <Bell className="w-5 h-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
         </button>
         <div className="h-6 w-px bg-slate-200 mx-1"></div>
         <button className="flex items-center gap-2 pl-1 pr-2 py-1 hover:bg-slate-100 rounded-full transition-colors group">
@@ -293,6 +292,14 @@ export function StormSignalView() {
                     <a href="/api/model-info-dashboard">
                       <FileBarChart className="h-4 w-4 text-slate-600" />
                       <span>Production Model</span>
+                    </a>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild className="rounded-md text-slate-900 hover:bg-slate-100 hover:text-slate-900">
+                    <a href="/api/about">
+                      <Info className="h-4 w-4 text-slate-600" />
+                      <span>About</span>
                     </a>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

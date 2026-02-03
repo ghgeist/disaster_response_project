@@ -58,9 +58,8 @@ function StormHeader() {
 
       <div className="flex items-center text-slate-400 gap-1">
         <button className="p-2 hover:bg-slate-100 rounded-full transition-colors hover:text-slate-600"><Settings className="h-5 w-5" /></button>
-        <button className="p-2 hover:bg-slate-100 rounded-full transition-colors hover:text-slate-600 relative">
+        <button className="p-2 hover:bg-slate-100 rounded-full transition-colors hover:text-slate-600">
            <Bell className="h-5 w-5" />
-           <span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full border-2 border-white"></span>
         </button>
       </div>
 
@@ -324,6 +323,14 @@ export function ModelInformationDashboard() {
                     <a href="/api/model-info-dashboard">
                       <FileBarChart className="h-4 w-4 text-slate-600" />
                       <span>Production Model</span>
+                    </a>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild className="rounded-md text-slate-900 hover:bg-slate-100 hover:text-slate-900">
+                    <a href="/api/about">
+                      <Info className="h-4 w-4 text-slate-600" />
+                      <span>About</span>
                     </a>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
