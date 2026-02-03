@@ -9,7 +9,7 @@ import random
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from flask import Blueprint, current_app, jsonify, request, send_from_directory
+from flask import Blueprint, current_app, jsonify, redirect, request
 
 from app.extensions import csrf
 from app.services.errors import DataServiceError
@@ -856,44 +856,28 @@ def model_info_dashboard():
         return jsonify({"error": "Model info dashboard unavailable right now."}), 500
 
 
-@api_bp.route("/model-info-dashboard")
-def model_info_dashboard_spa():
-    """Serve merged SPA (same dashboard as Storm Signal); Model Information route is client-side."""
-    static_folder = current_app.static_folder
-    return send_from_directory(
-        static_folder, "dashboard/index.html", mimetype="text/html"
-    )
-
-
-@api_bp.route("/model-info-dashboard/", defaults={"path": ""})
+@api_bp.route("/model-info-dashboard", defaults={"path": ""})
 @api_bp.route("/model-info-dashboard/<path:path>")
-def model_info_dashboard_spa_path(path):
-    """Serve merged SPA (dashboard) for all paths; assets are loaded from /static/dashboard/."""
-    static_folder = current_app.static_folder
-    return send_from_directory(
-        static_folder, "dashboard/index.html", mimetype="text/html"
-    )
+def model_info_dashboard_spa_redirect(path: str):
+    """Redirect legacy SPA routes to the new production model dashboard."""
+    target = f"/production-model/{path}" if path else "/production-model"
+    return redirect(target)
 
 
-@api_bp.route("/dashboard")
+@api_bp.route("/dashboard", defaults={"path": ""})
 @api_bp.route("/dashboard/<path:path>")
-def dashboard(path=None):
-    """Serve Storm Signal dashboard SPA (React app)."""
-    static_folder = current_app.static_folder
-    return send_from_directory(
-        static_folder, "dashboard/index.html", mimetype="text/html"
-    )
+def dashboard_redirect(path: str):
+    """Redirect legacy dashboard routes to the new public dashboard."""
+    target = f"/dashboard/{path}" if path else "/dashboard"
+    return redirect(target)
 
 
-@api_bp.route("/about")
-@api_bp.route("/about/", defaults={"path": ""})
+@api_bp.route("/about", defaults={"path": ""})
 @api_bp.route("/about/<path:path>")
-def about(path=None):
-    """Serve Storm Signal About page SPA (React app)."""
-    static_folder = current_app.static_folder
-    return send_from_directory(
-        static_folder, "dashboard/index.html", mimetype="text/html"
-    )
+def about_redirect(path: str):
+    """Redirect legacy about routes to the new public about page."""
+    target = f"/about/{path}" if path else "/about"
+    return redirect(target)
 
 
 @api_bp.route("/classify", methods=["POST"])

@@ -40,8 +40,8 @@ def test_prediction_flow_returns_completion_banner(smoke_client) -> None:
 
 def test_dashboard_spa_returns_200_and_references_static_assets(smoke_client) -> None:
     """Dashboard SPA route returns HTTP 200 and HTML that references static assets."""
-    response = smoke_client.get("/api/dashboard")
-    assert response.status_code == 200, "GET /api/dashboard should return 200"
+    response = smoke_client.get("/dashboard")
+    assert response.status_code == 200, "GET /dashboard should return 200"
     assert response.content_type and "text/html" in response.content_type
     body = response.data.decode("utf-8")
     assert "/static/dashboard/" in body, "Dashboard HTML must reference static assets (SPA entry)"
@@ -49,11 +49,35 @@ def test_dashboard_spa_returns_200_and_references_static_assets(smoke_client) ->
 
 def test_model_info_dashboard_spa_returns_200(smoke_client) -> None:
     """Model Information SPA route returns HTTP 200 and serves the same SPA shell."""
-    response = smoke_client.get("/api/model-info-dashboard")
-    assert response.status_code == 200, "GET /api/model-info-dashboard should return 200"
+    response = smoke_client.get("/production-model")
+    assert response.status_code == 200, "GET /production-model should return 200"
     assert response.content_type and "text/html" in response.content_type
     body = response.data.decode("utf-8")
     assert "/static/dashboard/" in body, "Model info dashboard must reference same static assets"
+
+
+def test_about_spa_returns_200(smoke_client) -> None:
+    """About SPA route returns HTTP 200 and serves the same SPA shell."""
+    response = smoke_client.get("/about")
+    assert response.status_code == 200, "GET /about should return 200"
+    assert response.content_type and "text/html" in response.content_type
+    body = response.data.decode("utf-8")
+    assert "/static/dashboard/" in body, "About page must reference same static assets"
+
+
+@pytest.mark.parametrize(
+    ("legacy_path", "expected_target"),
+    [
+        ("/api/dashboard", "/dashboard"),
+        ("/api/model-info-dashboard", "/production-model"),
+        ("/api/about", "/about"),
+    ],
+)
+def test_legacy_spa_routes_redirect(smoke_client, legacy_path: str, expected_target: str) -> None:
+    """Legacy SPA routes should redirect to the new public paths."""
+    response = smoke_client.get(legacy_path, follow_redirects=False)
+    assert response.status_code in {301, 302}
+    assert response.headers.get("Location", "").endswith(expected_target)
 
 
 def test_model_info_dashboard_api_returns_200_and_valid_json(smoke_client) -> None:
@@ -64,3 +88,11 @@ def test_model_info_dashboard_api_returns_200_and_valid_json(smoke_client) -> No
     assert payload is not None, "Response must be valid JSON"
     for key in ("model", "metrics", "categories", "criticalThresholds", "registry"):
         assert key in payload, f"Dashboard API payload must include key: {key}"
+
+
+@pytest.mark.parametrize("endpoint", ["/api/feed", "/api/metrics", "/api/categories"])
+def test_dashboard_api_endpoints_return_json(smoke_client, endpoint: str) -> None:
+    """Core dashboard API endpoints should respond with JSON payloads."""
+    response = smoke_client.get(endpoint)
+    assert response.status_code == 200, f"GET {endpoint} should return 200"
+    assert response.get_json() is not None, f"{endpoint} should return JSON"

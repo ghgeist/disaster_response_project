@@ -46,4 +46,35 @@ def index():
     """
     Redirect root route to the React dashboard.
     """
-    return redirect('/api/dashboard')
+    return redirect('/dashboard')
+
+
+@home_bp.route("/dashboard")
+@home_bp.route("/dashboard/<path:path>")
+def dashboard(path: str | None = None):
+    """Serve Storm Signal dashboard SPA (React app)."""
+    static_folder = current_app.static_folder
+    return send_from_directory(
+        static_folder, "dashboard/index.html", mimetype="text/html"
+    )
+
+
+@home_bp.route("/production-model")
+@home_bp.route("/production-model/<path:path>")
+def production_model(path: str | None = None):
+    """Serve Model Information dashboard SPA (React app)."""
+    static_folder = current_app.static_folder
+    return send_from_directory(
+        static_folder, "dashboard/index.html", mimetype="text/html"
+    )
+
+
+@home_bp.route("/about")
+@home_bp.route("/about/", defaults={"path": ""})
+@home_bp.route("/about/<path:path>")
+def about(path: str | None = None):
+    """Serve Storm Signal About page SPA (React app)."""
+    static_folder = current_app.static_folder
+    return send_from_directory(
+        static_folder, "dashboard/index.html", mimetype="text/html"
+    )

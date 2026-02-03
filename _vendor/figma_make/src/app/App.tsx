@@ -30,12 +30,12 @@ export default function App() {
     <BrowserRouter>
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
-          <Route path="/api/model-info-dashboard" element={<ModelInformationDashboard />} />
-          <Route path="/api/model-info-dashboard/" element={<ModelInformationDashboard />} />
-          <Route path="/api/dashboard" element={<StormSignalView />} />
-          <Route path="/api/dashboard/" element={<StormSignalView />} />
-          <Route path="/api/about" element={<AboutPage />} />
-          <Route path="/api/about/" element={<AboutPage />} />
+          <Route path="/production-model" element={<ModelInformationDashboard />} />
+          <Route path="/production-model/" element={<ModelInformationDashboard />} />
+          <Route path="/dashboard" element={<StormSignalView />} />
+          <Route path="/dashboard/" element={<StormSignalView />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/about/" element={<AboutPage />} />
           <Route path="*" element={<StormSignalView />} />
         </Routes>
       </Suspense>

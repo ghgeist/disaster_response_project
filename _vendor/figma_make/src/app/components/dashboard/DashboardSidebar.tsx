@@ -42,7 +42,7 @@ export function DashboardSidebar({ activePage, children }: DashboardSidebarProps
                     isActive={activePage === 'overview'}
                     className="rounded-md text-slate-900 hover:bg-slate-100 hover:text-slate-900 data-[active=true]:bg-slate-100 data-[active=true]:font-medium"
                   >
-                    <a href="/api/dashboard">
+                    <a href="/dashboard">
                       <LayoutDashboard className="h-4 w-4 text-slate-600" />
                       <span>Overview</span>
                     </a>
@@ -54,7 +54,7 @@ export function DashboardSidebar({ activePage, children }: DashboardSidebarProps
                     isActive={activePage === 'production-model'}
                     className="rounded-md text-slate-900 hover:bg-slate-100 hover:text-slate-900 data-[active=true]:bg-slate-100 data-[active=true]:font-medium"
                   >
-                    <a href="/api/model-info-dashboard">
+                    <a href="/production-model">
                       <FileBarChart className="h-4 w-4 text-slate-600" />
                       <span>Production Model</span>
                     </a>
@@ -66,7 +66,7 @@ export function DashboardSidebar({ activePage, children }: DashboardSidebarProps
                     isActive={activePage === 'about'}
                     className="rounded-md text-slate-900 hover:bg-slate-100 hover:text-slate-900 data-[active=true]:bg-slate-100 data-[active=true]:font-medium"
                   >
-                    <a href="/api/about">
+                    <a href="/about">
                       <Info className="h-4 w-4 text-slate-600" />
                       <span>About</span>
                     </a>
