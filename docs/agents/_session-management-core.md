@@ -18,10 +18,12 @@
 IF no relevant session exists:
 - Use `write` to create new session in `docs/sessions/active/`
 - Follow naming: `YYYY-MM-DD-[agent-type]-[description].md`
+- **CRITICAL**: ALL session files MUST be stored in `docs/sessions/active/`
 
 IF relevant session exists:
 - Use `search_replace` to update existing session with progress
 - Continue work within established session context
+- **CRITICAL**: Session files remain in `docs/sessions/active/` during active work
 ```
 
 ### Phase 3: Session Updates (THROUGHOUT WORK)
@@ -90,6 +92,7 @@ related: ["paths/to/related/sessions"]
 ### MUST DO:
 ✅ Check for existing sessions before creating new ones  
 ✅ Use standardized naming convention: `YYYY-MM-DD-[type]-[description].md`  
+✅ **ALWAYS store session files in `docs/sessions/active/`** - This is mandatory for all agents  
 ✅ Keep maximum 2 sessions in `active/` directory  
 ✅ Update session progress throughout work  
 ✅ Move completed sessions to `completed/` directory  
@@ -98,25 +101,30 @@ related: ["paths/to/related/sessions"]
 ### MUST NOT:
 ❌ Create sessions without checking for existing ones  
 ❌ Skip session creation for significant work  
+❌ Store session files anywhere other than `docs/sessions/active/`  
 ❌ Leave sessions in `active/` after completion  
 ❌ Use inconsistent naming conventions  
 ❌ Work without documenting progress in session  
 
 ## 🔧 AGENT TYPE MAPPINGS
 
-| Agent Type | Session Prefix | Primary Output Location |
-|------------|---------------|------------------------|
-| `code-improvement` | `refactor` | `docs/code_improvement_log/` + session |
-| `flask-ui-ux` | `ui-ux` | Code changes + session |
-| `performance` | `performance` | Performance reports + session |
-| `security` | `security` | Security fixes + session |
-| `debug` | `debug` | Bug fixes + session |
-| `plan` | `plan` | Session only |
-| `integrate` | `deploy` | Deployment artifacts + session |
-| `test` | `test` | Test results + session |
-| `refactor` | `refactor` | Code changes + session |
-| `ml-engineer` | `ml` | Model artifacts + session |
-| `research` | `research` | Research findings + session |
+**CRITICAL**: ALL session files MUST be stored in `docs/sessions/active/` during active work, regardless of agent type.
+
+| Agent Type | Session Prefix | Session File Location | Additional Outputs (if any) |
+|------------|---------------|---------------------|---------------------------|
+| `code-improvement` | `refactor` | `docs/sessions/active/` | `docs/code_improvement_log/` |
+| `flask-ui-ux` | `ui-ux` | `docs/sessions/active/` | Code changes in place |
+| `performance` | `performance` | `docs/sessions/active/` | Performance reports in session |
+| `security` | `security` | `docs/sessions/active/` | Security fixes in code |
+| `debug` | `debug` | `docs/sessions/active/` | Bug fixes in code |
+| `plan` | `plan` | `docs/sessions/active/` | None |
+| `integrate` | `deploy` | `docs/sessions/active/` | Deployment artifacts in session |
+| `test` | `test` | `docs/sessions/active/` | Test results in session |
+| `refactor` | `refactor` | `docs/sessions/active/` | Code changes in place |
+| `ml-engineer` | `ml` | `docs/sessions/active/` | Model artifacts in session |
+| `research` | `research` | `docs/sessions/active/` | Research findings in session |
+| `dev-note` | `dev-note` | `docs/sessions/active/` | `docs/dev_notes/` (separate output) |
+| `release` | `release` | `docs/sessions/active/` | `docs/releases/` (separate output) |
 
 ## 📊 SESSION STATE LIMITS
 

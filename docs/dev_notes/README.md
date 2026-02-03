@@ -1,8 +1,8 @@
 # Dev Notes Overview: Disaster Response Project Evolution
 
-**Last Updated**: 2026-02-02  
-**Total Entries**: 15 dev notes spanning September 2025 - February 2026  
-**Project Status**: Production-ready with optimized model (4.53 MB, F1=92.76%, Critical Recall=65%), modular architecture, and unified Storm Signal + Model Information dashboard (React Router, Phase 6 polish) complete
+**Last Updated**: 2026-02-03  
+**Total Entries**: 16 dev notes spanning September 2025 - February 2026  
+**Project Status**: Production-ready with optimized model (4.53 MB, F1=92.76%, Critical Recall=65%), modular architecture, unified Storm Signal + Model Information dashboard (React Router), standardized model naming conventions, and security hardening complete
 
 ---
 
@@ -132,6 +132,12 @@ This project has undergone significant iterations, with each phase building on p
 - **Iteration**: One codebase and one build for both dashboards; critical feed bugs resolved; Phase 6 polish, safety tests, loading UX, and style normalization in place
 - **Status**: Unified dashboard complete; ready for further Phase 6 or follow-on work
 
+**2026-02-03**: Model Naming Standardization, Dashboard Routing Refinement & Security Hardening
+- **Achievement**: Standardized model artifact naming convention (`{domain}_{algorithm}_{version}_prod_{training_date}.pkl`) with algorithm detection; refined dashboard routing (SPA routes moved off `/api` prefix, root redirect to dashboard); implemented security hardening (default secret key blocking); enhanced model loading with patch version tolerance; optimized dashboard build with code splitting. Follow-on: PR #101 (agent documentation review and refinement).
+- **Solutions**: Model promotion with algorithm detection; model-specific metrics and threshold file discovery; clean SPA routing (`/dashboard`, `/production-model`, `/about`); production secret key validation; scikit-learn patch version tolerance (1.7.1 vs 1.7.2); route-based code splitting and vendor chunking; comprehensive test fixes (98.9% pass rate).
+- **Iteration**: Professional ML operations with traceable artifacts; cleaner dashboard architecture; production security posture; deployment unblocked with version tolerance
+- **Status**: Model operations standardized; dashboard routing optimized; security hardened; production-ready with comprehensive test coverage
+
 ---
 
 ## Architectural Decisions & Dev Notes Mapping
@@ -187,8 +193,9 @@ Together, they provide complete context: the decision rationale (ADR) and the im
 | 2025-09-19 | Model Comparison System | Intelligent metadata discovery for model comparisons |
 | 2025-11-06 | Vocabulary Optimization | 93.3% size reduction (67.69 MB → 4.53 MB) |
 | 2026-01-26 | Class Weighting Strategy | Class weighting over sampling for imbalanced data (ADR-008) |
+| 2026-02-03 | Model Naming Standardization | Standardized artifact naming with algorithm detection |
 
-**Evolution Pattern**: Started with basic model replacement → Systematic hyperparameter tuning → Professional comparison tools → Production-optimized vocabulary → Training strategy formalization
+**Evolution Pattern**: Started with basic model replacement → Systematic hyperparameter tuning → Professional comparison tools → Production-optimized vocabulary → Training strategy formalization → Professional ML operations with standardized naming
 
 ### **Production Deployment & Infrastructure**
 
@@ -200,8 +207,9 @@ Together, they provide complete context: the decision rationale (ADR) and the im
 | 2025-11-04 | Production Stability | CSRF fixes, logging improvements | - |
 | 2026-01-22 | Dependency Management | scikit-learn upgrade, health checks, monitoring | - |
 | 2026-01-26 | Architecture Refactoring | Modular Flask architecture, workflow-based scripts organization, comprehensive cleanup | - |
+| 2026-02-03 | Security Hardening & Routing | Default secret key blocking, SPA routing refinement, code splitting | - |
 
-**Evolution Pattern**: Compatibility workaround → Infrastructure cleanup → Performance optimization → Production reliability → Final deployment hardening → Professional modular architecture
+**Evolution Pattern**: Compatibility workaround → Infrastructure cleanup → Performance optimization → Production reliability → Final deployment hardening → Professional modular architecture → Security hardening and routing optimization
 
 ### **Safety & Critical Issues**
 
@@ -222,8 +230,9 @@ Together, they provide complete context: the decision rationale (ADR) and the im
 | 2025-09-17 | Path Management | Centralized experimental path management system | [ADR-005](../adr/adr-005-fix-default-n-jobs-constant-redefinition.md) |
 | 2025-09-19 | Documentation | README accuracy, evaluation set migration to JSON | [ADR-006](../adr/adr-006-model-artifact-naming-standard.md), [ADR-007](../adr/adr-007-model-promotion-gating.md) |
 | 2026-01-26 | Architecture Refactoring | Modular Flask architecture (routes/services/utils), workflow-based scripts organization, 8 scripts archived | - |
+| 2026-02-03 | Model Operations & Routing | Standardized model naming, dashboard routing refinement, security hardening | [ADR-006](../adr/adr-006-model-artifact-naming-standard.md) |
 
-**Evolution Pattern**: Initial refactoring → Comprehensive architectural cleanup → Infrastructure standardization → Documentation improvements → Professional modular architecture
+**Evolution Pattern**: Initial refactoring → Comprehensive architectural cleanup → Infrastructure standardization → Documentation improvements → Professional modular architecture → Model operations standardization and routing optimization
 
 ---
 
@@ -347,9 +356,11 @@ Together, they provide complete context: the decision rationale (ADR) and the im
 ### **Infrastructure**
 - **Deployment**: Local model file management (Google Drive dependency removed)
 - **Monitoring**: Health check endpoints (`/health`, diagnostics)
-- **Dependencies**: scikit-learn 1.7.1, comprehensive error handling
+- **Dependencies**: scikit-learn 1.7.1+ (patch version tolerance), comprehensive error handling
 - **Performance**: <500ms response times, <0.1s model loading
 - **Application Structure**: Modular Flask architecture (routes/services/utils pattern)
+- **Security**: Default secret key blocking in production, secure configuration validation
+- **Dashboard Routing**: Clean SPA routes (`/dashboard`, `/production-model`, `/about`), code splitting for performance
 
 ### **Codebase Health**
 - **Architecture**: Modular Flask structure (routes/services/utils), workflow-based scripts organization (7 directories)
@@ -363,6 +374,8 @@ Together, they provide complete context: the decision rationale (ADR) and the im
 - **Experimental Framework**: Systematic hyperparameter search
 - **Evaluation**: JSON-based evaluation sets, configurable metrics
 - **Hierarchy**: Post-processing for parent-child consistency
+- **Model Naming**: Standardized convention (`{domain}_{algorithm}_{version}_prod_{training_date}.pkl`) with algorithm detection
+- **Artifact Management**: Model-specific metrics and threshold file discovery with legacy support
 
 ---
 
@@ -502,6 +515,7 @@ The iterative nature of the project is visible in how decisions evolved:
 13. [2026-01-29](2026-01-29.md) - Storm Signal Dashboard Foundation & API Phase 0–1
 14. [2026-02-01](2026-02-01.md) - Storm Signal Phase 5 Frontend Integration
 15. [2026-02-02](2026-02-02.md) - Dashboard Polish, React Router Consolidation & Critical Bug Fixes
+16. [2026-02-03](2026-02-03.md) - Model Naming Standardization, Dashboard Routing Refinement & Security Hardening
 
 ### **Architectural Decision Records (ADRs)**
 
