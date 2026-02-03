@@ -18,6 +18,7 @@ from app.services.errors import DataServiceError
 from app.services.model_service import ModelServiceError
 from app.utils.formatting import format_request_context
 from app.utils.prediction_helpers import process_prediction_result
+from app.utils.validation import validate_message_text
 
 logger = logging.getLogger(__name__)
 
@@ -1035,15 +1036,16 @@ def classify():
     """Return simplified classification with severity and category volume context."""
     try:
         body = request.get_json(silent=True) or {}
-        message = (body.get("message") or "").strip()
-        if not message:
-            return jsonify({"error": "Message is required."}), 400
+        message = body.get("message")
+        cleaned_message, error_message = validate_message_text(message or "")
+        if error_message:
+            return jsonify({"error": error_message}), 400
 
         model_service = getattr(current_app, "model_service", None)
         if model_service is None:
             return jsonify({"error": "Classification unavailable right now."}), 503
 
-        prediction_result = process_prediction_result(model_service, message)
+        prediction_result = process_prediction_result(model_service, cleaned_message)
         if not prediction_result.get("is_valid", True):
             return (
                 jsonify({"error": prediction_result.get("error_message", "Invalid message.")}),

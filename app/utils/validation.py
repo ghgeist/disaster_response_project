@@ -1,68 +1,52 @@
 """
-Input validation and sanitization utilities.
+Input validation helpers for message classification endpoints.
 """
-import logging
+from __future__ import annotations
+
 import re
-from typing import Optional, Tuple
+from typing import Tuple
 
-logger = logging.getLogger(__name__)
+MESSAGE_MIN_LENGTH = 3
+MESSAGE_MAX_LENGTH = 1000
+_HTML_TAG_PATTERN = re.compile(r"[<>]")
 
 
-def validate_message_input(text: str) -> Tuple[bool, Optional[str]]:
+def sanitize_input(message: str) -> str:
+    """Normalize user-provided message content."""
+    if message is None:
+        return ""
+    return message.strip()
+
+
+def validate_message_input(message: str) -> Tuple[bool, str | None]:
     """
-    Validate user input message.
+    Validate a message string for classification.
 
-    Args:
-        text: Input text to validate
-
-    Returns:
-        Tuple of (is_valid, error_message)
+    Returns a tuple of (is_valid, error_message). error_message is None when valid.
     """
-    if not text or not text.strip():
-        return False, "Message cannot be empty"
-
-    if len(text.strip()) < 3:
-        return False, "Message must be at least 3 characters long"
-
-    if len(text) > 1000:
-        return False, "Message cannot exceed 1000 characters"
-
-    # Check for potentially harmful content (basic check)
-    if re.search(r'<script|javascript:|data:', text.lower()):
-        return False, "Message contains potentially harmful content"
-
-    # Check for SQL injection patterns
-    sql_patterns = [
-        r'union\s+select', r'drop\s+table', r'delete\s+from',
-        r'insert\s+into', r'update\s+set', r'exec\s*\('
-    ]
-    for pattern in sql_patterns:
-        if re.search(pattern, text.lower()):
-            logger.warning(
-                "Potential SQL injection attempt detected: %s...", text[:50]
-            )
-            return False, "Message contains potentially harmful content"
-
-    return True, None
+    cleaned, error_message = validate_message_text(message)
+    return error_message is None, error_message
 
 
-def sanitize_input(text: str) -> str:
+def validate_message_text(message: str) -> Tuple[str | None, str | None]:
     """
-    Sanitize user input by removing potentially harmful characters.
+    Validate and normalize a message string for classification routes.
 
-    Args:
-        text: Input text to sanitize
-
-    Returns:
-        Sanitized text
+    Returns a tuple of (clean_message, error_message). When validation fails,
+    clean_message is None and error_message is a user-friendly description.
     """
-    # Remove HTML tags
-    text = re.sub(r'<[^>]+>', '', text)
+    if message is None:
+        return None, "Message is required."
 
-    # Remove excessive whitespace
-    text = re.sub(r'\s+', ' ', text).strip()
+    cleaned = sanitize_input(message)
+    if not cleaned:
+        return None, "Message is required."
+    if len(cleaned) < MESSAGE_MIN_LENGTH or len(cleaned) > MESSAGE_MAX_LENGTH:
+        return (
+            None,
+            f"Message must be between {MESSAGE_MIN_LENGTH} and {MESSAGE_MAX_LENGTH} characters.",
+        )
+    if _HTML_TAG_PATTERN.search(cleaned):
+        return None, "Message cannot contain HTML tags."
 
-    # Remove null bytes and control characters
-    text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', text)
-
-    return text
+    return cleaned, None
