@@ -30,7 +30,7 @@ def build_react_app():
         # Use shell=True on Windows to find npm in PATH
         # On Unix-like systems, shell=True also works fine
         result = subprocess.run(
-            ["npm", "run", "build"],
+            "npm run build",
             cwd=VENDOR_DIR,
             check=True,
             capture_output=True,

@@ -33,7 +33,7 @@ def test_homepage_displays_branding(client) -> None:
     response = client.get("/", follow_redirects=False)
     assert response.status_code == 302, "Homepage should redirect successfully"
     assert response.headers["Location"].endswith(
-        "/api/dashboard"
+        "/dashboard"
     ), "Homepage should redirect to the dashboard route"
 
 

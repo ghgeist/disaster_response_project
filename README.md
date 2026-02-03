@@ -358,14 +358,29 @@ The application follows a clean separation of concerns:
 - **Responsive Design**: Tailwind CSS-based modern interface
 - **Cloud Deployment**: Optimized for Replit deployment with automatic model downloading
 
-### API Endpoints
+### Routes
 
-- **`GET /`**: Main page with visualizations and classification form
+**Public SPA routes**
+- **`GET /dashboard`**: Storm Signal dashboard SPA
+- **`GET /production-model`**: Production model information dashboard SPA
+- **`GET /about`**: About page SPA
+- Legacy `/api/dashboard`, `/api/model-info-dashboard`, and `/api/about` redirect to the new paths.
+
+**Core application routes**
+- **`GET /`**: Main page with visualizations and classification form (redirects to `/dashboard`)
 - **`GET /go`**: Message classification results page
 - **`GET /classify`**: Classification API endpoint (supports `use_hierarchy` parameter)
 - **`GET /health`**: Lightweight health check endpoint (for deployment monitoring)
 - **`GET /health/detailed`**: Detailed health check with service diagnostics and performance metrics
 - **`GET /favicon.ico`**: Application favicon
+
+**Dashboard APIs (JSON)**
+- **`GET /api/feed`**
+- **`GET /api/metrics`**
+- **`GET /api/categories`**
+- **`POST /api/classify`**
+- **`GET /api/model-info`**
+- **`GET /api/model-info/dashboard`**
 
 ### Hierarchy Processing Demo
 
@@ -423,6 +438,30 @@ The application is pre-configured for Replit deployment:
 - **Model Management**: Model files must be uploaded to the `model/` directory
 
 For complete application documentation, see [app/README.md](app/README.md).
+
+## ⚛️ React Dashboard Frontend
+
+The React dashboard is a modern SPA that powers the Storm Signal visual experience (live feed, model health, and about pages). It replaces the old Flask template-based dashboard and is bundled into static assets served by Flask.
+
+- **Location:** `_vendor/figma_make/`
+- **Integration:** `npm run build` produces `dist/`, and `python scripts/build_dashboard.py` copies it to `app/static/dashboard/` so Flask can serve it.
+
+### Quick Start
+```bash
+# From _vendor/figma_make/
+npm install
+npm run dev
+
+# Build + deploy for Flask
+python ../../scripts/build_dashboard.py
+```
+
+### Routes
+- `/dashboard` (public SPA route, redirected from `/api/dashboard`)
+- `/production-model` (public SPA route, redirected from `/api/model-info-dashboard`)
+- `/about` (public SPA route, redirected from `/api/about`)
+
+For full frontend documentation, architecture, and API contracts, see `_vendor/figma_make/README.md` and `docs/frontend/`.
 
 ## 🚀 Production Deployment
 
