@@ -20,12 +20,17 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 # Third-party imports
+import joblib
 import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.multioutput import MultiOutputClassifier
 
 # Add src to path for package imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 # Local imports
+from disasterproject.models.pipeline import WeightedMultiOutputClassifier
 from disasterproject.utils.config import PERFORMANCE_THRESHOLDS
 
 
@@ -36,6 +41,58 @@ def compute_model_hash(model_path: Path) -> str:
         for chunk in iter(lambda: f.read(4096), b""):
             sha256_hash.update(chunk)
     return sha256_hash.hexdigest()
+
+
+def detect_algorithm_type(model_path: Path) -> str:
+    """
+    Detect the algorithm type from a model file.
+    
+    Returns:
+        str: Algorithm code ('rf' for RandomForest, 'lr' for LogisticRegression, 'unknown' otherwise)
+    """
+    try:
+        # Load the model to inspect its structure
+        model = joblib.load(model_path)
+        
+        # Check if it's a Pipeline
+        if hasattr(model, 'named_steps'):
+            clf_step = model.named_steps.get('clf')
+            if clf_step is None:
+                # Try to find classifier step by checking all steps
+                for step_name, step_obj in model.named_steps.items():
+                    if 'clf' in step_name.lower() or 'classifier' in step_name.lower():
+                        clf_step = step_obj
+                        break
+            
+            if clf_step is not None:
+                # Check if it's wrapped in MultiOutputClassifier or WeightedMultiOutputClassifier
+                if isinstance(clf_step, (MultiOutputClassifier, WeightedMultiOutputClassifier)):
+                    # Both have an estimator attribute that holds the base estimator
+                    estimator = clf_step.estimator
+                elif hasattr(clf_step, 'estimator'):
+                    estimator = clf_step.estimator
+                elif hasattr(clf_step, 'estimators_') and len(clf_step.estimators_) > 0:
+                    # For MultiOutputClassifier after fitting, check first estimator
+                    estimator = clf_step.estimators_[0]
+                else:
+                    estimator = clf_step
+                
+                # Check the estimator type
+                if isinstance(estimator, RandomForestClassifier):
+                    return 'rf'
+                elif isinstance(estimator, LogisticRegression):
+                    return 'lr'
+        
+        # Fallback: check if model itself is a classifier
+        if isinstance(model, RandomForestClassifier):
+            return 'rf'
+        elif isinstance(model, LogisticRegression):
+            return 'lr'
+        
+        return 'unknown'
+    except Exception as e:
+        print(f"Warning: Could not detect algorithm type: {e}")
+        return 'unknown'
 
 
 def _load_training_log(candidate_dir: Path) -> Optional[dict]:
@@ -227,8 +284,28 @@ def archive_current_production_model(model_dir: Path, archive_dir: Path) -> dict
 def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict) -> dict:
     """Promote validated candidate model to production."""
 
+    # Ensure candidate_model path is absolute and resolved
     candidate_model = Path(validation_results['model_path'])
+    if not candidate_model.is_absolute():
+        # If relative, resolve relative to candidate_dir
+        candidate_model = (candidate_dir / candidate_model.name).resolve()
+    else:
+        candidate_model = candidate_model.resolve()
+    
+    # Ensure candidate_model exists
+    if not candidate_model.exists():
+        raise FileNotFoundError(f"Candidate model file not found: {candidate_model}")
+    
     timestamp = datetime.now().strftime("%Y-%m-%d")
+
+    # Detect algorithm type from the model file
+    algorithm_code = detect_algorithm_type(candidate_model)
+    if algorithm_code == 'unknown':
+        print("⚠️  Warning: Could not detect algorithm type, defaulting to 'rf'")
+        algorithm_code = 'rf'
+    
+    algorithm_names = {'rf': 'RandomForest', 'lr': 'LogisticRegression'}
+    print(f"🔍 Detected algorithm: {algorithm_names.get(algorithm_code, algorithm_code)}")
 
     # Generate production model name
     version_parts = candidate_dir.name.split('-')
@@ -237,12 +314,25 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
     else:
         version = f"v{timestamp.replace('-', '')[:6]}"
 
-    prod_model_name = f"disaster_rf_{version}_prod_{timestamp}.pkl"
+    prod_model_name = f"disaster_{algorithm_code}_{version}_prod_{timestamp}.pkl"
     prod_model_path = model_dir / prod_model_name
     base_name = prod_model_path.stem
 
     # Copy model file
+    print(f"📋 Copying model from {candidate_model.name} to {prod_model_name}...")
     shutil.copy2(candidate_model, prod_model_path)
+    
+    # Verify the copied file matches expected hash
+    copied_hash = compute_model_hash(prod_model_path)
+    expected_hash = validation_results['model_hash']
+    if copied_hash != expected_hash:
+        raise ValueError(
+            f"Model file integrity check failed!\n"
+            f"  Expected hash: {expected_hash}\n"
+            f"  Copied hash:   {copied_hash}\n"
+            f"The copied model file does not match the validated candidate."
+        )
+    print(f"✅ Model file integrity verified (hash: {copied_hash[:16]}...)")
 
     # Copy/create metadata files
     metadata_files = {}
@@ -261,6 +351,8 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
         'promoted_from': str(candidate_dir),
         'promotion_timestamp': datetime.now().isoformat(),
         'model_size_mb': validation_results['model_size_mb'],
+        'algorithm': algorithm_code,
+        'algorithm_name': algorithm_names.get(algorithm_code, algorithm_code),
         'validation_results': validation_results,
         'performance': {
             'f1_weighted': validation_results['f1_weighted'],
@@ -287,6 +379,7 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
     }
 
     print(f"✅ Model promoted to production: {prod_model_name}")
+    print(f"📊 Algorithm: {algorithm_names.get(algorithm_code, algorithm_code)}")
     print(f"📊 Performance: F1-weighted={validation_results['f1_weighted']:.4f}, F1-micro={validation_results['f1_micro']:.4f}")
     print(f"💾 Size: {validation_results['model_size_mb']:.1f}MB")
 
