@@ -49,15 +49,20 @@ def index():
     return redirect('/dashboard')
 
 
+def _serve_spa():
+    """Serve the React SPA shell for client-side routing."""
+    static_folder = current_app.static_folder
+    return send_from_directory(
+        static_folder, "dashboard/index.html", mimetype="text/html"
+    )
+
+
 @home_bp.route("/dashboard")
 @home_bp.route("/dashboard/", defaults={"path": ""})
 @home_bp.route("/dashboard/<path:path>")
 def dashboard(path: str | None = None):
     """Serve Storm Signal dashboard SPA (React app)."""
-    static_folder = current_app.static_folder
-    return send_from_directory(
-        static_folder, "dashboard/index.html", mimetype="text/html"
-    )
+    return _serve_spa()
 
 
 @home_bp.route("/production-model")
@@ -65,10 +70,7 @@ def dashboard(path: str | None = None):
 @home_bp.route("/production-model/<path:path>")
 def production_model(path: str | None = None):
     """Serve Model Information dashboard SPA (React app)."""
-    static_folder = current_app.static_folder
-    return send_from_directory(
-        static_folder, "dashboard/index.html", mimetype="text/html"
-    )
+    return _serve_spa()
 
 
 @home_bp.route("/about")
@@ -76,7 +78,4 @@ def production_model(path: str | None = None):
 @home_bp.route("/about/<path:path>")
 def about(path: str | None = None):
     """Serve Storm Signal About page SPA (React app)."""
-    static_folder = current_app.static_folder
-    return send_from_directory(
-        static_folder, "dashboard/index.html", mimetype="text/html"
-    )
+    return _serve_spa()
