@@ -20,12 +20,17 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 # Third-party imports
+import joblib
 import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.multioutput import MultiOutputClassifier
 
 # Add src to path for package imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 # Local imports
+from disasterproject.models.pipeline import WeightedMultiOutputClassifier
 from disasterproject.utils.config import PERFORMANCE_THRESHOLDS
 
 
@@ -36,6 +41,100 @@ def compute_model_hash(model_path: Path) -> str:
         for chunk in iter(lambda: f.read(4096), b""):
             sha256_hash.update(chunk)
     return sha256_hash.hexdigest()
+
+
+def detect_algorithm_type(model_path: Path) -> str:
+    """
+    Detect the algorithm type from a model file.
+    
+    Returns:
+        str: Algorithm code ('rf' for RandomForest, 'lr' for LogisticRegression, 'unknown' otherwise)
+    """
+    try:
+        # Load the model to inspect its structure
+        model = joblib.load(model_path)
+        
+        # Check if it's a Pipeline
+        if hasattr(model, 'named_steps'):
+            clf_step = model.named_steps.get('clf')
+            if clf_step is None:
+                # Try to find classifier step by checking all steps
+                for step_name, step_obj in model.named_steps.items():
+                    if 'clf' in step_name.lower() or 'classifier' in step_name.lower():
+                        clf_step = step_obj
+                        break
+            
+            if clf_step is not None:
+                # Check if it's wrapped in MultiOutputClassifier or WeightedMultiOutputClassifier
+                if isinstance(clf_step, (MultiOutputClassifier, WeightedMultiOutputClassifier)):
+                    # Both have an estimator attribute that holds the base estimator
+                    estimator = clf_step.estimator
+                elif hasattr(clf_step, 'estimator'):
+                    estimator = clf_step.estimator
+                elif hasattr(clf_step, 'estimators_') and len(clf_step.estimators_) > 0:
+                    # For MultiOutputClassifier after fitting, check first estimator
+                    estimator = clf_step.estimators_[0]
+                else:
+                    estimator = clf_step
+                
+                # Check the estimator type
+                if isinstance(estimator, RandomForestClassifier):
+                    return 'rf'
+                elif isinstance(estimator, LogisticRegression):
+                    return 'lr'
+        
+        # Fallback: check if model itself is a classifier
+        if isinstance(model, RandomForestClassifier):
+            return 'rf'
+        elif isinstance(model, LogisticRegression):
+            return 'lr'
+        
+        return 'unknown'
+    except Exception as e:
+        print(f"Warning: Could not detect algorithm type: {e}")
+        return 'unknown'
+
+
+def discover_production_metrics_file(model_dir: Path) -> Optional[Path]:
+    """
+    Discover the production performance_metrics.csv file based on the current production model.
+    
+    Uses the same discovery logic as the app: finds the latest production model file,
+    then looks for a matching metrics file with model-specific naming.
+    
+    Args:
+        model_dir: Directory containing production models
+        
+    Returns:
+        Path to the metrics file if found, None otherwise
+    """
+    if not model_dir.exists():
+        return None
+    
+    # Find the latest production model file (same logic as app/config.py)
+    pattern = 'disaster_*_prod_*.pkl'
+    model_files = list(model_dir.glob(pattern))
+    
+    if not model_files:
+        return None
+    
+    # Sort by modification time (newest first) and take the latest
+    model_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    latest_model = model_files[0]
+    
+    # Extract base name (without .pkl extension) and construct metrics filename
+    base_name = latest_model.stem
+    metrics_file = model_dir / f"{base_name}_performance_metrics.csv"
+    
+    if metrics_file.exists():
+        return metrics_file
+    
+    # Fallback: check for legacy naming
+    legacy_metrics = model_dir / "performance_metrics.csv"
+    if legacy_metrics.exists():
+        return legacy_metrics
+    
+    return None
 
 
 def _load_training_log(candidate_dir: Path) -> Optional[dict]:
@@ -227,22 +326,105 @@ def archive_current_production_model(model_dir: Path, archive_dir: Path) -> dict
 def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict) -> dict:
     """Promote validated candidate model to production."""
 
-    candidate_model = Path(validation_results['model_path'])
-    timestamp = datetime.now().strftime("%Y-%m-%d")
-
-    # Generate production model name
-    version_parts = candidate_dir.name.split('-')
-    if len(version_parts) >= 3 and version_parts[0].isdigit():
-        version = f"v{version_parts[0][-2:]}-{version_parts[1]}-{version_parts[2][:2]}"
+    # Ensure candidate_model path is absolute and resolved
+    # The validation_results['model_path'] might be relative or absolute
+    candidate_model_str = validation_results['model_path']
+    candidate_model = Path(candidate_model_str)
+    
+    # Resolve the path - if it's relative, resolve from current working directory
+    # If that doesn't work, try resolving relative to candidate_dir
+    if not candidate_model.is_absolute():
+        candidate_model = candidate_model.resolve()
+        if not candidate_model.exists():
+            # Try resolving relative to candidate_dir
+            candidate_model = (candidate_dir / Path(candidate_model_str).name).resolve()
     else:
-        version = f"v{timestamp.replace('-', '')[:6]}"
+        candidate_model = candidate_model.resolve()
+    
+    # Ensure candidate_model exists
+    if not candidate_model.exists():
+        raise FileNotFoundError(
+            f"Candidate model file not found: {candidate_model}\n"
+            f"  Original path: {candidate_model_str}\n"
+            f"  Candidate dir: {candidate_dir}"
+        )
+    
+    # Detect algorithm type from the model file
+    algorithm_code = detect_algorithm_type(candidate_model)
+    if algorithm_code == 'unknown':
+        print("⚠️  Warning: Could not detect algorithm type, defaulting to 'rf'")
+        algorithm_code = 'rf'
+    
+    algorithm_names = {'rf': 'RandomForest', 'lr': 'LogisticRegression'}
+    print(f"🔍 Detected algorithm: {algorithm_names.get(algorithm_code, algorithm_code)}")
 
-    prod_model_name = f"disaster_rf_{version}_prod_{timestamp}.pkl"
+    # Extract training date from candidate directory name (e.g., "2025-11-06-vocab15k-promotion" -> "2025-11-06")
+    # The date should be the training date, not the promotion date, per naming standard
+    version_parts = candidate_dir.name.split('-')
+    training_date = None
+    if len(version_parts) >= 3 and version_parts[0].isdigit() and len(version_parts[0]) == 4:
+        # Directory name starts with YYYY-MM-DD format
+        training_date = f"{version_parts[0]}-{version_parts[1]}-{version_parts[2]}"
+        version = f"v{version_parts[0][-2:]}-{version_parts[1]}-{version_parts[2]}"
+    else:
+        # Fallback: try to get date from training_log.json or use promotion date
+        training_log_path = candidate_dir / "training_log.json"
+        if training_log_path.exists():
+            try:
+                with open(training_log_path, "r", encoding="utf-8") as f:
+                    log_data = json.load(f)
+                    timestamp_str = log_data.get("timestamp", "")
+                    if timestamp_str:
+                        # Parse ISO timestamp to get date
+                        from datetime import datetime as dt
+                        training_date_obj = dt.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+                        training_date = training_date_obj.strftime("%Y-%m-%d")
+                        version = f"v{training_date[2:4]}-{training_date[5:7]}-{training_date[8:10]}"
+            except Exception:
+                pass
+        
+        # Final fallback: use promotion date
+        if training_date is None:
+            training_date = datetime.now().strftime("%Y-%m-%d")
+            version = f"v{training_date[2:4]}-{training_date[5:7]}-{training_date[8:10]}"
+
+    prod_model_name = f"disaster_{algorithm_code}_{version}_prod_{training_date}.pkl"
     prod_model_path = model_dir / prod_model_name
     base_name = prod_model_path.stem
 
     # Copy model file
-    shutil.copy2(candidate_model, prod_model_path)
+    print(f"📋 Copying model from {candidate_model.name} to {prod_model_name}...")
+    print(f"   Source: {candidate_model}")
+    print(f"   Destination: {prod_model_path}")
+    try:
+        shutil.copy2(candidate_model, prod_model_path)
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to copy model file:\n"
+            f"  Source: {candidate_model}\n"
+            f"  Source exists: {candidate_model.exists()}\n"
+            f"  Destination: {prod_model_path}\n"
+            f"  Destination parent exists: {prod_model_path.parent.exists()}\n"
+            f"  Error: {e}"
+        ) from e
+    
+    # Verify the copied file matches expected hash
+    copied_hash = compute_model_hash(prod_model_path)
+    expected_hash = validation_results['model_hash']
+    if copied_hash != expected_hash:
+        # Clean up corrupted file before raising exception
+        try:
+            prod_model_path.unlink()
+            print(f"🗑️  Removed corrupted model file: {prod_model_path}")
+        except Exception as cleanup_error:
+            print(f"⚠️  Warning: Failed to remove corrupted file: {cleanup_error}")
+        raise ValueError(
+            f"Model file integrity check failed!\n"
+            f"  Expected hash: {expected_hash}\n"
+            f"  Copied hash:   {copied_hash}\n"
+            f"The copied model file does not match the validated candidate."
+        )
+    print(f"✅ Model file integrity verified (hash: {copied_hash[:16]}...)")
 
     # Copy/create metadata files
     metadata_files = {}
@@ -254,6 +436,15 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
             prod_file = model_dir / f"{base_name}{suffix.replace('_training_log', '_training')}"
             shutil.copy2(candidate_file, prod_file)
             metadata_files[suffix] = str(prod_file)
+    
+    # Copy performance_metrics.csv if it exists (use model-specific naming)
+    metrics_csv = candidate_dir / "performance_metrics.csv"
+    if metrics_csv.exists():
+        # Use model-specific naming: {base_name}_performance_metrics.csv
+        prod_metrics_csv = model_dir / f"{base_name}_performance_metrics.csv"
+        shutil.copy2(metrics_csv, prod_metrics_csv)
+        metadata_files['performance_metrics.csv'] = str(prod_metrics_csv)
+        print(f"📊 Copied performance metrics: {prod_metrics_csv.name}")
 
     # Create new MODEL_INFO.json
     model_info = {
@@ -261,6 +452,8 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
         'promoted_from': str(candidate_dir),
         'promotion_timestamp': datetime.now().isoformat(),
         'model_size_mb': validation_results['model_size_mb'],
+        'algorithm': algorithm_code,
+        'algorithm_name': algorithm_names.get(algorithm_code, algorithm_code),
         'validation_results': validation_results,
         'performance': {
             'f1_weighted': validation_results['f1_weighted'],
@@ -287,6 +480,7 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
     }
 
     print(f"✅ Model promoted to production: {prod_model_name}")
+    print(f"📊 Algorithm: {algorithm_names.get(algorithm_code, algorithm_code)}")
     print(f"📊 Performance: F1-weighted={validation_results['f1_weighted']:.4f}, F1-micro={validation_results['f1_micro']:.4f}")
     print(f"💾 Size: {validation_results['model_size_mb']:.1f}MB")
 
@@ -348,10 +542,16 @@ def main():
     args = parser.parse_args()
 
     # Setup paths
-    project_root = Path(__file__).parent.parent
+    # Script is in scripts/07_operations/, so go up 2 levels to get project root
+    project_root = Path(__file__).parent.parent.parent
     candidate_dir = Path(args.candidate_dir)
-    model_dir = project_root / "model"
-    archive_dir = project_root / "experiments" / "model_archive"
+    if not candidate_dir.is_absolute():
+        candidate_dir = (project_root / candidate_dir).resolve()
+    else:
+        candidate_dir = candidate_dir.resolve()
+    
+    model_dir = (project_root / "model").resolve()
+    archive_dir = (project_root / "experiments" / "model_archive").resolve()
 
     if not candidate_dir.exists():
         print(f"❌ Candidate directory not found: {candidate_dir}")

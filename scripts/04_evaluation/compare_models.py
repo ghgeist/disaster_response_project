@@ -55,6 +55,48 @@ class OutputWriter:
         self.close()
 
 
+def discover_production_metrics_file(model_dir: Path) -> Optional[Path]:
+    """
+    Discover the production performance_metrics.csv file based on the current production model.
+    
+    Uses the same discovery logic as the app: finds the latest production model file,
+    then looks for a matching metrics file with model-specific naming.
+    
+    Args:
+        model_dir: Directory containing production models
+        
+    Returns:
+        Path to the metrics file if found, None otherwise
+    """
+    if not model_dir.exists():
+        return None
+    
+    # Find the latest production model file (same logic as app/config.py)
+    pattern = 'disaster_*_prod_*.pkl'
+    model_files = list(model_dir.glob(pattern))
+    
+    if not model_files:
+        return None
+    
+    # Sort by modification time (newest first) and take the latest
+    model_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    latest_model = model_files[0]
+    
+    # Extract base name (without .pkl extension) and construct metrics filename
+    base_name = latest_model.stem
+    metrics_file = model_dir / f"{base_name}_performance_metrics.csv"
+    
+    if metrics_file.exists():
+        return metrics_file
+    
+    # Fallback: check for legacy naming
+    legacy_metrics = model_dir / "performance_metrics.csv"
+    if legacy_metrics.exists():
+        return legacy_metrics
+    
+    return None
+
+
 def load_metrics(metrics_path: Optional[str]) -> Optional[pd.DataFrame]:
     """Load performance metrics CSV file."""
     if not metrics_path:
@@ -172,9 +214,16 @@ def compare_models(output_writer: OutputWriter):
     output_writer.print(f"Comparison Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     output_writer.print()
 
-    # Production model paths
-    prod_metrics_path = "model/performance_metrics.csv"
+    # Production model paths - discover metrics file using model-specific naming
+    model_dir = Path("model")
+    prod_metrics_file = discover_production_metrics_file(model_dir)
+    prod_metrics_path = str(prod_metrics_file) if prod_metrics_file else None
     prod_info_path = "model/MODEL_INFO.json"
+    
+    if not prod_metrics_path:
+        output_writer.print("⚠️  Warning: Production metrics file not found")
+        output_writer.print("   Expected: {model_name}_performance_metrics.csv or performance_metrics.csv")
+        output_writer.print()
 
     # Experimental model paths
     exp_metrics_path = experimental_artifacts.metrics_path if experimental_artifacts else None

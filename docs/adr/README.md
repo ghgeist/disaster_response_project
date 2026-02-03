@@ -12,6 +12,7 @@ This index lists the active ADRs. Note: On 2025-09-19, the file `adr-003-fix-def
 | 006 | Adopt Standardized Model Artifact Naming | 2025-09-19 | accepted |
 | 007 | Model Promotion Gating Policy | 2025-09-19 | accepted |
 | 008 | Use Class Weighting Over Multi-Label Sampling for Imbalanced Data | 2026-01-26 | accepted |
+| 009 | Algorithm Selection: LogisticRegression Over Random Forest | 2025-09-03 | accepted |
 
 See the ADR template for authoring guidance: `docs/adr/adr_template.md`.
 

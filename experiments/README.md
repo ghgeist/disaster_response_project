@@ -2,6 +2,20 @@
 
 This folder contains experimental model runs, configurations, and comparison results.
 
+## Quick Navigation
+
+**Common Tasks:**
+- **Find latest experiment**: `experimental_runs/` sorted by date (newest first)
+- **Find production models**: `model/` directory (see `model/README.md`)
+- **Find tested hyperparameters**: `model_candidates/` (ready-to-use configs)
+- **Find search space templates**: `experimental_configs/hyperparameters/` (INPUT definitions)
+- **Compare models**: `comparisons/` (timestamped reports)
+- **Production history**: `model_archive/` (archived production models)
+
+**Where are model files?**
+- Experimental models: Saved to paths specified when training (typically in `experimental_runs/{date}/` or `experiments/results/`)
+- Production models: `model/` directory (see `model/README.md`)
+
 ## Folder Structure
 
 ### `experimental_runs/{YYYY-MM-DD}/`
@@ -10,7 +24,7 @@ Dated experiment results. Each folder contains models, metrics, logs, and report
 **Naming Convention:**
 - Standard format: `YYYY-MM-DD` (e.g., `2025-11-06/`)
 - For special cases, use suffixes: `YYYY-MM-DD-{description}` (e.g., `2025-11-06-vocab15k-promotion/`)
-- Legacy exception: `2024/` folder uses old format from project initialization
+- Legacy exception: `2024/` folder uses old format from project initialization (contains early project experiments with different naming conventions)
 
 **Subfolders:**
 - Use subfolders for related experiments on the same date (e.g., `hierarchy_initial/`, `hierarchy_optimized/`, `vocab15k/`, `vocab20k/`)
@@ -23,8 +37,20 @@ Dated experiment results. Each folder contains models, metrics, logs, and report
 - `training_log.json` - Training process logs
 - `*_comparison_report.md` - Detailed experiment summaries
 - `vocabulary_comparison_report.md` - Vocabulary experiment summaries
-- `*.pkl` - Serialized model files
-- `optimized_critical_thresholds.json` - Per-category threshold optimizations
+- `*.pkl` - Serialized model files (saved to path specified during training, typically in the experiment directory)
+- `{model_stem}_thresholds.json` - Per-category threshold optimizations (preferred naming)
+- `optimized_critical_thresholds.json` - **Deprecated** legacy threshold file name (still supported for backward compatibility)
+
+**Example Structure:**
+```
+experimental_runs/2025-11-06-vocab15k-promotion/
+  ├── lr_vocab15k_model.pkl              # Model file (if saved)
+  ├── lr_vocab15k_model_thresholds.json  # Thresholds (standard naming)
+  ├── MODEL_INFO.json                     # Model metadata
+  ├── PROMOTION_INFO.json                 # Promotion details
+  ├── performance_metrics.csv             # Evaluation metrics
+  └── training_log.json                   # Training logs
+```
 
 ### `model_candidates/`
 **Optimized hyperparameter configurations and ready-to-use model parameter sets.**
@@ -60,7 +86,17 @@ Contains:
 
 **Key Distinction:**
 - **`experimental_configs/`** = Reusable templates/definitions (search spaces, strategies, eval sets)
+  - INPUT files: Define what to search (lists of values)
+  - Example: `"n_estimators": [100, 200, 300]` (search space)
 - **`model_candidates/`** = Specific tested/optimized parameter sets ready for training
+  - OUTPUT files: Best values found from optimization
+  - Example: `"n_estimators": 200` (single best value)
+
+**Visual Flow:**
+```
+experimental_configs/hyperparameters/  →  [Grid Search]  →  model_candidates/
+     (INPUT: search space)                    (process)         (OUTPUT: best params)
+```
 
 ### `comparisons/`
 Timestamped model comparison reports showing performance differences between models.
@@ -69,12 +105,17 @@ Format: `{YYYY-MM-DD}_{HHMMSS}_model_comparison.txt`
 
 ### `model_archive/`
 Archived production models and their metadata. Contains:
-- `archive_record_*.json` - Archive metadata with promotion/demotion dates
-- `MODEL_INFO_*.json` - Model information snapshots
-- `*_training.json` - Training configuration snapshots
-- `*_thresholds.json` - Threshold configurations
-- `*_labels.json` - Label order snapshots
-- `promotion_record_*.json` - Promotion history
+- `archive_record_{model_name}_{training_date}_{archive_date}_{timestamp}.json` - Archive metadata
+  - Format breakdown: `archive_record_disaster_rf_prod_2026-01-22_2026-02-03_12-27-35.json`
+    - `{model_name}`: Full model filename (e.g., `disaster_rf_prod_2026-01-22`)
+    - `{training_date}`: When model was trained (YYYY-MM-DD)
+    - `{archive_date}`: When model was archived (YYYY-MM-DD)
+    - `{timestamp}`: Exact archive time (HH-MM-SS)
+- `MODEL_INFO_{model_name}.json` - Model information snapshots
+- `{model_name}_training.json` - Training configuration snapshots
+- `{model_name}_thresholds.json` - Threshold configurations
+- `{model_name}_labels.json` - Label order snapshots
+- `promotion_record_{date}_{timestamp}.json` - Promotion history
 
 ### `logs/`
 Training and execution logs from experimental runs.
@@ -123,11 +164,13 @@ The typical workflow for hyperparameter optimization:
    - Look for `*_comparison_report.md` or `vocabulary_comparison_report.md` for detailed experiment summaries
 
 3. **File naming**: 
-   - Use hyphens for dates: `YYYY-MM-DD`
+   - Use hyphens for dates: `YYYY-MM-DD` (consistent throughout)
    - Use underscores for descriptive names: `model_info.json`
    - Include dates in filenames when helpful: `2025-11-06_performance_metrics.csv`
    - Config files use underscores: `2025-09-16_comprehensive-grid_search.json`
    - Optimized params use hyphens: `2025-09-16-comprehensive-grid-search-optimized-hyperparameters.json`
+   - **Threshold files**: Use `{model_stem}_thresholds.json` (e.g., `lr_vocab15k_model_thresholds.json`)
+     - Legacy `optimized_critical_thresholds.json` is deprecated but still supported
 
 4. **Sub-experiments**: Use subfolders within dated runs for related experiments (e.g., vocabulary size comparisons, threshold optimizations).
 
