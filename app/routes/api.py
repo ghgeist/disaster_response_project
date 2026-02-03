@@ -1003,6 +1003,17 @@ def dashboard(path=None):
     )
 
 
+@api_bp.route("/about")
+@api_bp.route("/about/", defaults={"path": ""})
+@api_bp.route("/about/<path:path>")
+def about(path=None):
+    """Serve Storm Signal About page SPA (React app)."""
+    static_folder = current_app.static_folder
+    return send_from_directory(
+        static_folder, "dashboard/index.html", mimetype="text/html"
+    )
+
+
 @api_bp.route("/classify", methods=["POST"])
 def classify():
     """Return simplified classification with severity and category volume context."""

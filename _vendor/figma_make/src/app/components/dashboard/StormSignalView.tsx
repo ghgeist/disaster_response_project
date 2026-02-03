@@ -5,22 +5,11 @@ import { DEFAULT_CATEGORY_GROUPS } from '@/app/data';
 import { FeedPanel } from '@/app/components/dashboard/FeedPanel';
 import { MetricsPanel } from '@/app/components/dashboard/MetricsPanel';
 import { ClassificationPanel } from '@/app/components/dashboard/ClassificationPanel';
-import { Radar, Bell, Settings, UserCircle, Menu, LayoutDashboard, FileBarChart } from 'lucide-react';
+import { Radar, Bell, Settings, UserCircle, Menu } from 'lucide-react';
 import { toApiName, getCategories } from '@/app/utils/api';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/app/components/ui/tooltip';
-import {
-  SidebarProvider,
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  useSidebar,
-} from '@/app/components/ui/sidebar';
+import { useSidebar } from '@/app/components/ui/sidebar';
+import { DashboardSidebar } from './DashboardSidebar';
 
 function mapFeedItem(item: { timestamp: string; [k: string]: unknown }): SignalItem {
   return {
@@ -75,9 +64,8 @@ function DashboardHeader({ modelInfo }: { modelInfo: ModelInfo | null }) {
         <button className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition-colors">
           <Settings className="w-5 h-5" />
         </button>
-        <button className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition-colors relative">
+        <button className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition-colors">
           <Bell className="w-5 h-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
         </button>
         <div className="h-6 w-px bg-slate-200 mx-1"></div>
         <button className="flex items-center gap-2 pl-1 pr-2 py-1 hover:bg-slate-100 rounded-full transition-colors group">
@@ -269,105 +257,73 @@ export function StormSignalView() {
     </PanelResizeHandle>
   );
 
-  const sidebarTheme =
-    "bg-white border-r border-slate-200 shadow-sm [--sidebar:#ffffff] [--sidebar-foreground:#111827] [--sidebar-accent:#f1f5f9] [--sidebar-accent-foreground:#111827] [--sidebar-border:#e2e8f0] [--sidebar-ring:#94a3b8]";
-
   return (
-    <SidebarProvider className={sidebarTheme}>
-      <Sidebar className={sidebarTheme}>
-        <SidebarHeader />
-        <SidebarContent>
-          <SidebarGroup className="p-4">
-            <SidebarGroupContent>
-              <SidebarMenu className="space-y-0.5">
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild className="rounded-md text-slate-900 hover:bg-slate-100 hover:text-slate-900 data-[active=true]:bg-slate-100">
-                    <a href="/api/dashboard">
-                      <LayoutDashboard className="h-4 w-4 text-slate-600" />
-                      <span>Overview</span>
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild className="rounded-md text-slate-900 hover:bg-slate-100 hover:text-slate-900">
-                    <a href="/api/model-info-dashboard">
-                      <FileBarChart className="h-4 w-4 text-slate-600" />
-                      <span>Production Model</span>
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </SidebarContent>
-      </Sidebar>
-      <SidebarInset>
-        <div className="h-screen w-full flex flex-col bg-slate-50 font-sans text-slate-900 overflow-hidden">
-          <div className="lg:hidden fixed inset-0 z-[100] bg-slate-900/90 flex items-center justify-center p-6 backdrop-blur-sm">
-            <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm text-center">
-              <Radar className="w-12 h-12 text-blue-500 mx-auto mb-4" />
-              <h2 className="text-lg font-bold text-slate-900 mb-2">Desktop Optimized</h2>
-              <p className="text-sm text-slate-600 mb-4">
-                Storm Signal is optimized for desktop viewing. Please access from a larger screen for the full experience.
-              </p>
-              {showMobileBanner && (
-                <button
-                  onClick={() => setShowMobileBanner(false)}
-                  className="text-xs text-slate-400 hover:text-slate-600 underline"
-                >
-                  Dismiss (View Anyway)
-                </button>
-              )}
-            </div>
-          </div>
-
-          <DashboardHeader modelInfo={modelInfo} />
-
-          <main className="flex-1 overflow-hidden relative">
-            {isDesktop ? (
-              <div className="h-full w-full">
-                <PanelGroup direction="horizontal">
-                  <Panel defaultSize={38} minSize={25} order={1} className="bg-white min-w-0 overflow-hidden">
-                    <FeedPanel
-                      signals={filteredSignals}
-                      selectedFilters={selectedFilters}
-                      onToggleFilter={handleToggleFilter}
-                      onClearFilters={handleClearFilters}
-                      categoryGroups={categoryGroups}
-                      loading={feedLoading}
-                      error={feedError}
-                    />
-                  </Panel>
-
-                  <ResizeHandle />
-
-                  <Panel defaultSize={34} minSize={20} order={2} className="bg-slate-50 min-w-0 overflow-hidden">
-                    <MetricsPanel onCategoryClick={handleAddFilter} />
-                  </Panel>
-
-                  <ResizeHandle />
-
-                  <Panel defaultSize={28} minSize={22} collapsible order={3} className="bg-white min-w-0 overflow-hidden">
-                    <ClassificationPanel onDispatch={handleDispatch} />
-                  </Panel>
-                </PanelGroup>
-              </div>
-            ) : (
-              <div className="h-full overflow-y-auto">
-                <FeedPanel
-                  signals={filteredSignals}
-                  selectedFilters={selectedFilters}
-                  onToggleFilter={handleToggleFilter}
-                  onClearFilters={handleClearFilters}
-                  categoryGroups={categoryGroups}
-                  loading={feedLoading}
-                  error={feedError}
-                />
-              </div>
+    <DashboardSidebar activePage="overview">
+      <div className="h-screen w-full flex flex-col bg-slate-50 font-sans text-slate-900 overflow-hidden">
+        <div className="lg:hidden fixed inset-0 z-[100] bg-slate-900/90 flex items-center justify-center p-6 backdrop-blur-sm">
+          <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm text-center">
+            <Radar className="w-12 h-12 text-blue-500 mx-auto mb-4" />
+            <h2 className="text-lg font-bold text-slate-900 mb-2">Desktop Optimized</h2>
+            <p className="text-sm text-slate-600 mb-4">
+              Storm Signal is optimized for desktop viewing. Please access from a larger screen for the full experience.
+            </p>
+            {showMobileBanner && (
+              <button
+                onClick={() => setShowMobileBanner(false)}
+                className="text-xs text-slate-400 hover:text-slate-600 underline"
+              >
+                Dismiss (View Anyway)
+              </button>
             )}
-          </main>
+          </div>
         </div>
-      </SidebarInset>
-    </SidebarProvider>
+
+        <DashboardHeader modelInfo={modelInfo} />
+
+        <main className="flex-1 overflow-hidden relative">
+          {isDesktop ? (
+            <div className="h-full w-full">
+              <PanelGroup direction="horizontal">
+                <Panel defaultSize={38} minSize={25} order={1} className="bg-white min-w-0 overflow-hidden">
+                  <FeedPanel
+                    signals={filteredSignals}
+                    selectedFilters={selectedFilters}
+                    onToggleFilter={handleToggleFilter}
+                    onClearFilters={handleClearFilters}
+                    categoryGroups={categoryGroups}
+                    loading={feedLoading}
+                    error={feedError}
+                  />
+                </Panel>
+
+                <ResizeHandle />
+
+                <Panel defaultSize={34} minSize={20} order={2} className="bg-slate-50 min-w-0 overflow-hidden">
+                  <MetricsPanel onCategoryClick={handleAddFilter} />
+                </Panel>
+
+                <ResizeHandle />
+
+                <Panel defaultSize={28} minSize={22} collapsible order={3} className="bg-white min-w-0 overflow-hidden">
+                  <ClassificationPanel onDispatch={handleDispatch} />
+                </Panel>
+              </PanelGroup>
+            </div>
+          ) : (
+            <div className="h-full overflow-y-auto">
+              <FeedPanel
+                signals={filteredSignals}
+                selectedFilters={selectedFilters}
+                onToggleFilter={handleToggleFilter}
+                onClearFilters={handleClearFilters}
+                categoryGroups={categoryGroups}
+                loading={feedLoading}
+                error={feedError}
+              />
+            </div>
+          )}
+        </main>
+      </div>
+    </DashboardSidebar>
   );
 }

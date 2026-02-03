@@ -11,7 +11,7 @@ pytestmark = pytest.mark.integration
 @pytest.mark.parametrize(
     ("method", "path", "payload", "allowed_statuses"),
     [
-        ("get", "/", None, {200}),
+        ("get", "/", None, {302}),
         ("post", "/go", {"query": "Need clean water near the river"}, {200, 302, 400}),
     ],
     ids=["index", "go"],
@@ -29,10 +29,12 @@ def test_core_routes_do_not_error(client, method: str, path: str, payload: dict 
 
 
 def test_homepage_displays_branding(client) -> None:
-    """The landing page should surface the Storm Signal brand copy."""
-    response = client.get("/")
-    assert response.status_code == 200, "Homepage should render successfully"
-    assert b"Storm Signal" in response.data, "Homepage is missing the Storm Signal header"
+    """The landing page should redirect to the React dashboard."""
+    response = client.get("/", follow_redirects=False)
+    assert response.status_code == 302, "Homepage should redirect successfully"
+    assert response.headers["Location"].endswith(
+        "/api/dashboard"
+    ), "Homepage should redirect to the dashboard route"
 
 
 def test_model_can_load_and_predict(client) -> None:
