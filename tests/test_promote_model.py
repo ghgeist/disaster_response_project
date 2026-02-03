@@ -33,6 +33,7 @@ sys.path.insert(0, str(SCRIPTS_PATH))
 from promote_model import (  # noqa: E402
     compute_model_hash,
     detect_algorithm_type,
+    discover_production_metrics_file,
     promote_model,
     validate_candidate_model,
 )
@@ -123,6 +124,39 @@ def candidate_dir_with_lr_model(temp_dir, lr_model_path):
         }
     }
     (candidate_dir / "training_log.json").write_text(json.dumps(training_log))
+    
+    return candidate_dir
+
+
+@pytest.fixture
+def candidate_dir_with_metrics_csv(temp_dir, lr_model_path):
+    """Create a candidate directory with LR model and performance_metrics.csv."""
+    candidate_dir = temp_dir / "2025-11-06-lr-with-metrics"
+    candidate_dir.mkdir()
+    
+    # Copy model
+    shutil.copy2(lr_model_path, candidate_dir / "lr_model.pkl")
+    
+    # Create training log with metrics
+    training_log = {
+        "performance": {
+            "overall_f1": 0.94,
+            "micro_f1": 0.65
+        }
+    }
+    (candidate_dir / "training_log.json").write_text(json.dumps(training_log))
+    
+    # Create performance_metrics.csv
+    import pandas as pd
+    metrics_df = pd.DataFrame({
+        'category': ['related', 'related'],
+        'output_class': ['0', '1'],
+        'precision': [0.8, 0.9],
+        'recall': [0.7, 0.85],
+        'f1-score': [0.75, 0.875],
+        'support': [100.0, 200.0]
+    })
+    metrics_df.to_csv(candidate_dir / "performance_metrics.csv", index=False)
     
     return candidate_dir
 
@@ -350,3 +384,135 @@ class TestFilenameGeneration:
         assert parts[2].startswith('v')  # Version
         assert 'prod' in parts
         assert filename.endswith('.pkl')
+
+
+class TestMetricsFileNaming:
+    """Test that performance_metrics.csv uses model-specific naming."""
+    
+    def test_metrics_file_copied_with_model_specific_naming(self, temp_dir, candidate_dir_with_metrics_csv):
+        """Metrics file should be copied with model-specific naming during promotion."""
+        model_dir = temp_dir / "model"
+        model_dir.mkdir()
+        
+        validation_results = validate_candidate_model(candidate_dir_with_metrics_csv)
+        promotion_record = promote_model(candidate_dir_with_metrics_csv, model_dir, validation_results)
+        
+        # Get the promoted model filename
+        promoted_model_path = Path(promotion_record['promoted_model'])
+        base_name = promoted_model_path.stem
+        
+        # Expected metrics file name
+        expected_metrics_file = model_dir / f"{base_name}_performance_metrics.csv"
+        
+        assert expected_metrics_file.exists(), (
+            f"Metrics file should exist at {expected_metrics_file}\n"
+            f"Promoted model: {promoted_model_path.name}"
+        )
+        
+        # Verify the metrics file content matches the source
+        import pandas as pd
+        source_metrics = pd.read_csv(candidate_dir_with_metrics_csv / "performance_metrics.csv")
+        promoted_metrics = pd.read_csv(expected_metrics_file)
+        
+        pd.testing.assert_frame_equal(source_metrics, promoted_metrics)
+    
+    def test_metrics_file_not_copied_if_missing(self, temp_dir, candidate_dir_with_lr_model):
+        """Promotion should succeed even if performance_metrics.csv is missing."""
+        model_dir = temp_dir / "model"
+        model_dir.mkdir()
+        
+        validation_results = validate_candidate_model(candidate_dir_with_lr_model)
+        promotion_record = promote_model(candidate_dir_with_lr_model, model_dir, validation_results)
+        
+        # Promotion should succeed
+        assert promotion_record['status'] == 'promoted'
+        
+        # Metrics file should not exist (wasn't in candidate)
+        promoted_model_path = Path(promotion_record['promoted_model'])
+        base_name = promoted_model_path.stem
+        metrics_file = model_dir / f"{base_name}_performance_metrics.csv"
+        
+        assert not metrics_file.exists(), "Metrics file should not exist if not in candidate"
+    
+    def test_discover_production_metrics_file_finds_model_specific_file(self, temp_dir, candidate_dir_with_metrics_csv):
+        """discover_production_metrics_file should find model-specific metrics file."""
+        model_dir = temp_dir / "model"
+        model_dir.mkdir()
+        
+        # Promote model with metrics
+        validation_results = validate_candidate_model(candidate_dir_with_metrics_csv)
+        promotion_record = promote_model(candidate_dir_with_metrics_csv, model_dir, validation_results)
+        
+        # Discover metrics file
+        discovered_metrics = discover_production_metrics_file(model_dir)
+        
+        assert discovered_metrics is not None, "Should discover metrics file"
+        assert discovered_metrics.exists(), "Discovered metrics file should exist"
+        
+        # Verify it's the model-specific file
+        promoted_model_path = Path(promotion_record['promoted_model'])
+        base_name = promoted_model_path.stem
+        expected_metrics_file = model_dir / f"{base_name}_performance_metrics.csv"
+        
+        assert discovered_metrics == expected_metrics_file, (
+            f"Should discover model-specific file\n"
+            f"  Expected: {expected_metrics_file}\n"
+            f"  Found: {discovered_metrics}"
+        )
+    
+    def test_discover_production_metrics_file_falls_back_to_legacy_naming(self, temp_dir):
+        """discover_production_metrics_file should fall back to legacy naming if model-specific file missing."""
+        model_dir = temp_dir / "model"
+        model_dir.mkdir()
+        
+        # Create a production model file
+        model_file = model_dir / "disaster_lr_v25-11-06_prod_2025-11-06.pkl"
+        model_file.write_bytes(b"fake model data")
+        
+        # Create legacy metrics file (but not model-specific one)
+        legacy_metrics = model_dir / "performance_metrics.csv"
+        legacy_metrics.write_text("category,output_class,precision\nrelated,1,0.9")
+        
+        # Discover should find legacy file
+        discovered_metrics = discover_production_metrics_file(model_dir)
+        
+        assert discovered_metrics is not None, "Should discover legacy metrics file"
+        assert discovered_metrics == legacy_metrics, "Should return legacy file when model-specific missing"
+    
+    def test_discover_production_metrics_file_returns_none_when_no_metrics(self, temp_dir):
+        """discover_production_metrics_file should return None when no metrics file exists."""
+        model_dir = temp_dir / "model"
+        model_dir.mkdir()
+        
+        # Create a production model file but no metrics
+        model_file = model_dir / "disaster_lr_v25-11-06_prod_2025-11-06.pkl"
+        model_file.write_bytes(b"fake model data")
+        
+        # Discover should return None
+        discovered_metrics = discover_production_metrics_file(model_dir)
+        
+        assert discovered_metrics is None, "Should return None when no metrics file exists"
+    
+    def test_discover_production_metrics_file_handles_multiple_models(self, temp_dir):
+        """discover_production_metrics_file should use the latest model when multiple exist."""
+        model_dir = temp_dir / "model"
+        model_dir.mkdir()
+        
+        # Create two model files with different timestamps
+        import time
+        model1 = model_dir / "disaster_lr_v25-11-05_prod_2025-11-05.pkl"
+        model1.write_bytes(b"older model")
+        time.sleep(0.1)  # Ensure different mtime
+        
+        model2 = model_dir / "disaster_lr_v25-11-06_prod_2025-11-06.pkl"
+        model2.write_bytes(b"newer model")
+        
+        # Create metrics file for newer model only
+        metrics2 = model_dir / "disaster_lr_v25-11-06_prod_2025-11-06_performance_metrics.csv"
+        metrics2.write_text("category,output_class,precision\nrelated,1,0.9")
+        
+        # Discover should find metrics for newer model
+        discovered_metrics = discover_production_metrics_file(model_dir)
+        
+        assert discovered_metrics is not None
+        assert discovered_metrics == metrics2, "Should find metrics for latest model"

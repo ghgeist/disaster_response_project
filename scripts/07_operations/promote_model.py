@@ -95,6 +95,48 @@ def detect_algorithm_type(model_path: Path) -> str:
         return 'unknown'
 
 
+def discover_production_metrics_file(model_dir: Path) -> Optional[Path]:
+    """
+    Discover the production performance_metrics.csv file based on the current production model.
+    
+    Uses the same discovery logic as the app: finds the latest production model file,
+    then looks for a matching metrics file with model-specific naming.
+    
+    Args:
+        model_dir: Directory containing production models
+        
+    Returns:
+        Path to the metrics file if found, None otherwise
+    """
+    if not model_dir.exists():
+        return None
+    
+    # Find the latest production model file (same logic as app/config.py)
+    pattern = 'disaster_*_prod_*.pkl'
+    model_files = list(model_dir.glob(pattern))
+    
+    if not model_files:
+        return None
+    
+    # Sort by modification time (newest first) and take the latest
+    model_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    latest_model = model_files[0]
+    
+    # Extract base name (without .pkl extension) and construct metrics filename
+    base_name = latest_model.stem
+    metrics_file = model_dir / f"{base_name}_performance_metrics.csv"
+    
+    if metrics_file.exists():
+        return metrics_file
+    
+    # Fallback: check for legacy naming
+    legacy_metrics = model_dir / "performance_metrics.csv"
+    if legacy_metrics.exists():
+        return legacy_metrics
+    
+    return None
+
+
 def _load_training_log(candidate_dir: Path) -> Optional[dict]:
     """Load training_log.json if present."""
     for name in ["training_log.json", f"{candidate_dir.name}_training_log.json"]:
@@ -388,6 +430,15 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
             prod_file = model_dir / f"{base_name}{suffix.replace('_training_log', '_training')}"
             shutil.copy2(candidate_file, prod_file)
             metadata_files[suffix] = str(prod_file)
+    
+    # Copy performance_metrics.csv if it exists (use model-specific naming)
+    metrics_csv = candidate_dir / "performance_metrics.csv"
+    if metrics_csv.exists():
+        # Use model-specific naming: {base_name}_performance_metrics.csv
+        prod_metrics_csv = model_dir / f"{base_name}_performance_metrics.csv"
+        shutil.copy2(metrics_csv, prod_metrics_csv)
+        metadata_files['performance_metrics.csv'] = str(prod_metrics_csv)
+        print(f"📊 Copied performance metrics: {prod_metrics_csv.name}")
 
     # Create new MODEL_INFO.json
     model_info = {
