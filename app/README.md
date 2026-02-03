@@ -55,11 +55,26 @@ The app uses environment-based configuration:
 
 ## API Endpoints
 
-- `GET /`: Main page with visualizations and classification form
+**Public SPA routes**
+- `GET /dashboard`: Storm Signal dashboard SPA
+- `GET /production-model`: Production model information dashboard SPA
+- `GET /about`: About page SPA
+- Legacy `/api/dashboard`, `/api/model-info-dashboard`, and `/api/about` redirect to the new paths.
+
+**Core application routes**
+- `GET /`: Main page with visualizations and classification form (redirects to `/dashboard`)
 - `GET /go`: Message classification results
 - `GET /health`: Lightweight health check endpoint (for deployment monitoring, e.g., Replit)
 - `GET /health/detailed`: Detailed health check with service diagnostics and performance metrics
 - `GET /favicon.ico`: Application favicon
+
+**Dashboard APIs (JSON)**
+- `GET /api/feed`
+- `GET /api/metrics`
+- `GET /api/categories`
+- `POST /api/classify`
+- `GET /api/model-info`
+- `GET /api/model-info/dashboard`
 
 ## Adding New Features
 
