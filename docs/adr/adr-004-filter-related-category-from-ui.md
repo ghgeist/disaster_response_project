@@ -4,7 +4,7 @@ date: "2025-09-15"
 status: "accepted"
 tags: ["ui", "ux", "classification", "bug-fix"]
 author: "AI Assistant"
-related: []
+related: ["adr-008-class-weighting-over-sampling.md", "adr-009-algorithm-selection-logistic-regression-over-random-forest.md"]
 ---
 
 # Filter 'related' category from UI display
@@ -22,6 +22,7 @@ The disaster response classification system was displaying the 'related' categor
 2. It's not a specific disaster type like "water", "food", or "medical_help"
 3. Users were seeing "Related" as a category tag, which was semantically confusing
 4. The mock service was hardcoded to always return `related=1` for any input, making testing unreliable
+5. With class weighting (ADR-008) and LogisticRegression (ADR-009), out-of-distribution or non-message input (e.g. Lorem Ipsum) can score high on "related" (~66%) because the "related" head defaults toward the training prior (~76% positive). Filtering "related" from API/UI avoids showing that misleading signal.
 
 ## Decision
 

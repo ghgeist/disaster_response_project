@@ -4,7 +4,7 @@ date: "2025-09-03"
 status: "accepted"
 tags: ["ml-operations", "algorithm-selection", "model-optimization", "production"]
 author: "ML Engineering Team"
-related: ["adr-003-hybrid-model-deployment-strategy.md", "adr-008-class-weighting-over-sampling.md"]
+related: ["adr-003-hybrid-model-deployment-strategy.md", "adr-008-class-weighting-over-sampling.md", "adr-004-filter-related-category-from-ui.md"]
 ---
 
 # Algorithm Selection: LogisticRegression Over Random Forest
@@ -78,6 +78,7 @@ Replace RandomForestClassifier with **LogisticRegression** as the primary algori
 - **Inference speed**: Both provide fast inference once loaded
 - **Multi-label support**: Both use MultiOutputClassifier wrapper
 - **Feature engineering**: Both use same TF-IDF preprocessing pipeline
+- **OOD / "related" prior**: For out-of-distribution or non-message input (e.g. Lorem Ipsum, placeholder text), TF-IDF yields sparse features; LR's "related" output is then dominated by the intercept (class prior). With ~76% positive "related" in training, such input can score ~66% "related" despite not being disaster-relevant. We mitigate by excluding "related" from classification API and UI (see [ADR-004](adr-004-filter-related-category-from-ui.md); [ADR-008](adr-008-class-weighting-over-sampling.md)).
 
 ## Alternatives Considered
 

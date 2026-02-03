@@ -4,7 +4,7 @@ date: "2026-01-26"
 status: "accepted"
 tags: ["ml-operations", "class-imbalance", "data-quality", "training-strategy"]
 author: "ML Engineering Team"
-related: ["../dev_notes/2025-09-16.md"]
+related: ["../dev_notes/2025-09-16.md", "adr-004-filter-related-category-from-ui.md", "adr-009-algorithm-selection-logistic-regression-over-random-forest.md"]
 ---
 
 # Use Class Weighting Over Multi-Label Sampling for Imbalanced Data
@@ -56,6 +56,7 @@ Sampling validation scripts remain available for experimentation (`scripts/valid
 - **Experimental flexibility**: Sampling scripts remain available for future experimentation if data quality improves
 - **No change to model architecture**: Decision affects training strategy, not model structure
 - **Compatible with existing models**: Both RandomForest and LogisticRegression support class weighting
+- **OOD / placeholder text**: Class weighting does not address out-of-distribution or non-message input (e.g. Lorem Ipsum, gibberish, non-English). The "related" head has ~76% positive examples in training, so for neutral or OOD input the model can output "related" near that prior (e.g. ~66%). We mitigate by excluding "related" from classification API and UI display (see [ADR-004](adr-004-filter-related-category-from-ui.md); API: `_build_simplified_classification` in `app/routes/api.py`).
 
 ## Alternatives Considered
 
