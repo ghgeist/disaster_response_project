@@ -20,6 +20,7 @@ from app.utils.route_helpers import (
     handle_validation_errors,
     render_home_with_visualizations,
 )
+from app.utils.validation import validate_message_text
 from app.visualizations import ChartGenerator
 
 # Import hierarchy functions
@@ -84,7 +85,11 @@ def _get_classify_query(form: MessageForm):
         query = request.args.get("query", "")
         if not query:
             return None, redirect(url_for("home.index"))
-        return query, None
+        cleaned, error_message = validate_message_text(query)
+        if error_message:
+            flash(error_message, "error")
+            return None, redirect(url_for("home.index"))
+        return cleaned, None
 
     if not form.validate_on_submit():
         handle_validation_errors(form)
@@ -144,10 +149,14 @@ def _handle_go_get():
     query = request.args.get("query", "")
     if not query:
         return redirect(url_for("home.index"))
+    cleaned, error_message = validate_message_text(query)
+    if error_message:
+        flash(error_message, "error")
+        return redirect(url_for("home.index"))
 
     try:
         model_service = current_app.model_service
-        prediction_result = process_prediction_result(model_service, query)
+        prediction_result = process_prediction_result(model_service, cleaned)
         if not prediction_result["is_valid"]:
             flash(prediction_result["error_message"], "error")
             return redirect(url_for("home.index"))

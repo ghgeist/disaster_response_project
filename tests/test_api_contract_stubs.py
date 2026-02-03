@@ -190,6 +190,14 @@ def test_api_classify_empty_message_returns_400(client):
     assert r3.status_code == 400
 
 
+def test_api_classify_rejects_overlong_message(client):
+    """Messages exceeding the max length are rejected with 400."""
+    too_long_message = "a" * 1001
+    response = client.post("/api/classify", json={"message": too_long_message})
+    assert response.status_code == 400
+    assert response.get_json().get("error")
+
+
 def test_api_classify_no_model_service_returns_503(app, client):
     """When model_service is not configured, classify returns 503."""
     original = getattr(app, "model_service", None)

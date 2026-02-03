@@ -1,6 +1,8 @@
 """
 Environment validation utilities.
 """
+import os
+
 from app.config import Config
 
 
@@ -69,7 +71,13 @@ def validate_environment(config_class=None) -> dict:
 
     # Check environment variables using config
     if config.SECRET_KEY == 'dev-secret-key-change-in-production':
-        validation_results['warnings'].append("Using default SECRET_KEY - change in production")
+        replit_env = os.environ.get("REPL_ID") or os.environ.get("REPLIT_DB_URL")
+        is_production = os.environ.get("FLASK_ENV") == "production"
+        if not config.DEBUG and (replit_env or is_production):
+            validation_results['errors'].append("Default SECRET_KEY detected in production environment")
+            validation_results['valid'] = False
+        else:
+            validation_results['warnings'].append("Using default SECRET_KEY - change in production")
 
     # Check log file directory using config
     log_dir = config.LOG_FILE.parent
