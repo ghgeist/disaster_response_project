@@ -2,83 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { Badge } from "@/app/components/ui/badge";
 import { MODEL_METRICS, CATEGORIES } from "@/app/data/model_info_fallbacks";
 import { fetchDashboard } from "@/app/data/model_info_api";
-import {
-  Menu,
-  Settings,
-  Bell,
-  User,
-  Radar,
-  Info,
-  LayoutDashboard,
-  FileBarChart,
-} from 'lucide-react';
+import { Info } from 'lucide-react';
 import { cn } from "@/app/components/ui/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
 import { Skeleton } from "@/app/components/ui/skeleton";
-import {
-  SidebarProvider,
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  useSidebar,
-} from "@/app/components/ui/sidebar";
-
-function StormHeader() {
-  const { toggleSidebar } = useSidebar();
-  return (
-  <header className="h-16 bg-white border-b border-slate-200 px-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
-    <div className="flex items-center gap-4">
-      <button
-        type="button"
-        aria-label="Open menu"
-        className="p-2 hover:bg-slate-100 rounded-md text-slate-500 transition-colors"
-        onClick={toggleSidebar}
-      >
-        <Menu className="h-5 w-5" />
-      </button>
-      <div className="flex items-center gap-3">
-        <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-sm">
-          <Radar className="h-5 w-5" />
-        </div>
-        <span className="text-lg font-bold text-slate-900 tracking-tight">STORM SIGNAL</span>
-      </div>
-    </div>
-
-    <div className="flex items-center gap-2 sm:gap-4">
-      <div className="hidden md:flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
-        <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_4px_2px_rgba(16,185,129,0.2)]" />
-        <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wide">System: Operational</span>
-      </div>
-
-      <div className="flex items-center text-slate-400 gap-1">
-        <button className="p-2 hover:bg-slate-100 rounded-full transition-colors hover:text-slate-600"><Settings className="h-5 w-5" /></button>
-        <button className="p-2 hover:bg-slate-100 rounded-full transition-colors hover:text-slate-600 relative">
-           <Bell className="h-5 w-5" />
-           <span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full border-2 border-white"></span>
-        </button>
-      </div>
-
-      <div className="h-8 w-px bg-slate-200 mx-2 hidden md:block"></div>
-
-      <div className="flex items-center gap-3 hidden md:flex">
-        <div className="h-9 w-9 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 border border-slate-200">
-          <User className="h-5 w-5" />
-        </div>
-        <div className="text-left">
-          <div className="text-sm font-bold text-slate-900 leading-none">Operator_7</div>
-          <div className="text-[10px] text-slate-500 mt-1 font-medium">Level 3 Clearance</div>
-        </div>
-      </div>
-    </div>
-  </header>
-  );
-}
+import { DashboardSidebar } from './DashboardSidebar';
+import { StormHeader } from './StormHeader';
 
 const MetricCard = ({ label, value, tooltip }: { label: string; value: string; tooltip: string }) => (
   <div className="bg-white border border-slate-200 p-5 flex flex-col justify-between h-24 hover:border-slate-400 transition-colors rounded-none shadow-sm">
@@ -300,41 +229,9 @@ export function ModelInformationDashboard() {
     </div>
   );
 
-  const sidebarTheme =
-    "bg-white border-r border-slate-200 shadow-sm [--sidebar:#ffffff] [--sidebar-foreground:#111827] [--sidebar-accent:#f1f5f9] [--sidebar-accent-foreground:#111827] [--sidebar-border:#e2e8f0] [--sidebar-ring:#94a3b8]";
-
   return (
-    <SidebarProvider className={sidebarTheme}>
-      <Sidebar className={sidebarTheme}>
-        <SidebarHeader />
-        <SidebarContent className="bg-white">
-          <SidebarGroup className="p-4">
-            <SidebarGroupContent>
-              <SidebarMenu className="space-y-0.5">
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild className="rounded-md text-slate-900 hover:bg-slate-100 hover:text-slate-900">
-                    <a href="/api/dashboard">
-                      <LayoutDashboard className="h-4 w-4 text-slate-600" />
-                      <span>Overview</span>
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive className="rounded-md text-slate-900 hover:bg-slate-100 hover:text-slate-900 data-[active=true]:bg-slate-100 data-[active=true]:font-medium">
-                    <a href="/api/model-info-dashboard">
-                      <FileBarChart className="h-4 w-4 text-slate-600" />
-                      <span>Production Model</span>
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </SidebarContent>
-      </Sidebar>
-      <SidebarInset>
-        {appContent}
-      </SidebarInset>
-    </SidebarProvider>
+    <DashboardSidebar activePage="production-model">
+      {appContent}
+    </DashboardSidebar>
   );
 }

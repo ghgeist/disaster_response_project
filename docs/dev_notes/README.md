@@ -127,9 +127,9 @@ This project has undergone significant iterations, with each phase building on p
 - **Status**: Phase 5 complete; ready for Phase 6 (polish, viewport testing)
 
 **2026-02-02**: Dashboard Polish, React Router Consolidation & Critical Bug Fixes
-- **Achievement**: Single React app for Storm Signal + Model Information (React Router); PR #91 (model info API, sidebar); feed order and manual-dispatch persistence fixes; API probability simulation and endpoint standardization; comprehensive tests
-- **Solutions**: React Router with StormSignalView and ModelInformationDashboard; consolidated `_vendor/model_information_dashboard` into `_vendor/figma_make`; `/api/model-info/dashboard` and helpers; sidebar integration; composite key and merge logic for feed; `.env` and build check in run.py
-- **Iteration**: One codebase and one build for both dashboards; critical feed bugs resolved; Phase 6 polish and testing in place
+- **Achievement**: Single React app for Storm Signal + Model Information (React Router); PR #91 (model info API, sidebar); feed order and manual-dispatch persistence fixes; API probability simulation and endpoint standardization; comprehensive tests. Follow-on: PR #92 (post-merge safety audit, SPA/model-info smoke tests), PR #93 (skeleton loading states), PR #94 (UI style normalization, thin scrollbars, Model Information consistency).
+- **Solutions**: React Router with StormSignalView and ModelInformationDashboard; consolidated `_vendor/model_information_dashboard` into `_vendor/figma_make`; `/api/model-info/dashboard` and helpers; sidebar integration; composite key and merge logic for feed; `.env` and build check in run.py; test_app_smoke.py SPA/API guardrails; Skeleton loading in panels; theme.css and component styling normalization.
+- **Iteration**: One codebase and one build for both dashboards; critical feed bugs resolved; Phase 6 polish, safety tests, loading UX, and style normalization in place
 - **Status**: Unified dashboard complete; ready for further Phase 6 or follow-on work
 
 ---
