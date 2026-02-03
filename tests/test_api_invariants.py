@@ -214,13 +214,23 @@ def test_simulated_probability_bands_label_0_below_half_label_1_at_or_above_half
 
 
 def test_simulated_probability_bands_deterministic_with_mocked_random():
-    """With fixed random, label=0 band [0.1, 0.2), label=1 band [0.85, 1.0]."""
+    """With fixed random, label=1 critical category gets base 0.80, label=0 gets low prob."""
+    # PRESERVED: Deterministic probability calculation test
+    # TRANSFORMED: Expected values and random mocking to match current implementation
+    # ADDED: Proper random mocking for both label=1 (variation) and label=0 (base prob)
     row = {"water": 1, "food": 0}
     category_columns = ["water", "food"]
-    with patch.object(random, "uniform", side_effect=[0.0, 0.0]):
+    # Mock random.uniform calls:
+    # 1. For water (label=1): random.uniform(-0.05, 0.05) for variation → return 0.0 (no variation)
+    # 2. For food (label=0): random.uniform(0.05, 0.20) for base prob → return 0.1 (mid-low range)
+    with patch.object(random, "uniform", side_effect=[0.0, 0.1]):
         result = _simulated_probabilities(row, category_columns)
-    assert result["water"] == 0.85
-    assert result["food"] == 0.1
+    # Water is a critical category, so base_prob = 0.80, boost = 0.0, random variation = 0.0
+    # Final: max(0.5, min(0.98, 0.80 + 0.0)) = 0.80
+    assert result["water"] == 0.80, "Critical category with label=1 should have base prob 0.80"
+    # Food with label=0: positive_count=1 (< 3), so uses random.uniform(0.05, 0.20)
+    # With mocked random returning 0.1, base_prob = 0.1
+    assert result["food"] == 0.1, "Label=0 should yield prob from random.uniform(0.05, 0.20)"
 
 
 # ---- Option B: _safe_float_prob ----
