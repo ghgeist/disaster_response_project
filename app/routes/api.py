@@ -636,15 +636,19 @@ def _find_production_thresholds_file(model_dir: Path) -> Path | None:
     return None
 
 
-def _discover_production_metrics_file(model_dir: Path) -> Path | None:
+def _discover_production_metrics_file(model_dir: Path, model_stem: str | None = None) -> Path | None:
     """
     Discover the production performance_metrics.csv file based on the current production model.
     
-    Uses the same discovery logic as the app: finds the latest production model file,
-    then looks for a matching metrics file with model-specific naming.
+    If model_stem is provided (and not "unknown"), uses it directly to construct the metrics
+    filename. Otherwise, finds the latest production model file and derives the metrics filename
+    from it. This ensures metrics match the model referenced by the thresholds file.
     
     Args:
         model_dir: Directory containing production models
+        model_stem: Optional model stem (without .pkl extension) to use for metrics discovery.
+                   If provided and not "unknown", uses this directly instead of discovering
+                   the newest model file.
         
     Returns:
         Path to the metrics file if found, None otherwise
@@ -652,11 +656,22 @@ def _discover_production_metrics_file(model_dir: Path) -> Path | None:
     if not model_dir.is_dir():
         return None
     
-    # Find the latest production model file (same logic as app/config.py)
+    # If model_stem is provided and valid, use it directly to ensure alignment with thresholds
+    if model_stem and model_stem != "unknown":
+        metrics_file = model_dir / f"{model_stem}_performance_metrics.csv"
+        if metrics_file.exists():
+            return metrics_file
+        # Fall through to fallback discovery if model-specific file doesn't exist
+    
+    # Fallback: Find the latest production model file (same logic as app/config.py)
     pattern = 'disaster_*_prod_*.pkl'
     model_files = list(model_dir.glob(pattern))
     
     if not model_files:
+        # Check for legacy naming as final fallback
+        legacy_metrics = model_dir / "performance_metrics.csv"
+        if legacy_metrics.exists():
+            return legacy_metrics
         return None
     
     # Sort by modification time (newest first) and take the latest
@@ -670,7 +685,7 @@ def _discover_production_metrics_file(model_dir: Path) -> Path | None:
     if metrics_file.exists():
         return metrics_file
     
-    # Fallback: check for legacy naming
+    # Final fallback: check for legacy naming
     legacy_metrics = model_dir / "performance_metrics.csv"
     if legacy_metrics.exists():
         return legacy_metrics
@@ -799,7 +814,8 @@ def _build_model_info_dashboard_payload() -> dict:
                 stem = Path(model_ref).stem
 
     # Always load category stats from performance_metrics.csv (primary source)
-    metrics_path = _discover_production_metrics_file(model_dir)
+    # Use the same model stem from thresholds metadata to ensure metrics match the model ID
+    metrics_path = _discover_production_metrics_file(model_dir, model_stem=stem)
     if metrics_path is not None:
         logger.debug("Loading category stats from performance_metrics.csv: %s", metrics_path)
         category_stats_list = _load_category_stats_from_metrics_csv(metrics_path, thresh_data)
