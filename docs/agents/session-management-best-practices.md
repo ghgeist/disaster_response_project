@@ -41,8 +41,10 @@ When starting work:
 
 ### 2. Session Types & Outputs
 
-| Session Type | Primary Output Location | Secondary Outputs |
-|-------------|------------------------|-------------------|
+**CRITICAL**: ALL session files MUST be stored in `docs/sessions/active/` during active work.
+
+| Session Type | Session File Location | Secondary Outputs |
+|-------------|---------------------|-------------------|
 | **RESEARCH** | `docs/sessions/active/` | `docs/research/` if needed |
 | **PLAN** | `docs/sessions/active/` | None |
 | **EXECUTE** | `docs/sessions/active/` | Code changes in place |
@@ -161,7 +163,7 @@ All agents should include this session management pattern:
 
 ### Code Improvement Agent
 - **Always** check `docs/code_improvement_log/` for previous work
-- **Create session** in `active/` for current improvement work
+- **Create session** in `docs/sessions/active/` for current improvement work
 - **Link** to improvement log entries from session
 - **Move** session to `completed/` when improvement is done
 

@@ -1,12 +1,14 @@
 ---
 created: 2026-01-29
-updated: 2026-01-29
-status: active
+updated: 2026-02-03
+status: production
 ---
 
 # Storm Signal Dashboard — Design Specification
 
 > **Purpose**: Transform the basic classification demo into a contextualized decision-support dashboard that showcases both ML classification and operational intelligence.
+
+> **Status**: ✅ **PRODUCTION** - Dashboard is live and deployed. Access at `/dashboard`, `/production-model`, and `/about` routes.
 
 > **Related**: See `2026_01_29_storm_signal_system_spec.md` for system architecture overview.
 
