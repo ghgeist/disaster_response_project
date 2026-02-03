@@ -2,6 +2,22 @@
 
 This folder stores production model files and their companion metadata used by the Flask app and evaluation scripts.
 
+## Quick Navigation
+
+**Common Tasks:**
+- **Find current production model**: Look for `disaster_*_prod_*.pkl` files (newest by modification time)
+- **Find model metadata**: `MODEL_INFO.json` (contains algorithm, version, performance, promotion date)
+- **Find thresholds**: `{model_stem}_thresholds.json` (e.g., `disaster_lr_v25-11-06_prod_2025-11-06_thresholds.json`)
+- **Find experimental models**: `experiments/experimental_runs/` (see `experiments/README.md`)
+- **Find archived models**: `experiments/model_archive/` (previous production models)
+- **Promote a model**: Use `scripts/07_operations/promote_model.py`
+
+**Current Production Model:**
+- File: `disaster_lr_v25-11-06_prod_2025-11-06.pkl`
+- Algorithm: LogisticRegression
+- Training Date: 2025-11-06
+- Promotion Date: 2026-02-03 (see `MODEL_INFO.json`)
+
 ## Model Naming Convention
 
 **Format**: `disaster_{algorithm}_{version}_prod_{training_date}.pkl`
