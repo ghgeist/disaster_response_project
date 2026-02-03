@@ -20,7 +20,7 @@ python ../../scripts/build_dashboard.py
 
 ## Architecture Overview
 - **Component structure:** `src/app/components/` contains dashboard UI, detail views, and shared UI primitives.
-- **Key routes:** `/api/dashboard`, `/api/model-info-dashboard`, `/api/about` (SPA routes handled by React Router; Flask serves the same `index.html` shell).
+- **Key routes:** `/dashboard`, `/production-model`, `/about` (legacy `/api/*` routes redirect; Flask serves the same `index.html` shell).
 - **Data flow:** React → Flask API endpoints (`/api/feed`, `/api/classify`, `/api/model-info`, etc.) → JSON response → UI updates.
 - **Build output:** `npm run build` emits `dist/`, and `python ../../scripts/build_dashboard.py` copies that build to `app/static/dashboard/` so Flask can serve it.
 
