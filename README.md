@@ -197,6 +197,7 @@ source .venv/bin/activate
 2. **Train a model**:
    ```bash
    # Create production model
+   # Note: class_weights.json currently has weights disabled (enabled: false)
    python scripts/02_training/04_create_production_model.py --params experiments/model_candidates/vocab_15k.json --class-weights experiments/model_candidates/class_weights.json
    
    # Alternative: Create experimental model with custom parameters
@@ -276,7 +277,7 @@ The machine learning pipeline consists of three main stages:
 
 ### 3. Multi-label Classification
 - **Algorithm**: LogisticRegression with MultiOutputClassifier (production)
-- **Class Weighting**: Balanced class weights to handle imbalanced data (preferred over sampling)
+- **Class Weighting**: Infrastructure exists but currently disabled in production model (see `experiments/model_candidates/class_weights.json`)
 - **Hyperparameter Tuning**: GridSearchCV for optimization
 - **Vocabulary Optimization**: 15K features (reduced from 230K) for efficient deployment
 
@@ -307,13 +308,13 @@ Experiments are organized in the `experiments/` directory with the following str
 
 ### Available Experiments
 
-- **baseline_no_sampling**: No class balancing applied
-- **class_weighting**: Balanced class weights (production approach, preferred over sampling)
+- **baseline_no_sampling**: No class balancing applied (current production approach)
+- **class_weighting**: Balanced class weights (infrastructure available but disabled in production config)
 - **smote_conservative**: SMOTE with conservative parameters (legacy)
 - **adasyn_moderate**: ADASYN with moderate parameters (legacy)
 - **conservative_sampling**: Very conservative SMOTE approach (legacy)
 
-**Note**: Current production model uses class weighting rather than sampling strategies. See [ADR-008](../docs/adr/adr-008-class-weighting-over-sampling.md) for rationale.
+**Note**: Current production model (`disaster_lr_v25-11-06_prod_2025-11-06.pkl`) was trained without class weighting (see training log: `experiments/experimental_runs/2025-11-06-vocab15k-promotion/training_log.json`). Class weighting infrastructure exists and can be enabled via config file. See [ADR-008](../docs/adr/adr-008-class-weighting-over-sampling.md) for rationale on weighting vs sampling.
 
 ### Running Experiments
 
@@ -540,7 +541,7 @@ The system evaluates models using comprehensive metrics:
 
 ### Evaluation Approach
 - **Multi-label Classification**: Handles overlapping categories
-- **Class Imbalance**: Balanced using class weighting (preferred over sampling strategies)
+- **Class Imbalance**: Production model trained without class weighting (class weighting infrastructure available but disabled in config)
 - **Cross-validation**: Robust performance estimation
 
 ### Hierarchy Post-Processing
