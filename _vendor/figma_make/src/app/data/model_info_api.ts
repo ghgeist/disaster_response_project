@@ -24,6 +24,8 @@ export interface DashboardCategory {
   precision: number;
   recall: number;
   support: number;
+  hierarchyParentKey?: string;
+  hierarchyParentLabel?: string;
 }
 
 export interface DashboardCriticalThreshold {

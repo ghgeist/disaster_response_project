@@ -5,6 +5,7 @@ import { useSidebar } from '@/app/components/ui/sidebar';
 import { cn } from '@/app/components/ui/utils';
 import { DashboardSidebar } from './DashboardSidebar';
 import { StormHeader } from './StormHeader';
+import { Footer } from './Footer';
 
 export function AboutPage() {
   const { state } = useSidebar();
@@ -82,6 +83,7 @@ export function AboutPage() {
             </div>
           </main>
         </div>
+        <Footer />
       </div>
     </DashboardSidebar>
   );
