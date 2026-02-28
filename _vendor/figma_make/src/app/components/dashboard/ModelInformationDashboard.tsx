@@ -63,8 +63,8 @@ const MatrixCell = ({ category }: { category: MatrixCategory }) => {
     }
 
     return (
-        <div className="flex flex-col p-3 border border-slate-200 h-24 bg-white hover:border-slate-400 transition-colors rounded-none relative overflow-hidden group">
-             <span className="text-xs font-bold uppercase truncate w-full leading-tight text-slate-700 mb-1" title={category.name}>
+        <div className="flex flex-col p-3 border border-slate-200 h-20 bg-white hover:border-slate-400 transition-colors rounded-none relative overflow-hidden group">
+             <span className="text-xs font-semibold truncate w-full leading-tight text-slate-700 mb-1" title={category.name}>
                  {category.name}
              </span>
 
@@ -73,7 +73,7 @@ const MatrixCell = ({ category }: { category: MatrixCategory }) => {
              </div>
 
              <div className="flex flex-col mt-auto">
-                <span className="text-lg font-mono font-bold text-slate-900 leading-tight">
+                <span className="text-xl font-mono font-bold text-slate-900 leading-tight tracking-tight">
                     {rawPercentage}%
                 </span>
              </div>
@@ -206,9 +206,9 @@ export function ModelInformationDashboard() {
 
           <div className="space-y-4">
             <Skeleton className="h-4 w-72" />
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
               {Array.from({ length: 8 }).map((_, index) => (
-                <div key={`matrix-skeleton-${index}`} className="border border-slate-200 h-24 bg-white rounded-none shadow-sm p-3 space-y-3">
+                <div key={`matrix-skeleton-${index}`} className="border border-slate-200 h-20 bg-white rounded-none shadow-sm p-3 space-y-2">
                   <Skeleton className="h-3 w-24" />
                   <Skeleton className="h-2 w-full" />
                   <Skeleton className="h-5 w-12" />
@@ -286,15 +286,21 @@ export function ModelInformationDashboard() {
                           </Tooltip>
                       </div>
 
-                      <div className="space-y-6">
-                          {groupedCategoryEntries.map((group) => (
-                            <section key={group.key} className="space-y-3">
-                              <div className="bg-white border border-slate-200 px-4 py-3 rounded-none">
+                      <div className="space-y-5">
+                          {groupedCategoryEntries.map((group, groupIndex) => (
+                            <section
+                              key={group.key}
+                              className={cn(
+                                "space-y-2 p-2 rounded-sm",
+                                groupIndex % 2 === 0 ? "bg-white" : "bg-slate-50/60",
+                              )}
+                            >
+                              <div className="bg-white border border-slate-200 border-l-4 border-l-blue-600 px-4 py-3 rounded-none">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                                  <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
                                     {group.label}
                                   </h3>
-                                  <div className="flex items-center gap-4 text-xs font-mono text-slate-600">
+                                  <div className="flex items-center gap-4 text-xs font-mono text-slate-500">
                                     <span>
                                       GROUP F1:{" "}
                                       <strong className="text-slate-900">
@@ -302,9 +308,9 @@ export function ModelInformationDashboard() {
                                       </strong>
                                     </span>
                                     <span>
-                                      SUPPORT:{" "}
+                                      POSITIVE CASES:{" "}
                                       <strong className="text-slate-900">
-                                        {group.totalSupport}
+                                        {group.totalSupport.toLocaleString()}
                                       </strong>
                                     </span>
                                     <span>
@@ -314,7 +320,7 @@ export function ModelInformationDashboard() {
                                   </div>
                                 </div>
                               </div>
-                              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
                                 {group.items.map((cat, idx) => (
                                   <MatrixCell key={`${group.key}-${cat.name}-${idx}`} category={cat} />
                                 ))}
