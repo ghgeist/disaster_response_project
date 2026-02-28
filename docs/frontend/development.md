@@ -14,6 +14,40 @@
    python run.py
    ```
 
+## Local UI + Replit Backend (SSH Tunnel)
+Use this mode when the database and Flask app are running on Replit, but you want fast local UI iteration with Vite hot reload.
+
+1. Start the backend on Replit (normal workflow).
+2. Create an SSH tunnel from local port `5000` to the Replit app's `127.0.0.1:5000`:
+   ```powershell
+   ssh -i "$HOME\.ssh\replit" -o IdentitiesOnly=yes -o ExitOnForwardFailure=yes -p 22 -N -L 5000:127.0.0.1:5000 <replit-user>@<replit-host>
+   ```
+3. In a second terminal, run Vite locally from `_vendor/figma_make`:
+   ```bash
+   npm run dev
+   ```
+4. Open the dashboard at:
+   - `http://localhost:5173/static/dashboard/`
+
+### API proxy behavior in this mode
+- Vite proxies `/api/*` requests to `http://127.0.0.1:5000`.
+- The SSH tunnel forwards those requests to the Replit backend.
+- This allows live API data with local frontend hot reload.
+
+### Quick verification
+- Confirm tunnel is active:
+  ```powershell
+  Test-NetConnection 127.0.0.1 -Port 5000
+  ```
+  Expected: `TcpTestSucceeded : True`
+- Confirm API proxy path works by opening:
+  - `http://localhost:5173/api/model-info`
+
+### Troubleshooting
+- **`ECONNREFUSED 127.0.0.1:5000` in Vite logs**: Tunnel is down or stuck at authentication; restart SSH command.
+- **SSH prompts for password unexpectedly**: Ensure `-i` points to the correct private key file and keep `-o IdentitiesOnly=yes`.
+- **Still seeing old errors after tunnel recovers**: Restart `npm run dev` and hard-refresh the browser.
+
 ## Testing Workflow
 - Unit/component tests:
   ```bash
