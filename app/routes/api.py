@@ -19,6 +19,7 @@ from app.services.model_service import ModelServiceError
 from app.utils.formatting import format_request_context
 from app.utils.prediction_helpers import process_prediction_result
 from app.utils.validation import validate_message_text
+from disasterproject.utils.config import TAXONOMY
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +94,12 @@ CRITICAL_INTERNAL_CATEGORIES = {
     "missing_people",
     "refugees",
     "death",
+}
+
+HIERARCHY_UNGROUPED_KEY = "ungrouped"
+HIERARCHY_UNGROUPED_LABEL = "Ungrouped"
+TAXONOMY_CHILD_TO_PARENT = {
+    child: parent for parent, children in TAXONOMY.items() for child in children
 }
 
 
@@ -870,6 +877,12 @@ def _build_model_info_dashboard_payload() -> dict:
         rec = _safe_float_prob(stat.get("actual_recall")) if "actual_recall" in stat else _safe_float_prob(stat.get("recall"))
         weighted_precision += prec * sup
         weighted_recall += rec * sup
+        parent_key = str(key) if str(key) in TAXONOMY else TAXONOMY_CHILD_TO_PARENT.get(str(key))
+        if parent_key is None:
+            parent_key = HIERARCHY_UNGROUPED_KEY
+            parent_label = HIERARCHY_UNGROUPED_LABEL
+        else:
+            parent_label = _safe_category_display(parent_key)
         categories_payload.append({
             "key": str(key),
             "label": label,
@@ -877,6 +890,8 @@ def _build_model_info_dashboard_payload() -> dict:
             "precision": prec,
             "recall": rec,
             "support": int(sup),
+            "hierarchyParentKey": parent_key,
+            "hierarchyParentLabel": parent_label,
         })
 
     if total_support > 0:

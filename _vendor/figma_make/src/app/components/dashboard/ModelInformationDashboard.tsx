@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/too
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { DashboardSidebar } from './DashboardSidebar';
 import { StormHeader } from './StormHeader';
+import { Footer } from './Footer';
 
 const MetricCard = ({ label, value, tooltip }: { label: string; value: string; tooltip: string }) => (
   <div className="bg-white border border-slate-200 p-5 flex flex-col justify-between h-24 hover:border-slate-400 transition-colors rounded-none shadow-sm">
@@ -28,7 +29,23 @@ const MetricCard = ({ label, value, tooltip }: { label: string; value: string; t
   </div>
 );
 
-const MatrixCell = ({ category }: { category: { name: string; f1: number; adjustedF1: number; count: number } }) => {
+type MatrixCategory = {
+  name: string;
+  f1: number;
+  adjustedF1: number;
+  count: number;
+  hierarchyParentKey?: string;
+  hierarchyParentLabel?: string;
+};
+type MatrixCategoryGroup = {
+  key: string;
+  label: string;
+  items: MatrixCategory[];
+  totalSupport: number;
+  weightedF1Pct: number;
+};
+
+const MatrixCell = ({ category }: { category: MatrixCategory }) => {
     const rawPercentage = Math.round(category.f1 * 100);
 
     let barColor = "bg-blue-200";
@@ -46,8 +63,8 @@ const MatrixCell = ({ category }: { category: { name: string; f1: number; adjust
     }
 
     return (
-        <div className="flex flex-col p-3 border border-slate-200 h-24 bg-white hover:border-slate-400 transition-colors rounded-none relative overflow-hidden group">
-             <span className="text-xs font-bold uppercase truncate w-full leading-tight text-slate-700 mb-1" title={category.name}>
+        <div className="flex flex-col p-3 border border-slate-200 h-20 bg-white hover:border-slate-400 transition-colors rounded-none relative overflow-hidden group">
+             <span className="text-xs font-semibold truncate w-full leading-tight text-slate-700 mb-1" title={category.name}>
                  {category.name}
              </span>
 
@@ -56,7 +73,7 @@ const MatrixCell = ({ category }: { category: { name: string; f1: number; adjust
              </div>
 
              <div className="flex flex-col mt-auto">
-                <span className="text-lg font-mono font-bold text-slate-900 leading-tight">
+                <span className="text-xl font-mono font-bold text-slate-900 leading-tight tracking-tight">
                     {rawPercentage}%
                 </span>
              </div>
@@ -65,6 +82,15 @@ const MatrixCell = ({ category }: { category: { name: string; f1: number; adjust
 };
 
 const k = 200;
+const UNGROUPED_KEY = "ungrouped";
+const UNGROUPED_LABEL = "Ungrouped";
+const HIERARCHY_GROUP_ORDER = [
+  "aid_related",
+  "infrastructure_related",
+  "weather_related",
+  "related",
+  UNGROUPED_KEY,
+];
 
 function useDashboardPayload() {
   const [payload, setPayload] = useState<Awaited<ReturnType<typeof fetchDashboard>> | null>(null);
@@ -112,12 +138,48 @@ export function ModelInformationDashboard() {
         f1: cat.f1,
         count: cat.support,
         adjustedF1: cat.f1 * (cat.support / (cat.support + k)),
+        hierarchyParentKey: cat.hierarchyParentKey ?? UNGROUPED_KEY,
+        hierarchyParentLabel: cat.hierarchyParentLabel ?? UNGROUPED_LABEL,
       }))
     : CATEGORIES.map((cat) => ({
         ...cat,
         adjustedF1: cat.f1 * (cat.count / (cat.count + k)),
+        hierarchyParentKey: UNGROUPED_KEY,
+        hierarchyParentLabel: UNGROUPED_LABEL,
       }));
   const sortedCategories = [...processedCategories].sort((a, b) => b.adjustedF1 - a.adjustedF1);
+  const groupedCategories = sortedCategories.reduce<Record<string, { label: string; items: MatrixCategory[] }>>(
+    (acc, category) => {
+      const groupKey = category.hierarchyParentKey ?? UNGROUPED_KEY;
+      const groupLabel = category.hierarchyParentLabel ?? UNGROUPED_LABEL;
+      if (!acc[groupKey]) {
+        acc[groupKey] = { label: groupLabel, items: [] };
+      }
+      acc[groupKey].items.push(category);
+      return acc;
+    },
+    {},
+  );
+  const groupedCategoryEntries: MatrixCategoryGroup[] = Object.entries(groupedCategories).map(([groupKey, group]) => {
+    const totalSupport = group.items.reduce((sum, category) => sum + category.count, 0);
+    const weightedF1 = totalSupport > 0
+      ? group.items.reduce((sum, category) => sum + category.f1 * category.count, 0) / totalSupport
+      : 0;
+    return {
+      key: groupKey,
+      label: group.label,
+      items: group.items,
+      totalSupport,
+      weightedF1Pct: Math.round(weightedF1 * 100),
+    };
+  }).sort((left, right) => {
+    const leftOrder = HIERARCHY_GROUP_ORDER.indexOf(left.key);
+    const rightOrder = HIERARCHY_GROUP_ORDER.indexOf(right.key);
+    const leftRank = leftOrder === -1 ? Number.MAX_SAFE_INTEGER : leftOrder;
+    const rightRank = rightOrder === -1 ? Number.MAX_SAFE_INTEGER : rightOrder;
+    if (leftRank !== rightRank) return leftRank - rightRank;
+    return left.label.localeCompare(right.label);
+  });
 
   const appContent = loading ? (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col">
@@ -144,9 +206,9 @@ export function ModelInformationDashboard() {
 
           <div className="space-y-4">
             <Skeleton className="h-4 w-72" />
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
               {Array.from({ length: 8 }).map((_, index) => (
-                <div key={`matrix-skeleton-${index}`} className="border border-slate-200 h-24 bg-white rounded-none shadow-sm p-3 space-y-3">
+                <div key={`matrix-skeleton-${index}`} className="border border-slate-200 h-20 bg-white rounded-none shadow-sm p-3 space-y-2">
                   <Skeleton className="h-3 w-24" />
                   <Skeleton className="h-2 w-full" />
                   <Skeleton className="h-5 w-12" />
@@ -156,6 +218,7 @@ export function ModelInformationDashboard() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   ) : (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col">
@@ -223,9 +286,46 @@ export function ModelInformationDashboard() {
                           </Tooltip>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                          {sortedCategories.map((cat, idx) => (
-                              <MatrixCell key={cat.name ?? idx} category={cat} />
+                      <div className="space-y-5">
+                          {groupedCategoryEntries.map((group, groupIndex) => (
+                            <section
+                              key={group.key}
+                              className={cn(
+                                "space-y-2 p-2 rounded-sm",
+                                groupIndex % 2 === 0 ? "bg-white" : "bg-slate-50/60",
+                              )}
+                            >
+                              <div className="bg-white border border-slate-200 border-l-4 border-l-blue-600 px-4 py-3 rounded-none">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
+                                    {group.label}
+                                  </h3>
+                                  <div className="flex items-center gap-4 text-xs font-mono text-slate-500">
+                                    <span>
+                                      GROUP F1:{" "}
+                                      <strong className="text-slate-900">
+                                        {group.weightedF1Pct}%
+                                      </strong>
+                                    </span>
+                                    <span>
+                                      POSITIVE CASES:{" "}
+                                      <strong className="text-slate-900">
+                                        {group.totalSupport.toLocaleString()}
+                                      </strong>
+                                    </span>
+                                    <span>
+                                      CATEGORIES:{" "}
+                                      <strong className="text-slate-900">{group.items.length}</strong>
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                                {group.items.map((cat, idx) => (
+                                  <MatrixCell key={`${group.key}-${cat.name}-${idx}`} category={cat} />
+                                ))}
+                              </div>
+                            </section>
                           ))}
                       </div>
                   </div>
@@ -233,6 +333,7 @@ export function ModelInformationDashboard() {
               </div>
           </main>
       </div>
+      <Footer />
     </div>
   );
 

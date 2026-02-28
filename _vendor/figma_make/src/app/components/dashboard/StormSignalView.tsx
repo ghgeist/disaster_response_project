@@ -10,6 +10,7 @@ import { toApiName, getCategories } from '@/app/utils/api';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/app/components/ui/tooltip';
 import { useSidebar } from '@/app/components/ui/sidebar';
 import { DashboardSidebar } from './DashboardSidebar';
+import { Footer } from './Footer';
 
 function mapFeedItem(item: { timestamp: string; [k: string]: unknown }): SignalItem {
   return {
@@ -259,7 +260,7 @@ export function StormSignalView() {
 
   return (
     <DashboardSidebar activePage="overview">
-      <div className="h-screen w-full flex flex-col bg-slate-50 font-sans text-slate-900 overflow-hidden">
+      <div className="min-h-screen w-full flex flex-col bg-slate-50 font-sans text-slate-900">
         <div className="lg:hidden fixed inset-0 z-[100] bg-slate-900/90 flex items-center justify-center p-6 backdrop-blur-sm">
           <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm text-center">
             <Radar className="w-12 h-12 text-blue-500 mx-auto mb-4" />
@@ -323,6 +324,7 @@ export function StormSignalView() {
             </div>
           )}
         </main>
+        <Footer />
       </div>
     </DashboardSidebar>
   );
