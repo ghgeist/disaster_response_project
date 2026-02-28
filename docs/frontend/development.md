@@ -46,6 +46,7 @@ Use this mode when the database and Flask app are running on Replit, but you wan
 ### Troubleshooting
 - **`ECONNREFUSED 127.0.0.1:5000` in Vite logs**: Tunnel is down or stuck at authentication; restart SSH command.
 - **SSH prompts for password unexpectedly**: Ensure `-i` points to the correct private key file and keep `-o IdentitiesOnly=yes`.
+- **Key path or `$HOME` seems wrong in SSH command**: Verify your shell resolves the key path correctly (for example, `echo $HOME` and `ls "$HOME/.ssh/replit"`). If the resolved path is wrong or missing, SSH will ignore the intended key and fall back to password authentication.
 - **Still seeing old errors after tunnel recovers**: Restart `npm run dev` and hard-refresh the browser.
 
 ## Testing Workflow
