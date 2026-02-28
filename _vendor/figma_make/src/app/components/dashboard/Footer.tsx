@@ -90,8 +90,6 @@ export function Footer() {
     <footer role="contentinfo" className="border-t border-slate-200 bg-white/95 backdrop-blur-sm">
       <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-3 px-4 py-3 text-xs text-slate-600 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span>Data: EPA National Walkability Index</span>
-          <span aria-hidden="true" className="text-slate-400">·</span>
           <span>© {currentYear} Grant Geist</span>
         </div>
 
