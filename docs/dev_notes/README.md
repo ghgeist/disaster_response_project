@@ -1,7 +1,7 @@
 # Dev Notes Overview: Disaster Response Project Evolution
 
-**Last Updated**: 2026-02-03  
-**Total Entries**: 16 dev notes spanning September 2025 - February 2026  
+**Last Updated**: 2026-02-28  
+**Total Entries**: 17 dev notes spanning September 2025 - February 2026  
 **Project Status**: Production-ready with optimized model (4.53 MB, F1=92.76%, Critical Recall=65%), modular architecture, unified Storm Signal + Model Information dashboard (React Router), standardized model naming conventions, and security hardening complete
 
 ---
@@ -138,6 +138,12 @@ This project has undergone significant iterations, with each phase building on p
 - **Iteration**: Professional ML operations with traceable artifacts; cleaner dashboard architecture; production security posture; deployment unblocked with version tolerance
 - **Status**: Model operations standardized; dashboard routing optimized; security hardened; production-ready with comprehensive test coverage
 
+**2026-02-28**: Dashboard UI Refinement, Layout Consistency & Local Dev Proxy
+- **Achievement**: Merged PR #104 (tweak-ui-design): shared Footer across About, Model Information, and Storm Signal views; simplified AboutPage layout; production model UI fix; improved model matrix readability; Vite API proxy and docs for local development with Replit backend.
+- **Solutions**: Footer component and API support; AboutPage and StormHeader refactor (sidebar, responsive behavior); ModelInformationDashboard category grouping and matrix layout; dashboard asset and script updates; `.replit` fix; Vite proxy in `vite.config.ts` and `docs/frontend/development.md`.
+- **Iteration**: Phase 6 polish continued; consistent layout and production UI reliability; local dev workflow documented.
+- **Status**: Dashboard layout consistent; production UI fixed; local dev proxy documented
+
 ---
 
 ## Architectural Decisions & Dev Notes Mapping
@@ -231,8 +237,9 @@ Together, they provide complete context: the decision rationale (ADR) and the im
 | 2025-09-19 | Documentation | README accuracy, evaluation set migration to JSON | [ADR-006](../adr/adr-006-model-artifact-naming-standard.md), [ADR-007](../adr/adr-007-model-promotion-gating.md) |
 | 2026-01-26 | Architecture Refactoring | Modular Flask architecture (routes/services/utils), workflow-based scripts organization, 8 scripts archived | - |
 | 2026-02-03 | Model Operations & Routing | Standardized model naming, dashboard routing refinement, security hardening | [ADR-006](../adr/adr-006-model-artifact-naming-standard.md) |
+| 2026-02-28 | Dashboard UI & Local Dev | Footer/layout consistency, production model UI fix, Vite proxy for Replit backend | - |
 
-**Evolution Pattern**: Initial refactoring → Comprehensive architectural cleanup → Infrastructure standardization → Documentation improvements → Professional modular architecture → Model operations standardization and routing optimization
+**Evolution Pattern**: Initial refactoring → Comprehensive architectural cleanup → Infrastructure standardization → Documentation improvements → Professional modular architecture → Model operations standardization and routing optimization → Dashboard UI refinement and local dev workflow
 
 ---
 
@@ -516,6 +523,7 @@ The iterative nature of the project is visible in how decisions evolved:
 14. [2026-02-01](2026-02-01.md) - Storm Signal Phase 5 Frontend Integration
 15. [2026-02-02](2026-02-02.md) - Dashboard Polish, React Router Consolidation & Critical Bug Fixes
 16. [2026-02-03](2026-02-03.md) - Model Naming Standardization, Dashboard Routing Refinement & Security Hardening
+17. [2026-02-28](2026-02-28.md) - Dashboard UI Refinement, Layout Consistency & Local Dev Proxy
 
 ### **Architectural Decision Records (ADRs)**
 
