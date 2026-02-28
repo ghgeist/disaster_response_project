@@ -1,8 +1,6 @@
 "use client";
 
 import React from 'react';
-import { useSidebar } from '@/app/components/ui/sidebar';
-import { cn } from '@/app/components/ui/utils';
 import { DashboardSidebar } from './DashboardSidebar';
 import { StormHeader } from './StormHeader';
 import { Footer } from './Footer';
@@ -16,20 +14,12 @@ export function AboutPage() {
 }
 
 function AboutPageContent() {
-  const { state } = useSidebar();
-  const isCollapsed = state === 'collapsed';
-
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col">
       <StormHeader />
 
       <div className="flex flex-1 overflow-hidden">
-        <main
-          className={cn(
-            'flex-1 overflow-y-auto p-8',
-            isCollapsed && 'md:pl-64',
-          )}
-        >
+        <main className="flex-1 overflow-y-auto p-8">
           <div className="max-w-3xl mx-auto space-y-8">
             <div className="border-b border-slate-200 pb-4">
               <h1 className="text-2xl font-bold text-slate-900 tracking-tight uppercase">Storm Signal</h1>
