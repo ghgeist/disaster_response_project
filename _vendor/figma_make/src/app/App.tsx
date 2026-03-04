@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 /**
@@ -32,7 +32,66 @@ function LoadingFallback() {
   );
 }
 
+const HEALTH_POLL_INTERVAL_MS = 2_000;
+const HEALTH_REQUEST_TIMEOUT_MS = 1_500;
+
+async function checkBackendHealth(): Promise<boolean> {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), HEALTH_REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch('/health', {
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    return response.ok;
+  } catch {
+    return false;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
+function StartupScreen() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-3 px-6 text-center">
+      <p className="text-base font-medium text-slate-800">Starting demo...</p>
+      <p className="max-w-md text-sm text-slate-500">
+        This deployment may take a few extra seconds on first launch.
+      </p>
+    </div>
+  );
+}
+
 export default function App() {
+  const [isBackendReady, setIsBackendReady] = useState(false);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const pollHealth = async () => {
+      const isHealthy = await checkBackendHealth();
+      if (isActive && isHealthy) {
+        setIsBackendReady(true);
+        window.clearInterval(intervalId);
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      void pollHealth();
+    }, HEALTH_POLL_INTERVAL_MS);
+    void pollHealth();
+
+    return () => {
+      isActive = false;
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  if (!isBackendReady) {
+    return <StartupScreen />;
+  }
+
   return (
     <BrowserRouter>
       <Suspense fallback={<LoadingFallback />}>
