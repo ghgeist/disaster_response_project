@@ -86,19 +86,20 @@ export default function App() {
       if (isActive && isHealthy) {
         setIsBackendReady(true);
         window.clearInterval(intervalId);
+        window.clearTimeout(maxWaitTimeoutId);
       }
     };
 
     const intervalId = window.setInterval(() => {
       void pollHealth();
     }, HEALTH_POLL_INTERVAL_MS);
-    void pollHealth();
     const maxWaitTimeoutId = window.setTimeout(() => {
       if (isActive) {
         setIsBackendReady(true);
         window.clearInterval(intervalId);
       }
     }, MAX_STARTUP_WAIT_MS);
+    void pollHealth();
 
     return () => {
       isActive = false;
