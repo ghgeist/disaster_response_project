@@ -34,6 +34,13 @@ function LoadingFallback() {
 
 const HEALTH_POLL_INTERVAL_MS = 2_000;
 const HEALTH_REQUEST_TIMEOUT_MS = 1_500;
+const MAX_STARTUP_WAIT_MS = 12_000;
+
+function shouldUseStartupGate(): boolean {
+  const hostname = window.location.hostname;
+  const isReplitHost = hostname.endsWith('.replit.dev') || hostname.endsWith('.repl.co');
+  return import.meta.env.PROD && isReplitHost;
+}
 
 async function checkBackendHealth(): Promise<boolean> {
   const controller = new AbortController();
@@ -64,9 +71,14 @@ function StartupScreen() {
 }
 
 export default function App() {
-  const [isBackendReady, setIsBackendReady] = useState(false);
+  const startupGateEnabled = shouldUseStartupGate();
+  const [isBackendReady, setIsBackendReady] = useState(!startupGateEnabled);
 
   useEffect(() => {
+    if (!startupGateEnabled) {
+      return undefined;
+    }
+
     let isActive = true;
 
     const pollHealth = async () => {
@@ -81,12 +93,19 @@ export default function App() {
       void pollHealth();
     }, HEALTH_POLL_INTERVAL_MS);
     void pollHealth();
+    const maxWaitTimeoutId = window.setTimeout(() => {
+      if (isActive) {
+        setIsBackendReady(true);
+        window.clearInterval(intervalId);
+      }
+    }, MAX_STARTUP_WAIT_MS);
 
     return () => {
       isActive = false;
       window.clearInterval(intervalId);
+      window.clearTimeout(maxWaitTimeoutId);
     };
-  }, []);
+  }, [startupGateEnabled]);
 
   if (!isBackendReady) {
     return <StartupScreen />;
