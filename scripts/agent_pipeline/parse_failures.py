@@ -37,7 +37,7 @@ def parse_ruff_json(payload: str) -> list[dict[str, Any]]:
         code = str(item.get("code") or "RUFF")
         message = str(item.get("message") or "")
         location = item.get("location") or {}
-        line = location.get("row") or item.get("location", {}).get("row")
+        line = location.get("row") if isinstance(location, dict) else None
         tasks.append(
             {
                 "id": _task_id("ruff", path, f"{code}:{message}"),
@@ -45,7 +45,7 @@ def parse_ruff_json(payload: str) -> list[dict[str, Any]]:
                 "path": path,
                 "line": line,
                 "code": code,
-                "message": f"{code}: {message}".strip(": "),
+                "message": f"{code}: {message}" if message else code,
                 "suggested_tests": _suggest_tests(path),
             }
         )

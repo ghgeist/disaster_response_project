@@ -52,6 +52,46 @@ def test_sanitize_task_id_rejects_unsafe_ids(common_mod: ModuleType) -> None:
         common_mod.sanitize_task_id("has spaces")
 
 
+def test_parse_ruff_json_null_location_does_not_crash(parse_mod: ModuleType) -> None:
+    payload = json.dumps(
+        [
+            {
+                "filename": "src/disasterproject/utils/foo.py",
+                "code": "F401",
+                "message": "unused import",
+                "location": None,
+            }
+        ]
+    )
+    tasks = parse_mod.parse_ruff_json(payload)
+    assert len(tasks) == 1
+    assert tasks[0]["line"] is None
+    assert tasks[0]["message"] == "F401: unused import"
+
+
+def test_parse_ruff_json_preserves_message_punctuation(parse_mod: ModuleType) -> None:
+    payload = json.dumps(
+        [
+            {
+                "filename": "src/disasterproject/utils/foo.py",
+                "code": "E501",
+                "message": "line too long:",
+                "location": {"row": 12, "column": 80},
+            },
+            {
+                "filename": "src/disasterproject/utils/bar.py",
+                "code": "F401",
+                "message": "",
+                "location": {"row": 1, "column": 1},
+            },
+        ]
+    )
+    tasks = parse_mod.parse_ruff_json(payload)
+    assert tasks[0]["message"] == "E501: line too long:"
+    assert tasks[0]["line"] == 12
+    assert tasks[1]["message"] == "F401"
+
+
 def test_parse_ruff_json_builds_stable_tasks(parse_mod: ModuleType) -> None:
     payload = json.dumps(
         [
