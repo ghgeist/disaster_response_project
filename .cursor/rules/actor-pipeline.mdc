@@ -1,0 +1,43 @@
+---
+description: >-
+  Invoke the actor pipeline (Producer-Reviewer-Fixer, worktree error shards,
+  pytest shards) for large refactors, mass lint/test failures, or multi-file
+  migrations. Use when the user mentions actor pipeline, blind peer review,
+  worktree shards, or parallel fix agents.
+alwaysApply: false
+---
+
+# Actor Pipeline Rule
+
+For non-trivial multi-file or mass-failure work, follow the project actor pipeline instead of a single monolithic agent session.
+
+## Load these skills
+
+- `.cursor/skills/actor-pipeline/SKILL.md`
+- `.cursor/skills/blind-peer-review/SKILL.md`
+
+## Agent prompts
+
+- `docs/agents/producer-worker-agent.md`
+- `docs/agents/blind-reviewer-agent.md`
+- `docs/agents/fixer-agent.md`
+- `docs/agents/error-shard-agent.md`
+- `docs/agents/test-shard-agent.md`
+
+## Scripts
+
+- `python scripts/agent_pipeline/parse_failures.py`
+- `python scripts/agent_pipeline/worktree_pool.py`
+- `python scripts/agent_pipeline/shard_tests.py`
+- `python scripts/agent_pipeline/merge_worktree.py`
+
+## Gates
+
+- `ruff check` on touched paths
+- `python scripts/run_tests.py` for assigned tests/shards
+
+## Hard constraints
+
+- Reviewers are fresh Task subagents with no parent history (spec + diff only).
+- Parallel fix agents each get their own git worktree under `.worktrees/`.
+- Do not merge dirty or failing worktrees.

@@ -77,6 +77,13 @@ pre-commit run --all-files
 - Prefer explicit exception handling (e.g., `ValueError`) over bare `Exception`.
 - Keep modules cohesive; add new utilities under `src/disasterproject/` rather than ad hoc script code.
 
+## Actor Pipeline (large / parallel work)
+For multi-file refactors, mass Ruff/pytest failures, or sharded test fixes, use the Cursor actor pipeline instead of a single mega-prompt:
+- Skills: `.cursor/skills/actor-pipeline/SKILL.md`, `.cursor/skills/blind-peer-review/SKILL.md`
+- Agents: `docs/agents/producer-worker-agent.md`, `blind-reviewer-agent.md`, `fixer-agent.md`, `error-shard-agent.md`, `test-shard-agent.md`
+- Scripts: `scripts/agent_pipeline/` (`worktree_pool.py`, `parse_failures.py`, `shard_tests.py`, `merge_worktree.py`)
+- Gates: `ruff check` + `python scripts/run_tests.py`
+
 ## Testing Expectations
 - Add or update pytest coverage for new behavior. Keep tests fast and deterministic.
 - Run at least the smoke suite (`pytest tests/test_smoke.py -q`) before handing changes back; run the full suite when time allows.

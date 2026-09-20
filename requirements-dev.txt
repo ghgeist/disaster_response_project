@@ -1,1 +1,5 @@
+# Dev / quality tools (not required to run the Flask app)
 pytest==8.3.2
+ruff==0.14.14
+pylint==4.0.4
+pre-commit==4.3.0
