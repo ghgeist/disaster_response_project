@@ -33,6 +33,15 @@ All agents support **multi-platform** usage:
 - **`flask-ui-ux-agent.md`** - Improve Flask web applications through UX optimizations
 - **`readme-agent.md`** - Review and improve README.md for completeness and accuracy
 
+### Actor Pipeline Agents
+- **`producer-worker-agent.md`** - Phase 1: produce a minimal draft change
+- **`blind-reviewer-agent.md`** - Context-blind dual peer review of a git diff
+- **`fixer-agent.md`** - Consolidate review feedback and patch until gates pass
+- **`error-shard-agent.md`** - Phase 2: fix one diagnostic in an isolated worktree
+- **`test-shard-agent.md`** - Phase 3: own a pytest shard until green
+
+Pipeline skills: `.cursor/skills/actor-pipeline/`, `.cursor/skills/blind-peer-review/`. Scripts: `scripts/agent_pipeline/`.
+
 ## Infrastructure Files
 
 ### Integration Standards

@@ -26,7 +26,11 @@ src/disasterproject/utils/experimental_paths.py
 src/disasterproject/utils/interaction.py
 src/disasterproject/utils/json_io.py
 src/disasterproject/utils/metrics_io.py
+src/disasterproject/utils/model_defaults.py
 src/disasterproject/utils/secure_subprocess.py
+tests/test_agent_pipeline_harness.py
+tests/test_api_contract_stubs.py
+tests/test_api_invariants.py
 tests/test_app_smoke.py
 tests/test_compare_models_paths.py
 tests/test_csrf_smoke.py
@@ -35,6 +39,7 @@ tests/test_hierarchy.py
 tests/test_metrics_io.py
 tests/test_optimization.py
 tests/test_perf.py
+tests/test_promote_model.py
 tests/test_request_logging_utils.py
 tests/test_security.py
 tests/test_smoke.py

@@ -62,5 +62,8 @@ build/
 _vendor/figma_make/node_modules/
 _vendor/figma_make/dist/
 
+# Agent pipeline isolated worktrees
+.worktrees/
+
 # --- Catch accidental weird files
 =*
