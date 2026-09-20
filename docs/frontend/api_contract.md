@@ -51,6 +51,8 @@ const response = await fetch(`/api/feed?${params.toString()}`);
 ## `POST /api/classify`
 **Purpose:** Classify a user-submitted message.
 
+Classification results are **hierarchy-corrected** before the simplified response is built: parent/child consistency from `apply_hierarchy()` (shared taxonomy config) is applied using the deployed per-label threshold map. The React dashboard consumes the simplified fields only.
+
 **Request Body**
 ```json
 { "message": "Need water and shelter" }
@@ -61,11 +63,22 @@ const response = await fetch(`/api/feed?${params.toString()}`);
 {
   "severity": "MEDIUM",
   "categories": [
-    { "name": "Water", "conf": 0.86 },
-    { "name": "Shelter", "conf": 0.74 }
-  ]
+    {
+      "name": "Water",
+      "confidence": 0.86,
+      "volume": 892,
+      "threshold": 0.302,
+      "meetsThreshold": true
+    }
+  ],
+  "maxConfidence": 0.86,
+  "avgConfidence": 0.80
 }
 ```
+
+**Optional debug** (`?debug=1` / `true` / `yes` / `on`): adds a `debug` object with `thresholds` plus nested `raw` and `fixed` maps (`probabilities`, `labels`) so callers can compare model output to hierarchy-adjusted decisions. This replaces the older flat `debug.probabilities` / `debug.labels` shape. Not used by the default dashboard UI.
+
+`meetsThreshold` is `true` for categories included as positive decisions after hierarchy (including parents forced on by an active child), even when adjusted confidence is still below that label’s numeric threshold.
 
 **Example**
 ```ts

@@ -53,10 +53,10 @@ Creates experimental models using candidate configurations.
 - **Output**: Experimental models saved to `experiments/` directory
 
 ### `04_create_production_model.py`
-Creates a production disaster response classification model with class weighting.
+Creates a production disaster response classification model with optional class weighting via config (currently disabled in `experiments/model_candidates/class_weights.json`).
 - **Use when**: Creating the main production model for deployment
 - **Usage**: `python scripts/02_training/04_create_production_model.py --params experiments/model_candidates/vocab_15k.json --class-weights experiments/model_candidates/class_weights.json`
-- **Output**: Production model (`model/disaster_rf_v1-2-0_prod_2025-09-11.pkl`), performance metrics, and training logs
+- **Output**: Production model under `model/`, performance metrics, and training logs
 - **Dependencies**: Parameter and class weight configuration files
 
 ### `run_batch_experiments.py`

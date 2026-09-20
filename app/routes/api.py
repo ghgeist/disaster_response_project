@@ -17,6 +17,7 @@ from app.extensions import csrf
 from app.services.errors import DataServiceError
 from app.services.model_service import ModelServiceError
 from app.utils.formatting import format_request_context
+from app.utils.hierarchy_helpers import run_hierarchy_correction
 from app.utils.prediction_helpers import process_prediction_result
 from app.utils.validation import validate_message_text
 from disasterproject.utils.config import TAXONOMY
@@ -452,7 +453,12 @@ def _build_simplified_classification(
     category_volumes: dict,
     thresholds_map: dict,
 ) -> dict:
-    """Build simplified classification response with severity and volume context."""
+    """Build simplified classification response with severity and volume context.
+
+    When ``labels`` are present (hierarchy-corrected binaries), membership uses those
+    decisions so child→parent activations are not dropped when parent probability is
+    still below the parent threshold. Probabilities drive confidence and severity.
+    """
     probabilities = prediction_result.get("probabilities") or {}
     if not probabilities:
         return {
@@ -462,29 +468,43 @@ def _build_simplified_classification(
             "avgConfidence": 0.0,
         }
     threshold_default = 0.5
+    labels = prediction_result.get("labels") or {}
     # Exclude meta-category "related" (disaster-relevance) from detection results
-    above_threshold = [
-        (internal, prob)
-        for internal, prob in probabilities.items()
-        if internal != "related"
-        and _safe_float_prob(prob)
-        >= _safe_float_prob(thresholds_map.get(internal, threshold_default))
-    ]
-    above_threshold.sort(key=lambda x: -_safe_float_prob(x[1]))
+    if labels:
+        selected = [
+            (internal, probabilities.get(internal, 0.0))
+            for internal, label in labels.items()
+            if internal != "related" and _safe_label_value(label) == 1
+        ]
+    else:
+        selected = [
+            (internal, prob)
+            for internal, prob in probabilities.items()
+            if internal != "related"
+            and _safe_float_prob(prob)
+            >= _safe_float_prob(thresholds_map.get(internal, threshold_default))
+        ]
+    selected.sort(key=lambda x: -_safe_float_prob(x[1]))
     categories = []
-    for internal, prob in above_threshold[:10]:
+    for internal, prob in selected[:10]:
         threshold = _safe_float_prob(thresholds_map.get(internal, threshold_default))
+        # Positive decisions (including hierarchy-forced parents) meet the decision
+        # contract even when adjusted probability is still below the parent threshold.
+        if labels:
+            meets_threshold = _safe_label_value(labels.get(internal, 0)) == 1
+        else:
+            meets_threshold = _safe_float_prob(prob) >= threshold
         categories.append(
             {
                 "name": _safe_category_display(internal),
                 "confidence": round(_safe_float_prob(prob), 2),
                 "volume": _safe_label_value(category_volumes.get(internal, 0)),
                 "threshold": round(threshold, 3),
-                "meetsThreshold": _safe_float_prob(prob) >= threshold,
+                "meetsThreshold": meets_threshold,
             }
         )
     severity = calculate_severity(probabilities)
-    returned_probs = [_safe_float_prob(prob) for _, prob in above_threshold[:10]]
+    returned_probs = [_safe_float_prob(prob) for _, prob in selected[:10]]
     max_conf = round(max(returned_probs), 2) if returned_probs else 0.0
     avg_conf = (
         round(sum(returned_probs) / len(returned_probs), 2) if returned_probs else 0.0
@@ -1075,26 +1095,44 @@ def classify():
                 # Volumes are supplementary; classification continues with empty volumes
 
         thresholds_map = model_service.get_thresholds_map()
+        raw_probs = prediction_result.get("probabilities") or {}
+        raw_labels = prediction_result.get("labels") or {}
+        fixed_probs, fixed_labels = run_hierarchy_correction(raw_probs, thresholds_map)
+        hierarchy_result = {
+            **prediction_result,
+            "probabilities": fixed_probs,
+            "labels": fixed_labels,
+        }
         payload = _build_simplified_classification(
-            prediction_result, category_volumes, thresholds_map
+            hierarchy_result, category_volumes, thresholds_map
         )
 
         debug_flag = (request.args.get("debug") or "").strip().lower()
         if debug_flag in {"1", "true", "yes", "on"}:
-            raw_probs = prediction_result.get("probabilities") or {}
-            raw_labels = prediction_result.get("labels") or {}
             payload["debug"] = {
-                "probabilities": {
-                    key: round(_safe_float_prob(value), 4)
-                    for key, value in raw_probs.items()
-                },
                 "thresholds": {
                     key: round(_safe_float_prob(value), 4)
                     for key, value in thresholds_map.items()
                 },
-                "labels": {
-                    key: _safe_label_value(value)
-                    for key, value in raw_labels.items()
+                "raw": {
+                    "probabilities": {
+                        key: round(_safe_float_prob(value), 4)
+                        for key, value in raw_probs.items()
+                    },
+                    "labels": {
+                        key: _safe_label_value(value)
+                        for key, value in raw_labels.items()
+                    },
+                },
+                "fixed": {
+                    "probabilities": {
+                        key: round(_safe_float_prob(value), 4)
+                        for key, value in fixed_probs.items()
+                    },
+                    "labels": {
+                        key: _safe_label_value(value)
+                        for key, value in fixed_labels.items()
+                    },
                 },
             }
         return jsonify(payload)
