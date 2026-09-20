@@ -174,10 +174,11 @@ These ADRs document earlier decisions or portfolio-level work:
   - **Decision**: Preserve disaster-critical words (personal pronouns, action words) while maintaining noise reduction
   - **Relevance**: Core preprocessing strategy used throughout project
 
-- **[ADR-008](../adr/adr-008-class-weighting-over-sampling.md)** (2026-01-26): Use class weighting over multi-label sampling for imbalanced data
+- **[ADR-008](../adr/adr-008-class-weighting-over-sampling.md)** (2026-01-26): Prefer class weighting over multi-label sampling for imbalanced data
   - **Context**: Decision documented during architecture refactoring work, but decision was made during 2025-09-16 hyperparameter optimization when `child_alone` zero-positive issue was discovered
-  - **Decision**: Use class weighting (via `get_multilabel_class_weights()`) rather than sampling techniques (SMOTE, ADASYN) for handling class imbalance
-  - **Relevance**: Production training strategy that handles zero-positive labels gracefully, avoids synthetic data generation overhead
+  - **Decision**: Prefer class weighting (via `get_multilabel_class_weights()`) rather than sampling (SMOTE, ADASYN) when imbalance mitigation is enabled
+  - **Production fact**: Current LR prod artifact was trained with weighting disabled; live imbalance handling uses per-label thresholds (see ADR-008 amendment)
+  - **Relevance**: Documents preferred training strategy and why sampling was rejected; do not claim current prod uses balanced weights
 
 ### **Key Insight: Decision vs. Implementation**
 

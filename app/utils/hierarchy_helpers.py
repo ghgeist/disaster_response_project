@@ -1,7 +1,15 @@
 """
 Hierarchy-related helper functions for classification routes.
 """
-from typing import Dict, Iterable, List, Mapping, Set
+from typing import Dict, Iterable, List, Mapping, Set, Tuple
+
+from disasterproject.hierarchy import apply_hierarchy
+from disasterproject.utils.config import (
+    CRITICAL_LABELS,
+    EXCLUDE_FROM_CONSTRAINTS,
+    HIERARCHY_CRITICAL_THRESHOLD_REDUCTION,
+    TAXONOMY,
+)
 
 
 def compute_violations(
@@ -48,3 +56,23 @@ def compute_violations(
                 )
 
     return violations
+
+
+def run_hierarchy_correction(
+    probs: Dict[str, float],
+    thresholds: Dict[str, float],
+) -> Tuple[Dict[str, float], Dict[str, int]]:
+    """
+    Apply production taxonomy hierarchy correction to probabilities and labels.
+
+    Uses the shared TAXONOMY / CRITICAL_LABELS / EXCLUDE_FROM_CONSTRAINTS config
+    so /api/classify and /classify stay aligned.
+    """
+    return apply_hierarchy(
+        probs=probs,
+        thresholds=thresholds,
+        taxonomy=TAXONOMY,
+        critical_labels=CRITICAL_LABELS,
+        exclude=EXCLUDE_FROM_CONSTRAINTS,
+        critical_threshold_reduction=HIERARCHY_CRITICAL_THRESHOLD_REDUCTION,
+    )

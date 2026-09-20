@@ -36,7 +36,7 @@ Replace RandomForestClassifier with **LogisticRegression** as the primary algori
 - **Feature extraction**: TF-IDF with CountVectorizer (supports vocabulary size limits)
 - **Multi-label handling**: WeightedMultiOutputClassifier wrapper
 - **Optimization**: Vocabulary size optimization (15K features) for model size reduction
-- **Class imbalance**: Balanced class weighting (see ADR-008)
+- **Class imbalance**: Class-weighting infrastructure available (see ADR-008); disabled on the current production LR artifact—imbalance handled mainly via per-label thresholds at inference
 
 ### Performance Characteristics
 

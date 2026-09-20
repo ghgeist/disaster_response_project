@@ -10,7 +10,7 @@ from flask import Blueprint, current_app, flash, redirect, render_template, requ
 from app.forms import MessageForm
 from app.services.model_service import ModelServiceError
 from app.utils.formatting import format_request_context
-from app.utils.hierarchy_helpers import compute_violations
+from app.utils.hierarchy_helpers import compute_violations, run_hierarchy_correction
 from app.utils.prediction_helpers import (
     format_predictions_for_display,
     process_prediction_result,
@@ -22,15 +22,7 @@ from app.utils.route_helpers import (
 )
 from app.utils.validation import validate_message_text
 from app.visualizations import ChartGenerator
-
-# Import hierarchy functions
-from disasterproject.hierarchy import apply_hierarchy
-from disasterproject.utils.config import (
-    CRITICAL_LABELS,
-    EXCLUDE_FROM_CONSTRAINTS,
-    HIERARCHY_CRITICAL_THRESHOLD_REDUCTION,
-    TAXONOMY,
-)
+from disasterproject.utils.config import EXCLUDE_FROM_CONSTRAINTS, TAXONOMY
 
 logger = logging.getLogger(__name__)
 
@@ -114,13 +106,9 @@ def _build_classify_response(prediction_result: dict, model_service):
         EXCLUDE_FROM_CONSTRAINTS,
     )
 
-    fixed_probabilities, fixed_labels = apply_hierarchy(
-        probs=raw_probabilities,
-        thresholds=thresholds,
-        taxonomy=TAXONOMY,
-        critical_labels=CRITICAL_LABELS,
-        exclude=EXCLUDE_FROM_CONSTRAINTS,
-        critical_threshold_reduction=HIERARCHY_CRITICAL_THRESHOLD_REDUCTION,
+    fixed_probabilities, fixed_labels = run_hierarchy_correction(
+        raw_probabilities,
+        thresholds,
     )
 
     raw_payload = {"labels": raw_labels, "probabilities": raw_probabilities}

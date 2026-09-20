@@ -10,7 +10,7 @@ related: ["../dev_notes/2025-09-16.md", "adr-004-filter-related-category-from-ui
 # Use Class Weighting Over Multi-Label Sampling for Imbalanced Data
 
 **Date**: 2026-01-26  
-**Status**: Accepted  
+**Status**: Accepted (strategy); see Amendment for current production training fact  
 **Deciders**: ML Engineering Team  
 **Tags**: ml-operations, class-imbalance, data-quality, training-strategy
 
@@ -27,14 +27,27 @@ The project initially considered multi-label sampling approaches (SMOTE, ADASYN)
 
 ## Decision
 
-Use **class weighting** (via `get_multilabel_class_weights()`) as the primary strategy for handling class imbalance in multi-label classification, rather than data resampling techniques (SMOTE, ADASYN, or other oversampling methods).
+Prefer **class weighting** (via `get_multilabel_class_weights()`) over data resampling techniques (SMOTE, ADASYN, or other oversampling methods) when the training pipeline enables imbalance mitigation.
 
-The production model training pipeline (`scripts/03_create_experimental_model.py`, `scripts/04_create_production_model.py`) uses:
+The training pipeline (`scripts/02_training/03_create_experimental_model.py`, `scripts/02_training/04_create_production_model.py`) supports:
 - `get_multilabel_class_weights(y_train, strategy='balanced')` to calculate per-label weights
 - `create_pipeline_with_custom_weights()` or `create_pipeline_logistic_regression_weighted()` to apply weights
-- No data resampling or synthetic sample generation
+- No data resampling or synthetic sample generation when weights are enabled via config
 
-Sampling validation scripts remain available for experimentation (`scripts/validate_multilabel_sampling.py`, `scripts/01_test_sampling_strategies.py`) but are not used in production model training.
+Sampling validation scripts remain available for experimentation (`scripts/validate_multilabel_sampling.py`, `scripts/02_training/01_test_sampling_strategies.py`) but are not used in production model training.
+
+**This ADR records the preferred strategy when weighting is turned on.** It does not assert that every promoted artifact was trained with weights enabled. See the Amendment below for the current production artifact.
+
+## Amendment (2026-09-20): Current production training fact
+
+The promoted production model `disaster_lr_v25-11-06_prod_2025-11-06.pkl` was trained with **class weighting disabled**:
+
+- Training log: `experiments/experimental_runs/2025-11-06-vocab15k-promotion/training_log.json` records `class_weighting.enabled: false`
+- Default candidate config: `experiments/model_candidates/class_weights.json` has `class_weights.enabled: false`
+
+**Live imbalance handling for this artifact** relies primarily on **per-label optimized thresholds** at inference (`model/disaster_lr_v25-11-06_prod_2025-11-06_thresholds.json`), not balanced class weights at train time.
+
+Re-enabling class weighting for a future promotion is treated as an **experiment**: do not claim it improves the current LR model until a side-by-side comparison is recorded.
 
 ## Consequences
 
@@ -51,6 +64,7 @@ Sampling validation scripts remain available for experimentation (`scripts/valid
 - **Potential performance trade-off**: Class weighting may be less effective than sampling for moderately imbalanced labels (though evidence suggests comparable performance)
 - **Less intuitive**: Weights are less visible than resampled data distributions
 - **Validation scripts unused**: Sampling validation infrastructure exists but isn't leveraged in production (though still useful for experimentation)
+- **Docs/artifact drift risk**: Preferring weighting in policy can be misread as "current prod uses weights" unless training logs are checked
 
 ### Neutral
 - **Experimental flexibility**: Sampling scripts remain available for future experimentation if data quality improves
@@ -78,7 +92,7 @@ Sampling validation scripts remain available for experimentation (`scripts/valid
 6. **Remove Zero-Positive Labels**:
    - **Rejected**: `child_alone` is excluded from hierarchy constraints but kept in model outputs for potential future use. Removing labels entirely loses structural completeness.
 
-The chosen approach (class weighting) provides the best balance of robustness, performance, and production reliability given the data quality constraints.
+The chosen approach (class weighting when enabled) provides the best balance of robustness, performance, and production reliability given the data quality constraints—without requiring synthetic multi-label samples.
 
 ## Implementation Details
 
@@ -88,13 +102,13 @@ The chosen approach (class weighting) provides the best balance of robustness, p
 - **Fallback**: Labels with missing classes (0 positives) receive equal weights (1.0, 1.0) to prevent undefined behavior
 
 ### Production Usage
-- **Experimental models**: `scripts/03_create_experimental_model.py` uses class weighting when `class_weights.enabled=true` in config
-- **Production models**: `scripts/04_create_production_model.py` applies class weighting based on config file
-- **Current production model**: Uses LogisticRegression with balanced class weights
+- **Experimental models**: `scripts/02_training/03_create_experimental_model.py` uses class weighting when `class_weights.enabled=true` in config
+- **Production models**: `scripts/02_training/04_create_production_model.py` applies class weighting based on config file
+- **Current production model**: `disaster_lr_v25-11-06_prod_2025-11-06.pkl` — LogisticRegression trained with class weighting **disabled**; inference uses optimized per-label thresholds
 
 ### Sampling Infrastructure (Retained for Experimentation)
 - **Validation script**: `scripts/validate_multilabel_sampling.py` - Tests SMOTE, ADASYN, and other methods
-- **Experiment scripts**: `scripts/01_test_sampling_strategies.py` - Compares sampling strategies
+- **Experiment scripts**: `scripts/02_training/01_test_sampling_strategies.py` - Compares sampling strategies
 - **Status**: Available for experimentation but not used in production training
 
 ## References
@@ -102,7 +116,8 @@ The chosen approach (class weighting) provides the best balance of robustness, p
 - **Data Quality Discovery**: [Dev Note 2025-09-16](../dev_notes/2025-09-16.md) - Hyperparameter optimization work where `child_alone` issue was discovered
 - **Class Weighting Implementation**: `src/disasterproject/models/samplers.py::get_multilabel_class_weights()`
 - **Sampling Implementation**: `src/disasterproject/models/samplers.py::apply_proper_multilabel_sampling()`
-- **Production Model Training**: `scripts/03_create_experimental_model.py`, `scripts/04_create_production_model.py`
+- **Production Model Training**: `scripts/02_training/03_create_experimental_model.py`, `scripts/02_training/04_create_production_model.py`
+- **Promotion training log**: `experiments/experimental_runs/2025-11-06-vocab15k-promotion/training_log.json`
 - **Sampling Validation**: `scripts/validate_multilabel_sampling.py`
 - **Data Quality Analysis**: `notebooks/02_data_quality_analysis.ipynb` - Documents zero-positive and rare categories
 - **README Documentation**: `README.md` - Documents `child_alone` exclusion from hierarchy constraints
@@ -110,6 +125,6 @@ The chosen approach (class weighting) provides the best balance of robustness, p
 
 ## Status & Migration
 
-- **Status**: Implemented in production as of 2025-09-16 (discovery date)
-- **Current Production Model**: `disaster_rf_prod_2026-01-22.pkl` uses class weighting
-- **Future Consideration**: If data quality improves (e.g., `child_alone` gains positive examples), sampling approaches could be re-evaluated for specific labels
+- **Status**: Strategy accepted; production training currently has weights off (see Amendment 2026-09-20)
+- **Current Production Model**: `disaster_lr_v25-11-06_prod_2025-11-06.pkl` (class weighting disabled; threshold-optimized at inference)
+- **Future Consideration**: If comparative eval shows balanced weights improve the current LR setup, enable via config and re-promote. If data quality improves (e.g., `child_alone` gains positive examples), sampling approaches could be re-evaluated for specific labels

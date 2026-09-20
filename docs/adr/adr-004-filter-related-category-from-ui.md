@@ -22,7 +22,7 @@ The disaster response classification system was displaying the 'related' categor
 2. It's not a specific disaster type like "water", "food", or "medical_help"
 3. Users were seeing "Related" as a category tag, which was semantically confusing
 4. The mock service was hardcoded to always return `related=1` for any input, making testing unreliable
-5. With class weighting (ADR-008) and LogisticRegression (ADR-009), out-of-distribution or non-message input (e.g. Lorem Ipsum) can score high on "related" (~66%) because the "related" head defaults toward the training prior (~76% positive). Filtering "related" from API/UI avoids showing that misleading signal.
+5. With LogisticRegression (ADR-009)—and especially if class weighting is enabled (ADR-008)—out-of-distribution or non-message input (e.g. Lorem Ipsum) can score high on "related" (~66%) because the "related" head defaults toward the training prior (~76% positive). Filtering "related" from API/UI avoids showing that misleading signal.
 
 ## Decision
 

@@ -392,30 +392,24 @@ The application follows a clean separation of concerns:
 - **`GET /api/feed`**
 - **`GET /api/metrics`**
 - **`GET /api/categories`**
-- **`POST /api/classify`**
+- **`POST /api/classify`** — Storm Signal dashboard classify path; always applies hierarchy correction using the deployed threshold map before building the response
 - **`GET /api/model-info`**
 - **`GET /api/model-info/dashboard`**
 
-### Hierarchy Processing Demo
+### Hierarchy Processing
 
-The web application includes a live demonstration of the hierarchy post-processing system:
+Live dashboard classification (`POST /api/classify`) always runs `apply_hierarchy()` after model probabilities are scored with per-label thresholds. Parent/child consistency (including child→parent activation) is therefore part of the product classify contract, not an optional toggle.
 
-**Key Features:**
-- **Toggle Interface**: Enable/disable hierarchy processing with a simple checkbox
-- **Violation Detection**: Automatically identifies logical inconsistencies (e.g., `medical_help=YES` but `aid_related=NO`)
-- **Before/After Comparison**: Visual diff table showing raw predictions vs. hierarchy-corrected results
+The legacy `/classify` route still exposes a raw-vs-fixed comparison useful for demos and debugging:
+
+**Demo features on `/classify`:**
+- **Violation Detection**: Identifies logical inconsistencies (e.g., `medical_help=YES` but `aid_related=NO`)
+- **Before/After Comparison**: Visual diff of raw predictions vs. hierarchy-corrected results
 - **Curated Examples**: Pre-filled messages that reliably trigger violations for demonstration
-- **Production Metrics**: Static display of real performance data (zero violations on 26,027 test messages)
-
-**Demo Flow:**
-1. Enter a message (or use curated examples)
-2. Submit without hierarchy processing to see raw AI predictions with violations
-3. Enable hierarchy toggle and resubmit to see automatic corrections
-4. Compare results in the side-by-side violation diff table
 
 **Endpoints:**
-- `/classify` - Main classification endpoint with optional `use_hierarchy` parameter
-- Supports both form submissions and URL parameters for easy testing
+- `POST /api/classify` — production dashboard path (hierarchy always on)
+- `/classify` — legacy/demo path with raw vs fixed hierarchy payload
 
 This demonstrates the system's ability to enforce logical consistency in AI predictions for mission-critical disaster response scenarios.
 
@@ -546,7 +540,7 @@ The system evaluates models using comprehensive metrics:
 
 ### Hierarchy Post-Processing
 
-The system includes a hierarchy post-processor that enforces parent-child consistency in multi-label predictions:
+The system includes a hierarchy post-processor that enforces parent-child consistency in multi-label predictions. It runs on the Storm Signal dashboard classify API (`POST /api/classify`) and on the legacy `/classify` comparison path.
 
 - **Parent ≥ Child Probabilities**: Ensures hierarchical relationships (e.g., `aid_related` ≥ `medical_help`)
 - **Decision-Level Forcing**: If any child predicts positive, parent is forced positive
@@ -554,7 +548,7 @@ The system includes a hierarchy post-processor that enforces parent-child consis
 - **Violation Reduction**: Eliminates parent < child probability violations post-processing
 
 API and Config
-- API: `apply_hierarchy(probs, thresholds, taxonomy, critical_labels, exclude, critical_threshold_reduction=...)`
+- Shared helper: `app.utils.hierarchy_helpers.run_hierarchy_correction` → `apply_hierarchy(...)`
 - Config default: `HIERARCHY_CRITICAL_THRESHOLD_REDUCTION = 0.0` (in `src/disasterproject/utils/config.py`). Scripts import and pass this value explicitly.
 - Metrics: hierarchy violation rate is reported as "violations per 1k edges" (normalized by total parent→child edges evaluated), improving comparability across taxonomies.
 
