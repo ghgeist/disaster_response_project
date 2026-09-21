@@ -45,6 +45,16 @@ This document explains how to work on the Disaster Response project when operati
 
 - Prefer `python -m pip ...` to ensure installs land in the active venv (local) or correct environment (Replit).
 
+### GitHub auth (Replit / Cursor SSH)
+Replit often sets `GIT_ASKPASS=replit-git-askpass`, which cannot authenticate `git push` to GitHub (`could not read Username for 'https://github.com'`).
+
+One-time per workspace (repo-local git config only; no global config):
+```bash
+gh auth login -h github.com -p https -w
+bash scripts/utils/configure_gh_git_credentials.sh
+```
+Then normal `git push` / `gh pr create` work. Re-run the script if a fresh clone loses `.git` local config.
+
 ## Core Commands
 
 ### Setup & Data Preparation

@@ -162,9 +162,10 @@ The promotion script:
 
 ### Configuration Updates
 
-The promotion script can optionally update `app/config.py` automatically:
-- Use `--no-update-config` to skip config updates
-- By default, updates `MODEL_FILENAME` to point to the new model
+`app/config.py` auto-discovers the newest `model/*_prod_*.pkl` (or uses the `MODEL_FILENAME` env override). Promotion therefore **does not** rewrite config by default.
+
+- Pass `--update-config` only if you maintain a hardcoded `disaster_*` `MODEL_FILENAME` string literal to rewrite
+- `--no-update-config` remains accepted as a no-op alias (skipping is already the default)
 
 **Manual Override**: Set `MODEL_FILENAME` environment variable to use a specific model.
 

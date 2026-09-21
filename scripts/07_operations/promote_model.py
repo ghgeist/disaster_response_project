@@ -1078,7 +1078,20 @@ def main():
         ),
     )
     parser.add_argument("--keep-old", type=int, default=1, help="Number of old production models to keep")
-    parser.add_argument("--no-update-config", action="store_true", help="Do not update app/config.py MODEL_FILENAME")
+    parser.add_argument(
+        "--update-config",
+        action="store_true",
+        help=(
+            "Rewrite a disaster_* MODEL_FILENAME string literal in app/config.py. "
+            "Off by default: Config auto-discovers the newest model/*_prod_*.pkl "
+            "(or MODEL_FILENAME env override)."
+        ),
+    )
+    parser.add_argument(
+        "--no-update-config",
+        action="store_true",
+        help=argparse.SUPPRESS,  # deprecated; skipping config update is now the default
+    )
     parser.add_argument("--print-new-path", action="store_true", help="Print promoted model filename for CI logs")
 
     args = parser.parse_args()
@@ -1155,13 +1168,20 @@ def main():
         if args.print_new_path:
             print(f"NEW_PRODUCTION_MODEL={new_filename}")
 
-        if not args.no_update_config:
+        if args.update_config:
             app_config_path = project_root / "app" / "config.py"
             updated = _update_app_config_model_filename(app_config_path, new_filename, backup=True)
             if updated:
                 print(f"🛠  Updated app/config.py MODEL_FILENAME -> {new_filename}")
             else:
                 print("⚠️  Skipped updating app/config.py (see warnings above)")
+        elif args.no_update_config:
+            print("ℹ️  --no-update-config is the default; app/config.py left unchanged")
+        else:
+            print(
+                "ℹ️  Left app/config.py unchanged "
+                "(auto-discovers model/*_prod_*.pkl; pass --update-config to rewrite a literal)"
+            )
 
         print(f"\n🧹 Cleaning up old production models (keeping {args.keep_old})...")
         cleanup_old_production_models(model_dir, keep_count=args.keep_old)
