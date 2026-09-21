@@ -23,7 +23,7 @@
 ## Highlights
 
 - **Model Size**: 4.53 MB (93% reduction from 67.69 MB) enabling lightweight deployments
-- **Performance**: 92.76% F1-score; post-calibration holdout critical recall ~61% across safety-critical categories (see Model Performance)
+- **Evaluation**: historical threshold-optimized F1 92.76% was measured under the earlier tune-on-eval workflow; a 2026 three-way retrain measured 61.5% critical recall and 89.66% weighted F1 on frozen eval after cal-only threshold tuning
 - **Load Time**: <0.1s through optimized initialization
 - **Architecture**: LogisticRegression with TF-IDF vectorization for fast inference
 - **Production Ready**: Local file-based deployment with modular Flask architecture
@@ -521,12 +521,18 @@ The system evaluates models using comprehensive metrics:
 **Model**: `disaster_lr_v25-11-06_prod_2025-11-06.pkl`
 - **Algorithm**: LogisticRegression with TF-IDF
 - **Model Size**: 4.53 MB
-- **F1-Score (Weighted)**: 92.76%
-- **F1-Score (Micro)**: 65.02%
-- **Critical Recall (historical)**: ~65% was measured on the same frozen eval examples used to select per-label thresholds and therefore was not an independent post-calibration estimate
-- **Critical Recall (post-cal, frozen eval)**: **61.5%** average across 8 safety-critical categories — thresholds tuned on `cal_ids.json`, scored on `eval_ids.json` only ([2026-09-21 three-way retrain](experiments/experimental_runs/2026-09-21/lr_vocab15k_cal_split_model_thresholds.json))
 - **Vocabulary Size**: 15K features (optimized from 230K)
 - **Load Time**: <0.1s
+
+**Historical figures (tune-on-eval workflow — not an independent post-cal estimate):**
+- **F1-Score (Weighted)**: 92.76%
+- **F1-Score (Micro)**: 65.02%
+- **Critical Recall**: ~65% average across 8 safety-critical categories — measured on the same frozen eval examples used to select per-label thresholds
+
+**2026-09-21 three-way retrain** ([artifacts](experiments/experimental_runs/2026-09-21/lr_vocab15k_cal_split_model_thresholds.json)):
+- Fit excludes `cal ∪ eval`; thresholds tuned on `cal_ids.json` only
+- **Frozen-eval weighted F1 (threshold-optimized)**: **89.66%**
+- **Frozen-eval critical recall**: **61.5%** (calibration diagnostic critical recall was 65.1%)
 
 ### Evaluation Contract (train / cal / eval)
 

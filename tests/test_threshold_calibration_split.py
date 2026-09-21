@@ -45,6 +45,12 @@ def test_three_way_masks_partition_and_overlap():
     with pytest.raises(ValueError, match="overlap"):
         three_way_masks(uids, ["a"], ["a", "b"])
 
+    with pytest.raises(ValueError, match="eval_ids are not present"):
+        three_way_masks(uids, ["a", "missing-eval"], ["c"])
+
+    with pytest.raises(ValueError, match="cal_ids are not present"):
+        three_way_masks(uids, ["a"], ["c", "missing-cal"])
+
 
 def test_assert_partition_invariants():
     all_uids = ["a", "b", "c", "d"]

@@ -573,10 +573,39 @@ def main():
     except Exception:
         pass
 
-    # Compute thresholds for selected labels and save artifacts to experiment folder
-    # Note: Experimental models save to experiment_dir, not model_dir, so use descriptive name
-    selected_labels = ['medical_help', 'search_and_rescue', 'water', 'food', 'shelter', 'hospitals', 'security', 'weather_related']
-    thresholds_map, threshold_sources = _compute_f2_thresholds_for_labels(model, X_test, Y_test, selected_labels, TARGET_COLUMNS)
+    # Inline F2 thresholds: on cal when using three-way frozen split (eval is report-only);
+    # on the random holdout only when no frozen cal/eval contract applies.
+    selected_labels = [
+        'medical_help',
+        'search_and_rescue',
+        'water',
+        'food',
+        'shelter',
+        'hospitals',
+        'security',
+        'weather_related',
+    ]
+    if eval_ids_file:
+        if len(X_cal) == 0:
+            logging.error('Calibration split is empty; cannot tune F2 thresholds on cal.')
+            sys.exit(1)
+        logging.info(
+            'Tuning inline F2 thresholds on calibration split (%d samples); eval remains report-only',
+            len(X_cal),
+        )
+        thresholds_map, threshold_sources = _compute_f2_thresholds_for_labels(
+            model, X_cal, Y_cal, selected_labels, TARGET_COLUMNS
+        )
+        threshold_split = 'calibration'
+    else:
+        logging.info(
+            'Tuning inline F2 thresholds on random holdout (%d samples)',
+            len(X_test),
+        )
+        thresholds_map, threshold_sources = _compute_f2_thresholds_for_labels(
+            model, X_test, Y_test, selected_labels, TARGET_COLUMNS
+        )
+        threshold_split = 'random_holdout'
     label_order = list(TARGET_COLUMNS)
     try:
         # Use standard naming if model path is known, otherwise use descriptive name
@@ -600,6 +629,8 @@ def main():
             'model_size_mb': float(model_size_mb) if model_size_mb is not None else None,
             'cold_load_seconds': float(cold_load_s) if cold_load_s is not None else None,
             'threshold_sources': _json_safe(threshold_sources),
+            'threshold_optimization_split': threshold_split,
+            'reporting_split': 'frozen_eval' if eval_ids_file else 'random_holdout',
         }
         with open(os.path.join(experiment_dir, 'MODEL_INFO.json'), 'w', encoding='utf-8') as f:
             json.dump(info, f, indent=2)

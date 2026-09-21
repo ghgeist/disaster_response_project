@@ -94,9 +94,13 @@ def three_way_masks(
     """
     Build boolean masks for train / cal / eval.
 
-    Raises ValueError if cal and eval overlap or if any UID is unassigned.
+    Raises ValueError if:
+    - cal and eval overlap
+    - any listed cal/eval UID is missing from the current dataset
+    - the train residual is empty
     """
     uid_series = pd.Series(list(uids))
+    dataset_uids = set(uids)
     eval_set = set(eval_uids)
     cal_set = set(cal_uids)
 
@@ -106,6 +110,20 @@ def three_way_masks(
             f"cal_ids and eval_ids overlap ({len(overlap)} UIDs); refusing split"
         )
 
+    missing_eval = eval_set - dataset_uids
+    if missing_eval:
+        raise ValueError(
+            f"{len(missing_eval)} eval_ids are not present in the current dataset; "
+            "refusing split (frozen eval UIDs would silently vanish into train)"
+        )
+
+    missing_cal = cal_set - dataset_uids
+    if missing_cal:
+        raise ValueError(
+            f"{len(missing_cal)} cal_ids are not present in the current dataset; "
+            "refusing split (frozen cal UIDs would silently vanish into train)"
+        )
+
     is_eval = uid_series.isin(eval_set).to_numpy()
     is_cal = uid_series.isin(cal_set).to_numpy()
     is_train = ~(is_eval | is_cal)
@@ -113,10 +131,15 @@ def three_way_masks(
     if not bool(np.any(is_train)):
         raise ValueError("Train residual is empty after excluding cal ∪ eval")
 
-    assigned = int(is_train.sum() + is_cal.sum() + is_eval.sum())
-    if assigned != len(uids):
+    if int(is_eval.sum()) != len(eval_set):
         raise ValueError(
-            f"Incomplete assignment: assigned={assigned}, total={len(uids)}"
+            f"Eval mask size {int(is_eval.sum())} != unique eval_ids {len(eval_set)} "
+            "(duplicate UIDs in dataset or id file)"
+        )
+    if int(is_cal.sum()) != len(cal_set):
+        raise ValueError(
+            f"Cal mask size {int(is_cal.sum())} != unique cal_ids {len(cal_set)} "
+            "(duplicate UIDs in dataset or id file)"
         )
 
     return is_train, is_cal, is_eval
