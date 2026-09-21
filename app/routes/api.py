@@ -653,79 +653,93 @@ def _get_model_dir() -> Path:
     return Path(current_app.root_path).parent / "model"
 
 
-def _find_production_thresholds_file(model_dir: Path) -> Path | None:
+def _resolve_active_production_model_path(model_dir: Path) -> Path | None:
     """
-    Find production thresholds file: newest *_thresholds.json file.
-    
-    Note: optimized_* files are deprecated. Use model-specific naming:
-    {model_stem}_thresholds.json (e.g., disaster_lr_v25-11-06_prod_2025-11-06_thresholds.json)
+    Resolve the active production model path (same contract as inference).
+
+    Prefer ``current_app.config['MODEL_PATH']`` when it points at an existing
+    ``disaster_*_prod_*.pkl`` under ``model_dir``. Otherwise fall back to
+    newest-by-mtime discovery for that pattern.
     """
     if not model_dir.is_dir():
         return None
-    # Only look for model-specific threshold files (excludes deprecated optimized_* files)
-    candidates = [
-        f for f in model_dir.iterdir()
-        if f.is_file() and f.name.endswith("_thresholds.json") and not f.name.startswith("optimized_")
-    ]
-    if candidates:
-        return max(candidates, key=lambda p: p.stat().st_mtime)
-    return None
+
+    configured = current_app.config.get("MODEL_PATH")
+    if configured is not None:
+        configured_path = Path(configured)
+        if (
+            configured_path.is_file()
+            and configured_path.parent.resolve() == model_dir.resolve()
+            and configured_path.name.startswith("disaster_")
+            and "_prod_" in configured_path.name
+            and configured_path.suffix == ".pkl"
+        ):
+            return configured_path
+
+    model_files = list(model_dir.glob("disaster_*_prod_*.pkl"))
+    if not model_files:
+        return None
+    model_files.sort(key=lambda path: path.stat().st_mtime, reverse=True)
+    return model_files[0]
+
+
+def _find_production_thresholds_file(
+    model_dir: Path, model_stem: str | None = None
+) -> Path | None:
+    """
+    Find production thresholds for the active model stem.
+
+    Binding is by filename stem (``{model_stem}_thresholds.json``), matching
+    ``ModelArtifactLoader`` inference — never newest-by-mtime across orphans.
+    Legacy fallback: ``thresholds.json``. Deprecated ``optimized_*`` files are ignored.
+
+    ``metadata.model`` inside the JSON is training-source provenance and may
+    still name the experimental candidate; it is not used for discovery.
+    """
+    if not model_dir.is_dir():
+        return None
+
+    stem = model_stem
+    if not stem or stem == "unknown":
+        active_model = _resolve_active_production_model_path(model_dir)
+        if active_model is None:
+            legacy = model_dir / "thresholds.json"
+            return legacy if legacy.exists() else None
+        stem = active_model.stem
+
+    stem_thresholds = model_dir / f"{stem}_thresholds.json"
+    if stem_thresholds.is_file() and not stem_thresholds.name.startswith("optimized_"):
+        return stem_thresholds
+
+    legacy = model_dir / "thresholds.json"
+    return legacy if legacy.exists() else None
 
 
 def _discover_production_metrics_file(model_dir: Path, model_stem: str | None = None) -> Path | None:
     """
-    Discover the production performance_metrics.csv file based on the current production model.
-    
-    If model_stem is provided (and not "unknown"), uses it directly to construct the metrics
-    filename. Otherwise, finds the latest production model file and derives the metrics filename
-    from it. This ensures metrics match the model referenced by the thresholds file.
-    
-    Args:
-        model_dir: Directory containing production models
-        model_stem: Optional model stem (without .pkl extension) to use for metrics discovery.
-                   If provided and not "unknown", uses this directly instead of discovering
-                   the newest model file.
-        
-    Returns:
-        Path to the metrics file if found, None otherwise
+    Discover performance_metrics.csv for the active production model stem.
+
+    Prefer ``{model_stem}_performance_metrics.csv``. If ``model_stem`` is omitted,
+    derive it from the active production pickle (config / mtime discovery).
+    Legacy fallback: ``performance_metrics.csv``.
     """
     if not model_dir.is_dir():
         return None
-    
-    # If model_stem is provided and valid, use it directly to ensure alignment with thresholds
-    if model_stem and model_stem != "unknown":
-        metrics_file = model_dir / f"{model_stem}_performance_metrics.csv"
+
+    stem = model_stem
+    if not stem or stem == "unknown":
+        active_model = _resolve_active_production_model_path(model_dir)
+        if active_model is not None:
+            stem = active_model.stem
+
+    if stem and stem != "unknown":
+        metrics_file = model_dir / f"{stem}_performance_metrics.csv"
         if metrics_file.exists():
             return metrics_file
-        # Fall through to fallback discovery if model-specific file doesn't exist
-    
-    # Fallback: Find the latest production model file (same logic as app/config.py)
-    pattern = 'disaster_*_prod_*.pkl'
-    model_files = list(model_dir.glob(pattern))
-    
-    if not model_files:
-        # Check for legacy naming as final fallback
-        legacy_metrics = model_dir / "performance_metrics.csv"
-        if legacy_metrics.exists():
-            return legacy_metrics
-        return None
-    
-    # Sort by modification time (newest first) and take the latest
-    model_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-    latest_model = model_files[0]
-    
-    # Extract base name (without .pkl extension) and construct metrics filename
-    base_name = latest_model.stem
-    metrics_file = model_dir / f"{base_name}_performance_metrics.csv"
-    
-    if metrics_file.exists():
-        return metrics_file
-    
-    # Final fallback: check for legacy naming
+
     legacy_metrics = model_dir / "performance_metrics.csv"
     if legacy_metrics.exists():
         return legacy_metrics
-    
     return None
 
 
@@ -830,27 +844,24 @@ def _build_model_info_dashboard_payload() -> dict:
         f1_weighted = model_info_data.get("validation_results", {}).get("f1_weighted")
     f1_metric = _safe_float_prob(f1_weighted) if f1_weighted is not None else 0.0
 
-    thresholds_path = _find_production_thresholds_file(model_dir)
-    stem = "unknown"
+    active_model = _resolve_active_production_model_path(model_dir)
+    stem = active_model.stem if active_model is not None else "unknown"
+    thresholds_path = _find_production_thresholds_file(model_dir, model_stem=stem)
     category_stats_list: list = []
     critical_thresholds_list: list = []
     thresh_data = {}
 
-    # Load thresholds file for threshold values and critical category determination
+    # Load stem-bound thresholds for values / critical labels. Do not rebind
+    # ``stem`` from metadata.model — that field is candidate-source provenance
+    # and may intentionally differ from the production filename.
     if thresholds_path is not None:
         try:
             with open(thresholds_path, "r", encoding="utf-8") as f:
                 thresh_data = json.load(f)
         except (OSError, json.JSONDecodeError) as e:
             logger.warning("Thresholds file read failed %s: %s", thresholds_path, e)
-        else:
-            meta = thresh_data.get("metadata") or {}
-            model_ref = meta.get("model")
-            if isinstance(model_ref, str) and model_ref:
-                stem = Path(model_ref).stem
 
-    # Always load category stats from performance_metrics.csv (primary source)
-    # Use the same model stem from thresholds metadata to ensure metrics match the model ID
+    # Category stats from the same production stem as the active pickle
     metrics_path = _discover_production_metrics_file(model_dir, model_stem=stem)
     if metrics_path is not None:
         logger.debug("Loading category stats from performance_metrics.csv: %s", metrics_path)

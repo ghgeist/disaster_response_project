@@ -33,7 +33,7 @@ Promotion enforces the evaluation contract via `PERFORMANCE_THRESHOLDS` in `src/
 4. **Weighted-F1 damage guardrail (not the selection objective):**
    `(baseline_weighted_f1 - optimized_weighted_f1) / baseline_weighted_f1 <= max_weighted_f1_relative_drop` (0.05).
 5. **Provenance gate:** thresholds metadata must include `optimization_split=calibration` and `reporting_split=frozen_eval`.
-6. **Deploy invariant:** promotion stages model + thresholds under non-production names, verifies both hashes, then finalizes with thresholds first and the production-named model last. Failures roll back only artifacts created in that create attempt so discovery never sees a new `disaster_*_prod_*.pkl` without its validated thresholds. Existing production destination names are **immutable**: matching pairs are an idempotent retry; incomplete pairs or different-content collisions fail closed without overwrite.
+6. **Deploy invariant:** promotion stages model + thresholds under non-production names, verifies both hashes, then finalizes with thresholds first and the production-named model last. Failures roll back only artifacts created in that create attempt so discovery never sees a new `disaster_*_prod_*.pkl` without its validated thresholds. Existing production destination names are **immutable**: matching pairs are an idempotent retry; incomplete pairs or different-content collisions fail closed without overwrite. Deployed `{prod_stem}_thresholds.json` bytes must equal the validated candidate thresholds artifact (`thresholds_sha256`); promotion must **not** rewrite threshold JSON metadata after hashing. Production association is by **filename stem** pairing with the pickle / `MODEL_INFO.json`. Inner `metadata.model` remains training-source provenance and may still name the experimental candidate path.
 7. **Artifact consistency:** `training_log` baseline micro F1 must agree with `thresholds.performance.baseline.f1_micro`, and `metadata.eval_critical_recall` must agree with `performance.optimized.critical_recall` (absolute tolerance `1e-6`).
 8. **Complete thresholds map:** `payload["thresholds"]` must include every `TARGET_COLUMNS` label with a finite numeric value in `[0, 1]`.
 9. **Single model file:** candidate directories must contain exactly one `.pkl` (no newest-by-mtime selection).
@@ -76,5 +76,5 @@ Missing or invalid evidence fails closed as `validation_errors`. `--force` may o
 
 ## Future Work
 
-- Optionally promote the 2026-09-21 three-way candidate once operators choose to replace the grandfathered production artifact.
 - Keep metric key serialization consistent across training and threshold scripts.
+- Prefer cleaning superseded `model/*_prod_*` companion files after promotion so Model Information cannot surface orphan artifacts even if discovery regresses.

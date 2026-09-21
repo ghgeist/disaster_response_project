@@ -1,32 +1,30 @@
-# Google Drive Testing
+# Google Drive Testing (historical)
 
-The Google Drive suite documents and verifies the contract for downloading models via `ModelService`. Every test is fully mocked to keep CI hermetic while still exercising error handling and cleanup paths.
+> **Status (2026-09-21):** Runtime Google Drive downloads are **retired**. The Flask `ModelLoader` loads only local `model/*.pkl` artifacts (auto-discovered `disaster_*_prod_*.pkl`, optional `MODEL_FILENAME` override). This page is retained so the former contract is not erased; do not treat it as an active deployment path.
 
-## Contract
+## Historical contract
 
-- **URL shape** – Requests are sent to `https://drive.google.com/uc?export=download&id=<FILE_ID>`.
-- **Headers** – A binary response (`content-type: application/octet-stream`) indicates success; HTML responses trigger a hard failure because Google often uses HTML for warnings or auth challenges.
-- **File hygiene** – Temporary files created during download must be removed whether the call succeeds or fails.
-- **Model validation** – After download, `joblib.load` should succeed and the resulting model must answer `predict`/`predict_proba` calls.
+The previous Drive suite documented downloading models via a `ModelService` helper that no longer ships in the app loader:
 
-## How the tests work
+- **URL shape** – Requests were sent to `https://drive.google.com/uc?export=download&id=<FILE_ID>`.
+- **Headers** – A binary response (`content-type: application/octet-stream`) indicated success; HTML responses failed closed.
+- **File hygiene** – Temporary download files were removed on success or failure.
+- **Model validation** – After download, `joblib.load` had to succeed and answer `predict` / `predict_proba`.
 
-`tests/test_gdrive_deployment.py` patches `requests.get` for each scenario. The helper `_configure_mock_response` builds a context manager that mimics streaming responses so the production code path is exercised without real network access. `joblib.load` is also patched where necessary to avoid deserialising large artifacts.
+## Historical tests
 
-The suite covers:
+`tests/test_gdrive_deployment.py` (removed / not present on current main) used to patch `requests.get` and `joblib.load` so CI stayed hermetic while exercising error handling. Markers such as `gdrive` may still appear in older docs or configs; they are not required for current local-artifact deploys.
 
-- Placeholder ID rejection and environment variable handling.
-- Successful download and prediction flow (with mock payloads).
-- HTML, network, timeout, corrupted, and undersized file errors.
-- Cleanup guarantees – every test asserts that no `.tmp` files remain in the download directory after execution.
+## Current replacement checks
 
-## When to run against the real API
+Prefer these for active work:
 
-For most work you can rely on the mocked tests. To validate the real integration:
+```bash
+# Stem-bound companions + thresholds SHA provenance
+python scripts/run_tests.py tests/test_thresholds_alignment.py -q
 
-1. Export a valid `GDRIVE_MODEL_ID` that points to a production model in your Drive.
-2. Ensure the model is shared appropriately so the CI agent (or your local account) can access it.
-3. Run the opt-in test: `pytest -q tests/test_gdrive_deployment.py -k real_id`.
+# App smoke / model health with local pickle
+python scripts/run_tests.py tests/test_app_smoke.py -q
+```
 
-This path is skipped by default and should be scheduled sparingly (e.g., nightly or pre-release) because it will perform an actual download and depends on external availability.
-
+See [deployment runbook](../runbooks/deployment.md) and [ADR-003](../adr/adr-003-hybrid-model-deployment-strategy.md) for the local-artifact strategy and labeled GDrive history.

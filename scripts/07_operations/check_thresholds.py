@@ -1,59 +1,76 @@
 #!/usr/bin/env python3
 """Check which threshold files exist and which one the app will use."""
 
+from __future__ import annotations
+
 import json
+import sys
 from pathlib import Path
 
-def main():
-    model_dir = Path(__file__).parent.parent.parent / "model"
+from flask import Flask
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from app.config import Config  # noqa: E402
+from app.routes.api import (  # noqa: E402
+    _find_production_thresholds_file,
+    _resolve_active_production_model_path,
+)
+
+
+def main() -> None:
+    model_dir = REPO_ROOT / "model"
     print(f"Model directory: {model_dir}")
     print()
-    
-    # Find all threshold files
+
     threshold_files = list(model_dir.glob("*threshold*.json"))
     print("All threshold files found:")
     for tf in sorted(threshold_files):
         print(f"  - {tf.name}")
         try:
-            with open(tf, 'r') as f:
-                data = json.load(f)
-                model_ref = data.get('metadata', {}).get('model', 'unknown')
-                print(f"    References: {model_ref}")
-        except Exception as e:
-            print(f"    Error reading: {e}")
+            with open(tf, "r", encoding="utf-8") as handle:
+                data = json.load(handle)
+                model_ref = data.get("metadata", {}).get("model", "unknown")
+                print(f"    metadata.model (training-source provenance): {model_ref}")
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"    Error reading: {exc}")
     print()
-    
-    # Check which one the app will use (simulate the logic)
-    # Matches _find_production_thresholds_file in app/routes/api.py
-    candidates = [
-        f for f in model_dir.iterdir()
-        if f.is_file() and f.name.endswith("_thresholds.json") and not f.name.startswith("optimized_")
-    ]
-    if candidates:
-        thresholds_path = max(candidates, key=lambda p: p.stat().st_mtime)
-        print(f"✅ App will use: {thresholds_path.name}")
-        with open(thresholds_path, 'r') as f:
-            data = json.load(f)
-            model_ref = data.get('metadata', {}).get('model', 'unknown')
-            print(f"   References: {model_ref}")
+
+    app = Flask(__name__)
+    app.config["MODEL_PATH"] = Config.MODEL_PATH
+    with app.app_context():
+        active = _resolve_active_production_model_path(model_dir)
+        thresholds_path = _find_production_thresholds_file(model_dir)
+
+    if active is not None:
+        print(f"Active production model: {active.name}")
+        print(f"Expected stem-bound thresholds: {active.stem}_thresholds.json")
     else:
-        print("❌ No threshold file found (app will return None)")
-        # Check if optimized_* files exist but are ignored
+        print("Active production model: <none>")
+
+    if thresholds_path is not None:
+        print(f"✅ App will use: {thresholds_path.name}")
+        with open(thresholds_path, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+            model_ref = data.get("metadata", {}).get("model", "unknown")
+            print(f"   metadata.model: {model_ref}")
+    else:
+        print("❌ No stem-bound threshold file found (app will return None)")
         optimized_files = [
-            f for f in model_dir.iterdir()
-            if f.is_file() and f.name.endswith("_thresholds.json") and f.name.startswith("optimized_")
+            path
+            for path in model_dir.iterdir()
+            if path.is_file()
+            and path.name.endswith("_thresholds.json")
+            and path.name.startswith("optimized_")
         ]
         if optimized_files:
-            print(f"   Note: {len(optimized_files)} optimized_* threshold file(s) exist but are ignored by the app")
-    
-    # Check current model
-    current_model = model_dir / "disaster_lr_v25-11-06_prod_2025-11-06.pkl"
-    if current_model.exists():
-        expected_thresholds = model_dir / f"{current_model.stem}_thresholds.json"
-        print()
-        print(f"Current model: {current_model.name}")
-        print(f"Expected thresholds: {expected_thresholds.name}")
-        print(f"Exists: {expected_thresholds.exists()}")
+            print(
+                f"   Note: {len(optimized_files)} optimized_* threshold file(s) "
+                "exist but are ignored by the app"
+            )
+
 
 if __name__ == "__main__":
     main()

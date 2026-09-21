@@ -138,7 +138,7 @@ python scripts/02_training/03_create_experimental_model.py \
 
 ### 2. Validate and Promote
 
-Promotion enforces the train/cal/eval **evaluation contract** (see [ADR-007](../docs/adr/adr-007-model-promotion-gating.md)): baseline frozen-eval micro F1, frozen-eval critical recall, size cap, weighted-F1 relative-drop guardrail, and `optimization_split=calibration` / `reporting_split=frozen_eval` provenance. The exact `{model_stem}_thresholds.json` that validation scored is copied to `{prod_model_stem}_thresholds.json`.
+Promotion enforces the train/cal/eval **evaluation contract** (see [ADR-007](../docs/adr/adr-007-model-promotion-gating.md)): baseline frozen-eval micro F1, frozen-eval critical recall, size cap, weighted-F1 relative-drop guardrail, and `optimization_split=calibration` / `reporting_split=frozen_eval` provenance. The exact `{model_stem}_thresholds.json` that validation scored is copied **byte-for-byte** to `{prod_model_stem}_thresholds.json` (same SHA256). Promotion must not rewrite that JSON after hashing. Production association is the filename stem + `MODEL_INFO.thresholds_sha256`; inner `metadata.model` may still name the experimental candidate used for calibration.
 
 ```bash
 # Dry run (validate without promoting) — honest three-way candidate
@@ -161,10 +161,10 @@ Tune-on-eval candidates (for example `2025-11-06-vocab15k-promotion`) fail prove
 3. **Filename Generation**: Creates filename using training date (from candidate directory name)
 4. **File Copy**: Copies model file to `model/` directory
 5. **Hash Verification**: Verifies copied model matches expected hash
-6. **Threshold deploy**: Copies the validated `{model_stem}_thresholds.json` to `{prod_stem}_thresholds.json` and verifies SHA256 identity
-7. **Metadata Creation**: Creates/updates `MODEL_INFO.json` with algorithm and contract metrics
+6. **Threshold deploy**: Copies the validated `{model_stem}_thresholds.json` to `{prod_stem}_thresholds.json` and verifies SHA256 identity (bytes unchanged)
+7. **Metadata Creation**: Creates/updates `MODEL_INFO.json` with algorithm, contract metrics, and `thresholds_sha256`
 8. **Archive**: Copies previous production **metadata** to `experiments/model_archive/` (not the `.pkl`); records SHA256 for Git-history rollback
-9. **Cleanup**: Removes superseded `model/*_prod_*.pkl` binaries per `--keep-old` (companions may remain)
+9. **Cleanup**: Removes superseded `model/*_prod_*.pkl` binaries per `--keep-old` (prefer removing orphan companions too so dashboards cannot mix stems)
 
 ### 4. Verification
 
