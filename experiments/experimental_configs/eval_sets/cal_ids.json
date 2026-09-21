@@ -19,7 +19,11 @@
       "security": 47,
       "shelter": 283,
       "water": 191
-    }
+    },
+    "zero_support_labels": [
+      "child_alone"
+    ],
+    "zero_support_note": "Non-critical labels listed in zero_support_labels have no positives in the calibration split; optimize_per_category_thresholds.py falls back to threshold 0.5 for those labels. Critical labels must all be > 0."
   },
   "cal_ids": [
     "fd0d05de6803021f0f4fcdb385a49944c094088a",

@@ -97,13 +97,13 @@ The production app (`app/services.py`) loads thresholds in this priority order:
 
 ### Optimization Scripts
 
-- `scripts/optimize_critical_thresholds_inc1.py`: Saves as `{model_stem}_thresholds.json` (also saves legacy name)
-- `scripts/optimize_per_category_thresholds.py`: Saves as `{model_stem}_thresholds.json` (also saves legacy name)
+- `scripts/03_optimization/optimize_per_category_thresholds.py`: Saves **canonical** `{model_stem}_thresholds.json` (also saves legacy name). Tunes on cal; `category_stats` / `performance` are frozen-eval.
+- `scripts/02_training/03_create_experimental_model.py`: Saves diagnostic `{model_stem}_f2_thresholds.json` only (does **not** overwrite the canonical thresholds file). Under frozen three-way, F2 tunes on cal.
 
 ### Training Scripts
 
-- `scripts/03_create_experimental_model.py`: Saves as `{model_stem}_thresholds.json` in experiment directory (if model name known)
-- `scripts/04_create_production_model.py`: Saves as `thresholds.json` (legacy, should be updated)
+- `scripts/03_create_experimental_model.py`: Saves `{model_stem}_f2_thresholds.json` in experiment directory
+- `scripts/04_create_production_model.py`: Saves as `thresholds.json` (legacy RF path; follow-up)
 
 ## Migration Guide
 

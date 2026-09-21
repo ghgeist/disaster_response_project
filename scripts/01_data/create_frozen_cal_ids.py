@@ -33,6 +33,7 @@ from disasterproject.data.splits import (
     assert_critical_support,
     compute_uids,
     critical_label_positive_support,
+    label_positive_support,
     load_uid_list,
     positive_count_strata,
 )
@@ -117,9 +118,16 @@ def main() -> None:
 
     Y_cal = Y[cal_local_idx]
     support = critical_label_positive_support(Y_cal)
+    all_support = label_positive_support(Y_cal)
+    zero_support_labels = [name for name, count in all_support.items() if count <= 0]
     print("\ncal positive support:")
     for label in sorted(CRITICAL_LABELS):
         print(f"  {label}: {support[label]}")
+    if zero_support_labels:
+        print(
+            "\nNote: labels with zero cal positives "
+            f"(threshold opt falls back to 0.5): {', '.join(zero_support_labels)}"
+        )
 
     try:
         assert_critical_support(support, context="calibration")
@@ -147,6 +155,12 @@ def main() -> None:
             "non_eval_pool_size": len(train_pool_indices),
             "train_residual_size": len(train_uids),
             "critical_label_positive_support": support,
+            "zero_support_labels": zero_support_labels,
+            "zero_support_note": (
+                "Non-critical labels listed in zero_support_labels have no positives "
+                "in the calibration split; optimize_per_category_thresholds.py falls "
+                "back to threshold 0.5 for those labels. Critical labels must all be > 0."
+            ),
         },
         "cal_ids": cal_uids,
     }

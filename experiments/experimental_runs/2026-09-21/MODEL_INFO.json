@@ -43,7 +43,12 @@
   "fit_time_seconds": 8.938426494598389,
   "model_size_mb": 4.587679862976074,
   "cold_load_seconds": 0.04472017288208008,
-  "threshold_sources": {
+  "threshold_optimization_split": "calibration",
+  "reporting_split": "frozen_eval",
+  "inline_f2_threshold_file": "lr_vocab15k_cal_split_model_f2_thresholds.json",
+  "canonical_thresholds_note": "App-facing thresholds come from optimize_per_category_thresholds.py ({model_stem}_thresholds.json), not from inline F2 output.",
+  "promoted_to_model_dir": false,
+  "inline_f2_threshold_sources": {
     "medical_help": "optimized",
     "search_and_rescue": "optimized",
     "water": "optimized",

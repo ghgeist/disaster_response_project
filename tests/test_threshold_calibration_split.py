@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 from pathlib import Path
 
@@ -14,6 +15,7 @@ from disasterproject.data.splits import (
     compute_uids,
     critical_label_positive_support,
     load_three_way_split,
+    resolve_inline_threshold_tune_arrays,
     three_way_masks,
 )
 from disasterproject.utils.config import CRITICAL_LABELS, TARGET_COLUMNS
@@ -22,6 +24,15 @@ from disasterproject.utils.config import CRITICAL_LABELS, TARGET_COLUMNS
 def _write_uid_json(path: Path, key: str, uids: list[str], extra_meta: dict | None = None) -> None:
     payload = {"metadata": extra_meta or {}, key: uids}
     path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def _load_opt_module():
+    opt_path = Path("scripts/03_optimization/optimize_per_category_thresholds.py")
+    spec = importlib.util.spec_from_file_location("opt_thresholds", opt_path)
+    mod = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(mod)
+    return mod
 
 
 def test_compute_uids_stable():
@@ -65,7 +76,6 @@ def test_load_three_way_split_roundtrip(tmp_path: Path):
     rng = np.random.default_rng(0)
     messages = np.array([f"msg-{i}" for i in range(40)], dtype=object)
     Y = rng.integers(0, 2, size=(40, len(TARGET_COLUMNS)))
-    # Ensure every critical label has positives in the full set.
     for label in CRITICAL_LABELS:
         idx = TARGET_COLUMNS.index(label)
         Y[idx % 40, idx] = 1
@@ -93,18 +103,60 @@ def test_load_three_way_split_roundtrip(tmp_path: Path):
     all_set = set(uids)
     assert_partition_invariants(uids, train_set, cal_uids, eval_uids)
     assert train_set | set(cal_uids) | set(eval_uids) == all_set
-    _ = (Y_cal, Y_eval)  # exercised via load_three_way_split
+    _ = (Y_cal, Y_eval)
 
 
-def test_committed_cal_ids_critical_support():
+def test_resolve_inline_f2_uses_cal_under_frozen_three_way():
+    X_cal = np.array(["cal-a", "cal-b"], dtype=object)
+    Y_cal = np.zeros((2, len(TARGET_COLUMNS)), dtype=int)
+    X_eval = np.array(["eval-a"], dtype=object)
+    Y_eval = np.ones((1, len(TARGET_COLUMNS)), dtype=int)
+
+    X_tune, Y_tune, split_name = resolve_inline_threshold_tune_arrays(
+        frozen_three_way=True,
+        X_cal=X_cal,
+        Y_cal=Y_cal,
+        X_eval=X_eval,
+        Y_eval=Y_eval,
+    )
+    assert split_name == "calibration"
+    assert X_tune is X_cal
+    assert Y_tune is Y_cal
+
+    X_tune2, Y_tune2, split_name2 = resolve_inline_threshold_tune_arrays(
+        frozen_three_way=False,
+        X_cal=X_cal,
+        Y_cal=Y_cal,
+        X_eval=X_eval,
+        Y_eval=Y_eval,
+    )
+    assert split_name2 == "random_holdout"
+    assert X_tune2 is X_eval
+    assert Y_tune2 is Y_eval
+
+    with pytest.raises(ValueError, match="Calibration split is empty"):
+        resolve_inline_threshold_tune_arrays(
+            frozen_three_way=True,
+            X_cal=np.array([], dtype=object),
+            Y_cal=np.empty((0, len(TARGET_COLUMNS))),
+            X_eval=X_eval,
+            Y_eval=Y_eval,
+        )
+
+
+def test_committed_cal_ids_critical_support_and_zero_support_note():
     cal_path = Path("experiments/experimental_configs/eval_sets/cal_ids.json")
     if not cal_path.is_file():
         pytest.skip("cal_ids.json not present")
     data = json.loads(cal_path.read_text(encoding="utf-8"))
-    support = data["metadata"]["critical_label_positive_support"]
+    meta = data["metadata"]
+    support = meta["critical_label_positive_support"]
     assert_critical_support(support, context="committed calibration artifact")
     for label in CRITICAL_LABELS:
         assert support[label] > 0
+    assert "zero_support_labels" in meta
+    assert "child_alone" in meta["zero_support_labels"]
+    assert "zero_support_note" in meta
 
 
 def test_critical_support_zero_fails():
@@ -117,13 +169,7 @@ def test_critical_support_zero_fails():
 
 def test_optimize_threshold_uses_cal_not_eval():
     """Thresholds come from cal labels; category_stats come from eval scores."""
-    import importlib.util
-
-    opt_path = Path("scripts/03_optimization/optimize_per_category_thresholds.py")
-    spec = importlib.util.spec_from_file_location("opt_thresholds", opt_path)
-    mod = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
-    spec.loader.exec_module(mod)
+    mod = _load_opt_module()
 
     y_true_cal = np.array([1, 1, 0, 0, 1, 0])
     y_proba_cal = np.array([0.9, 0.8, 0.1, 0.2, 0.7, 0.05])
@@ -151,3 +197,28 @@ def test_optimize_threshold_uses_cal_not_eval():
     assert eval_water["actual_recall"] != cal_water["actual_recall"]
     assert eval_water["support"] == 2
     assert cal_water["support"] == 2
+
+
+def test_committed_threshold_json_keeps_cal_and_eval_stats_distinct():
+    thresh_path = Path(
+        "experiments/experimental_runs/2026-09-21/"
+        "lr_vocab15k_cal_split_model_thresholds.json"
+    )
+    if not thresh_path.is_file():
+        pytest.skip("three-way threshold artifact not present")
+    data = json.loads(thresh_path.read_text(encoding="utf-8"))
+    meta = data["metadata"]
+    assert meta["optimization_split"] == "calibration"
+    assert meta["reporting_split"] == "frozen_eval"
+    assert "calibration_stats" in data
+    assert "category_stats" in data
+    assert data["calibration_stats"] != data["category_stats"]
+    cal_crit = [
+        s["actual_recall"] for s in data["calibration_stats"] if s["type"] == "critical"
+    ]
+    eval_crit = [
+        s["actual_recall"] for s in data["category_stats"] if s["type"] == "critical"
+    ]
+    assert abs(float(np.mean(cal_crit)) - 0.6511) < 0.02
+    assert abs(float(np.mean(eval_crit)) - 0.6148) < 0.02
+    assert "critical_recall" in data["performance"]["optimized"]

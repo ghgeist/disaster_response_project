@@ -533,6 +533,7 @@ The system evaluates models using comprehensive metrics:
 - Fit excludes `cal ∪ eval`; thresholds tuned on `cal_ids.json` only
 - **Frozen-eval weighted F1 (threshold-optimized)**: **89.66%**
 - **Frozen-eval critical recall**: **61.5%** (calibration diagnostic critical recall was 65.1%)
+- **Not yet promoted** to `model/`; the deployed production artifact remains `disaster_lr_v25-11-06_prod_2025-11-06.pkl` with the historical tune-on-eval metrics above
 
 ### Evaluation Contract (train / cal / eval)
 

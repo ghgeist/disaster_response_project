@@ -40,7 +40,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 # Local imports
 from disasterproject.data.loader import load_data
-from disasterproject.data.splits import load_three_way_split
+from disasterproject.data.splits import (
+    load_three_way_split,
+    resolve_inline_threshold_tune_arrays,
+)
 from disasterproject.evaluation.metrics import save_model
 from disasterproject.models.pipeline import (
     build_model,
@@ -395,13 +398,13 @@ def main():
 
         X_train, Y_train = splits['train']
         X_cal, Y_cal = splits['cal']
-        X_test, Y_test = splits['eval']
+        X_eval, Y_eval = splits['eval']
 
         expected_eval = int(len(X) * args.test_size)
-        if len(X_test) == 0 or len(X_test) < max(1, int(0.5 * expected_eval)):
+        if len(X_eval) == 0 or len(X_eval) < max(1, int(0.5 * expected_eval)):
             logging.error(
                 'Eval IDs coverage too low (matched %d, expected around %d). Aborting.',
-                len(X_test),
+                len(X_eval),
                 expected_eval,
             )
             sys.exit(1)
@@ -410,19 +413,20 @@ def main():
             'Split via frozen train/cal/eval. Train: %d, Cal: %d, Eval: %d',
             len(X_train),
             len(X_cal),
-            len(X_test),
+            len(X_eval),
         )
         print(
             f"Using three-way frozen split "
-            f"(train={len(X_train)}, cal={len(X_cal)}, eval={len(X_test)})"
+            f"(train={len(X_train)}, cal={len(X_cal)}, eval={len(X_eval)})"
         )
         print("  Fit excludes cal ∪ eval; cal reserved for threshold tuning")
     else:
         # Random split fallback
         logging.info(f'Splitting data randomly (test_size={args.test_size}, seed={args.seed})...')
-        X_train, X_test, Y_train, Y_test = train_test_split(
+        X_train, X_eval, Y_train, Y_eval = train_test_split(
             X, Y, test_size=args.test_size, random_state=args.seed
         )
+        X_cal, Y_cal = None, None
         cal_ids_file = None
 
     # Load hyperparameters
@@ -527,10 +531,10 @@ def main():
     except Exception as size_exc:
         logging.warning('Size guardrail check failed: %s', size_exc)
 
-    # Evaluate model and save to experiment folder
+    # Evaluate on frozen eval / random holdout (report-only for thresholds)
     logging.info(f'Evaluating model and saving results to {experiment_dir}...')
     performance_summary = evaluate_model_to_experiment_folder(
-        model, X_test, Y_test, TARGET_COLUMNS, experiment_dir
+        model, X_eval, Y_eval, TARGET_COLUMNS, experiment_dir
     )
 
     # Snapshot the eval/cal IDs used for this run (traceability)
@@ -573,8 +577,9 @@ def main():
     except Exception:
         pass
 
-    # Inline F2 thresholds: on cal when using three-way frozen split (eval is report-only);
-    # on the random holdout only when no frozen cal/eval contract applies.
+    # Inline F2 thresholds are diagnostic only. Under frozen three-way they tune on cal.
+    # Canonical app-facing thresholds are written by optimize_per_category_thresholds.py
+    # as {model_stem}_thresholds.json — this script writes {model_stem}_f2_thresholds.json.
     selected_labels = [
         'medical_help',
         'search_and_rescue',
@@ -585,41 +590,55 @@ def main():
         'security',
         'weather_related',
     ]
-    if eval_ids_file:
-        if len(X_cal) == 0:
-            logging.error('Calibration split is empty; cannot tune F2 thresholds on cal.')
-            sys.exit(1)
-        logging.info(
-            'Tuning inline F2 thresholds on calibration split (%d samples); eval remains report-only',
-            len(X_cal),
+    try:
+        X_tune, Y_tune, threshold_split = resolve_inline_threshold_tune_arrays(
+            frozen_three_way=bool(eval_ids_file),
+            X_cal=X_cal if eval_ids_file else np.empty((0,)),
+            Y_cal=Y_cal if eval_ids_file else np.empty((0, 0)),
+            X_eval=X_eval,
+            Y_eval=Y_eval,
         )
-        thresholds_map, threshold_sources = _compute_f2_thresholds_for_labels(
-            model, X_cal, Y_cal, selected_labels, TARGET_COLUMNS
-        )
-        threshold_split = 'calibration'
-    else:
-        logging.info(
-            'Tuning inline F2 thresholds on random holdout (%d samples)',
-            len(X_test),
-        )
-        thresholds_map, threshold_sources = _compute_f2_thresholds_for_labels(
-            model, X_test, Y_test, selected_labels, TARGET_COLUMNS
-        )
-        threshold_split = 'random_holdout'
+    except ValueError as exc:
+        logging.error('%s', exc)
+        sys.exit(1)
+
+    logging.info(
+        'Tuning inline F2 thresholds on %s split (%d samples)',
+        threshold_split,
+        len(X_tune),
+    )
+    thresholds_map, threshold_sources = _compute_f2_thresholds_for_labels(
+        model, X_tune, Y_tune, selected_labels, TARGET_COLUMNS
+    )
     label_order = list(TARGET_COLUMNS)
     try:
-        # Use standard naming if model path is known, otherwise use descriptive name
         model_stem = os.path.splitext(os.path.basename(args.model_out))[0] if args.model_out else None
         if model_stem:
-            thresholds_file = os.path.join(experiment_dir, f'{model_stem}_thresholds.json')
+            f2_thresholds_file = os.path.join(experiment_dir, f'{model_stem}_f2_thresholds.json')
         else:
-            thresholds_file = os.path.join(experiment_dir, 'thresholds.json')  # Fallback for unknown model name
+            f2_thresholds_file = os.path.join(experiment_dir, 'f2_thresholds.json')
 
-        with open(thresholds_file, 'w', encoding='utf-8') as f:
-            json.dump(thresholds_map, f, indent=2)
+        with open(f2_thresholds_file, 'w', encoding='utf-8') as f:
+            json.dump(
+                {
+                    'metadata': {
+                        'optimization_method': 'f2',
+                        'optimization_split': threshold_split,
+                        'reporting_split': 'frozen_eval' if eval_ids_file else 'random_holdout',
+                        'note': (
+                            'Diagnostic F2 thresholds only. Canonical per-label thresholds '
+                            'are produced by scripts/03_optimization/optimize_per_category_thresholds.py '
+                            'as {model_stem}_thresholds.json.'
+                        ),
+                    },
+                    'thresholds': thresholds_map,
+                    'threshold_sources': threshold_sources,
+                },
+                f,
+                indent=2,
+            )
         with open(os.path.join(experiment_dir, 'label_order.json'), 'w', encoding='utf-8') as f:
             json.dump(label_order, f, indent=2)
-        # MODEL_INFO.json for artifact hygiene
         info = {
             'sha256': hashlib.sha256(open(args.model_out, 'rb').read()).hexdigest() if os.path.isfile(args.model_out) else None,
             'rf_params': _json_safe(getattr(model.named_steps.get('clf').estimator, 'get_params', lambda: {})()),
@@ -628,14 +647,19 @@ def main():
             'fit_time_seconds': float(train_time) if train_time is not None else None,
             'model_size_mb': float(model_size_mb) if model_size_mb is not None else None,
             'cold_load_seconds': float(cold_load_s) if cold_load_s is not None else None,
-            'threshold_sources': _json_safe(threshold_sources),
+            'inline_f2_threshold_sources': _json_safe(threshold_sources),
+            'inline_f2_threshold_file': os.path.basename(f2_thresholds_file),
             'threshold_optimization_split': threshold_split,
             'reporting_split': 'frozen_eval' if eval_ids_file else 'random_holdout',
+            'canonical_thresholds_note': (
+                'App-facing thresholds come from optimize_per_category_thresholds.py '
+                '({model_stem}_thresholds.json), not from inline F2 output.'
+            ),
         }
         with open(os.path.join(experiment_dir, 'MODEL_INFO.json'), 'w', encoding='utf-8') as f:
             json.dump(info, f, indent=2)
     except Exception as e:
-        logging.warning(f"Failed to write model artifacts (thresholds/label_order/MODEL_INFO): {e}")
+        logging.warning(f"Failed to write model artifacts (f2 thresholds/label_order/MODEL_INFO): {e}")
 
     # Create comprehensive config for logging
     comprehensive_config = {
@@ -649,11 +673,11 @@ def main():
             'random_seed': args.seed,
             'train_samples': len(X_train),
             'cal_samples': int(len(X_cal)) if eval_ids_file else 0,
-            'test_samples': len(X_test),
+            'test_samples': len(X_eval),
             'mode': 'frozen_train_cal_eval' if eval_ids_file else 'random_split',
             'eval_ids_file': eval_ids_file,
             'cal_ids_file': cal_ids_file,
-            'eval_uid_count': int(len(X_test)),
+            'eval_uid_count': int(len(X_eval)),
             'cal_uid_count': int(len(X_cal)) if eval_ids_file else 0,
         },
         'target_labels': len(TARGET_COLUMNS)
@@ -689,11 +713,12 @@ def main():
     print(f'     {args.model_out}')
     print('   ')
     print(f'   Experiment Results ({experiment_dir}):')
-    print('     performance_metrics.csv    <- Detailed classification metrics')
+    print('     performance_metrics.csv    <- Detailed classification metrics (eval/holdout @ 0.5)')
     print('     training_log.json         <- Training metadata & configuration')
-    print('     thresholds.json           <- Optimized F2 thresholds')
+    print('     *_f2_thresholds.json      <- Diagnostic F2 thresholds (cal under three-way)')
     print('     label_order.json          <- Category label order')
     print('     MODEL_INFO.json           <- Model metadata & info')
+    print('     (canonical thresholds via optimize_per_category_thresholds.py)')
     if eval_ids_file:
         eval_file_ext = 'json' if eval_ids_file.endswith('.json') else 'csv'
         print(f'     eval_ids_used.{eval_file_ext}         <- Evaluation set identifiers')

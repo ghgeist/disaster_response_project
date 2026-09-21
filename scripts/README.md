@@ -57,8 +57,8 @@ Performs hyperparameter optimization using GridSearchCV.
 Creates experimental models using candidate configurations (active LogisticRegression training path).
 - **Use when**: Testing new model configurations before production; retraining LR under the train/cal/eval contract
 - **Usage**: `python scripts/02_training/03_create_experimental_model.py --algorithm logistic_regression --params experiments/model_candidates/vocab_15k.json`
-- **Output**: Experimental models saved to `experiments/` directory
-- **Split**: With frozen IDs, fits on residual train only (`~(cal ∪ eval)`); requires `cal_ids.json`
+- **Output**: Experimental models saved to `experiments/` directory; diagnostic `{stem}_f2_thresholds.json` (not the canonical thresholds file)
+- **Split**: With frozen IDs, fits on residual train only (`~(cal ∪ eval)`); requires `cal_ids.json`; inline F2 tunes on cal
 
 ### `04_create_production_model.py`
 Creates a production disaster response classification model with optional class weighting via config (currently disabled in `experiments/model_candidates/class_weights.json`).

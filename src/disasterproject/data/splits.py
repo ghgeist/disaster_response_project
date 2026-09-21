@@ -198,3 +198,35 @@ def assert_partition_invariants(
         raise AssertionError("cal ∩ eval is non-empty")
     if train_set | cal_set | eval_set != all_set:
         raise AssertionError("train ∪ cal ∪ eval does not equal all dataset UIDs")
+
+
+def resolve_inline_threshold_tune_arrays(
+    *,
+    frozen_three_way: bool,
+    X_cal,
+    Y_cal: np.ndarray,
+    X_eval,
+    Y_eval: np.ndarray,
+) -> tuple[object, np.ndarray, str]:
+    """
+    Choose which split receives inline F2 threshold tuning.
+
+    Under the frozen train/cal/eval contract, thresholds tune on cal only.
+    Random-split mode (no frozen IDs) tunes on the holdout used for reporting.
+    """
+    if frozen_three_way:
+        if len(X_cal) == 0:
+            raise ValueError(
+                "Calibration split is empty; cannot tune inline thresholds on cal"
+            )
+        return X_cal, Y_cal, "calibration"
+    return X_eval, Y_eval, "random_holdout"
+
+
+def label_positive_support(
+    Y: np.ndarray,
+    label_names: Sequence[str] | None = None,
+) -> dict[str, int]:
+    """Count positives for every label column."""
+    names = list(label_names) if label_names is not None else list(TARGET_COLUMNS)
+    return {name: int(np.sum(Y[:, idx])) for idx, name in enumerate(names)}
