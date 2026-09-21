@@ -34,6 +34,7 @@ sys.path.insert(0, str(SCRIPTS_PATH))
 
 # pylint: disable=import-error
 from promote_model import (  # noqa: E402
+    assert_force_promotion_prerequisites,
     compute_model_hash,
     detect_algorithm_type,
     discover_production_metrics_file,
@@ -52,11 +53,15 @@ def _write_contract_thresholds(
     eval_critical_recall: float = 0.6148,
     optimization_split: str = "calibration",
     reporting_split: str = "frozen_eval",
+    metadata_eval_critical_recall: float | None = None,
 ) -> None:
+    if metadata_eval_critical_recall is None:
+        metadata_eval_critical_recall = eval_critical_recall
     payload = {
         "metadata": {
             "optimization_split": optimization_split,
             "reporting_split": reporting_split,
+            "eval_critical_recall": metadata_eval_critical_recall,
         },
         "thresholds": {"related": 0.5},
         "performance": {
@@ -235,6 +240,8 @@ class TestEvaluationContractValidation:
         assert results['eval_critical_recall'] == pytest.approx(0.6148)
         assert results['thresholds_path'] is not None
         assert results['thresholds_sha256'] is not None
+        assert Path(results['model_path']).is_absolute()
+        assert Path(results['thresholds_path']).is_absolute()
         assert results['optimization_split'] == "calibration"
         assert results['reporting_split'] == "frozen_eval"
 
@@ -279,6 +286,7 @@ class TestEvaluationContractValidation:
             temp_dir / "2026-09-21-low-micro",
             lr_model_path,
             "lr_model.pkl",
+            baseline_micro=0.50,
         )
         _write_training_log(candidate / "training_log.json", micro_f1=0.50)
         results = validate_candidate_model(candidate)
@@ -296,6 +304,55 @@ class TestEvaluationContractValidation:
         assert results['validation_passed'] is False
         assert any("critical recall" in e for e in results['validation_errors'])
 
+    def test_fails_oversized_model(self, temp_dir, lr_model_path):
+        candidate = _build_contract_candidate(
+            temp_dir / "2026-09-21-too-big",
+            lr_model_path,
+            "lr_model.pkl",
+        )
+        oversized = candidate / "lr_model.pkl"
+        with open(oversized, "wb") as handle:
+            handle.seek(51 * 1024 * 1024)
+            handle.write(b"x")
+        results = validate_candidate_model(candidate)
+        assert results['validation_passed'] is False
+        assert any("Model size" in e for e in results['validation_errors'])
+
+    def test_fails_multiple_pkl_files(self, temp_dir, lr_model_path, rf_model_path):
+        candidate = _build_contract_candidate(
+            temp_dir / "2026-09-21-multi-pkl",
+            lr_model_path,
+            "lr_model.pkl",
+        )
+        shutil.copy2(rf_model_path, candidate / "extra_model.pkl")
+        results = validate_candidate_model(candidate)
+        assert results['validation_passed'] is False
+        assert any("Multiple model files" in e for e in results['validation_errors'])
+
+    def test_fails_inconsistent_baseline_micro(self, temp_dir, lr_model_path):
+        candidate = _build_contract_candidate(
+            temp_dir / "2026-09-21-micro-mismatch",
+            lr_model_path,
+            "lr_model.pkl",
+            baseline_micro=0.70,
+        )
+        _write_training_log(candidate / "training_log.json", micro_f1=0.6458)
+        results = validate_candidate_model(candidate)
+        assert results['validation_passed'] is False
+        assert any("Inconsistent baseline micro F1" in e for e in results['validation_errors'])
+
+    def test_fails_inconsistent_eval_critical_recall(self, temp_dir, lr_model_path):
+        candidate = _build_contract_candidate(
+            temp_dir / "2026-09-21-cr-mismatch",
+            lr_model_path,
+            "lr_model.pkl",
+            eval_critical_recall=0.6148,
+            metadata_eval_critical_recall=0.70,
+        )
+        results = validate_candidate_model(candidate)
+        assert results['validation_passed'] is False
+        assert any("Inconsistent critical recall" in e for e in results['validation_errors'])
+
     def test_missing_thresholds_is_validation_error_not_raise(self, temp_dir, lr_model_path):
         candidate = temp_dir / "2026-09-21-no-thresholds"
         candidate.mkdir()
@@ -312,6 +369,61 @@ class TestEvaluationContractValidation:
         results = validate_candidate_model(candidate)
         assert results['validation_passed'] is False
         assert any("No model file" in e for e in results['validation_errors'])
+
+
+class TestForcePathPrerequisites:
+    """--force overrides gates, not structural deploy prerequisites."""
+
+    def test_force_prerequisites_pass_when_artifacts_present(
+        self, candidate_dir_with_lr_model
+    ):
+        results = validate_candidate_model(candidate_dir_with_lr_model)
+        # Simulate metric/provenance override: mark failed but keep structural fields
+        results['validation_passed'] = False
+        results['validation_errors'] = ["simulated provenance failure"]
+        assert_force_promotion_prerequisites(results)
+
+    def test_force_prerequisites_reject_missing_thresholds(self, temp_dir, lr_model_path):
+        candidate = temp_dir / "2026-09-21-force-no-thresholds"
+        candidate.mkdir()
+        shutil.copy2(lr_model_path, candidate / "lr_model.pkl")
+        _write_training_log(candidate / "training_log.json")
+        results = validate_candidate_model(candidate)
+        assert results['thresholds_path'] is None
+        with pytest.raises(ValueError, match="structural promotion prerequisites"):
+            assert_force_promotion_prerequisites(results)
+
+    def test_force_can_promote_despite_gate_failure_when_artifacts_present(
+        self, temp_dir, lr_model_path
+    ):
+        candidate = _build_contract_candidate(
+            temp_dir / "2026-09-21-force-ok",
+            lr_model_path,
+            "lr_model.pkl",
+            optimization_split="frozen_eval",  # gate failure
+        )
+        results = validate_candidate_model(candidate)
+        assert results['validation_passed'] is False
+        assert_force_promotion_prerequisites(results)
+
+        model_dir = temp_dir / "model"
+        model_dir.mkdir()
+        promotion_record = promote_model(candidate, model_dir, results)
+        promoted = Path(promotion_record['promoted_model'])
+        deployed = model_dir / f"{promoted.stem}_thresholds.json"
+        assert deployed.exists()
+        assert compute_model_hash(deployed) == results['thresholds_sha256']
+
+    def test_promote_refuses_missing_thresholds_even_if_forced_fields_cleared(
+        self, temp_dir, candidate_dir_with_lr_model
+    ):
+        model_dir = temp_dir / "model"
+        model_dir.mkdir()
+        results = validate_candidate_model(candidate_dir_with_lr_model)
+        results['thresholds_path'] = None
+        results['thresholds_sha256'] = None
+        with pytest.raises(ValueError, match="structural promotion prerequisites"):
+            promote_model(candidate_dir_with_lr_model, model_dir, results)
 
 
 class TestThresholdDeployInvariant:

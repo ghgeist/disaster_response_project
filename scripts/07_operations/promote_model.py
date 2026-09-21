@@ -14,6 +14,7 @@ Implements MLOps best practices for promoting experimental models to production:
 import argparse
 import hashlib
 import json
+import math
 import re
 import shutil
 import sys
@@ -36,6 +37,14 @@ from disasterproject.utils.config import PERFORMANCE_THRESHOLDS
 
 REQUIRED_OPTIMIZATION_SPLIT = "calibration"
 REQUIRED_REPORTING_SPLIT = "frozen_eval"
+# Agreement tolerance for duplicated metrics across training_log vs thresholds artifacts
+METRIC_CONSISTENCY_ABS_TOL = 1e-6
+FORCE_REQUIRED_FIELDS = (
+    "model_path",
+    "model_hash",
+    "thresholds_path",
+    "thresholds_sha256",
+)
 
 
 def compute_model_hash(model_path: Path) -> str:
@@ -166,13 +175,21 @@ def _parse_baseline_micro_f1(log_data: dict) -> Optional[float]:
         return None
 
 
-def _discover_model_file(candidate_dir: Path) -> Optional[Path]:
-    """Find the newest .pkl model file in candidate_dir, or None."""
+def _discover_model_file(candidate_dir: Path) -> Tuple[Optional[Path], list]:
+    """Find exactly one .pkl model file in candidate_dir.
+
+    Returns (path, errors). Multiple or zero models fail closed — no mtime heuristic.
+    """
     model_files = list(candidate_dir.glob("*.pkl"))
     if not model_files:
-        return None
-    model_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
-    return model_files[0]
+        return None, [f"No model file (.pkl) found in {candidate_dir}"]
+    if len(model_files) > 1:
+        names = sorted(path.name for path in model_files)
+        return None, [
+            f"Multiple model files (.pkl) found in {candidate_dir}: {names}. "
+            "Promotion requires exactly one candidate model."
+        ]
+    return model_files[0], []
 
 
 def discover_candidate_thresholds(
@@ -185,13 +202,12 @@ def discover_candidate_thresholds(
     """
     errors: list = []
     if model_stem is None:
-        model_file = _discover_model_file(candidate_dir)
-        if model_file is None:
-            errors.append(f"No model file (.pkl) found in {candidate_dir}")
-            return None, None, errors
+        model_file, model_errors = _discover_model_file(candidate_dir)
+        if model_errors:
+            return None, None, model_errors
         model_stem = model_file.stem
 
-    thresholds_path = candidate_dir / f"{model_stem}_thresholds.json"
+    thresholds_path = (candidate_dir / f"{model_stem}_thresholds.json").resolve()
     if not thresholds_path.exists():
         errors.append(
             f"Required thresholds artifact not found: {thresholds_path.name} "
@@ -212,6 +228,24 @@ def discover_candidate_thresholds(
 
     return thresholds_path, payload, errors
 
+
+def assert_force_promotion_prerequisites(validation_results: dict) -> None:
+    """Require structural deploy artifacts; --force cannot bypass these.
+
+    --force may override metric/provenance gate failures only. Promoting still
+    requires a model file and the thresholds artifact validation would deploy.
+    """
+    missing = [key for key in FORCE_REQUIRED_FIELDS if not validation_results.get(key)]
+    if missing:
+        raise ValueError(
+            "--force cannot override missing structural promotion prerequisites: "
+            f"{missing}. A model and thresholds artifact (with hashes) are required "
+            "so the deployed operating point matches validated evidence."
+        )
+
+
+def _metrics_agree(left: float, right: float, abs_tol: float = METRIC_CONSISTENCY_ABS_TOL) -> bool:
+    return math.isclose(left, right, rel_tol=0.0, abs_tol=abs_tol)
 
 def _validate_thresholds_provenance(payload: dict) -> list:
     """Require cal-optimize / frozen-eval-report provenance on thresholds metadata."""
@@ -235,10 +269,16 @@ def _validate_thresholds_provenance(payload: dict) -> list:
 
 def _extract_threshold_operating_metrics(
     payload: dict,
-) -> Tuple[Optional[float], Optional[float], Optional[float], list]:
-    """Read eval critical recall and weighted F1 baseline/optimized from thresholds.
+) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[float], list]:
+    """Read eval critical recall, baseline micro, and weighted F1 values from thresholds.
 
-    Returns (eval_critical_recall, baseline_weighted_f1, optimized_weighted_f1, errors).
+    Returns (
+        eval_critical_recall,
+        baseline_f1_micro,
+        baseline_weighted_f1,
+        optimized_weighted_f1,
+        errors,
+    ).
     """
     errors: list = []
     performance = payload.get("performance") or {}
@@ -261,6 +301,23 @@ def _extract_threshold_operating_metrics(
             )
             eval_critical_recall_f = None
 
+    baseline_micro_raw = baseline.get("f1_micro")
+    if baseline_micro_raw is None:
+        baseline_micro_raw = baseline.get("micro_f1")
+    baseline_micro_f: Optional[float] = None
+    if baseline_micro_raw is None:
+        errors.append(
+            "Thresholds artifact missing performance.baseline.f1_micro "
+            "(required for consistency with training_log)"
+        )
+    else:
+        try:
+            baseline_micro_f = float(baseline_micro_raw)
+        except (TypeError, ValueError):
+            errors.append(
+                f"Invalid performance.baseline.f1_micro: {baseline_micro_raw!r}"
+            )
+
     baseline_w = baseline.get("f1_weighted")
     optimized_w = optimized.get("f1_weighted")
     baseline_w_f: Optional[float] = None
@@ -282,14 +339,22 @@ def _extract_threshold_operating_metrics(
             baseline_w_f = None
             optimized_w_f = None
 
-    return eval_critical_recall_f, baseline_w_f, optimized_w_f, errors
+    return (
+        eval_critical_recall_f,
+        baseline_micro_f,
+        baseline_w_f,
+        optimized_w_f,
+        errors,
+    )
 
 
 def validate_candidate_model(candidate_dir: Path) -> dict:
     """Validate candidate against the train/cal/eval promotion contract.
 
     Missing or invalid evidence is recorded in validation_errors (fail closed)
-    so --force can override without discovery exceptions escaping validation.
+    so --force can override metric/provenance failures without discovery exceptions.
+    Structural deploy fields (model + thresholds paths/hashes) must still be present
+    for promotion; see assert_force_promotion_prerequisites.
     """
     errors: list = []
     min_baseline_micro = PERFORMANCE_THRESHOLDS.get('min_baseline_f1_micro', 0.60)
@@ -317,11 +382,11 @@ def validate_candidate_model(candidate_dir: Path) -> dict:
         'validation_errors': errors,
     }
 
-    model_file = _discover_model_file(candidate_dir)
-    if model_file is None:
-        errors.append(f"No model file (.pkl) found in {candidate_dir}")
-        model_stem = None
-    else:
+    model_file, model_errors = _discover_model_file(candidate_dir)
+    errors.extend(model_errors)
+    model_stem = None
+    if model_file is not None:
+        model_file = model_file.resolve()
         validation_results['model_path'] = str(model_file)
         validation_results['model_size_mb'] = model_file.stat().st_size / (1024 * 1024)
         validation_results['model_hash'] = compute_model_hash(model_file)
@@ -363,6 +428,7 @@ def validate_candidate_model(candidate_dir: Path) -> dict:
         errors.extend(threshold_errors)
 
     if thresholds_path is not None and thresholds_payload is not None:
+        thresholds_path = thresholds_path.resolve()
         validation_results['thresholds_path'] = str(thresholds_path)
         validation_results['thresholds_sha256'] = compute_model_hash(thresholds_path)
         metadata = thresholds_payload.get("metadata") or {}
@@ -370,9 +436,13 @@ def validate_candidate_model(candidate_dir: Path) -> dict:
         validation_results['reporting_split'] = metadata.get("reporting_split")
         errors.extend(_validate_thresholds_provenance(thresholds_payload))
 
-        eval_cr, baseline_w, optimized_w, metric_errors = _extract_threshold_operating_metrics(
-            thresholds_payload
-        )
+        (
+            eval_cr,
+            thresholds_baseline_micro,
+            baseline_w,
+            optimized_w,
+            metric_errors,
+        ) = _extract_threshold_operating_metrics(thresholds_payload)
         errors.extend(metric_errors)
 
         if eval_cr is not None:
@@ -381,6 +451,36 @@ def validate_candidate_model(candidate_dir: Path) -> dict:
                 errors.append(
                     f"Frozen-eval critical recall {eval_cr:.4f} below "
                     f"threshold {min_eval_critical_recall}"
+                )
+
+            metadata_eval_cr = metadata.get("eval_critical_recall")
+            if metadata_eval_cr is None:
+                errors.append(
+                    "Thresholds metadata missing eval_critical_recall "
+                    "(must match performance.optimized.critical_recall)"
+                )
+            else:
+                try:
+                    metadata_eval_cr_f = float(metadata_eval_cr)
+                except (TypeError, ValueError):
+                    errors.append(
+                        f"Invalid metadata.eval_critical_recall: {metadata_eval_cr!r}"
+                    )
+                else:
+                    if not _metrics_agree(metadata_eval_cr_f, eval_cr):
+                        errors.append(
+                            "Inconsistent critical recall across thresholds artifact: "
+                            f"metadata.eval_critical_recall={metadata_eval_cr_f:.6f} vs "
+                            f"performance.optimized.critical_recall={eval_cr:.6f}"
+                        )
+
+        log_micro = validation_results.get('baseline_f1_micro')
+        if log_micro is not None and thresholds_baseline_micro is not None:
+            if not _metrics_agree(log_micro, thresholds_baseline_micro):
+                errors.append(
+                    "Inconsistent baseline micro F1 across artifacts: "
+                    f"training_log={log_micro:.6f} vs "
+                    f"thresholds.performance.baseline.f1_micro={thresholds_baseline_micro:.6f}"
                 )
 
         if baseline_w is not None and optimized_w is not None:
@@ -491,13 +591,10 @@ def _copy_validated_thresholds(
     validation_results: dict, model_dir: Path, base_name: str, metadata_files: dict
 ) -> None:
     """Copy the exact thresholds artifact validation inspected into production naming."""
-    thresholds_path_str = validation_results.get('thresholds_path')
-    expected_sha = validation_results.get('thresholds_sha256')
-    if not thresholds_path_str:
-        print("⚠️  No validated thresholds_path in validation_results; skipping thresholds copy")
-        return
+    assert_force_promotion_prerequisites(validation_results)
 
-    candidate_thresholds = Path(thresholds_path_str)
+    candidate_thresholds = Path(validation_results['thresholds_path'])
+    expected_sha = validation_results['thresholds_sha256']
     if not candidate_thresholds.exists():
         raise FileNotFoundError(
             f"Validated thresholds artifact missing at promotion time: {candidate_thresholds}"
@@ -506,7 +603,7 @@ def _copy_validated_thresholds(
     prod_thresholds = model_dir / f"{base_name}_thresholds.json"
     shutil.copy2(candidate_thresholds, prod_thresholds)
     copied_sha = compute_model_hash(prod_thresholds)
-    if expected_sha and copied_sha != expected_sha:
+    if copied_sha != expected_sha:
         try:
             prod_thresholds.unlink()
         except OSError as cleanup_error:
@@ -728,7 +825,14 @@ def main():
     parser = argparse.ArgumentParser(description="Promote experimental model to production")
     parser.add_argument("candidate_dir", help="Path to candidate model directory")
     parser.add_argument("--dry-run", action="store_true", help="Validate but don't promote")
-    parser.add_argument("--force", action="store_true", help="Skip validation checks")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help=(
+            "Override metric/provenance gate failures only; "
+            "still requires model + thresholds artifacts with hashes"
+        ),
+    )
     parser.add_argument("--keep-old", type=int, default=1, help="Number of old production models to keep")
     parser.add_argument("--no-update-config", action="store_true", help="Do not update app/config.py MODEL_FILENAME")
     parser.add_argument("--print-new-path", action="store_true", help="Print promoted model filename for CI logs")
@@ -763,6 +867,13 @@ def main():
             print("⚠️  Validation warnings (proceeding with --force):")
             for error in validation_results['validation_errors']:
                 print(f"  - {error}")
+            # Structural deploy prerequisites are never bypassable by --force.
+            # Check before dry-run success or archiving production.
+            try:
+                assert_force_promotion_prerequisites(validation_results)
+            except ValueError as exc:
+                print(f"❌ {exc}")
+                return 1
 
         print("✅ Validation passed" if validation_results['validation_passed'] else "✅ Proceeding with --force")
         print(
@@ -783,6 +894,11 @@ def main():
         if args.dry_run:
             print("🔍 Dry run complete - no changes made")
             return 0
+
+        if args.force:
+            # Re-check immediately before archive so a force path cannot mutate prod
+            # without a deployable operating-point artifact.
+            assert_force_promotion_prerequisites(validation_results)
 
         print("\n📦 Archiving current production model...")
         archive_record = archive_current_production_model(model_dir, archive_dir)
