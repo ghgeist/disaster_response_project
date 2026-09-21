@@ -10,9 +10,22 @@ related: ["adr-002-tokenization-trade-offs.md"]
 # Hybrid Model Deployment Strategy with Standardized Naming
 
 **Date**: 2025-09-12  
-**Status**: Accepted  
+**Status**: Accepted (amended 2026-09-21)  
 **Deciders**: ML Engineering Team, DevOps Team  
 **Tags**: ml-operations, deployment, model-management, production
+
+## Amendment (2026-09-21): Local tracked production artifact
+
+**Current deployment behavior** (supersedes the Google Drive–required production path below for new work):
+
+- **Production model**: `disaster_lr_v26-09-21_prod_2026-09-21.pkl` (LogisticRegression, vocab15k, train/cal/eval)
+- **Storage**: Git-tracked file under `model/`; Flask loads from local disk only
+- **Discovery**: Newest `disaster_*_prod_*.pkl` via `app/config.py` (optional `MODEL_FILENAME` override)
+- **Google Drive / `GDRIVE_MODEL_ID`**: Retained below as **historical context** for the original hybrid design. The runtime download path is no longer used by the app loader.
+
+**Prior production (historical)**: `disaster_lr_v25-11-06_prod_2025-11-06.pkl` — tune-on-eval metrics; archived metadata under `experiments/model_archive/`.
+
+The original decision text that follows is preserved so the 2025 hybrid/GDrive design history is not erased.
 
 ## Context
 
@@ -38,27 +51,31 @@ We have implemented a **Hybrid Model Deployment Strategy** with the following co
 
 ### 2. Standardized Model Naming Convention
 - **Format**: `{domain}_{algorithm}_{version}_prod_{training_date}.pkl`
-- **Current production model** (as of 2026-02-03): `disaster_lr_v25-11-06_prod_2025-11-06.pkl`
-- **Version format**: Date-based `v{YY}-{MM}-{DD}` derived from training date (e.g., `v25-11-06`)
+- **Current production model** (as of 2026-09-21): `disaster_lr_v26-09-21_prod_2026-09-21.pkl`
+- **Historical production example** (2026-02-03 → 2026-09-21): `disaster_lr_v25-11-06_prod_2025-11-06.pkl`
+- **Version format**: Date-based `v{YY}-{MM}-{DD}` derived from training date (e.g., `v26-09-21`)
 - **Artifact consistency**: All supporting files follow same naming pattern with model-specific suffixes
 - **Algorithm detection**: Automatic during promotion via `scripts/07_operations/promote_model.py`
-- **Note**: Version format changed from semantic (`v1-2-0`) to date-based (`v25-11-06`) for better traceability
+- **Note**: Version format changed from semantic (`v1-2-0`) to date-based (`v25-11-06` / `v26-09-21`) for better traceability
 
 #### Legacy Artifact Handling
 - Renamed `classifier.pkl` to `legacy_classifier.pkl` and moved it to `model/legacy/`
 - Updated internal scripts to reference the versioned production artifact
 - Historical documentation may still reference `model/classifier.pkl` for archival context
-- **Current production model**: `disaster_lr_v25-11-06_prod_2025-11-06.pkl` (LogisticRegression, date-based versioning)
+- **Current production model**: `disaster_lr_v26-09-21_prod_2026-09-21.pkl` (LogisticRegression, date-based versioning)
 
 ### 3. Hybrid Deployment Architecture
-- **Production Environment**: Google Drive model storage (required)
-  - Lightweight deployments without 32MB model files in repository
+> **Superseded for active deploys** by the 2026-09-21 amendment (local tracked `model/*.pkl`). The bullets below describe the **original 2025 hybrid design**.
+
+- **Production Environment (historical)**: Google Drive model storage
+  - Lightweight deployments without large model files in repository
   - Model downloaded on first application startup
-  - Environment variable: `GDRIVE_MODEL_ID="1s_sBXnUdJ-rWm4-YEsDixHCbxBca-oXh"`
-- **Development Environment**: Local model with Google Drive fallback
+  - Environment variable (historical): `GDRIVE_MODEL_ID="1s_sBXnUdJ-rWm4-YEsDixHCbxBca-oXh"`
+- **Development Environment (historical)**: Local model with Google Drive fallback
   - Local model for fast development cycles
   - Google Drive option for testing production behavior
   - Flexible environment variable configuration
+- **Current Environment (2026-09-21+)**: Local git-tracked production pickle + mtime auto-discovery; no runtime Drive download
 
 ### 4. Professional Tooling
 - **Model naming utility**: `scripts/model_naming_utility.py`
@@ -157,8 +174,8 @@ We have implemented a **Hybrid Model Deployment Strategy** with the following co
 
 - [Model Naming Convention Documentation](../standards/model-naming.md) - Updated to reflect date-based versioning
 - [Model README](../../model/README.md) - Current production model details and promotion workflow
-- [Deployment Configuration Guide](../runbooks/deployment.md)
-- [Google Drive Model Storage](https://drive.google.com/file/d/1s_sBXnUdJ-rWm4-YEsDixHCbxBca-oXh/view)
+- [Deployment Configuration Guide](../runbooks/deployment.md) - Current local-artifact deployment (with historical GDrive notes)
+- [Historical Google Drive Model Storage](https://drive.google.com/file/d/1s_sBXnUdJ-rWm4-YEsDixHCbxBca-oXh/view) - Archival link for the 2025 hybrid design
 - [ADR-002: Tokenization Trade-offs](adr-002-tokenization-trade-offs.md)
 - [ADR-006: Model Artifact Naming Standard](adr-006-model-artifact-naming-standard.md) - Detailed naming convention
 - [ADR-009: Algorithm Selection](adr-009-algorithm-selection-logistic-regression-over-random-forest.md) - Current algorithm (LogisticRegression)
@@ -167,7 +184,8 @@ We have implemented a **Hybrid Model Deployment Strategy** with the following co
 
 - ✅ **Module compatibility layer**: Implemented and tested
 - ✅ **Standardized naming**: Applied to production model and artifacts
-- ✅ **Google Drive integration**: Configured and validated
+- ✅ **Google Drive integration (historical)**: Configured and validated for the 2025 hybrid path; superseded by local tracked artifacts
+- ✅ **Local tracked production artifact**: `disaster_lr_v26-09-21_prod_2026-09-21.pkl` (2026-09-21)
 - ✅ **Development tooling**: Created and documented
 - ✅ **Testing framework**: All deployment scenarios validated
 - ✅ **Documentation**: Complete team guidelines established

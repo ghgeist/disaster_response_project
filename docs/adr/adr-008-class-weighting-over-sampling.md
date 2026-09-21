@@ -127,6 +127,7 @@ The chosen approach (class weighting when enabled) provides the best balance of 
 
 ## Status & Migration
 
-- **Status**: Strategy accepted; production training currently has weights off (see Amendment 2026-09-20)
-- **Current Production Model**: `disaster_lr_v25-11-06_prod_2025-11-06.pkl` (class weighting disabled; threshold-optimized at inference)
+- **Status**: Strategy accepted; production training currently has weights off (see Amendment 2026-09-21)
+- **Current Production Model**: `disaster_lr_v26-09-21_prod_2026-09-21.pkl` (class weighting disabled; cal-tuned thresholds at inference)
+- **Prior Production Model (historical)**: `disaster_lr_v25-11-06_prod_2025-11-06.pkl`
 - **Future Consideration**: If comparative eval shows balanced weights improve the current LR setup, enable via config and re-promote. If data quality improves (e.g., `child_alone` gains positive examples), sampling approaches could be re-evaluated for specific labels

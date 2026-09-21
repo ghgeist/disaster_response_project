@@ -10,7 +10,8 @@ related: ["adr-003-hybrid-model-deployment-strategy.md", "../standards/model-nam
 # Adopt Standardized Model Artifact Naming
 
 **Date**: 2025-09-19  
-**Status**: Accepted  
+**Amended**: 2026-09-21  
+**Status**: Accepted (amended)  
 **Deciders**: ML Engineering Team, DevOps Team  
 **Tags**: ml-operations, governance, artifacts
 
@@ -28,16 +29,16 @@ Adopt a standardized naming convention for all model artifacts:
 
 - Domain: business context (e.g., `disaster`)
 - Algorithm: short code (e.g., `rf`, `lr`) - **auto-detected during promotion**
-- Version: date-based format `v{YY}-{MM}-{DD}` derived from training date (e.g., `v25-11-06` from `2025-11-06`)
+- Version: date-based format `v{YY}-{MM}-{DD}` derived from training date (e.g., `v26-09-21` from `2026-09-21`)
 - Environment: `prod` for production models
 - Training Date: `YYYY-MM-DD` format - **must match the version date**
 
-**Critical**: Both the version (`v25-11-06`) and the date field (`2025-11-06`) refer to the **training date**, not the promotion date. The promotion date is stored separately in `MODEL_INFO.json`.
+**Critical**: Both the version (`v26-09-21`) and the date field (`2026-09-21`) refer to the **training date**, not the promotion date. The promotion date is stored separately in `MODEL_INFO.json`.
 
-**Example**: `disaster_lr_v25-11-06_prod_2025-11-06.pkl`
+**Current production example**: `disaster_lr_v26-09-21_prod_2026-09-21.pkl`  
+**Historical example** (prior prod): `disaster_lr_v25-11-06_prod_2025-11-06.pkl`
 - Algorithm: `lr` (LogisticRegression) - detected automatically
-- Version: `v25-11-06` (derived from training date)
-- Training Date: `2025-11-06`
+- Version / training date must match
 - Promotion date: Stored in `MODEL_INFO.json` as `promotion_timestamp`
 
 The convention also applies to companion files (thresholds, labels, metadata, performance metrics) using the same base name with descriptive suffixes (e.g., `{model_stem}_thresholds.json`, `{model_stem}_performance_metrics.csv`).
@@ -71,10 +72,11 @@ The convention also applies to companion files (thresholds, labels, metadata, pe
 ## Status & Migration
 
 - Status: Adopted for all new artifacts as of 2025-09-19
-- **Current Implementation** (as of 2026-02-03):
-  - Version format: Date-based `v{YY}-{MM}-{DD}` (e.g., `v25-11-06`)
+- **Current Implementation** (as of 2026-09-21):
+  - Version format: Date-based `v{YY}-{MM}-{DD}` (e.g., `v26-09-21`)
   - Algorithm detection: Automatic during promotion via `scripts/07_operations/promote_model.py`
-  - Current production model: `disaster_lr_v25-11-06_prod_2025-11-06.pkl`
+  - Current production model: `disaster_lr_v26-09-21_prod_2026-09-21.pkl`
+  - Prior production (historical): `disaster_lr_v25-11-06_prod_2025-11-06.pkl`
   - Promotion workflow: See `model/README.md` for detailed promotion process
 - Migration: Legacy files may be retained under `model/legacy/` or renamed following the standard
 
@@ -84,13 +86,13 @@ The convention also applies to companion files (thresholds, labels, metadata, pe
 The promotion script (`scripts/07_operations/promote_model.py`) automatically detects the algorithm type by inspecting the model file structure:
 - **RandomForestClassifier** → `rf`
 - **LogisticRegression** → `lr`
-- Unknown → defaults to `rf` with warning
+- **Unknown / unloadable** → fails closed (`algorithm='unknown'` is not promotable; there is no `rf` default)
 
 This prevents manual errors and ensures consistency between the model file and filename.
 
 ### Version Derivation
 Versions are derived from the training date using the following logic:
-1. **Primary**: Extract from candidate directory name (e.g., `2025-11-06-vocab15k-promotion` → `v25-11-06`)
+1. **Primary**: Extract from candidate directory name (e.g., `2026-09-21` → `v26-09-21`)
 2. **Fallback 1**: Extract from `training_log.json` timestamp
 3. **Fallback 2**: Use current date (promotion date) if training date unavailable
 
@@ -99,12 +101,12 @@ The version format `v{YY}-{MM}-{DD}` ensures the version always matches the trai
 ### Promotion Workflow
 Models are promoted using `scripts/07_operations/promote_model.py`:
 1. Validates candidate model performance
-2. Detects algorithm type automatically
+2. Detects algorithm type automatically (fails closed on unknown)
 3. Generates filename using training date
 4. Copies model and metadata files
-5. Verifies file integrity (hash check)
-6. Updates `MODEL_INFO.json` with promotion metadata
-7. Archives previous production model
+5. Verifies file integrity (hash check) — deployed thresholds remain **byte-identical** to the validated candidate thresholds
+6. Updates `MODEL_INFO.json` with promotion metadata (including `thresholds_sha256`)
+7. Archives previous production model metadata
 
 See `model/README.md` for complete workflow documentation.
 

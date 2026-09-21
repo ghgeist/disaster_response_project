@@ -153,7 +153,7 @@ Replace RandomForestClassifier with **LogisticRegression** as the primary algori
 - **Performance Analysis**: [Session 2025-09-03](../sessions/completed/2025-09-03-execute-ml-optimization-COMPLETED.md) - Detailed performance comparison
 - **Research Context**: [Research 2025-09-16](../research/2025-09-16-analyzing-and-improving-the-classifier.md) - Model evolution analysis
 - **Implementation**: `src/disasterproject/models/pipeline.py::create_pipeline_logistic_regression()`
-- **Production Model**: `model/disaster_lr_v25-11-06_prod_2025-11-06.pkl`
+- **Production Model**: `model/disaster_lr_v26-09-21_prod_2026-09-21.pkl` (prior: `disaster_lr_v25-11-06_prod_2025-11-06.pkl`)
 - **Vocabulary Optimization**: [Vocabulary Comparison Report](../../experiments/experimental_runs/2025-11-06/vocabulary_comparison_report.md)
 - **Class Weighting**: [ADR-008](adr-008-class-weighting-over-sampling.md) - Class weighting strategy
 
