@@ -3,9 +3,10 @@
 Model Promotion Script for Disaster Response System
 
 Implements MLOps best practices for promoting experimental models to production:
-- Validates candidate model performance
+- Validates candidate model against the train/cal/eval evidence contract
 - Archives current production model metadata
 - Promotes new model with proper versioning
+- Deploys the exact threshold artifact that validation inspected
 - Maintains model registry and lineage
 """
 
@@ -13,6 +14,7 @@ Implements MLOps best practices for promoting experimental models to production:
 import argparse
 import hashlib
 import json
+import re
 import shutil
 import sys
 from datetime import datetime
@@ -21,21 +23,23 @@ from typing import Optional, Tuple
 
 # Third-party imports
 import joblib
-import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.multioutput import MultiOutputClassifier
 
-# Add src to path for package imports
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+# Add project src to path for package imports (script lives in scripts/07_operations/)
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 # Local imports
 from disasterproject.models.pipeline import WeightedMultiOutputClassifier
 from disasterproject.utils.config import PERFORMANCE_THRESHOLDS
 
+REQUIRED_OPTIMIZATION_SPLIT = "calibration"
+REQUIRED_REPORTING_SPLIT = "frozen_eval"
+
 
 def compute_model_hash(model_path: Path) -> str:
-    """Compute SHA256 hash of model file for integrity verification."""
+    """Compute SHA256 hash of a file for integrity verification."""
     sha256_hash = hashlib.sha256()
     with open(model_path, "rb") as f:
         for chunk in iter(lambda: f.read(4096), b""):
@@ -43,52 +47,57 @@ def compute_model_hash(model_path: Path) -> str:
     return sha256_hash.hexdigest()
 
 
+def weighted_f1_relative_drop(baseline_weighted_f1: float, optimized_weighted_f1: float) -> float:
+    """Relative weighted-F1 damage from applying thresholds.
+
+    Defined as (baseline - optimized) / baseline. A max of 0.05 means a 5%
+    relative drop, not 5 percentage points.
+    """
+    if baseline_weighted_f1 <= 0:
+        raise ValueError(
+            f"baseline_weighted_f1 must be > 0 to compute relative drop, got {baseline_weighted_f1}"
+        )
+    return (baseline_weighted_f1 - optimized_weighted_f1) / baseline_weighted_f1
+
+
 def detect_algorithm_type(model_path: Path) -> str:
     """
     Detect the algorithm type from a model file.
-    
+
     Returns:
         str: Algorithm code ('rf' for RandomForest, 'lr' for LogisticRegression, 'unknown' otherwise)
     """
     try:
-        # Load the model to inspect its structure
         model = joblib.load(model_path)
-        
-        # Check if it's a Pipeline
+
         if hasattr(model, 'named_steps'):
             clf_step = model.named_steps.get('clf')
             if clf_step is None:
-                # Try to find classifier step by checking all steps
                 for step_name, step_obj in model.named_steps.items():
                     if 'clf' in step_name.lower() or 'classifier' in step_name.lower():
                         clf_step = step_obj
                         break
-            
+
             if clf_step is not None:
-                # Check if it's wrapped in MultiOutputClassifier or WeightedMultiOutputClassifier
                 if isinstance(clf_step, (MultiOutputClassifier, WeightedMultiOutputClassifier)):
-                    # Both have an estimator attribute that holds the base estimator
                     estimator = clf_step.estimator
                 elif hasattr(clf_step, 'estimator'):
                     estimator = clf_step.estimator
                 elif hasattr(clf_step, 'estimators_') and len(clf_step.estimators_) > 0:
-                    # For MultiOutputClassifier after fitting, check first estimator
                     estimator = clf_step.estimators_[0]
                 else:
                     estimator = clf_step
-                
-                # Check the estimator type
+
                 if isinstance(estimator, RandomForestClassifier):
                     return 'rf'
-                elif isinstance(estimator, LogisticRegression):
+                if isinstance(estimator, LogisticRegression):
                     return 'lr'
-        
-        # Fallback: check if model itself is a classifier
+
         if isinstance(model, RandomForestClassifier):
             return 'rf'
-        elif isinstance(model, LogisticRegression):
+        if isinstance(model, LogisticRegression):
             return 'lr'
-        
+
         return 'unknown'
     except Exception as e:
         print(f"Warning: Could not detect algorithm type: {e}")
@@ -98,42 +107,32 @@ def detect_algorithm_type(model_path: Path) -> str:
 def discover_production_metrics_file(model_dir: Path) -> Optional[Path]:
     """
     Discover the production performance_metrics.csv file based on the current production model.
-    
+
     Uses the same discovery logic as the app: finds the latest production model file,
     then looks for a matching metrics file with model-specific naming.
-    
-    Args:
-        model_dir: Directory containing production models
-        
-    Returns:
-        Path to the metrics file if found, None otherwise
     """
     if not model_dir.exists():
         return None
-    
-    # Find the latest production model file (same logic as app/config.py)
+
     pattern = 'disaster_*_prod_*.pkl'
     model_files = list(model_dir.glob(pattern))
-    
+
     if not model_files:
         return None
-    
-    # Sort by modification time (newest first) and take the latest
+
     model_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
     latest_model = model_files[0]
-    
-    # Extract base name (without .pkl extension) and construct metrics filename
+
     base_name = latest_model.stem
     metrics_file = model_dir / f"{base_name}_performance_metrics.csv"
-    
+
     if metrics_file.exists():
         return metrics_file
-    
-    # Fallback: check for legacy naming
+
     legacy_metrics = model_dir / "performance_metrics.csv"
     if legacy_metrics.exists():
         return legacy_metrics
-    
+
     return None
 
 
@@ -145,122 +144,265 @@ def _load_training_log(candidate_dir: Path) -> Optional[dict]:
             try:
                 with open(p, "r", encoding="utf-8") as f:
                     return json.load(f)
-            except Exception:
+            except (OSError, json.JSONDecodeError, ValueError):
                 return None
     return None
 
 
-def _parse_metrics_from_training_log(log_data: dict) -> Optional[Tuple[float, float]]:
-    """Extract (f1_weighted, f1_micro) from training log structure."""
+def _parse_baseline_micro_f1(log_data: dict) -> Optional[float]:
+    """Extract explicit frozen-eval baseline micro F1 from training log.
+
+    Does not substitute weighted F1 or samples_f1.
+    """
+    perf = log_data.get("performance") or {}
+    raw = perf.get("micro_f1")
+    if raw is None:
+        raw = perf.get("f1_micro")
+    if raw is None:
+        return None
     try:
-        perf = log_data.get("performance") or {}
-        # Map to thresholds: use overall_f1 (weighted avg across categories) for f1_weighted
-        f1_weighted = float(perf.get("overall_f1")) if perf.get("overall_f1") is not None else None
-        # Prefer explicit micro metrics when available; otherwise fall back to weighted F1
-        f1_micro = (
-            perf.get("micro_f1")
-            or perf.get("f1_micro")
-            or perf.get("samples_f1")
-            or None
-        )
-        f1_micro = float(f1_micro) if f1_micro is not None else f1_weighted
-        if f1_weighted is None:
-            return None
-        return f1_weighted, f1_micro
-    except Exception:
+        return float(raw)
+    except (TypeError, ValueError):
         return None
 
 
-def _parse_metrics_from_csv(metrics_csv: Path) -> Optional[Tuple[float, float]]:
-    """Compute (f1_weighted, f1_micro≈positive_class_f1) from performance_metrics.csv."""
-    try:
-        df = pd.read_csv(metrics_csv)
-        if df.empty:
-            return None
-        # f1_weighted = mean of 'weighted avg' f1 across categories
-        w = df[df["output_class"].astype(str).str.lower() == "weighted avg"]["f1-score"].astype(float)
-        f1_weighted = float(w.mean()) if not w.empty else None
-        # True micro-F1 cannot be reconstructed from per-label CSV; use weighted F1
-        f1_micro = f1_weighted
-        if f1_weighted is None:
-            return None
-        return f1_weighted, f1_micro
-    except Exception:
-        return None
-
-
-def _discover_metrics(candidate_dir: Path) -> Tuple[float, float]:
-    """Discover f1_weighted and f1_micro using multiple fallbacks."""
-    # 1) training_log.json
-    log_data = _load_training_log(candidate_dir)
-    if log_data:
-        parsed = _parse_metrics_from_training_log(log_data)
-        if parsed:
-            return parsed
-    # 2) performance_metrics.csv (several naming patterns)
-    candidates = [
-        candidate_dir / "performance_metrics.csv",
-        candidate_dir / f"{candidate_dir.name}_performance_metrics.csv",
-        candidate_dir / f"{candidate_dir.name.replace('-', '_')}_performance_metrics.csv",
-    ]
-    for p in candidates:
-        if p.exists():
-            parsed = _parse_metrics_from_csv(p)
-            if parsed:
-                return parsed
-    raise FileNotFoundError("Unable to discover metrics (training_log.json or performance_metrics.csv)")
-
-
-def _discover_model_file(candidate_dir: Path) -> Path:
-    """Find exactly one .pkl model file in candidate_dir."""
+def _discover_model_file(candidate_dir: Path) -> Optional[Path]:
+    """Find the newest .pkl model file in candidate_dir, or None."""
     model_files = list(candidate_dir.glob("*.pkl"))
     if not model_files:
-        raise FileNotFoundError(f"No model file (.pkl) found in {candidate_dir}")
-    # Prefer the most recent file
+        return None
     model_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
     return model_files[0]
 
 
+def discover_candidate_thresholds(
+    candidate_dir: Path, model_stem: Optional[str] = None
+) -> Tuple[Optional[Path], Optional[dict], list]:
+    """Discover `{model_stem}_thresholds.json` for validation and promotion.
+
+    Prefers the non-f2 model-stem thresholds file. Returns
+    (path, payload, errors). Missing/invalid evidence becomes errors, not raises.
+    """
+    errors: list = []
+    if model_stem is None:
+        model_file = _discover_model_file(candidate_dir)
+        if model_file is None:
+            errors.append(f"No model file (.pkl) found in {candidate_dir}")
+            return None, None, errors
+        model_stem = model_file.stem
+
+    thresholds_path = candidate_dir / f"{model_stem}_thresholds.json"
+    if not thresholds_path.exists():
+        errors.append(
+            f"Required thresholds artifact not found: {thresholds_path.name} "
+            f"(expected {{model_stem}}_thresholds.json for stem '{model_stem}')"
+        )
+        return None, None, errors
+
+    try:
+        with open(thresholds_path, "r", encoding="utf-8") as f:
+            payload = json.load(f)
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        errors.append(f"Unable to parse thresholds artifact {thresholds_path.name}: {exc}")
+        return None, None, errors
+
+    if not isinstance(payload, dict):
+        errors.append(f"Thresholds artifact {thresholds_path.name} must be a JSON object")
+        return None, None, errors
+
+    return thresholds_path, payload, errors
+
+
+def _validate_thresholds_provenance(payload: dict) -> list:
+    """Require cal-optimize / frozen-eval-report provenance on thresholds metadata."""
+    errors: list = []
+    metadata = payload.get("metadata") or {}
+    optimization_split = metadata.get("optimization_split")
+    reporting_split = metadata.get("reporting_split")
+
+    if optimization_split != REQUIRED_OPTIMIZATION_SPLIT:
+        errors.append(
+            f"Thresholds optimization_split must be '{REQUIRED_OPTIMIZATION_SPLIT}', "
+            f"got {optimization_split!r}"
+        )
+    if reporting_split != REQUIRED_REPORTING_SPLIT:
+        errors.append(
+            f"Thresholds reporting_split must be '{REQUIRED_REPORTING_SPLIT}', "
+            f"got {reporting_split!r}"
+        )
+    return errors
+
+
+def _extract_threshold_operating_metrics(
+    payload: dict,
+) -> Tuple[Optional[float], Optional[float], Optional[float], list]:
+    """Read eval critical recall and weighted F1 baseline/optimized from thresholds.
+
+    Returns (eval_critical_recall, baseline_weighted_f1, optimized_weighted_f1, errors).
+    """
+    errors: list = []
+    performance = payload.get("performance") or {}
+    baseline = performance.get("baseline") or {}
+    optimized = performance.get("optimized") or {}
+
+    eval_critical_recall = optimized.get("critical_recall")
+    if eval_critical_recall is None:
+        errors.append(
+            "Thresholds artifact missing performance.optimized.critical_recall "
+            "(frozen-eval operating point)"
+        )
+        eval_critical_recall_f = None
+    else:
+        try:
+            eval_critical_recall_f = float(eval_critical_recall)
+        except (TypeError, ValueError):
+            errors.append(
+                f"Invalid performance.optimized.critical_recall: {eval_critical_recall!r}"
+            )
+            eval_critical_recall_f = None
+
+    baseline_w = baseline.get("f1_weighted")
+    optimized_w = optimized.get("f1_weighted")
+    baseline_w_f: Optional[float] = None
+    optimized_w_f: Optional[float] = None
+
+    if baseline_w is None or optimized_w is None:
+        errors.append(
+            "Thresholds artifact missing performance.baseline.f1_weighted and/or "
+            "performance.optimized.f1_weighted (required for damage guardrail)"
+        )
+    else:
+        try:
+            baseline_w_f = float(baseline_w)
+            optimized_w_f = float(optimized_w)
+        except (TypeError, ValueError):
+            errors.append(
+                f"Invalid weighted F1 values baseline={baseline_w!r} optimized={optimized_w!r}"
+            )
+            baseline_w_f = None
+            optimized_w_f = None
+
+    return eval_critical_recall_f, baseline_w_f, optimized_w_f, errors
+
+
 def validate_candidate_model(candidate_dir: Path) -> dict:
-    """Validate that candidate model meets promotion criteria (robust discovery)."""
+    """Validate candidate against the train/cal/eval promotion contract.
 
-    # Discover metrics using flexible inputs
-    f1_weighted, f1_micro = _discover_metrics(candidate_dir)
-
-    # Find model file and compute size/hash
-    model_file = _discover_model_file(candidate_dir)
-    model_size_mb = model_file.stat().st_size / (1024 * 1024)
-
-    # Validation criteria
-    min_f1_weighted = PERFORMANCE_THRESHOLDS.get('min_f1_weighted', 0.5)
-    min_f1_micro = PERFORMANCE_THRESHOLDS.get('min_f1_micro', 0.6)
-    max_model_size_mb = PERFORMANCE_THRESHOLDS.get('max_model_size_mb', 1000)
+    Missing or invalid evidence is recorded in validation_errors (fail closed)
+    so --force can override without discovery exceptions escaping validation.
+    """
+    errors: list = []
+    min_baseline_micro = PERFORMANCE_THRESHOLDS.get('min_baseline_f1_micro', 0.60)
+    min_eval_critical_recall = PERFORMANCE_THRESHOLDS.get('min_eval_critical_recall', 0.55)
+    max_model_size_mb = PERFORMANCE_THRESHOLDS.get('max_model_size_mb', 50)
+    max_weighted_drop = PERFORMANCE_THRESHOLDS.get('max_weighted_f1_relative_drop', 0.05)
 
     validation_results = {
-        'model_path': str(model_file),
-        'model_size_mb': model_size_mb,
-        'f1_weighted': f1_weighted,
-        'f1_micro': f1_micro,
-        'model_hash': compute_model_hash(model_file),
-        'validation_passed': True,
-        'validation_errors': []
+        'model_path': None,
+        'model_size_mb': None,
+        'model_hash': None,
+        'baseline_f1_micro': None,
+        'eval_critical_recall': None,
+        'baseline_f1_weighted': None,
+        'optimized_f1_weighted': None,
+        'weighted_f1_relative_drop': None,
+        'thresholds_path': None,
+        'thresholds_sha256': None,
+        'optimization_split': None,
+        'reporting_split': None,
+        # Legacy aliases kept for older promotion-record consumers
+        'f1_weighted': None,
+        'f1_micro': None,
+        'validation_passed': False,
+        'validation_errors': errors,
     }
 
-    # Check performance thresholds
-    if f1_weighted < min_f1_weighted:
-        validation_results['validation_errors'].append(
-            f"F1 weighted {f1_weighted:.4f} below threshold {min_f1_weighted}")
+    model_file = _discover_model_file(candidate_dir)
+    if model_file is None:
+        errors.append(f"No model file (.pkl) found in {candidate_dir}")
+        model_stem = None
+    else:
+        validation_results['model_path'] = str(model_file)
+        validation_results['model_size_mb'] = model_file.stat().st_size / (1024 * 1024)
+        validation_results['model_hash'] = compute_model_hash(model_file)
+        model_stem = model_file.stem
+        if validation_results['model_size_mb'] > max_model_size_mb:
+            errors.append(
+                f"Model size {validation_results['model_size_mb']:.1f}MB exceeds "
+                f"limit {max_model_size_mb}MB"
+            )
 
-    if f1_micro < min_f1_micro:
-        validation_results['validation_errors'].append(
-            f"F1 micro {f1_micro:.4f} below threshold {min_f1_micro}")
+    log_data = _load_training_log(candidate_dir)
+    if log_data is None:
+        errors.append(
+            "training_log.json not found or unreadable "
+            "(required for baseline frozen-eval micro F1)"
+        )
+    else:
+        baseline_micro = _parse_baseline_micro_f1(log_data)
+        if baseline_micro is None:
+            errors.append(
+                "training_log.json missing explicit performance.micro_f1 / f1_micro "
+                "(no weighted/samples substitution allowed)"
+            )
+        else:
+            validation_results['baseline_f1_micro'] = baseline_micro
+            validation_results['f1_micro'] = baseline_micro
+            if baseline_micro < min_baseline_micro:
+                errors.append(
+                    f"Baseline frozen-eval micro F1 {baseline_micro:.4f} below "
+                    f"threshold {min_baseline_micro}"
+                )
 
-    if model_size_mb > max_model_size_mb:
-        validation_results['validation_errors'].append(
-            f"Model size {model_size_mb:.1f}MB exceeds limit {max_model_size_mb}MB")
+    thresholds_path = None
+    thresholds_payload = None
+    if model_stem is not None:
+        thresholds_path, thresholds_payload, threshold_errors = discover_candidate_thresholds(
+            candidate_dir, model_stem=model_stem
+        )
+        errors.extend(threshold_errors)
 
-    validation_results['validation_passed'] = len(validation_results['validation_errors']) == 0
+    if thresholds_path is not None and thresholds_payload is not None:
+        validation_results['thresholds_path'] = str(thresholds_path)
+        validation_results['thresholds_sha256'] = compute_model_hash(thresholds_path)
+        metadata = thresholds_payload.get("metadata") or {}
+        validation_results['optimization_split'] = metadata.get("optimization_split")
+        validation_results['reporting_split'] = metadata.get("reporting_split")
+        errors.extend(_validate_thresholds_provenance(thresholds_payload))
 
+        eval_cr, baseline_w, optimized_w, metric_errors = _extract_threshold_operating_metrics(
+            thresholds_payload
+        )
+        errors.extend(metric_errors)
+
+        if eval_cr is not None:
+            validation_results['eval_critical_recall'] = eval_cr
+            if eval_cr < min_eval_critical_recall:
+                errors.append(
+                    f"Frozen-eval critical recall {eval_cr:.4f} below "
+                    f"threshold {min_eval_critical_recall}"
+                )
+
+        if baseline_w is not None and optimized_w is not None:
+            validation_results['baseline_f1_weighted'] = baseline_w
+            validation_results['optimized_f1_weighted'] = optimized_w
+            validation_results['f1_weighted'] = optimized_w
+            try:
+                relative_drop = weighted_f1_relative_drop(baseline_w, optimized_w)
+            except ValueError as exc:
+                errors.append(str(exc))
+            else:
+                validation_results['weighted_f1_relative_drop'] = relative_drop
+                # Float-safe boundary: treat values within 1e-12 of the max as passing
+                # so (1.0 - 0.95) / 1.0 satisfies <= 0.05 despite binary float noise.
+                if relative_drop - max_weighted_drop > 1e-12:
+                    errors.append(
+                        f"Weighted F1 relative drop {relative_drop:.4f} exceeds "
+                        f"max {max_weighted_drop} "
+                        f"((baseline - optimized) / baseline)"
+                    )
+
+    validation_results['validation_passed'] = len(errors) == 0
     return validation_results
 
 
@@ -270,7 +412,6 @@ def archive_current_production_model(model_dir: Path, archive_dir: Path) -> dict
     archive_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-    # Find current production model
     prod_models = list(model_dir.glob("*_prod_*.pkl"))
     if not prod_models:
         print("No current production model found to archive")
@@ -284,7 +425,6 @@ def archive_current_production_model(model_dir: Path, archive_dir: Path) -> dict
     current_prod_model = prod_models[0]
     base_name = current_prod_model.stem
 
-    # Archive metadata files (not the large .pkl file)
     archived_metadata = {}
     metadata_extensions = ['.json', '_labels.json', '_thresholds.json', '_training.json']
 
@@ -295,14 +435,12 @@ def archive_current_production_model(model_dir: Path, archive_dir: Path) -> dict
             shutil.copy2(source_file, archive_file)
             archived_metadata[ext] = str(archive_file)
 
-    # Archive MODEL_INFO.json if it exists
     model_info_file = model_dir / "MODEL_INFO.json"
     if model_info_file.exists():
         archive_info_file = archive_dir / f"MODEL_INFO_{base_name}_{timestamp}.json"
         shutil.copy2(model_info_file, archive_info_file)
         archived_metadata['model_info'] = str(archive_info_file)
 
-    # Create archival record
     archive_record = {
         'archived_model': str(current_prod_model),
         'archive_timestamp': timestamp,
@@ -312,7 +450,6 @@ def archive_current_production_model(model_dir: Path, archive_dir: Path) -> dict
         'status': 'archived'
     }
 
-    # Save archive record
     record_file = archive_dir / f"archive_record_{base_name}_{timestamp}.json"
     with open(record_file, 'w') as f:
         json.dump(archive_record, f, indent=2)
@@ -323,76 +460,107 @@ def archive_current_production_model(model_dir: Path, archive_dir: Path) -> dict
     return archive_record
 
 
+def _resolve_training_date_and_version(candidate_dir: Path) -> Tuple[str, str]:
+    """Derive training date and version code from candidate directory name."""
+    version_parts = candidate_dir.name.split('-')
+    if len(version_parts) >= 3 and version_parts[0].isdigit() and len(version_parts[0]) == 4:
+        training_date = f"{version_parts[0]}-{version_parts[1]}-{version_parts[2]}"
+        version = f"v{version_parts[0][-2:]}-{version_parts[1]}-{version_parts[2]}"
+        return training_date, version
+
+    training_log_path = candidate_dir / "training_log.json"
+    if training_log_path.exists():
+        try:
+            with open(training_log_path, "r", encoding="utf-8") as f:
+                log_data = json.load(f)
+            timestamp_str = log_data.get("timestamp", "")
+            if timestamp_str:
+                training_date_obj = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+                training_date = training_date_obj.strftime("%Y-%m-%d")
+                version = f"v{training_date[2:4]}-{training_date[5:7]}-{training_date[8:10]}"
+                return training_date, version
+        except (OSError, json.JSONDecodeError, ValueError):
+            pass
+
+    training_date = datetime.now().strftime("%Y-%m-%d")
+    version = f"v{training_date[2:4]}-{training_date[5:7]}-{training_date[8:10]}"
+    return training_date, version
+
+
+def _copy_validated_thresholds(
+    validation_results: dict, model_dir: Path, base_name: str, metadata_files: dict
+) -> None:
+    """Copy the exact thresholds artifact validation inspected into production naming."""
+    thresholds_path_str = validation_results.get('thresholds_path')
+    expected_sha = validation_results.get('thresholds_sha256')
+    if not thresholds_path_str:
+        print("⚠️  No validated thresholds_path in validation_results; skipping thresholds copy")
+        return
+
+    candidate_thresholds = Path(thresholds_path_str)
+    if not candidate_thresholds.exists():
+        raise FileNotFoundError(
+            f"Validated thresholds artifact missing at promotion time: {candidate_thresholds}"
+        )
+
+    prod_thresholds = model_dir / f"{base_name}_thresholds.json"
+    shutil.copy2(candidate_thresholds, prod_thresholds)
+    copied_sha = compute_model_hash(prod_thresholds)
+    if expected_sha and copied_sha != expected_sha:
+        try:
+            prod_thresholds.unlink()
+        except OSError as cleanup_error:
+            print(f"⚠️  Warning: Failed to remove mismatched thresholds file: {cleanup_error}")
+        raise ValueError(
+            f"Thresholds file integrity check failed!\n"
+            f"  Expected hash: {expected_sha}\n"
+            f"  Copied hash:   {copied_sha}\n"
+            f"Deployed thresholds must match the artifact validation scored."
+        )
+
+    metadata_files['_thresholds.json'] = str(prod_thresholds)
+    print(f"✅ Thresholds deployed: {prod_thresholds.name} (hash: {copied_sha[:16]}...)")
+
+
 def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict) -> dict:
     """Promote validated candidate model to production."""
 
-    # Ensure candidate_model path is absolute and resolved
-    # The validation_results['model_path'] might be relative or absolute
-    candidate_model_str = validation_results['model_path']
+    candidate_model_str = validation_results.get('model_path')
+    if not candidate_model_str:
+        raise FileNotFoundError(
+            "validation_results['model_path'] is missing; cannot promote without a model file"
+        )
+
     candidate_model = Path(candidate_model_str)
-    
-    # Resolve the path - if it's relative, resolve from current working directory
-    # If that doesn't work, try resolving relative to candidate_dir
+
     if not candidate_model.is_absolute():
         candidate_model = candidate_model.resolve()
         if not candidate_model.exists():
-            # Try resolving relative to candidate_dir
             candidate_model = (candidate_dir / Path(candidate_model_str).name).resolve()
     else:
         candidate_model = candidate_model.resolve()
-    
-    # Ensure candidate_model exists
+
     if not candidate_model.exists():
         raise FileNotFoundError(
             f"Candidate model file not found: {candidate_model}\n"
             f"  Original path: {candidate_model_str}\n"
             f"  Candidate dir: {candidate_dir}"
         )
-    
-    # Detect algorithm type from the model file
+
     algorithm_code = detect_algorithm_type(candidate_model)
     if algorithm_code == 'unknown':
         print("⚠️  Warning: Could not detect algorithm type, defaulting to 'rf'")
         algorithm_code = 'rf'
-    
+
     algorithm_names = {'rf': 'RandomForest', 'lr': 'LogisticRegression'}
     print(f"🔍 Detected algorithm: {algorithm_names.get(algorithm_code, algorithm_code)}")
 
-    # Extract training date from candidate directory name (e.g., "2025-11-06-vocab15k-promotion" -> "2025-11-06")
-    # The date should be the training date, not the promotion date, per naming standard
-    version_parts = candidate_dir.name.split('-')
-    training_date = None
-    if len(version_parts) >= 3 and version_parts[0].isdigit() and len(version_parts[0]) == 4:
-        # Directory name starts with YYYY-MM-DD format
-        training_date = f"{version_parts[0]}-{version_parts[1]}-{version_parts[2]}"
-        version = f"v{version_parts[0][-2:]}-{version_parts[1]}-{version_parts[2]}"
-    else:
-        # Fallback: try to get date from training_log.json or use promotion date
-        training_log_path = candidate_dir / "training_log.json"
-        if training_log_path.exists():
-            try:
-                with open(training_log_path, "r", encoding="utf-8") as f:
-                    log_data = json.load(f)
-                    timestamp_str = log_data.get("timestamp", "")
-                    if timestamp_str:
-                        # Parse ISO timestamp to get date
-                        from datetime import datetime as dt
-                        training_date_obj = dt.fromisoformat(timestamp_str.replace("Z", "+00:00"))
-                        training_date = training_date_obj.strftime("%Y-%m-%d")
-                        version = f"v{training_date[2:4]}-{training_date[5:7]}-{training_date[8:10]}"
-            except Exception:
-                pass
-        
-        # Final fallback: use promotion date
-        if training_date is None:
-            training_date = datetime.now().strftime("%Y-%m-%d")
-            version = f"v{training_date[2:4]}-{training_date[5:7]}-{training_date[8:10]}"
+    training_date, version = _resolve_training_date_and_version(candidate_dir)
 
     prod_model_name = f"disaster_{algorithm_code}_{version}_prod_{training_date}.pkl"
     prod_model_path = model_dir / prod_model_name
     base_name = prod_model_path.stem
 
-    # Copy model file
     print(f"📋 Copying model from {candidate_model.name} to {prod_model_name}...")
     print(f"   Source: {candidate_model}")
     print(f"   Destination: {prod_model_path}")
@@ -407,12 +575,10 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
             f"  Destination parent exists: {prod_model_path.parent.exists()}\n"
             f"  Error: {e}"
         ) from e
-    
-    # Verify the copied file matches expected hash
+
     copied_hash = compute_model_hash(prod_model_path)
     expected_hash = validation_results['model_hash']
     if copied_hash != expected_hash:
-        # Clean up corrupted file before raising exception
         try:
             prod_model_path.unlink()
             print(f"🗑️  Removed corrupted model file: {prod_model_path}")
@@ -426,27 +592,35 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
         )
     print(f"✅ Model file integrity verified (hash: {copied_hash[:16]}...)")
 
-    # Copy/create metadata files
     metadata_files = {}
 
-    # Copy existing metadata from candidate
-    for suffix in ['_labels.json', '_thresholds.json', '_training_log.json']:
-        candidate_file = candidate_dir / f"{candidate_dir.name}{suffix}"
-        if candidate_file.exists():
-            prod_file = model_dir / f"{base_name}{suffix.replace('_training_log', '_training')}"
-            shutil.copy2(candidate_file, prod_file)
-            metadata_files[suffix] = str(prod_file)
-    
-    # Copy performance_metrics.csv if it exists (use model-specific naming)
+    # Copy optional label metadata if present under either naming convention
+    for candidate_labels in [
+        candidate_dir / f"{candidate_dir.name}_labels.json",
+        candidate_dir / "label_order.json",
+        candidate_dir / f"{candidate_model.stem}_labels.json",
+    ]:
+        if candidate_labels.exists():
+            prod_labels = model_dir / f"{base_name}_labels.json"
+            shutil.copy2(candidate_labels, prod_labels)
+            metadata_files['_labels.json'] = str(prod_labels)
+            break
+
+    _copy_validated_thresholds(validation_results, model_dir, base_name, metadata_files)
+
+    training_log = candidate_dir / "training_log.json"
+    if training_log.exists():
+        prod_training = model_dir / f"{base_name}_training.json"
+        shutil.copy2(training_log, prod_training)
+        metadata_files['_training.json'] = str(prod_training)
+
     metrics_csv = candidate_dir / "performance_metrics.csv"
     if metrics_csv.exists():
-        # Use model-specific naming: {base_name}_performance_metrics.csv
         prod_metrics_csv = model_dir / f"{base_name}_performance_metrics.csv"
         shutil.copy2(metrics_csv, prod_metrics_csv)
         metadata_files['performance_metrics.csv'] = str(prod_metrics_csv)
         print(f"📊 Copied performance metrics: {prod_metrics_csv.name}")
 
-    # Create new MODEL_INFO.json
     model_info = {
         'sha256': validation_results['model_hash'],
         'promoted_from': str(candidate_dir),
@@ -456,9 +630,17 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
         'algorithm_name': algorithm_names.get(algorithm_code, algorithm_code),
         'validation_results': validation_results,
         'performance': {
-            'f1_weighted': validation_results['f1_weighted'],
-            'f1_micro': validation_results['f1_micro']
+            'baseline_f1_micro': validation_results.get('baseline_f1_micro'),
+            'eval_critical_recall': validation_results.get('eval_critical_recall'),
+            'baseline_f1_weighted': validation_results.get('baseline_f1_weighted'),
+            'optimized_f1_weighted': validation_results.get('optimized_f1_weighted'),
+            'weighted_f1_relative_drop': validation_results.get('weighted_f1_relative_drop'),
+            'f1_weighted': validation_results.get('f1_weighted'),
+            'f1_micro': validation_results.get('f1_micro'),
         },
+        'thresholds_sha256': validation_results.get('thresholds_sha256'),
+        'optimization_split': validation_results.get('optimization_split'),
+        'reporting_split': validation_results.get('reporting_split'),
         'version': version,
         'status': 'production'
     }
@@ -481,8 +663,17 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
 
     print(f"✅ Model promoted to production: {prod_model_name}")
     print(f"📊 Algorithm: {algorithm_names.get(algorithm_code, algorithm_code)}")
-    print(f"📊 Performance: F1-weighted={validation_results['f1_weighted']:.4f}, F1-micro={validation_results['f1_micro']:.4f}")
-    print(f"💾 Size: {validation_results['model_size_mb']:.1f}MB")
+    baseline_micro = validation_results.get('baseline_f1_micro')
+    eval_cr = validation_results.get('eval_critical_recall')
+    drop = validation_results.get('weighted_f1_relative_drop')
+    if baseline_micro is not None:
+        print(f"📊 Baseline micro F1: {baseline_micro:.4f}")
+    if eval_cr is not None:
+        print(f"📊 Eval critical recall: {eval_cr:.4f}")
+    if drop is not None:
+        print(f"📊 Weighted F1 relative drop: {drop:.4f}")
+    if validation_results.get('model_size_mb') is not None:
+        print(f"💾 Size: {validation_results['model_size_mb']:.1f}MB")
 
     return promotion_record
 
@@ -494,9 +685,6 @@ def _update_app_config_model_filename(config_path: Path, new_filename: str, back
         if "MODEL_FILENAME" not in text:
             print("Warning: MODEL_FILENAME not found in config; skipping auto-update")
             return False
-        import re
-        # Only match MODEL_FILENAME in the Config class, not TestConfig class
-        # Use a more specific pattern that looks for MODEL_FILENAME within the Config class
         pattern = r"^class Config\b.*?^(\s*MODEL_FILENAME\s*=\s*)(['\"])(.+?)\2"
         repl = r"\1'" + new_filename + r"'"
         new_text, n = re.subn(pattern, repl, text, flags=re.MULTILINE | re.DOTALL)
@@ -530,6 +718,12 @@ def cleanup_old_production_models(model_dir: Path, keep_count: int = 2):
         old_model.unlink()
 
 
+def _format_optional_float(value, digits: int = 4) -> str:
+    if value is None:
+        return "n/a"
+    return f"{value:.{digits}f}"
+
+
 def main():
     parser = argparse.ArgumentParser(description="Promote experimental model to production")
     parser.add_argument("candidate_dir", help="Path to candidate model directory")
@@ -541,15 +735,13 @@ def main():
 
     args = parser.parse_args()
 
-    # Setup paths
-    # Script is in scripts/07_operations/, so go up 2 levels to get project root
     project_root = Path(__file__).parent.parent.parent
     candidate_dir = Path(args.candidate_dir)
     if not candidate_dir.is_absolute():
         candidate_dir = (project_root / candidate_dir).resolve()
     else:
         candidate_dir = candidate_dir.resolve()
-    
+
     model_dir = (project_root / "model").resolve()
     archive_dir = (project_root / "experiments" / "model_archive").resolve()
 
@@ -558,7 +750,6 @@ def main():
         return 1
 
     try:
-        # Validate candidate model
         print(f"🔍 Validating candidate model: {candidate_dir.name}")
         validation_results = validate_candidate_model(candidate_dir)
 
@@ -573,24 +764,32 @@ def main():
             for error in validation_results['validation_errors']:
                 print(f"  - {error}")
 
-        print("✅ Validation passed")
-        print(f"📊 F1-weighted: {validation_results['f1_weighted']:.4f}")
-        print(f"📊 F1-micro: {validation_results['f1_micro']:.4f}")
-        print(f"💾 Model size: {validation_results['model_size_mb']:.1f}MB")
+        print("✅ Validation passed" if validation_results['validation_passed'] else "✅ Proceeding with --force")
+        print(
+            f"📊 Baseline micro F1: "
+            f"{_format_optional_float(validation_results.get('baseline_f1_micro'))}"
+        )
+        print(
+            f"📊 Eval critical recall: "
+            f"{_format_optional_float(validation_results.get('eval_critical_recall'))}"
+        )
+        print(
+            f"📊 Weighted F1 relative drop: "
+            f"{_format_optional_float(validation_results.get('weighted_f1_relative_drop'))}"
+        )
+        size_mb = validation_results.get('model_size_mb')
+        print(f"💾 Model size: {_format_optional_float(size_mb, digits=1)}MB")
 
         if args.dry_run:
             print("🔍 Dry run complete - no changes made")
             return 0
 
-        # Archive current production model
         print("\n📦 Archiving current production model...")
         archive_record = archive_current_production_model(model_dir, archive_dir)
 
-        # Promote new model
         print("\n🚀 Promoting candidate model to production...")
         promotion_record = promote_model(candidate_dir, model_dir, validation_results)
 
-        # Optionally update app/config.py to point at the new model filename
         prod_model_path = Path(promotion_record['promoted_model'])
         new_filename = prod_model_path.name
         if args.print_new_path:
@@ -604,11 +803,9 @@ def main():
             else:
                 print("⚠️  Skipped updating app/config.py (see warnings above)")
 
-        # Cleanup old models
         print(f"\n🧹 Cleaning up old production models (keeping {args.keep_old})...")
         cleanup_old_production_models(model_dir, keep_count=args.keep_old)
 
-        # Save promotion record
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         record_file = archive_dir / f"promotion_record_{timestamp}.json"
         record_file.parent.mkdir(parents=True, exist_ok=True)
