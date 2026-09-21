@@ -1,7 +1,7 @@
 {
   "metadata": {
     "created": "2026-09-21T22:35:58.276416",
-    "model": "experiments/experimental_runs/2026-09-21/lr_vocab15k_cal_split_model.pkl",
+    "model": "model/disaster_lr_v26-09-21_prod_2026-09-21.pkl",
     "critical_target_recall": 0.65,
     "non_critical_target_recall": 0.6,
     "optimization_method": "precision_recall_curve",
@@ -20,7 +20,8 @@
       "security": 47,
       "shelter": 283,
       "water": 191
-    }
+    },
+    "source_model": "experiments/experimental_runs/2026-09-21/lr_vocab15k_cal_split_model.pkl"
   },
   "thresholds": {
     "related": 0.8496227083075785,

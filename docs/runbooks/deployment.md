@@ -131,7 +131,7 @@ python -c "from app.app import create_app; from app.config import Config; create
 **Solution**: Ensure `model/disaster_lr_v26-09-21_prod_2026-09-21.pkl` (or another `disaster_*_prod_*.pkl`) exists, or set `MODEL_FILENAME` to a file that is present.
 
 ### scikit-learn / imbalanced-learn install conflicts
-**Solution**: Use the ranges in `requirements.txt` (`scikit-learn>=1.7.1,<1.8.0` with `imbalanced-learn>=0.14.0,<0.15.0`). Do not pair sklearn 1.7 with imbalanced-learn 0.12/0.13.
+**Solution**: Use the pins in `requirements.txt` (`scikit-learn==1.7.1` with `imbalanced-learn>=0.14.0,<0.15.0`). Do not pair sklearn 1.7 with imbalanced-learn 0.12/0.13.
 
 ### Stale docs mentioning `GDRIVE_MODEL_ID`
 **Solution**: That variable is historical only. See the Historical section below and ADR-003.

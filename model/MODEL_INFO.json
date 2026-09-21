@@ -16,7 +16,7 @@
     "optimized_f1_weighted": 0.8974507784044915,
     "weighted_f1_relative_drop": 0.042115053887742525,
     "thresholds_path": "/home/runner/workspace/experiments/experimental_runs/2026-09-21/lr_vocab15k_cal_split_model_thresholds.json",
-    "thresholds_sha256": "20caecccca1339cb79b1654dfd4934541aeb383e7ff73389d32a8f59d2e83a4f",
+    "thresholds_sha256": "873526089fd8d46f299f9956fdfcb28f4d96a707c4056c3acc5e9be16f72dc28",
     "optimization_split": "calibration",
     "reporting_split": "frozen_eval",
     "f1_weighted": 0.8974507784044915,
@@ -33,7 +33,7 @@
     "f1_weighted": 0.8974507784044915,
     "f1_micro": 0.6454499163453844
   },
-  "thresholds_sha256": "20caecccca1339cb79b1654dfd4934541aeb383e7ff73389d32a8f59d2e83a4f",
+  "thresholds_sha256": "873526089fd8d46f299f9956fdfcb28f4d96a707c4056c3acc5e9be16f72dc28",
   "optimization_split": "calibration",
   "reporting_split": "frozen_eval",
   "version": "v26-09-21",
