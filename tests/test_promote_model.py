@@ -666,8 +666,8 @@ class TestRealCandidateAcceptance:
         assert results['validation_passed'] is True, results['validation_errors']
         assert results['optimization_split'] == "calibration"
         assert results['reporting_split'] == "frozen_eval"
-        assert results['baseline_f1_micro'] == pytest.approx(0.6457620953073845)
-        assert results['eval_critical_recall'] == pytest.approx(0.6148491225904134)
+        assert results['baseline_f1_micro'] == pytest.approx(0.6454499163453844)
+        assert results['eval_critical_recall'] == pytest.approx(0.6149371857288635)
 
     def test_2025_11_06_fails_tune_on_eval_provenance(self, temp_dir, lr_model_path):
         source = (

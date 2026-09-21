@@ -14,15 +14,19 @@
   "threshold_optimization": {
     "target_critical_recall_on_cal": 0.65,
     "calibration_critical_recall_diagnostic": 0.6511,
-    "eval_critical_recall_reported": 0.6148,
-    "eval_f1_weighted_baseline": 0.9370,
-    "eval_f1_weighted_optimized": 0.8966,
+    "eval_critical_recall_reported": 0.6149,
+    "eval_f1_weighted_baseline": 0.9369,
+    "eval_f1_weighted_optimized": 0.8975,
+    "eval_f1_micro_baseline": 0.6454,
     "thresholds_file": "lr_vocab15k_cal_split_model_thresholds.json"
   },
+  "promoted_to": "model/disaster_lr_v26-09-21_prod_2026-09-21.pkl",
+  "promotion_timestamp": "2026-09-21T22:36:13.089914",
   "notes": [
     "Model fitted excluding cal ∪ eval",
     "Thresholds tuned on cal only",
     "category_stats and performance measured on frozen eval only",
-    "Historical ~65% critical recall was not an independent post-calibration estimate"
+    "Historical ~65% critical recall / 92.76% F1 were pre-three-way tune-on-eval and are not this operating point",
+    "Promoted under ADR-007 / PR #110 evaluation-contract gates"
   ]
 }

@@ -22,8 +22,8 @@
 
 ## Highlights
 
-- **Model Size**: 4.53 MB (93% reduction from 67.69 MB) enabling lightweight deployments
-- **Evaluation**: historical threshold-optimized F1 92.76% was measured under the earlier tune-on-eval workflow; a 2026 three-way retrain measured 61.5% critical recall and 89.66% weighted F1 on frozen eval after cal-only threshold tuning
+- **Model Size**: ≈4.59 MB (vocab15k LogisticRegression) enabling lightweight deployments
+- **Evaluation**: production operating point under train/cal/eval — **61.5%** frozen-eval critical recall, **≈89.75%** threshold-optimized weighted F1; historical tune-on-eval 92.76% F1 / ~65% critical recall are labeled separately and are not this operating point
 - **Load Time**: <0.1s through optimized initialization
 - **Architecture**: LogisticRegression with TF-IDF vectorization for fast inference
 - **Production Ready**: Local file-based deployment with modular Flask architecture
@@ -314,7 +314,7 @@ Experiments are organized in the `experiments/` directory with the following str
 - **adasyn_moderate**: ADASYN with moderate parameters (legacy)
 - **conservative_sampling**: Very conservative SMOTE approach (legacy)
 
-**Note**: Current production model (`disaster_lr_v25-11-06_prod_2025-11-06.pkl`) was trained without class weighting (see training log: `experiments/experimental_runs/2025-11-06-vocab15k-promotion/training_log.json`). Class weighting infrastructure exists and can be enabled via config file. See [ADR-008](../docs/adr/adr-008-class-weighting-over-sampling.md) for rationale on weighting vs sampling.
+**Note**: Current production model (`disaster_lr_v26-09-21_prod_2026-09-21.pkl`) was trained without class weighting (see training log: `experiments/experimental_runs/2026-09-21/training_log.json`). Class weighting infrastructure exists and can be enabled via config file. See [ADR-008](docs/adr/adr-008-class-weighting-over-sampling.md) for rationale on weighting vs sampling.
 
 ### Running Experiments
 
@@ -518,22 +518,22 @@ The system evaluates models using comprehensive metrics:
 
 ### Current Production Model Performance
 
-**Model**: `disaster_lr_v25-11-06_prod_2025-11-06.pkl`
+**Model**: `disaster_lr_v26-09-21_prod_2026-09-21.pkl`
 - **Algorithm**: LogisticRegression with TF-IDF
-- **Model Size**: 4.53 MB
+- **Model Size**: ≈4.59 MB
 - **Vocabulary Size**: 15K features (optimized from 230K)
 - **Load Time**: <0.1s
+- **Split contract**: fit excludes `cal ∪ eval`; thresholds tuned on `cal_ids.json`; metrics reported on frozen `eval_ids.json`
 
-**Historical figures (tune-on-eval workflow — not an independent post-cal estimate):**
+**Promoted operating point (2026-09-21 three-way)** ([artifacts](experiments/experimental_runs/2026-09-21/lr_vocab15k_cal_split_model_thresholds.json)):
+- **Frozen-eval critical recall**: **61.5%** (calibration diagnostic critical recall was 65.1%)
+- **Threshold-optimized weighted F1**: **≈89.75%**
+- **Baseline frozen-eval micro F1**: **≈64.5%**
+
+**Historical figures (pre-three-way tune-on-eval — prior prod `disaster_lr_v25-11-06_prod_2025-11-06`, not the current operating point):**
 - **F1-Score (Weighted)**: 92.76%
 - **F1-Score (Micro)**: 65.02%
 - **Critical Recall**: ~65% average across 8 safety-critical categories — measured on the same frozen eval examples used to select per-label thresholds
-
-**2026-09-21 three-way retrain** ([artifacts](experiments/experimental_runs/2026-09-21/lr_vocab15k_cal_split_model_thresholds.json)):
-- Fit excludes `cal ∪ eval`; thresholds tuned on `cal_ids.json` only
-- **Frozen-eval weighted F1 (threshold-optimized)**: **89.66%**
-- **Frozen-eval critical recall**: **61.5%** (calibration diagnostic critical recall was 65.1%)
-- **Not yet promoted** to `model/`; the deployed production artifact remains `disaster_lr_v25-11-06_prod_2025-11-06.pkl` with the historical tune-on-eval metrics above
 
 ### Evaluation Contract (train / cal / eval)
 

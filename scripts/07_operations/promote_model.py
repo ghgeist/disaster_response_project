@@ -1007,17 +1007,30 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
 
 
 def _update_app_config_model_filename(config_path: Path, new_filename: str, backup: bool = True) -> bool:
-    """Safely update app/config.py MODEL_FILENAME to new_filename."""
+    """Safely update a single-line production MODEL_FILENAME string assignment.
+
+    Only rewrites lines like ``MODEL_FILENAME = 'disaster_*_prod_*.pkl'``.
+    Skips when config uses env override / auto-discovery (no disaster_* literal),
+    and never uses DOTALL matching that could erase the Config class body.
+    """
     try:
         text = config_path.read_text(encoding="utf-8")
         if "MODEL_FILENAME" not in text:
             print("Warning: MODEL_FILENAME not found in config; skipping auto-update")
             return False
-        pattern = r"^class Config\b.*?^(\s*MODEL_FILENAME\s*=\s*)(['\"])(.+?)\2"
-        repl = r"\1'" + new_filename + r"'"
-        new_text, n = re.subn(pattern, repl, text, flags=re.MULTILINE | re.DOTALL)
+        # Single-line only: require a disaster_* production literal on the same line.
+        pattern = (
+            r"^(\s*MODEL_FILENAME\s*=\s*)(['\"])"
+            r"(disaster_[^'\"]+_prod_[^'\"]+\.pkl)\2"
+            r"(\s*(?:#.*)?)?$"
+        )
+        repl = r"\1'" + new_filename + r"'\4"
+        new_text, n = re.subn(pattern, repl, text, count=1, flags=re.MULTILINE)
         if n == 0:
-            print("Warning: Could not update MODEL_FILENAME line; skipping auto-update")
+            print(
+                "Warning: No disaster_* production MODEL_FILENAME literal in "
+                "app/config.py (likely auto-discovery); skipping auto-update"
+            )
             return False
         if backup:
             bak = config_path.with_suffix(config_path.suffix + ".bak")

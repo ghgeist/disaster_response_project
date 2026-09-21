@@ -3,17 +3,17 @@
     "optimization_method": "f2",
     "optimization_split": "calibration",
     "reporting_split": "frozen_eval",
-    "note": "Diagnostic F2 thresholds only. Canonical per-label thresholds are produced by optimize_per_category_thresholds.py."
+    "note": "Diagnostic F2 thresholds only. Canonical per-label thresholds are produced by scripts/03_optimization/optimize_per_category_thresholds.py as {model_stem}_thresholds.json."
   },
   "thresholds": {
-    "medical_help": 0.1143,
+    "medical_help": 0.1135,
     "search_and_rescue": 0.06,
-    "water": 0.1116,
-    "food": 0.1657,
-    "shelter": 0.1199,
-    "hospitals": 0.0185,
-    "security": 0.0337,
-    "weather_related": 0.1814
+    "water": 0.1121,
+    "food": 0.1672,
+    "shelter": 0.119,
+    "hospitals": 0.0184,
+    "security": 0.0335,
+    "weather_related": 0.2107
   },
   "threshold_sources": {
     "medical_help": "optimized",
