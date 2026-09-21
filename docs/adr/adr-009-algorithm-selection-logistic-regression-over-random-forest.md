@@ -49,8 +49,10 @@ Replace RandomForestClassifier with **LogisticRegression** as the primary algori
 **Current Production Model** (vocab15k, 2025-11-06):
 - **F1-Score**: 0.9379 (baseline), 0.9276 (threshold-optimized)
 - **Model Size**: 4.53MB
-- **Critical Recall**: 65% average across 8 critical categories
+- **Critical Recall**: Historical ~65% average across 8 critical categories — see caveat below
 - **Per-category performance**: Better F1 on 19/36 categories vs RF, including 5/8 critical categories
+
+**Threshold evaluation caveat (2026-09-21):** Historical ~65% critical recall was measured on the same frozen eval examples used to select per-label thresholds and therefore was not an independent post-calibration estimate. Going forward, thresholds are tuned on `experiments/experimental_configs/eval_sets/cal_ids.json` (train-side) and reported on frozen `eval_ids.json` only. A three-way retrain of the vocab15k LR path (`03_create_experimental_model.py`, fit excludes `cal ∪ eval`; inline F2 thresholds also use cal and are written to `*_f2_thresholds.json`) yielded **61.5%** critical recall and **89.66%** threshold-optimized weighted F1 on frozen eval (calibration diagnostic critical recall remained ~65.1%). Those three-way numbers are **not yet promoted** to `model/`; the deployed production artifact still carries historical tune-on-eval metrics. The historical 92.76% F1 figure came from the earlier tune-on-eval workflow and must not be paired with the new critical-recall number as one operating point. Frozen eval is report-only for threshold calibration; it is not a pristine never-touched final test set because prior engineering decisions already inspected its results.
 
 ## Consequences
 
@@ -159,7 +161,7 @@ Replace RandomForestClassifier with **LogisticRegression** as the primary algori
 - ✅ **Vocabulary optimization**: 15K feature model in production
 - ✅ **Production deployment**: LR model deployed as of 2025-11-06
 - ✅ **Performance validation**: F1-scores validated and documented
-- ✅ **Critical recall**: All 8 critical categories achieve target recall (65%+)
+- ✅ **Critical recall**: Independent post-cal frozen-eval critical recall is **61.5%** under the train/cal/eval contract (2026-09-21); historical 65%+ figures were not independent holdout estimates (see caveat above)
 
 ## Performance Validation
 

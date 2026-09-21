@@ -2,15 +2,12 @@
 """
 Optimize Per-Category Thresholds
 
-Optimizes individual thresholds for all 36 categories using precision-recall
-curves to achieve target recall values (higher for critical categories).
-
-This script optimizes individual thresholds for each category independently.
-For hierarchy post-processing parameter optimization, see
-optimize_hierarchy_threshold_reduction.py.
+Tunes per-label thresholds on a frozen calibration split carved from train,
+then reports performance on the frozen eval set only.
 
 Usage:
-    python scripts/03_optimization/optimize_per_category_thresholds.py --model-path <model.pkl> --output-dir <output>
+    python scripts/03_optimization/optimize_per_category_thresholds.py \
+        --model-path <model.pkl> --output-dir <output>
 """
 
 # Standard library imports
@@ -25,45 +22,19 @@ from datetime import datetime
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.metrics import classification_report, f1_score
+from sklearn.metrics import classification_report, f1_score, precision_recall_curve
 
 # Add src to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
 # Local imports
 from disasterproject.data.loader import load_data
+from disasterproject.data.splits import (
+    assert_critical_support,
+    critical_label_positive_support,
+    load_three_way_split,
+)
 from disasterproject.utils.config import CRITICAL_LABELS, TARGET_COLUMNS, setup_logging
-
-
-def load_eval_split(eval_ids_file, X, Y):
-    """Load frozen eval split."""
-    import hashlib
-
-    import pandas as pd
-
-    def _compute_uids(messages):
-        uids_local = []
-        for idx, msg in enumerate(messages):
-            text = '' if msg is None else str(msg)
-            uid_src = f"{text}|{idx}"
-            uids_local.append(hashlib.sha1(uid_src.encode('utf-8')).hexdigest())
-        return uids_local
-
-    # Load eval IDs
-    with open(eval_ids_file, 'r') as f:
-        data = json.load(f)
-    eval_uids = set(data['eval_ids'])
-
-    # Compute UIDs and split
-    uids = _compute_uids(X)
-    uid_series = pd.Series(uids)
-    is_eval = uid_series.isin(eval_uids).values
-
-    X_train, X_test = X[~is_eval], X[is_eval]
-    Y_train, Y_test = Y[~is_eval], Y[is_eval]
-
-    print(f"Split: Train={len(X_train)}, Eval={len(X_test)}")
-    return X_train, X_test, Y_train, Y_test
 
 
 def get_proba_array(model, X):
@@ -73,59 +44,42 @@ def get_proba_array(model, X):
     n_labels = len(y_proba_list)
     y_proba = np.zeros((n_samples, n_labels))
 
-    # Access the underlying classifier to get class information
-    clf = model.named_steps['clf']
+    clf = model.named_steps["clf"]
 
     for i, probs in enumerate(y_proba_list):
         if probs.ndim == 2 and probs.shape[1] == 2:
-            y_proba[:, i] = probs[:, 1]  # Probability of class 1
+            y_proba[:, i] = probs[:, 1]
         elif probs.ndim == 2 and probs.shape[1] == 1:
-            # Single class present - check which class it is
-            if hasattr(clf, 'classes_') and i < len(clf.classes_):
+            if hasattr(clf, "classes_") and i < len(clf.classes_):
                 classes = clf.classes_[i]
                 if len(classes) == 1 and classes[0] == 0:
-                    # Only class 0 present, probability of class 1 is 0
                     y_proba[:, i] = 0.0
                 elif len(classes) == 1 and classes[0] == 1:
-                    # Only class 1 present, probability of class 1 is 1
                     y_proba[:, i] = 1.0
                 else:
-                    # Fallback (shouldn't happen)
                     y_proba[:, i] = probs.ravel()
             else:
-                # Fallback if class info not available
                 y_proba[:, i] = probs.ravel()
         else:
-            # Fallback for unexpected shapes
             y_proba[:, i] = probs.ravel()
 
     return y_proba
 
 
 def optimize_threshold_for_category(y_true, y_proba, target_recall=0.65):
-    """
-    Optimize threshold for a single category to achieve target recall.
-
-    Returns threshold value.
-    """
-    from sklearn.metrics import precision_recall_curve
-
-    # Skip if no positive examples
+    """Optimize threshold for a single category to achieve target recall."""
     if np.sum(y_true) == 0:
         return 0.5
 
     try:
-        precision, recall, thresh = precision_recall_curve(y_true, y_proba)
-
-        # Find threshold with recall nearest to target
+        _precision, recall, thresh = precision_recall_curve(y_true, y_proba)
         recall_diff = np.abs(recall - target_recall)
         best_idx = int(np.argmin(recall_diff))
-
-        # precision_recall_curve returns thresholds one shorter than recall
-        chosen = float(thresh[max(0, min(best_idx, len(thresh)-1))]) if len(thresh) else 0.5
-        return chosen
-    except Exception as e:
-        logging.warning(f"Failed to optimize threshold: {e}, using default")
+        if len(thresh) == 0:
+            return 0.5
+        return float(thresh[max(0, min(best_idx, len(thresh) - 1))])
+    except ValueError as exc:
+        logging.warning("Failed to optimize threshold: %s, using default", exc)
         return 0.5
 
 
@@ -133,275 +87,328 @@ def evaluate_with_thresholds(Y_true, Y_pred, category_names):
     """Evaluate predictions (matches training script calculation)."""
     all_metrics = []
 
-    for i, label in enumerate(category_names):
+    for i, _label in enumerate(category_names):
         report = classification_report(
-            Y_true[:, i], Y_pred[:, i],
-            output_dict=True, zero_division=0
+            Y_true[:, i],
+            Y_pred[:, i],
+            output_dict=True,
+            zero_division=0,
         )
+        if "weighted avg" in report:
+            all_metrics.append(report["weighted avg"]["f1-score"])
 
-        # Get weighted avg F1 for this category
-        if 'weighted avg' in report:
-            all_metrics.append(report['weighted avg']['f1-score'])
-
-    # Calculate overall F1 as mean of per-category weighted F1
     f1_weighted = np.mean(all_metrics) if all_metrics else 0.0
-    f1_micro = f1_score(Y_true, Y_pred, average='micro', zero_division=0)
+    f1_micro = f1_score(Y_true, Y_pred, average="micro", zero_division=0)
 
     return {
-        'f1_weighted': f1_weighted,
-        'f1_micro': f1_micro
+        "f1_weighted": f1_weighted,
+        "f1_micro": f1_micro,
     }
+
+
+def _category_type(label: str) -> str:
+    return "critical" if label in CRITICAL_LABELS else "non-critical"
+
+
+def _target_recall_for_label(label: str, critical_recall: float, non_critical_recall: float) -> float:
+    if label in CRITICAL_LABELS:
+        return critical_recall
+    return non_critical_recall
+
+
+def build_category_stats(Y_true, y_proba, thresholds, critical_recall, non_critical_recall):
+    """Per-category metrics for a scored split using frozen thresholds."""
+    stats = []
+    for i, label in enumerate(TARGET_COLUMNS):
+        target_recall = _target_recall_for_label(label, critical_recall, non_critical_recall)
+        threshold = thresholds[label]
+        y_pred_label = (y_proba[:, i] >= threshold).astype(int)
+        report = classification_report(
+            Y_true[:, i],
+            y_pred_label,
+            output_dict=True,
+            zero_division=0,
+        )
+        recall = report.get("1", {}).get("recall", 0.0) if "1" in report else 0.0
+        precision = report.get("1", {}).get("precision", 0.0) if "1" in report else 0.0
+        f1 = report.get("1", {}).get("f1-score", 0.0) if "1" in report else 0.0
+        support = report.get("1", {}).get("support", 0) if "1" in report else 0
+        stats.append(
+            {
+                "category": label,
+                "type": _category_type(label),
+                "threshold": threshold,
+                "target_recall": target_recall,
+                "actual_recall": recall,
+                "precision": precision,
+                "f1": f1,
+                "support": support,
+            }
+        )
+    return stats
+
+
+def critical_recall_mean(category_stats):
+    """Mean actual_recall across critical categories."""
+    recalls = [
+        float(stat["actual_recall"])
+        for stat in category_stats
+        if stat.get("type") == "critical"
+    ]
+    if not recalls:
+        return 0.0
+    return float(np.mean(recalls))
+
+
+def apply_thresholds(y_proba, thresholds):
+    """Apply per-label thresholds to probability matrix."""
+    Y_pred = np.zeros((y_proba.shape[0], len(TARGET_COLUMNS)), dtype=int)
+    for i, label in enumerate(TARGET_COLUMNS):
+        Y_pred[:, i] = (y_proba[:, i] >= thresholds[label]).astype(int)
+    return Y_pred
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Optimize thresholds for ALL categories on a trained model'
+        description=(
+            "Optimize thresholds on calibration split; report metrics on frozen eval only"
+        )
     )
     parser.add_argument(
-        '--model-path',
-        default='experiments/experimental_runs/2025-11-04/lr_baseline_model.pkl',
-        help='Path to trained model pickle file'
+        "--model-path",
+        default="experiments/experimental_runs/2025-11-04/lr_baseline_model.pkl",
+        help="Path to trained model pickle file",
     )
     parser.add_argument(
-        '--output-dir',
+        "--output-dir",
         default=None,
-        help='Output directory for thresholds (default: same directory as model)'
+        help="Output directory for thresholds (default: same directory as model)",
     )
     parser.add_argument(
-        '--db-path',
-        default='data/02_stg/stg_disaster_response.db',
-        help='Path to database file'
+        "--db-path",
+        default="data/02_stg/stg_disaster_response.db",
+        help="Path to database file",
     )
     parser.add_argument(
-        '--eval-ids',
-        default='experiments/experimental_configs/eval_sets/eval_ids.json',
-        help='Path to eval IDs file'
+        "--eval-ids",
+        default="experiments/experimental_configs/eval_sets/eval_ids.json",
+        help="Path to frozen eval IDs file (report-only)",
     )
     parser.add_argument(
-        '--critical-recall',
+        "--cal-ids",
+        default="experiments/experimental_configs/eval_sets/cal_ids.json",
+        help="Path to calibration IDs file (threshold tuning)",
+    )
+    parser.add_argument(
+        "--critical-recall",
         type=float,
         default=0.65,
-        help='Target recall for critical categories (default: 0.65)'
+        help="Target recall for critical categories (default: 0.65)",
     )
     parser.add_argument(
-        '--non-critical-recall',
+        "--non-critical-recall",
         type=float,
         default=0.60,
-        help='Target recall for non-critical categories (default: 0.60)'
+        help="Target recall for non-critical categories (default: 0.60)",
     )
 
     args = parser.parse_args()
-
     setup_logging()
 
-    # Paths
     model_path = args.model_path
     db_path = args.db_path
     eval_ids_path = args.eval_ids
-
-    # Determine output directory
-    if args.output_dir:
-        output_dir = args.output_dir
-    else:
-        # Default to same directory as model
-        output_dir = os.path.dirname(model_path) or '.'
-
-    # Ensure output directory exists
+    cal_ids_path = args.cal_ids
+    output_dir = args.output_dir or (os.path.dirname(model_path) or ".")
     os.makedirs(output_dir, exist_ok=True)
 
-    print("\n" + "="*70)
-    print("THRESHOLD OPTIMIZATION FOR ALL CATEGORIES")
-    print("="*70)
+    print("\n" + "=" * 70)
+    print("THRESHOLD OPTIMIZATION (cal tune / eval report)")
+    print("=" * 70)
     print(f"Model: {model_path}")
     print(f"Output: {output_dir}")
+    print(f"Calibration IDs: {cal_ids_path}")
+    print(f"Eval IDs (report-only): {eval_ids_path}")
     print(f"Critical Labels: {', '.join(sorted(CRITICAL_LABELS))}")
-    print(f"Target Recall - Critical: {args.critical_recall:.0%}, Non-Critical: {args.non_critical_recall:.0%}")
-    print("="*70 + "\n")
+    print(
+        f"Target Recall - Critical: {args.critical_recall:.0%}, "
+        f"Non-Critical: {args.non_critical_recall:.0%}"
+    )
+    print("=" * 70 + "\n")
 
-    # Load model
     print("Loading model...")
     model = joblib.load(model_path)
     print(f"✓ Model loaded: {type(model)}")
 
-    # Load data
     print("Loading data...")
     X, Y = load_data(db_path)
     print(f"✓ Loaded {len(X)} samples with {Y.shape[1]} labels")
 
-    # Load eval split
-    print("Loading eval split...")
-    X_train, X_test, Y_train, Y_test = load_eval_split(eval_ids_path, X, Y)
+    print("Loading three-way train/cal/eval split...")
+    try:
+        splits = load_three_way_split(X, Y, eval_ids_path, cal_ids_path)
+    except (OSError, KeyError, ValueError) as exc:
+        logging.error("Failed to load three-way split: %s", exc)
+        sys.exit(1)
 
-    # Baseline evaluation (default 0.5 thresholds)
-    print("\n" + "-"*70)
-    print("BASELINE PERFORMANCE (default 0.5 thresholds)")
-    print("-"*70)
-    Y_pred_baseline = model.predict(X_test)
-    baseline_metrics = evaluate_with_thresholds(
-        Y_test, Y_pred_baseline, TARGET_COLUMNS
+    _X_train, _Y_train = splits["train"]
+    X_cal, Y_cal = splits["cal"]
+    X_eval, Y_eval = splits["eval"]
+
+    if len(X_cal) == 0:
+        logging.error("Calibration split is empty; cannot optimize thresholds.")
+        sys.exit(1)
+
+    cal_support = critical_label_positive_support(Y_cal)
+    print("\ncal positive support:")
+    for label in sorted(CRITICAL_LABELS):
+        print(f"  {label}: {cal_support[label]}")
+    try:
+        assert_critical_support(cal_support, context="calibration")
+    except ValueError as exc:
+        logging.error("%s", exc)
+        sys.exit(1)
+
+    print(
+        f"\nSplit: Train={len(_X_train)}, Cal={len(X_cal)}, Eval={len(X_eval)}"
     )
 
-    print(f"F1-Weighted: {baseline_metrics['f1_weighted']:.4f}")
-    print(f"F1-Micro: {baseline_metrics['f1_micro']:.4f}")
-
-    # Get probabilities
-    print("\nExtracting probabilities...")
-    y_proba = get_proba_array(model, X_test)
-    print(f"✓ Probability array shape: {y_proba.shape}")
-
-    # Optimize thresholds for all categories
-    print("\n" + "-"*70)
-    print("OPTIMIZING THRESHOLDS FOR ALL CATEGORIES")
-    print("-"*70)
+    print("\n" + "-" * 70)
+    print("TUNING THRESHOLDS ON CALIBRATION SPLIT")
+    print("-" * 70)
+    y_proba_cal = get_proba_array(model, X_cal)
+    print(f"✓ Calibration probability array shape: {y_proba_cal.shape}")
 
     all_thresholds = {}
-    category_stats = []
-
     for i, label in enumerate(TARGET_COLUMNS):
-        y_true_label = Y_test[:, i]
-        y_proba_label = y_proba[:, i]
-
-        # Determine target recall based on category type
-        if label in CRITICAL_LABELS:
-            target_recall = args.critical_recall
-            category_type = "critical"
-        else:
-            target_recall = args.non_critical_recall
-            category_type = "non-critical"
-
-        # Optimize threshold
-        threshold = optimize_threshold_for_category(
-            y_true_label,
-            y_proba_label,
-            target_recall=target_recall
+        target_recall = _target_recall_for_label(
+            label, args.critical_recall, args.non_critical_recall
         )
-
-        all_thresholds[label] = threshold
-
-        # Calculate metrics for this category
-        y_pred_label = (y_proba_label >= threshold).astype(int)
-        report = classification_report(
-            y_true_label, y_pred_label,
-            output_dict=True, zero_division=0
+        all_thresholds[label] = optimize_threshold_for_category(
+            Y_cal[:, i],
+            y_proba_cal[:, i],
+            target_recall=target_recall,
         )
-
-        recall = report.get('1', {}).get('recall', 0.0) if '1' in report else 0.0
-        precision = report.get('1', {}).get('precision', 0.0) if '1' in report else 0.0
-        f1 = report.get('1', {}).get('f1-score', 0.0) if '1' in report else 0.0
-        support = report.get('1', {}).get('support', 0) if '1' in report else 0
-
-        category_stats.append({
-            'category': label,
-            'type': category_type,
-            'threshold': threshold,
-            'target_recall': target_recall,
-            'actual_recall': recall,
-            'precision': precision,
-            'f1': f1,
-            'support': support
-        })
-
         if i % 10 == 0:
-            print(f"  Processed {i+1}/{len(TARGET_COLUMNS)} categories...")
+            print(f"  Processed {i + 1}/{len(TARGET_COLUMNS)} categories...")
 
-    print(f"\n✓ Optimized thresholds for all {len(TARGET_COLUMNS)} categories")
+    print(f"\n✓ Optimized thresholds for all {len(TARGET_COLUMNS)} categories on cal")
 
-    # Apply optimized thresholds
-    print("\n" + "-"*70)
-    print("EVALUATING WITH OPTIMIZED THRESHOLDS")
-    print("-"*70)
+    calibration_stats = build_category_stats(
+        Y_cal,
+        y_proba_cal,
+        all_thresholds,
+        args.critical_recall,
+        args.non_critical_recall,
+    )
+    cal_critical_recall = critical_recall_mean(calibration_stats)
+    print(f"Calibration critical recall (diagnostic): {cal_critical_recall:.4f}")
 
-    Y_pred_optimized = np.zeros_like(Y_test, dtype=int)
-    for i, label in enumerate(TARGET_COLUMNS):
-        threshold = all_thresholds[label]
-        Y_pred_optimized[:, i] = (y_proba[:, i] >= threshold).astype(int)
+    print("\n" + "-" * 70)
+    print("SCORING FROZEN THRESHOLDS ON EVAL (REPORT-ONLY)")
+    print("-" * 70)
 
-    optimized_metrics = evaluate_with_thresholds(
-        Y_test, Y_pred_optimized, TARGET_COLUMNS
+    Y_pred_baseline = model.predict(X_eval)
+    baseline_metrics = evaluate_with_thresholds(
+        Y_eval, Y_pred_baseline, TARGET_COLUMNS
+    )
+    print(
+        f"Baseline F1-Weighted: {baseline_metrics['f1_weighted']:.4f} "
+        f"(default 0.5 thresholds on eval)"
     )
 
-    print(f"F1-Weighted: {optimized_metrics['f1_weighted']:.4f}")
-    print(f"F1-Micro: {optimized_metrics['f1_micro']:.4f}")
+    y_proba_eval = get_proba_array(model, X_eval)
+    Y_pred_optimized = apply_thresholds(y_proba_eval, all_thresholds)
+    optimized_metrics = evaluate_with_thresholds(
+        Y_eval, Y_pred_optimized, TARGET_COLUMNS
+    )
+    category_stats = build_category_stats(
+        Y_eval,
+        y_proba_eval,
+        all_thresholds,
+        args.critical_recall,
+        args.non_critical_recall,
+    )
+    eval_critical_recall = critical_recall_mean(category_stats)
 
-    # Performance delta
-    print("\n" + "-"*70)
-    print("PERFORMANCE DELTA (Optimized vs Baseline)")
-    print("-"*70)
-    f1_change = optimized_metrics['f1_weighted'] - baseline_metrics['f1_weighted']
-    f1_change_pct = (f1_change / baseline_metrics['f1_weighted']) * 100
+    print(f"Optimized F1-Weighted: {optimized_metrics['f1_weighted']:.4f}")
+    print(f"Optimized F1-Micro: {optimized_metrics['f1_micro']:.4f}")
+    print(f"Eval critical recall (reported): {eval_critical_recall:.4f}")
 
+    f1_change = optimized_metrics["f1_weighted"] - baseline_metrics["f1_weighted"]
+    f1_change_pct = (f1_change / baseline_metrics["f1_weighted"]) * 100
     print(f"F1-Weighted Change: {f1_change:+.4f} ({f1_change_pct:+.2f}%)")
 
-    # Category statistics
     stats_df = pd.DataFrame(category_stats)
-    print("\n" + "-"*70)
-    print("CATEGORY STATISTICS")
-    print("-"*70)
+    print("\n" + "-" * 70)
+    print("EVAL CATEGORY STATISTICS (reported)")
+    print("-" * 70)
     print("\nCritical Categories:")
-    critical_df = stats_df[stats_df['type'] == 'critical'].sort_values('threshold')
-    print(critical_df[['category', 'threshold', 'actual_recall', 'precision', 'f1']].to_string(index=False))
+    critical_df = stats_df[stats_df["type"] == "critical"].sort_values("threshold")
+    print(
+        critical_df[
+            ["category", "threshold", "actual_recall", "precision", "f1"]
+        ].to_string(index=False)
+    )
 
-    print("\nNon-Critical Categories (top 10 by threshold change):")
-    non_critical_df = stats_df[stats_df['type'] == 'non-critical'].copy()
-    non_critical_df['threshold_change'] = abs(non_critical_df['threshold'] - 0.5)
-    top_changed = non_critical_df.nlargest(10, 'threshold_change')
-    print(top_changed[['category', 'threshold', 'actual_recall', 'precision', 'f1']].to_string(index=False))
-
-    # Save optimized thresholds
-    # Standard naming: {model_stem}_thresholds.json (also save legacy name for compatibility)
     model_stem = os.path.splitext(os.path.basename(model_path))[0]
-    threshold_output_standard = os.path.join(output_dir, f'{model_stem}_thresholds.json')
-    threshold_output_legacy = os.path.join(output_dir, 'optimized_all_thresholds.json')
+    threshold_output_standard = os.path.join(output_dir, f"{model_stem}_thresholds.json")
+    threshold_output_legacy = os.path.join(output_dir, "optimized_all_thresholds.json")
     threshold_data = {
-        'metadata': {
-            'created': datetime.now().isoformat(),
-            'model': model_path,
-            'critical_target_recall': float(args.critical_recall),
-            'non_critical_target_recall': float(args.non_critical_recall),
-            'optimization_method': 'precision_recall_curve'
+        "metadata": {
+            "created": datetime.now().isoformat(),
+            "model": model_path,
+            "critical_target_recall": float(args.critical_recall),
+            "non_critical_target_recall": float(args.non_critical_recall),
+            "optimization_method": "precision_recall_curve",
+            "optimization_split": "calibration",
+            "reporting_split": "frozen_eval",
+            "calibration_ids": cal_ids_path,
+            "eval_ids": eval_ids_path,
+            "calibration_critical_recall": cal_critical_recall,
+            "eval_critical_recall": eval_critical_recall,
+            "critical_label_positive_support_cal": cal_support,
         },
-        'thresholds': all_thresholds,
-        'category_stats': category_stats,
-        'performance': {
-            'baseline': {
-                'f1_weighted': float(baseline_metrics['f1_weighted']),
-                'f1_micro': float(baseline_metrics['f1_micro'])
+        "thresholds": all_thresholds,
+        "calibration_stats": calibration_stats,
+        "category_stats": category_stats,
+        "performance": {
+            "baseline": {
+                "f1_weighted": float(baseline_metrics["f1_weighted"]),
+                "f1_micro": float(baseline_metrics["f1_micro"]),
             },
-            'optimized': {
-                'f1_weighted': float(optimized_metrics['f1_weighted']),
-                'f1_micro': float(optimized_metrics['f1_micro'])
+            "optimized": {
+                "f1_weighted": float(optimized_metrics["f1_weighted"]),
+                "f1_micro": float(optimized_metrics["f1_micro"]),
+                "critical_recall": eval_critical_recall,
             },
-            'delta': {
-                'f1_weighted': float(f1_change),
-                'f1_weighted_pct': float(f1_change_pct)
-            }
-        }
+            "delta": {
+                "f1_weighted": float(f1_change),
+                "f1_weighted_pct": float(f1_change_pct),
+            },
+        },
     }
 
-    # Save with standard name
-    with open(threshold_output_standard, 'w') as f:
-        json.dump(threshold_data, f, indent=2)
+    with open(threshold_output_standard, "w", encoding="utf-8") as handle:
+        json.dump(threshold_data, handle, indent=2)
     print(f"\n✓ Optimized thresholds saved to: {threshold_output_standard}")
 
-    # Also save legacy name for backward compatibility
-    with open(threshold_output_legacy, 'w') as f:
-        json.dump(threshold_data, f, indent=2)
+    with open(threshold_output_legacy, "w", encoding="utf-8") as handle:
+        json.dump(threshold_data, handle, indent=2)
     print(f"  (Also saved as: {os.path.basename(threshold_output_legacy)} for compatibility)")
 
-    # Verdict
-    print("\n" + "="*70)
-    if optimized_metrics['f1_weighted'] >= 0.90 and f1_change_pct >= -5.0:
+    print("\n" + "=" * 70)
+    if optimized_metrics["f1_weighted"] >= 0.90 and f1_change_pct >= -5.0:
         print("✅ THRESHOLD OPTIMIZATION SUCCESSFUL")
-        print("   All categories optimized while maintaining F1 ≥ 0.90")
+        print("   Thresholds tuned on cal; metrics reported on frozen eval")
     elif f1_change_pct >= -5.0:
         print("⚠️ THRESHOLD OPTIMIZATION PARTIAL SUCCESS")
-        print("   F1 maintained but below 0.90 target")
+        print("   F1 maintained but below 0.90 target on eval")
     else:
         print("❌ THRESHOLD OPTIMIZATION FAILED")
-        print("   F1 dropped too much (>5%)")
-    print("="*70 + "\n")
+        print("   Eval F1 dropped too much (>5%)")
+    print("=" * 70 + "\n")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
-

@@ -1,0 +1,47 @@
+{
+  "timestamp": "2026-09-21T20:26:40.518889",
+  "model_path": "experiments/experimental_runs/2026-09-21/lr_vocab15k_cal_split_model.pkl",
+  "training_time_seconds": 8.938426494598389,
+  "configuration": {
+    "hyperparameters": {
+      "vect__ngram_range": [
+        1,
+        2
+      ],
+      "vect__max_features": 15000,
+      "vect__min_df": 3,
+      "vect__max_df": 0.9
+    },
+    "class_weighting": {
+      "enabled": false,
+      "strategy": null
+    },
+    "data_split": {
+      "test_size": 0.2,
+      "random_seed": 42,
+      "train_samples": 17697,
+      "cal_samples": 3124,
+      "test_samples": 5206,
+      "mode": "frozen_train_cal_eval",
+      "eval_ids_file": "experiments/experimental_configs/eval_sets/eval_ids.json",
+      "cal_ids_file": "experiments/experimental_configs/eval_sets/cal_ids.json",
+      "eval_uid_count": 5206,
+      "cal_uid_count": 3124
+    },
+    "target_labels": 36
+  },
+  "performance": {
+    "overall_precision": 0.9406201133184963,
+    "overall_recall": 0.948040722243565,
+    "overall_f1": 0.9369814073758634,
+    "positive_class_precision": 0.6398219485029427,
+    "positive_class_recall": 0.21754974765257543,
+    "positive_class_f1": 0.28111171599350226,
+    "micro_f1": 0.6457620953073845,
+    "samples_f1": 0.5142151663362153,
+    "total_categories": 36,
+    "test_samples": 5206
+  },
+  "version": "0.1-exp",
+  "status": "experimental"
+}

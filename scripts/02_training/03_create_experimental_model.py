@@ -40,6 +40,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 # Local imports
 from disasterproject.data.loader import load_data
+from disasterproject.data.splits import (
+    load_three_way_split,
+    resolve_inline_threshold_tune_arrays,
+)
 from disasterproject.evaluation.metrics import save_model
 from disasterproject.models.pipeline import (
     build_model,
@@ -316,6 +320,8 @@ def main():
                        help='Random seed (default: 42)')
     parser.add_argument('--eval-ids', dest='eval_ids_path', default=None,
                        help='Path to eval UIDs file (JSON or CSV); if not provided, defaults to experiments/experimental_configs/eval_sets/eval_ids.json if present')
+    parser.add_argument('--cal-ids', dest='cal_ids_path', default=None,
+                       help='Path to calibration UIDs JSON; defaults to experiments/experimental_configs/eval_sets/cal_ids.json when frozen eval is used')
     parser.add_argument('--no-frozen-eval', dest='no_frozen_eval', action='store_true',
                        help='Force random split even if an eval IDs file exists')
     parser.add_argument('--algorithm', dest='algorithm',
@@ -356,57 +362,72 @@ def main():
 
     logging.info(f'Loaded {len(X)} samples with {Y.shape[1]} labels')
 
-    # Determine split mode (frozen eval vs random)
+    # Determine split mode (frozen three-way vs random)
     eval_ids_file = None
+    cal_ids_file = None
     if not args.no_frozen_eval:
-        candidate = args.eval_ids_path or os.path.join('experiments', 'experimental_configs', 'eval_sets', 'eval_ids.json')
-        if os.path.isfile(candidate):
-            eval_ids_file = candidate
-
-    def _compute_uids(messages):
-        uids_local = []
-        for idx, msg in enumerate(messages):
-            text = '' if msg is None else str(msg)
-            uid_src = f"{text}|{idx}"
-            uids_local.append(hashlib.sha1(uid_src.encode('utf-8')).hexdigest())
-        return uids_local
+        eval_candidate = args.eval_ids_path or os.path.join(
+            'experiments', 'experimental_configs', 'eval_sets', 'eval_ids.json'
+        )
+        cal_candidate = args.cal_ids_path or os.path.join(
+            'experiments', 'experimental_configs', 'eval_sets', 'cal_ids.json'
+        )
+        if os.path.isfile(eval_candidate):
+            eval_ids_file = eval_candidate
+            cal_ids_file = cal_candidate
 
     if eval_ids_file:
-        logging.info('Using frozen eval set from %s', eval_ids_file)
+        if not cal_ids_file or not os.path.isfile(cal_ids_file):
+            logging.error(
+                'Frozen eval requires calibration IDs at %s. '
+                'Create them with scripts/01_data/create_frozen_cal_ids.py',
+                cal_ids_file or 'experiments/experimental_configs/eval_sets/cal_ids.json',
+            )
+            sys.exit(1)
+
+        logging.info(
+            'Using three-way frozen split (eval=%s, cal=%s)',
+            eval_ids_file,
+            cal_ids_file,
+        )
         try:
-            # Support both JSON and legacy CSV formats
-            if eval_ids_file.endswith('.json'):
-                with open(eval_ids_file, 'r') as f:
-                    data = json.load(f)
-                eval_uids = set(data['eval_ids'])
-            else:
-                # Legacy CSV format
-                eval_df = pd.read_csv(eval_ids_file)
-                eval_uids = set(eval_df['uid'].astype(str).tolist())
-        except Exception as e:
-            logging.error('Failed to read eval IDs file: %s', e)
+            splits = load_three_way_split(X, Y, eval_ids_file, cal_ids_file)
+        except (OSError, KeyError, ValueError) as e:
+            logging.error('Failed to load three-way split: %s', e)
             sys.exit(1)
 
-        uids = _compute_uids(X)
-        uid_series = pd.Series(uids)
-        is_eval = uid_series.isin(eval_uids).values
+        X_train, Y_train = splits['train']
+        X_cal, Y_cal = splits['cal']
+        X_eval, Y_eval = splits['eval']
 
-        match_count = int(is_eval.sum())
         expected_eval = int(len(X) * args.test_size)
-        if match_count == 0 or match_count < max(1, int(0.5 * expected_eval)):
-            logging.error('Eval IDs coverage too low (matched %d, expected around %d). Aborting.', match_count, expected_eval)
+        if len(X_eval) == 0 or len(X_eval) < max(1, int(0.5 * expected_eval)):
+            logging.error(
+                'Eval IDs coverage too low (matched %d, expected around %d). Aborting.',
+                len(X_eval),
+                expected_eval,
+            )
             sys.exit(1)
 
-        X_train, X_test = X[~is_eval], X[is_eval]
-        Y_train, Y_test = Y[~is_eval], Y[is_eval]
-        logging.info('Split via frozen eval set. Train: %d, Eval: %d', len(X_train), len(X_test))
-        print(f"Using frozen eval set from {eval_ids_file} (eval samples: {len(X_test)})")
+        logging.info(
+            'Split via frozen train/cal/eval. Train: %d, Cal: %d, Eval: %d',
+            len(X_train),
+            len(X_cal),
+            len(X_eval),
+        )
+        print(
+            f"Using three-way frozen split "
+            f"(train={len(X_train)}, cal={len(X_cal)}, eval={len(X_eval)})"
+        )
+        print("  Fit excludes cal ∪ eval; cal reserved for threshold tuning")
     else:
         # Random split fallback
         logging.info(f'Splitting data randomly (test_size={args.test_size}, seed={args.seed})...')
-        X_train, X_test, Y_train, Y_test = train_test_split(
+        X_train, X_eval, Y_train, Y_eval = train_test_split(
             X, Y, test_size=args.test_size, random_state=args.seed
         )
+        X_cal, Y_cal = None, None
+        cal_ids_file = None
 
     # Load hyperparameters
     logging.info(f'Loading hyperparameters from {args.params_path}')
@@ -510,23 +531,30 @@ def main():
     except Exception as size_exc:
         logging.warning('Size guardrail check failed: %s', size_exc)
 
-    # Evaluate model and save to experiment folder
+    # Evaluate on frozen eval / random holdout (report-only for thresholds)
     logging.info(f'Evaluating model and saving results to {experiment_dir}...')
     performance_summary = evaluate_model_to_experiment_folder(
-        model, X_test, Y_test, TARGET_COLUMNS, experiment_dir
+        model, X_eval, Y_eval, TARGET_COLUMNS, experiment_dir
     )
 
-    # Snapshot the eval IDs used for this run (traceability)
+    # Snapshot the eval/cal IDs used for this run (traceability)
     if eval_ids_file:
         try:
-            # Copy eval IDs file to experiment directory with appropriate extension
             if eval_ids_file.endswith('.json'):
                 target_file = os.path.join(experiment_dir, 'eval_ids_used.json')
             else:
                 target_file = os.path.join(experiment_dir, 'eval_ids_used.csv')
             shutil.copyfile(eval_ids_file, target_file)
-        except Exception as e:
+        except OSError as e:
             logging.warning('Could not snapshot eval IDs file: %s', e)
+    if cal_ids_file:
+        try:
+            shutil.copyfile(
+                cal_ids_file,
+                os.path.join(experiment_dir, 'cal_ids_used.json'),
+            )
+        except OSError as e:
+            logging.warning('Could not snapshot cal IDs file: %s', e)
 
     # Save model to new experimental structure
     path_manager = ExperimentalPathManager()
@@ -549,24 +577,68 @@ def main():
     except Exception:
         pass
 
-    # Compute thresholds for selected labels and save artifacts to experiment folder
-    # Note: Experimental models save to experiment_dir, not model_dir, so use descriptive name
-    selected_labels = ['medical_help', 'search_and_rescue', 'water', 'food', 'shelter', 'hospitals', 'security', 'weather_related']
-    thresholds_map, threshold_sources = _compute_f2_thresholds_for_labels(model, X_test, Y_test, selected_labels, TARGET_COLUMNS)
+    # Inline F2 thresholds are diagnostic only. Under frozen three-way they tune on cal.
+    # Canonical app-facing thresholds are written by optimize_per_category_thresholds.py
+    # as {model_stem}_thresholds.json — this script writes {model_stem}_f2_thresholds.json.
+    selected_labels = [
+        'medical_help',
+        'search_and_rescue',
+        'water',
+        'food',
+        'shelter',
+        'hospitals',
+        'security',
+        'weather_related',
+    ]
+    try:
+        X_tune, Y_tune, threshold_split = resolve_inline_threshold_tune_arrays(
+            frozen_three_way=bool(eval_ids_file),
+            X_cal=X_cal if eval_ids_file else np.empty((0,)),
+            Y_cal=Y_cal if eval_ids_file else np.empty((0, 0)),
+            X_eval=X_eval,
+            Y_eval=Y_eval,
+        )
+    except ValueError as exc:
+        logging.error('%s', exc)
+        sys.exit(1)
+
+    logging.info(
+        'Tuning inline F2 thresholds on %s split (%d samples)',
+        threshold_split,
+        len(X_tune),
+    )
+    thresholds_map, threshold_sources = _compute_f2_thresholds_for_labels(
+        model, X_tune, Y_tune, selected_labels, TARGET_COLUMNS
+    )
     label_order = list(TARGET_COLUMNS)
     try:
-        # Use standard naming if model path is known, otherwise use descriptive name
         model_stem = os.path.splitext(os.path.basename(args.model_out))[0] if args.model_out else None
         if model_stem:
-            thresholds_file = os.path.join(experiment_dir, f'{model_stem}_thresholds.json')
+            f2_thresholds_file = os.path.join(experiment_dir, f'{model_stem}_f2_thresholds.json')
         else:
-            thresholds_file = os.path.join(experiment_dir, 'thresholds.json')  # Fallback for unknown model name
+            f2_thresholds_file = os.path.join(experiment_dir, 'f2_thresholds.json')
 
-        with open(thresholds_file, 'w', encoding='utf-8') as f:
-            json.dump(thresholds_map, f, indent=2)
+        with open(f2_thresholds_file, 'w', encoding='utf-8') as f:
+            json.dump(
+                {
+                    'metadata': {
+                        'optimization_method': 'f2',
+                        'optimization_split': threshold_split,
+                        'reporting_split': 'frozen_eval' if eval_ids_file else 'random_holdout',
+                        'note': (
+                            'Diagnostic F2 thresholds only. Canonical per-label thresholds '
+                            'are produced by scripts/03_optimization/optimize_per_category_thresholds.py '
+                            'as {model_stem}_thresholds.json.'
+                        ),
+                    },
+                    'thresholds': thresholds_map,
+                    'threshold_sources': threshold_sources,
+                },
+                f,
+                indent=2,
+            )
         with open(os.path.join(experiment_dir, 'label_order.json'), 'w', encoding='utf-8') as f:
             json.dump(label_order, f, indent=2)
-        # MODEL_INFO.json for artifact hygiene
         info = {
             'sha256': hashlib.sha256(open(args.model_out, 'rb').read()).hexdigest() if os.path.isfile(args.model_out) else None,
             'rf_params': _json_safe(getattr(model.named_steps.get('clf').estimator, 'get_params', lambda: {})()),
@@ -575,12 +647,19 @@ def main():
             'fit_time_seconds': float(train_time) if train_time is not None else None,
             'model_size_mb': float(model_size_mb) if model_size_mb is not None else None,
             'cold_load_seconds': float(cold_load_s) if cold_load_s is not None else None,
-            'threshold_sources': _json_safe(threshold_sources),
+            'inline_f2_threshold_sources': _json_safe(threshold_sources),
+            'inline_f2_threshold_file': os.path.basename(f2_thresholds_file),
+            'threshold_optimization_split': threshold_split,
+            'reporting_split': 'frozen_eval' if eval_ids_file else 'random_holdout',
+            'canonical_thresholds_note': (
+                'App-facing thresholds come from optimize_per_category_thresholds.py '
+                '({model_stem}_thresholds.json), not from inline F2 output.'
+            ),
         }
         with open(os.path.join(experiment_dir, 'MODEL_INFO.json'), 'w', encoding='utf-8') as f:
             json.dump(info, f, indent=2)
     except Exception as e:
-        logging.warning(f"Failed to write model artifacts (thresholds/label_order/MODEL_INFO): {e}")
+        logging.warning(f"Failed to write model artifacts (f2 thresholds/label_order/MODEL_INFO): {e}")
 
     # Create comprehensive config for logging
     comprehensive_config = {
@@ -593,10 +672,13 @@ def main():
             'test_size': args.test_size,
             'random_seed': args.seed,
             'train_samples': len(X_train),
-            'test_samples': len(X_test),
-            'mode': 'frozen_eval' if eval_ids_file else 'random_split',
+            'cal_samples': int(len(X_cal)) if eval_ids_file else 0,
+            'test_samples': len(X_eval),
+            'mode': 'frozen_train_cal_eval' if eval_ids_file else 'random_split',
             'eval_ids_file': eval_ids_file,
-            'eval_uid_count': int(len(X_test))
+            'cal_ids_file': cal_ids_file,
+            'eval_uid_count': int(len(X_eval)),
+            'cal_uid_count': int(len(X_cal)) if eval_ids_file else 0,
         },
         'target_labels': len(TARGET_COLUMNS)
     }
@@ -631,11 +713,12 @@ def main():
     print(f'     {args.model_out}')
     print('   ')
     print(f'   Experiment Results ({experiment_dir}):')
-    print('     performance_metrics.csv    <- Detailed classification metrics')
+    print('     performance_metrics.csv    <- Detailed classification metrics (eval/holdout @ 0.5)')
     print('     training_log.json         <- Training metadata & configuration')
-    print('     thresholds.json           <- Optimized F2 thresholds')
+    print('     *_f2_thresholds.json      <- Diagnostic F2 thresholds (cal under three-way)')
     print('     label_order.json          <- Category label order')
     print('     MODEL_INFO.json           <- Model metadata & info')
+    print('     (canonical thresholds via optimize_per_category_thresholds.py)')
     if eval_ids_file:
         eval_file_ext = 'json' if eval_ids_file.endswith('.json') else 'csv'
         print(f'     eval_ids_used.{eval_file_ext}         <- Evaluation set identifiers')

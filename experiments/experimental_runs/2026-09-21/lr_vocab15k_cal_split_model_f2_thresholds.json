@@ -1,0 +1,28 @@
+{
+  "metadata": {
+    "optimization_method": "f2",
+    "optimization_split": "calibration",
+    "reporting_split": "frozen_eval",
+    "note": "Diagnostic F2 thresholds only. Canonical per-label thresholds are produced by optimize_per_category_thresholds.py."
+  },
+  "thresholds": {
+    "medical_help": 0.1143,
+    "search_and_rescue": 0.06,
+    "water": 0.1116,
+    "food": 0.1657,
+    "shelter": 0.1199,
+    "hospitals": 0.0185,
+    "security": 0.0337,
+    "weather_related": 0.1814
+  },
+  "threshold_sources": {
+    "medical_help": "optimized",
+    "search_and_rescue": "optimized",
+    "water": "optimized",
+    "food": "optimized",
+    "shelter": "optimized",
+    "hospitals": "optimized",
+    "security": "optimized",
+    "weather_related": "optimized"
+  }
+}
