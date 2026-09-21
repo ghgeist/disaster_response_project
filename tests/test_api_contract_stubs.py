@@ -1,7 +1,9 @@
 """Contract smoke tests for stubbed dashboard API endpoints."""
 
+import json
 import math
 import random
+from pathlib import Path
 from unittest.mock import patch
 
 import pandas as pd
@@ -10,6 +12,7 @@ import pytest
 from app.routes.api import (
     _row_to_feed_item,
     _safe_label_value,
+    _safe_optional_prob,
     _safe_text_value,
     _simulated_probabilities,
     genre_to_source,
@@ -539,11 +542,16 @@ def test_api_model_info_dashboard_contract(client):
         assert key in model, f"model missing key: {key}"
 
     metrics = payload["metrics"]
-    for key in ("f1", "precision", "recall"):
+    for key in ("f1", "precision", "recall", "evalCriticalRecall"):
         assert key in metrics, f"metrics missing key: {key}"
     assert isinstance(metrics["f1"], (int, float))
     assert isinstance(metrics["precision"], (int, float))
     assert isinstance(metrics["recall"], (int, float))
+    eval_critical = metrics["evalCriticalRecall"]
+    assert eval_critical is None or isinstance(eval_critical, (int, float))
+    if isinstance(eval_critical, float):
+        assert not (math.isnan(eval_critical) or math.isinf(eval_critical))
+        assert 0.0 <= eval_critical <= 1.0
 
     categories = payload["categories"]
     assert isinstance(categories, list)
@@ -586,7 +594,130 @@ def test_model_info_dashboard_null_realism(client, tmp_path):
     assert payload["metrics"]["f1"] == 0.0
     assert payload["metrics"]["precision"] == 0.0
     assert payload["metrics"]["recall"] == 0.0
+    assert payload["metrics"]["evalCriticalRecall"] is None
     assert payload["categories"] == []
     assert payload["criticalThresholds"] == []
     assert isinstance(payload["registry"], list)
     assert _json_contains_no_nan_or_infinity(payload), "Dashboard with empty model dir must not emit NaN/Infinity"
+
+
+def _write_model_info(model_dir: Path, payload: dict) -> None:
+    model_dir.mkdir(parents=True, exist_ok=True)
+    (model_dir / "MODEL_INFO.json").write_text(
+        json.dumps(payload),
+        encoding="utf-8",
+    )
+
+
+def test_safe_optional_prob_rejects_invalid_values():
+    """_safe_optional_prob keeps valid [0,1] probs and maps everything else to None."""
+    assert _safe_optional_prob(0.0) == 0.0
+    assert _safe_optional_prob(1.0) == 1.0
+    assert _safe_optional_prob(0.6149) == pytest.approx(0.6149)
+    assert _safe_optional_prob(None) is None
+    assert _safe_optional_prob("not-a-number") is None
+    assert _safe_optional_prob(True) is None
+    assert _safe_optional_prob(False) is None
+    assert _safe_optional_prob(float("nan")) is None
+    assert _safe_optional_prob(float("inf")) is None
+    assert _safe_optional_prob(-0.01) is None
+    assert _safe_optional_prob(1.01) is None
+
+
+def test_eval_critical_recall_prefers_performance_block(client, tmp_path):
+    """When performance.eval_critical_recall is present, the API returns that value."""
+    _write_model_info(
+        tmp_path,
+        {
+            "version": "test",
+            "status": "production",
+            "performance": {"eval_critical_recall": 0.61, "f1_weighted": 0.5},
+            "validation_results": {"eval_critical_recall": 0.42},
+        },
+    )
+    with patch("app.routes.api._get_model_dir", return_value=tmp_path):
+        response = client.get("/api/model-info/dashboard")
+    assert response.status_code == 200
+    metrics = response.get_json()["metrics"]
+    assert metrics["evalCriticalRecall"] == pytest.approx(0.61)
+
+
+def test_eval_critical_recall_falls_back_to_validation_results(client, tmp_path):
+    """When performance is missing the field, validation_results is used."""
+    _write_model_info(
+        tmp_path,
+        {
+            "version": "test",
+            "status": "production",
+            "performance": {"f1_weighted": 0.5},
+            "validation_results": {"eval_critical_recall": 0.42},
+        },
+    )
+    with patch("app.routes.api._get_model_dir", return_value=tmp_path):
+        response = client.get("/api/model-info/dashboard")
+    assert response.status_code == 200
+    metrics = response.get_json()["metrics"]
+    assert metrics["evalCriticalRecall"] == pytest.approx(0.42)
+
+
+@pytest.mark.parametrize(
+    "bad_value",
+    [None, "bad", -0.1, 1.5],
+)
+def test_eval_critical_recall_null_when_missing_or_malformed(client, tmp_path, bad_value):
+    """Missing or invalid eval_critical_recall values surface as null, not 0.0."""
+    _write_model_info(
+        tmp_path,
+        {
+            "version": "test",
+            "status": "production",
+            "performance": {
+                "f1_weighted": 0.5,
+                "eval_critical_recall": bad_value,
+            },
+        },
+    )
+    with patch("app.routes.api._get_model_dir", return_value=tmp_path):
+        response = client.get("/api/model-info/dashboard")
+    assert response.status_code == 200
+    assert response.get_json()["metrics"]["evalCriticalRecall"] is None
+
+
+def test_eval_critical_recall_null_when_key_absent(client, tmp_path):
+    """Absent eval_critical_recall keys yield null."""
+    _write_model_info(
+        tmp_path,
+        {
+            "version": "test",
+            "status": "production",
+            "performance": {"f1_weighted": 0.5},
+            "validation_results": {"f1_weighted": 0.5},
+        },
+    )
+    with patch("app.routes.api._get_model_dir", return_value=tmp_path):
+        response = client.get("/api/model-info/dashboard")
+    assert response.status_code == 200
+    assert response.get_json()["metrics"]["evalCriticalRecall"] is None
+
+
+def test_eval_critical_recall_matches_checked_in_model_info(client):
+    """Live endpoint equals the checked-in MODEL_INFO value when present and valid."""
+    model_info_path = Path("model") / "MODEL_INFO.json"
+    if not model_info_path.is_file():
+        pytest.skip("checked-in model/MODEL_INFO.json not available")
+    with open(model_info_path, encoding="utf-8") as handle:
+        model_info = json.load(handle)
+    expected = _safe_optional_prob(
+        (model_info.get("performance") or {}).get("eval_critical_recall")
+    )
+    if expected is None:
+        expected = _safe_optional_prob(
+            (model_info.get("validation_results") or {}).get("eval_critical_recall")
+        )
+    if expected is None:
+        pytest.skip("checked-in MODEL_INFO has no valid eval_critical_recall")
+
+    response = client.get("/api/model-info/dashboard")
+    assert response.status_code == 200
+    actual = response.get_json()["metrics"]["evalCriticalRecall"]
+    assert actual == pytest.approx(round(expected, 4))
