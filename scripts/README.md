@@ -176,6 +176,7 @@ Promotes validated experimental models to production.
   - Validation gates use `PERFORMANCE_THRESHOLDS` from `src/disasterproject/utils/config.py`
   - On success, promoted file named `disaster_{algorithm}_<version>_prod_<YYYY-MM-DD>.pkl` placed under `model/`
   - Does **not** rewrite `app/config.py` by default (auto-discovery); pass `--update-config` only if you maintain a hardcoded `disaster_*` literal
+  - Archives prior production **metadata** + SHA256 to `experiments/model_archive/` (does **not** copy the `.pkl`); rollback is via Git history of tracked `model/*_prod_*.pkl`
   - Missing/invalid evidence fails closed; `--force` overrides metric/provenance gates only (model + thresholds artifacts with hashes, and a loadable `lr`/`rf` model, remain required)
 ### `model_naming_utility.py`
 Model naming helper utilities.

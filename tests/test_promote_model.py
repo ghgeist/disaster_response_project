@@ -42,6 +42,7 @@ from promote_model import (  # noqa: E402
     promote_model,
     validate_candidate_model,
     weighted_f1_relative_drop,
+    _update_app_config_model_filename,
 )
 
 from disasterproject.utils.config import TARGET_COLUMNS  # noqa: E402
@@ -921,3 +922,68 @@ class TestMetricsFileNaming:
         metrics2.write_text("category,output_class,precision\nrelated,1,0.9")
         discovered_metrics = discover_production_metrics_file(model_dir)
         assert discovered_metrics == metrics2
+
+
+class TestUpdateAppConfigModelFilename:
+    """Protect the config-rewrite helper from eating Config bodies again."""
+
+    def test_auto_discovery_config_unchanged(self, temp_dir):
+        config_path = temp_dir / "config.py"
+        original = (
+            "from pathlib import Path\n\n"
+            "def _discover_latest_model(models_dir: Path) -> str:\n"
+            "    return 'disaster_lr_v26-09-21_prod_2026-09-21.pkl'\n\n"
+            "class Config:\n"
+            "    MODELS_DIR = Path('model')\n"
+            "    _MODEL_FILENAME = None\n"
+            "    if _MODEL_FILENAME:\n"
+            "        MODEL_FILENAME = _MODEL_FILENAME\n"
+            "    else:\n"
+            "        MODEL_FILENAME = _discover_latest_model(MODELS_DIR)\n"
+            "    MODEL_PATH = MODELS_DIR / MODEL_FILENAME\n\n"
+            "class TestConfig(Config):\n"
+            "    MODEL_FILENAME = 'test_model.pkl'\n"
+        )
+        config_path.write_text(original, encoding="utf-8")
+        before = config_path.read_bytes()
+
+        updated = _update_app_config_model_filename(
+            config_path,
+            "disaster_lr_v26-09-21_prod_2026-09-21.pkl",
+            backup=False,
+        )
+
+        assert updated is False
+        assert config_path.read_bytes() == before
+
+    def test_hardcoded_production_literal_rewrites_only_that_line(self, temp_dir):
+        config_path = temp_dir / "config.py"
+        original = (
+            "class Config:\n"
+            "    SECRET_KEY = 'dev'\n"
+            "    MODEL_FILENAME = 'disaster_lr_v25-11-06_prod_2025-11-06.pkl'\n"
+            "    MODEL_PATH = MODELS_DIR / MODEL_FILENAME\n"
+            "    KEEP_ME = True\n\n"
+            "class TestConfig(Config):\n"
+            "    MODEL_FILENAME = 'test_model.pkl'\n"
+        )
+        config_path.write_text(original, encoding="utf-8")
+
+        updated = _update_app_config_model_filename(
+            config_path,
+            "disaster_lr_v26-09-21_prod_2026-09-21.pkl",
+            backup=False,
+        )
+
+        assert updated is True
+        text = config_path.read_text(encoding="utf-8")
+        assert "SECRET_KEY = 'dev'" in text
+        assert "KEEP_ME = True" in text
+        assert "class TestConfig(Config):" in text
+        assert "MODEL_FILENAME = 'test_model.pkl'" in text
+        assert (
+            "MODEL_FILENAME = 'disaster_lr_v26-09-21_prod_2026-09-21.pkl'" in text
+        )
+        assert "disaster_lr_v25-11-06_prod_2025-11-06.pkl" not in text
+        # Exactly one production disaster_* literal remains (TestConfig stays test_model).
+        assert text.count("disaster_lr_v26-09-21_prod_2026-09-21.pkl") == 1

@@ -9,7 +9,7 @@ This folder stores production model files and their companion metadata used by t
 - **Find model metadata**: `MODEL_INFO.json` (contains algorithm, version, performance, promotion date)
 - **Find thresholds**: `{model_stem}_thresholds.json` (e.g., `disaster_lr_v26-09-21_prod_2026-09-21_thresholds.json`)
 - **Find experimental models**: `experiments/experimental_runs/` (see `experiments/README.md`)
-- **Find archived models**: `experiments/model_archive/` (previous production models)
+- **Find archived models**: `experiments/model_archive/` (prior production **metadata** + SHA256 records; `.pkl` binaries are not stored there—restore via Git)
 - **Promote a model**: Use `scripts/07_operations/promote_model.py`
 
 **Current Production Model:**
@@ -163,7 +163,8 @@ Tune-on-eval candidates (for example `2025-11-06-vocab15k-promotion`) fail prove
 5. **Hash Verification**: Verifies copied model matches expected hash
 6. **Threshold deploy**: Copies the validated `{model_stem}_thresholds.json` to `{prod_stem}_thresholds.json` and verifies SHA256 identity
 7. **Metadata Creation**: Creates/updates `MODEL_INFO.json` with algorithm and contract metrics
-8. **Archive**: Archives previous production model metadata
+8. **Archive**: Copies previous production **metadata** to `experiments/model_archive/` (not the `.pkl`); records SHA256 for Git-history rollback
+9. **Cleanup**: Removes superseded `model/*_prod_*.pkl` binaries per `--keep-old` (companions may remain)
 
 ### 4. Verification
 
