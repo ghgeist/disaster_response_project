@@ -171,11 +171,12 @@ Promotes validated experimental models to production.
   ```
 - **Notes**: 
   - Enforces the train/cal/eval evaluation contract (ADR-007): baseline frozen-eval micro F1, frozen-eval critical recall, size, weighted-F1 relative-drop guardrail, and `optimization_split=calibration` / `reporting_split=frozen_eval` provenance
-  - Discovers `{model_stem}_thresholds.json` for both validation and deploy; copies that exact artifact to `{prod_stem}_thresholds.json`
+  - Discovers `{model_stem}_thresholds.json` for both validation and deploy; stages model+thresholds, verifies hashes, finalizes with production model last
+  - Requires a complete `thresholds` map covering every `TARGET_COLUMNS` label with values in `[0, 1]`
   - Validation gates use `PERFORMANCE_THRESHOLDS` from `src/disasterproject/utils/config.py`
   - On success, promoted file named `disaster_{algorithm}_<version>_prod_<YYYY-MM-DD>.pkl` placed under `model/`
   - By default, `app/config.py` is updated with `.bak` backup created
-  - Missing/invalid evidence fails closed; `--force` overrides metric/provenance gates only (model + thresholds artifacts with hashes remain required)
+  - Missing/invalid evidence fails closed; `--force` overrides metric/provenance gates only (model + thresholds artifacts with hashes, and a loadable `lr`/`rf` model, remain required)
 ### `model_naming_utility.py`
 Model naming helper utilities.
 - **Use when**: Generating consistent model names

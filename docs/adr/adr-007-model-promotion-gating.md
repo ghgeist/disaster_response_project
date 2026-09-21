@@ -33,11 +33,13 @@ Promotion enforces the evaluation contract via `PERFORMANCE_THRESHOLDS` in `src/
 4. **Weighted-F1 damage guardrail (not the selection objective):**
    `(baseline_weighted_f1 - optimized_weighted_f1) / baseline_weighted_f1 <= max_weighted_f1_relative_drop` (0.05).
 5. **Provenance gate:** thresholds metadata must include `optimization_split=calibration` and `reporting_split=frozen_eval`.
-6. **Deploy invariant:** promotion copies the exact validated `{model_stem}_thresholds.json` to `{prod_model_stem}_thresholds.json` and verifies SHA256 identity.
+6. **Deploy invariant:** promotion stages model + thresholds under non-production names, verifies both hashes, then finalizes with thresholds first and the production-named model last. Failures roll back so discovery never sees a new `disaster_*_prod_*.pkl` without its validated thresholds.
 7. **Artifact consistency:** `training_log` baseline micro F1 must agree with `thresholds.performance.baseline.f1_micro`, and `metadata.eval_critical_recall` must agree with `performance.optimized.critical_recall` (absolute tolerance `1e-6`).
-8. **Single model file:** candidate directories must contain exactly one `.pkl` (no newest-by-mtime selection).
+8. **Complete thresholds map:** `payload["thresholds"]` must include every `TARGET_COLUMNS` label with a finite numeric value in `[0, 1]`.
+9. **Single model file:** candidate directories must contain exactly one `.pkl` (no newest-by-mtime selection).
+10. **Loadable supported algorithm:** model must detect as `lr` or `rf`; `unknown` fails closed and is not defaulted.
 
-Missing or invalid evidence fails closed as `validation_errors`. `--force` may override **metric/provenance** gate failures only. Structural prerequisites (`model_path`, `model_hash`, `thresholds_path`, `thresholds_sha256`) are never bypassable — checked via `assert_force_promotion_prerequisites` before dry-run success (on force) and again before archiving production.
+Missing or invalid evidence fails closed as `validation_errors`. `--force` may override **metric/provenance** gate failures only. Structural prerequisites (`model_path`, `model_hash`, `thresholds_path`, `thresholds_sha256`, supported `algorithm`) are never bypassable — checked via `assert_force_promotion_prerequisites` before dry-run success (on force) and again before archiving production.
 ## Consequences
 
 ### Positive

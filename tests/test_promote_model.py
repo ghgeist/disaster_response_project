@@ -31,6 +31,7 @@ from sklearn.pipeline import Pipeline
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS_PATH = PROJECT_ROOT / 'scripts' / '07_operations'
 sys.path.insert(0, str(SCRIPTS_PATH))
+sys.path.insert(0, str(PROJECT_ROOT / 'src'))
 
 # pylint: disable=import-error
 from promote_model import (  # noqa: E402
@@ -43,6 +44,12 @@ from promote_model import (  # noqa: E402
     weighted_f1_relative_drop,
 )
 
+from disasterproject.utils.config import TARGET_COLUMNS  # noqa: E402
+
+
+def _full_thresholds_map(default: float = 0.5) -> dict:
+    return {label: default for label in TARGET_COLUMNS}
+
 
 def _write_contract_thresholds(
     path: Path,
@@ -54,6 +61,7 @@ def _write_contract_thresholds(
     optimization_split: str = "calibration",
     reporting_split: str = "frozen_eval",
     metadata_eval_critical_recall: float | None = None,
+    thresholds_map: dict | None = None,
 ) -> None:
     if metadata_eval_critical_recall is None:
         metadata_eval_critical_recall = eval_critical_recall
@@ -63,7 +71,7 @@ def _write_contract_thresholds(
             "reporting_split": reporting_split,
             "eval_critical_recall": metadata_eval_critical_recall,
         },
-        "thresholds": {"related": 0.5},
+        "thresholds": thresholds_map if thresholds_map is not None else _full_thresholds_map(),
         "performance": {
             "baseline": {
                 "f1_weighted": baseline_weighted,
@@ -353,6 +361,44 @@ class TestEvaluationContractValidation:
         assert results['validation_passed'] is False
         assert any("Inconsistent critical recall" in e for e in results['validation_errors'])
 
+    def test_fails_incomplete_thresholds_map(self, temp_dir, lr_model_path):
+        candidate = _build_contract_candidate(
+            temp_dir / "2026-09-21-partial-thresholds",
+            lr_model_path,
+            "lr_model.pkl",
+            thresholds_map={"related": 0.5},
+        )
+        results = validate_candidate_model(candidate)
+        assert results['validation_passed'] is False
+        assert any("Thresholds map missing" in e for e in results['validation_errors'])
+
+    def test_fails_out_of_range_threshold_value(self, temp_dir, lr_model_path):
+        bad_map = _full_thresholds_map()
+        bad_map["food"] = 1.5
+        candidate = _build_contract_candidate(
+            temp_dir / "2026-09-21-bad-threshold-value",
+            lr_model_path,
+            "lr_model.pkl",
+            thresholds_map=bad_map,
+        )
+        results = validate_candidate_model(candidate)
+        assert results['validation_passed'] is False
+        assert any("invalid value" in e for e in results['validation_errors'])
+
+    def test_fails_unloadable_model_algorithm(self, temp_dir, lr_model_path):
+        candidate = _build_contract_candidate(
+            temp_dir / "2026-09-21-corrupt-model",
+            lr_model_path,
+            "lr_model.pkl",
+        )
+        (candidate / "lr_model.pkl").write_bytes(b"not-a-real-pickle")
+        results = validate_candidate_model(candidate)
+        assert results['validation_passed'] is False
+        assert results['algorithm'] == 'unknown'
+        assert any("Unsupported or unloadable model" in e for e in results['validation_errors'])
+        with pytest.raises(ValueError, match="structural promotion prerequisites"):
+            assert_force_promotion_prerequisites(results)
+
     def test_missing_thresholds_is_validation_error_not_raise(self, temp_dir, lr_model_path):
         candidate = temp_dir / "2026-09-21-no-thresholds"
         candidate.mkdir()
@@ -450,6 +496,23 @@ class TestThresholdDeployInvariant:
         assert compute_model_hash(deployed) == expected_sha
         assert compute_model_hash(deployed) == compute_model_hash(source_path)
         assert deployed.read_bytes() == source_path.read_bytes()
+
+    def test_threshold_hash_failure_leaves_no_discoverable_production_model(
+        self, temp_dir, candidate_dir_with_lr_model
+    ):
+        model_dir = temp_dir / "model"
+        model_dir.mkdir()
+
+        validation_results = validate_candidate_model(candidate_dir_with_lr_model)
+        assert validation_results['validation_passed'] is True
+        validation_results['thresholds_sha256'] = '0' * 64
+
+        with pytest.raises(ValueError, match="[Tt]hresholds .*integrity check failed"):
+            promote_model(candidate_dir_with_lr_model, model_dir, validation_results)
+
+        assert list(model_dir.glob("disaster_*_prod_*.pkl")) == []
+        assert list(model_dir.glob("*_thresholds.json")) == []
+        assert list(model_dir.glob(".promotion_staging_*")) == []
 
 
 class TestRealCandidateAcceptance:
@@ -596,8 +659,9 @@ class TestHashMismatchProtection:
         model_dir.mkdir()
         validation_results = validate_candidate_model(candidate_dir_with_rf_model)
         validation_results['model_hash'] = '0' * 64
-        with pytest.raises(ValueError, match="Model file integrity check failed"):
+        with pytest.raises(ValueError, match="[Mm]odel .*integrity check failed"):
             promote_model(candidate_dir_with_rf_model, model_dir, validation_results)
+        assert list(model_dir.glob("disaster_*_prod_*.pkl")) == []
 
 
 class TestIntegrationWithRealModels:

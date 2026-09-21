@@ -15,9 +15,11 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import re
 import shutil
 import sys
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Tuple
@@ -33,10 +35,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 # Local imports
 from disasterproject.models.pipeline import WeightedMultiOutputClassifier
-from disasterproject.utils.config import PERFORMANCE_THRESHOLDS
+from disasterproject.utils.config import PERFORMANCE_THRESHOLDS, TARGET_COLUMNS
 
 REQUIRED_OPTIMIZATION_SPLIT = "calibration"
 REQUIRED_REPORTING_SPLIT = "frozen_eval"
+SUPPORTED_ALGORITHMS = frozenset({"rf", "lr"})
 # Agreement tolerance for duplicated metrics across training_log vs thresholds artifacts
 METRIC_CONSISTENCY_ABS_TOL = 1e-6
 FORCE_REQUIRED_FIELDS = (
@@ -44,6 +47,7 @@ FORCE_REQUIRED_FIELDS = (
     "model_hash",
     "thresholds_path",
     "thresholds_sha256",
+    "algorithm",
 )
 
 
@@ -233,19 +237,74 @@ def assert_force_promotion_prerequisites(validation_results: dict) -> None:
     """Require structural deploy artifacts; --force cannot bypass these.
 
     --force may override metric/provenance gate failures only. Promoting still
-    requires a model file and the thresholds artifact validation would deploy.
+    requires a loadable supported model and the thresholds artifact validation
+    would deploy.
     """
     missing = [key for key in FORCE_REQUIRED_FIELDS if not validation_results.get(key)]
-    if missing:
+    algorithm = validation_results.get("algorithm")
+    if algorithm not in SUPPORTED_ALGORITHMS:
+        missing.append("algorithm(rf|lr)")
+    # De-dupe while preserving order
+    deduped = list(dict.fromkeys(missing))
+    if deduped:
         raise ValueError(
             "--force cannot override missing structural promotion prerequisites: "
-            f"{missing}. A model and thresholds artifact (with hashes) are required "
-            "so the deployed operating point matches validated evidence."
+            f"{deduped}. A loadable supported model and thresholds artifact "
+            "(with hashes) are required so the deployed operating point matches "
+            "validated evidence."
         )
 
 
 def _metrics_agree(left: float, right: float, abs_tol: float = METRIC_CONSISTENCY_ABS_TOL) -> bool:
     return math.isclose(left, right, rel_tol=0.0, abs_tol=abs_tol)
+
+
+def _validate_thresholds_map(payload: dict) -> list:
+    """Require a complete deployable per-label threshold map.
+
+    Every TARGET_COLUMNS label must be present with a finite numeric value in [0, 1].
+    Missing labels would silently fall back to 0.5 at inference and break the
+    validated operating-point invariant.
+    """
+    errors: list = []
+    thresholds = payload.get("thresholds")
+    if not isinstance(thresholds, dict):
+        errors.append(
+            "Thresholds artifact missing 'thresholds' object "
+            "(required deployable per-label operating point)"
+        )
+        return errors
+
+    missing = [label for label in TARGET_COLUMNS if label not in thresholds]
+    if missing:
+        preview = ", ".join(missing[:8])
+        suffix = f" (+{len(missing) - 8} more)" if len(missing) > 8 else ""
+        errors.append(
+            f"Thresholds map missing {len(missing)} TARGET_COLUMNS label(s): "
+            f"{preview}{suffix}"
+        )
+
+    invalid: list = []
+    for label in TARGET_COLUMNS:
+        if label not in thresholds:
+            continue
+        raw = thresholds[label]
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            invalid.append(f"{label}={raw!r} (not numeric)")
+            continue
+        if not math.isfinite(value) or value < 0.0 or value > 1.0:
+            invalid.append(f"{label}={raw!r} (need finite value in [0, 1])")
+
+    if invalid:
+        preview = ", ".join(invalid[:8])
+        suffix = f" (+{len(invalid) - 8} more)" if len(invalid) > 8 else ""
+        errors.append(
+            f"Thresholds map has {len(invalid)} invalid value(s): {preview}{suffix}"
+        )
+
+    return errors
 
 def _validate_thresholds_provenance(payload: dict) -> list:
     """Require cal-optimize / frozen-eval-report provenance on thresholds metadata."""
@@ -366,6 +425,7 @@ def validate_candidate_model(candidate_dir: Path) -> dict:
         'model_path': None,
         'model_size_mb': None,
         'model_hash': None,
+        'algorithm': None,
         'baseline_f1_micro': None,
         'eval_critical_recall': None,
         'baseline_f1_weighted': None,
@@ -391,6 +451,13 @@ def validate_candidate_model(candidate_dir: Path) -> dict:
         validation_results['model_size_mb'] = model_file.stat().st_size / (1024 * 1024)
         validation_results['model_hash'] = compute_model_hash(model_file)
         model_stem = model_file.stem
+        algorithm = detect_algorithm_type(model_file)
+        validation_results['algorithm'] = algorithm
+        if algorithm not in SUPPORTED_ALGORITHMS:
+            errors.append(
+                f"Unsupported or unloadable model (algorithm={algorithm!r}); "
+                "promotion requires a loadable LogisticRegression or RandomForest pipeline"
+            )
         if validation_results['model_size_mb'] > max_model_size_mb:
             errors.append(
                 f"Model size {validation_results['model_size_mb']:.1f}MB exceeds "
@@ -435,6 +502,7 @@ def validate_candidate_model(candidate_dir: Path) -> dict:
         validation_results['optimization_split'] = metadata.get("optimization_split")
         validation_results['reporting_split'] = metadata.get("reporting_split")
         errors.extend(_validate_thresholds_provenance(thresholds_payload))
+        errors.extend(_validate_thresholds_map(thresholds_payload))
 
         (
             eval_cr,
@@ -587,47 +655,127 @@ def _resolve_training_date_and_version(candidate_dir: Path) -> Tuple[str, str]:
     return training_date, version
 
 
-def _copy_validated_thresholds(
-    validation_results: dict, model_dir: Path, base_name: str, metadata_files: dict
+def _cleanup_path(path: Path) -> None:
+    try:
+        if path.exists():
+            path.unlink()
+    except OSError as cleanup_error:
+        print(f"⚠️  Warning: Failed to remove {path}: {cleanup_error}")
+
+
+def _atomic_deploy_model_and_thresholds(
+    *,
+    candidate_model: Path,
+    expected_model_hash: str,
+    candidate_thresholds: Path,
+    expected_thresholds_hash: str,
+    model_dir: Path,
+    prod_model_path: Path,
+    prod_thresholds_path: Path,
 ) -> None:
-    """Copy the exact thresholds artifact validation inspected into production naming."""
-    assert_force_promotion_prerequisites(validation_results)
+    """Stage model + thresholds, verify hashes, then finalize with model last.
 
-    candidate_thresholds = Path(validation_results['thresholds_path'])
-    expected_sha = validation_results['thresholds_sha256']
-    if not candidate_thresholds.exists():
-        raise FileNotFoundError(
-            f"Validated thresholds artifact missing at promotion time: {candidate_thresholds}"
-        )
+    Ensures a failed thresholds deploy never leaves a discoverable production
+    `disaster_*_prod_*.pkl` without its validated operating point.
+    """
+    model_dir.mkdir(parents=True, exist_ok=True)
+    staging_dir = model_dir / f".promotion_staging_{os.getpid()}_{uuid.uuid4().hex}"
+    staging_dir.mkdir(parents=True, exist_ok=False)
+    staged_model = staging_dir / "model.pkl.staging"
+    staged_thresholds = staging_dir / "thresholds.json.staging"
+    thresholds_finalized = False
+    model_finalized = False
 
-    prod_thresholds = model_dir / f"{base_name}_thresholds.json"
-    shutil.copy2(candidate_thresholds, prod_thresholds)
-    copied_sha = compute_model_hash(prod_thresholds)
-    if copied_sha != expected_sha:
+    try:
+        print(f"📋 Staging model from {candidate_model.name}...")
         try:
-            prod_thresholds.unlink()
-        except OSError as cleanup_error:
-            print(f"⚠️  Warning: Failed to remove mismatched thresholds file: {cleanup_error}")
-        raise ValueError(
-            f"Thresholds file integrity check failed!\n"
-            f"  Expected hash: {expected_sha}\n"
-            f"  Copied hash:   {copied_sha}\n"
-            f"Deployed thresholds must match the artifact validation scored."
+            shutil.copy2(candidate_model, staged_model)
+        except OSError as exc:
+            raise RuntimeError(
+                f"Failed to stage model file:\n"
+                f"  Source: {candidate_model}\n"
+                f"  Destination: {staged_model}\n"
+                f"  Error: {exc}"
+            ) from exc
+
+        staged_model_hash = compute_model_hash(staged_model)
+        if staged_model_hash != expected_model_hash:
+            raise ValueError(
+                f"Staged model integrity check failed!\n"
+                f"  Expected hash: {expected_model_hash}\n"
+                f"  Staged hash:   {staged_model_hash}\n"
+                f"The staged model file does not match the validated candidate."
+            )
+
+        if not candidate_thresholds.exists():
+            raise FileNotFoundError(
+                f"Validated thresholds artifact missing at promotion time: "
+                f"{candidate_thresholds}"
+            )
+
+        print(f"📋 Staging thresholds from {candidate_thresholds.name}...")
+        try:
+            shutil.copy2(candidate_thresholds, staged_thresholds)
+        except OSError as exc:
+            raise RuntimeError(
+                f"Failed to stage thresholds file:\n"
+                f"  Source: {candidate_thresholds}\n"
+                f"  Destination: {staged_thresholds}\n"
+                f"  Error: {exc}"
+            ) from exc
+
+        staged_thresholds_hash = compute_model_hash(staged_thresholds)
+        if staged_thresholds_hash != expected_thresholds_hash:
+            raise ValueError(
+                f"Staged thresholds integrity check failed!\n"
+                f"  Expected hash: {expected_thresholds_hash}\n"
+                f"  Staged hash:   {staged_thresholds_hash}\n"
+                f"Deployed thresholds must match the artifact validation scored."
+            )
+
+        # Finalize thresholds first; production model last so discovery never sees
+        # a new prod model without its validated operating-point file.
+        os.replace(staged_thresholds, prod_thresholds_path)
+        thresholds_finalized = True
+        if compute_model_hash(prod_thresholds_path) != expected_thresholds_hash:
+            raise ValueError(
+                f"Final thresholds integrity check failed!\n"
+                f"  Expected hash: {expected_thresholds_hash}\n"
+                f"  Final hash:    {compute_model_hash(prod_thresholds_path)}"
+            )
+        print(
+            f"✅ Thresholds deployed: {prod_thresholds_path.name} "
+            f"(hash: {expected_thresholds_hash[:16]}...)"
         )
 
-    metadata_files['_thresholds.json'] = str(prod_thresholds)
-    print(f"✅ Thresholds deployed: {prod_thresholds.name} (hash: {copied_sha[:16]}...)")
+        os.replace(staged_model, prod_model_path)
+        model_finalized = True
+        if compute_model_hash(prod_model_path) != expected_model_hash:
+            raise ValueError(
+                f"Final model integrity check failed!\n"
+                f"  Expected hash: {expected_model_hash}\n"
+                f"  Final hash:    {compute_model_hash(prod_model_path)}"
+            )
+        print(
+            f"✅ Model deployed: {prod_model_path.name} "
+            f"(hash: {expected_model_hash[:16]}...)"
+        )
+    except Exception:
+        if model_finalized:
+            _cleanup_path(prod_model_path)
+        if thresholds_finalized:
+            _cleanup_path(prod_thresholds_path)
+        raise
+    finally:
+        shutil.rmtree(staging_dir, ignore_errors=True)
 
 
 def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict) -> dict:
-    """Promote validated candidate model to production."""
+    """Promote validated candidate model to production atomically."""
 
-    candidate_model_str = validation_results.get('model_path')
-    if not candidate_model_str:
-        raise FileNotFoundError(
-            "validation_results['model_path'] is missing; cannot promote without a model file"
-        )
+    assert_force_promotion_prerequisites(validation_results)
 
+    candidate_model_str = validation_results['model_path']
     candidate_model = Path(candidate_model_str)
 
     if not candidate_model.is_absolute():
@@ -644,10 +792,20 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
             f"  Candidate dir: {candidate_dir}"
         )
 
-    algorithm_code = detect_algorithm_type(candidate_model)
-    if algorithm_code == 'unknown':
-        print("⚠️  Warning: Could not detect algorithm type, defaulting to 'rf'")
-        algorithm_code = 'rf'
+    algorithm_code = validation_results.get('algorithm') or detect_algorithm_type(candidate_model)
+    if algorithm_code not in SUPPORTED_ALGORITHMS:
+        raise ValueError(
+            f"Cannot promote unsupported or unloadable model "
+            f"(algorithm={algorithm_code!r}); expected one of {sorted(SUPPORTED_ALGORITHMS)}"
+        )
+
+    # Re-verify loadability at promote time (non-bypassable structural check)
+    live_algorithm = detect_algorithm_type(candidate_model)
+    if live_algorithm != algorithm_code:
+        raise ValueError(
+            f"Model algorithm changed between validation and promotion: "
+            f"validated={algorithm_code!r}, live={live_algorithm!r}"
+        )
 
     algorithm_names = {'rf': 'RandomForest', 'lr': 'LogisticRegression'}
     print(f"🔍 Detected algorithm: {algorithm_names.get(algorithm_code, algorithm_code)}")
@@ -657,39 +815,22 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
     prod_model_name = f"disaster_{algorithm_code}_{version}_prod_{training_date}.pkl"
     prod_model_path = model_dir / prod_model_name
     base_name = prod_model_path.stem
+    prod_thresholds_path = model_dir / f"{base_name}_thresholds.json"
+    candidate_thresholds = Path(validation_results['thresholds_path'])
 
-    print(f"📋 Copying model from {candidate_model.name} to {prod_model_name}...")
-    print(f"   Source: {candidate_model}")
-    print(f"   Destination: {prod_model_path}")
-    try:
-        shutil.copy2(candidate_model, prod_model_path)
-    except Exception as e:
-        raise RuntimeError(
-            f"Failed to copy model file:\n"
-            f"  Source: {candidate_model}\n"
-            f"  Source exists: {candidate_model.exists()}\n"
-            f"  Destination: {prod_model_path}\n"
-            f"  Destination parent exists: {prod_model_path.parent.exists()}\n"
-            f"  Error: {e}"
-        ) from e
+    _atomic_deploy_model_and_thresholds(
+        candidate_model=candidate_model,
+        expected_model_hash=validation_results['model_hash'],
+        candidate_thresholds=candidate_thresholds,
+        expected_thresholds_hash=validation_results['thresholds_sha256'],
+        model_dir=model_dir,
+        prod_model_path=prod_model_path,
+        prod_thresholds_path=prod_thresholds_path,
+    )
 
-    copied_hash = compute_model_hash(prod_model_path)
-    expected_hash = validation_results['model_hash']
-    if copied_hash != expected_hash:
-        try:
-            prod_model_path.unlink()
-            print(f"🗑️  Removed corrupted model file: {prod_model_path}")
-        except Exception as cleanup_error:
-            print(f"⚠️  Warning: Failed to remove corrupted file: {cleanup_error}")
-        raise ValueError(
-            f"Model file integrity check failed!\n"
-            f"  Expected hash: {expected_hash}\n"
-            f"  Copied hash:   {copied_hash}\n"
-            f"The copied model file does not match the validated candidate."
-        )
-    print(f"✅ Model file integrity verified (hash: {copied_hash[:16]}...)")
-
-    metadata_files = {}
+    metadata_files = {
+        '_thresholds.json': str(prod_thresholds_path),
+    }
 
     # Copy optional label metadata if present under either naming convention
     for candidate_labels in [
@@ -702,8 +843,6 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
             shutil.copy2(candidate_labels, prod_labels)
             metadata_files['_labels.json'] = str(prod_labels)
             break
-
-    _copy_validated_thresholds(validation_results, model_dir, base_name, metadata_files)
 
     training_log = candidate_dir / "training_log.json"
     if training_log.exists():
