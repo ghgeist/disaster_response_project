@@ -1,0 +1,63 @@
+{
+  "promotion": {
+    "promoted_model": "/home/runner/workspace/model/disaster_lr_v26-09-21_prod_2026-09-21.pkl",
+    "source_candidate": "/home/runner/workspace/experiments/experimental_runs/2026-09-21",
+    "promotion_timestamp": "2026-09-21T22:36:13.090167",
+    "version": "v26-09-21",
+    "validation_results": {
+      "model_path": "/home/runner/workspace/experiments/experimental_runs/2026-09-21/lr_vocab15k_cal_split_model.pkl",
+      "model_size_mb": 4.58836555480957,
+      "model_hash": "14cc5719f76429b8533410c2bf94c2693d5f6a9ad40a6fd4c424ce45d5c51717",
+      "algorithm": "lr",
+      "baseline_f1_micro": 0.6454499163453844,
+      "eval_critical_recall": 0.6149371857288635,
+      "baseline_f1_weighted": 0.936908740498482,
+      "optimized_f1_weighted": 0.8974507784044915,
+      "weighted_f1_relative_drop": 0.042115053887742525,
+      "thresholds_path": "/home/runner/workspace/experiments/experimental_runs/2026-09-21/lr_vocab15k_cal_split_model_thresholds.json",
+      "thresholds_sha256": "20caecccca1339cb79b1654dfd4934541aeb383e7ff73389d32a8f59d2e83a4f",
+      "optimization_split": "calibration",
+      "reporting_split": "frozen_eval",
+      "f1_weighted": 0.8974507784044915,
+      "f1_micro": 0.6454499163453844,
+      "validation_passed": true,
+      "validation_errors": []
+    },
+    "metadata_files": {
+      "_thresholds.json": "/home/runner/workspace/model/disaster_lr_v26-09-21_prod_2026-09-21_thresholds.json",
+      "_labels.json": "/home/runner/workspace/model/disaster_lr_v26-09-21_prod_2026-09-21_labels.json",
+      "_training.json": "/home/runner/workspace/model/disaster_lr_v26-09-21_prod_2026-09-21_training.json",
+      "performance_metrics.csv": "/home/runner/workspace/model/disaster_lr_v26-09-21_prod_2026-09-21_performance_metrics.csv",
+      "MODEL_INFO.json": "/home/runner/workspace/model/MODEL_INFO.json"
+    },
+    "status": "promoted"
+  },
+  "archive": {
+    "prior_production_model": "disaster_lr_v25-11-06_prod_2025-11-06.pkl",
+    "prior_production_path_at_archive": "/home/runner/workspace/model/disaster_lr_v25-11-06_prod_2025-11-06.pkl",
+    "archived_model": "/home/runner/workspace/model/disaster_lr_v25-11-06_prod_2025-11-06.pkl",
+    "archive_timestamp": "2026-09-21_22-36-12",
+    "model_size_mb": 4.5292463302612305,
+    "model_hash": "9438334f2d3884dd9e475aabb32ab50032cb49b0b2fd0c61756b60acf7c70a90",
+    "model_sha256": "9438334f2d3884dd9e475aabb32ab50032cb49b0b2fd0c61756b60acf7c70a90",
+    "binary_archived": false,
+    "binary_retention": "not_copied",
+    "binary_removed_from_model_dir": true,
+    "binaries_removed_by_cleanup": [
+      "disaster_lr_v25-11-06_prod_2025-11-06.pkl"
+    ],
+    "rollback": {
+      "method": "git_history",
+      "artifact_path": "model/disaster_lr_v25-11-06_prod_2025-11-06.pkl",
+      "verify_sha256": "9438334f2d3884dd9e475aabb32ab50032cb49b0b2fd0c61756b60acf7c70a90",
+      "note": "The production .pkl binary is not copied into experiments/model_archive/. After cleanup_old_production_models removes superseded binaries from model/, restore from Git (tracked model/*_prod_*.pkl) and verify model_sha256."
+    },
+    "archived_metadata": {
+      "_thresholds.json": "/home/runner/workspace/experiments/model_archive/disaster_lr_v25-11-06_prod_2025-11-06_2026-09-21_22-36-12_thresholds.json",
+      "model_info": "/home/runner/workspace/experiments/model_archive/MODEL_INFO_disaster_lr_v25-11-06_prod_2025-11-06_2026-09-21_22-36-12.json"
+    },
+    "status": "metadata_archived",
+    "archive_record_path": "/home/runner/workspace/experiments/model_archive/archive_record_disaster_lr_v25-11-06_prod_2025-11-06_2026-09-21_22-36-12.json"
+  },
+  "timestamp": "2026-09-21_22-36-13"
+}

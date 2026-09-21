@@ -163,11 +163,11 @@ Promotes validated experimental models to production.
   # Validate only
   python scripts/07_operations/promote_model.py experiments/experimental_runs/2025-09-18 --dry-run
   
-  # Promote with auto-update of app/config.py MODEL_FILENAME
+  # Promote (default: leave app/config.py alone — Config auto-discovers model/*_prod_*.pkl)
   python scripts/07_operations/promote_model.py experiments/experimental_runs/2025-09-18 --keep-old 1 --print-new-path
   
-  # Promote but do NOT update app/config.py automatically
-  python scripts/07_operations/promote_model.py experiments/experimental_runs/2025-09-18 --no-update-config
+  # Opt-in: rewrite a disaster_* MODEL_FILENAME literal in app/config.py
+  python scripts/07_operations/promote_model.py experiments/experimental_runs/2025-09-18 --update-config
   ```
 - **Notes**: 
   - Enforces the train/cal/eval evaluation contract (ADR-007): baseline frozen-eval micro F1, frozen-eval critical recall, size, weighted-F1 relative-drop guardrail, and `optimization_split=calibration` / `reporting_split=frozen_eval` provenance
@@ -175,7 +175,8 @@ Promotes validated experimental models to production.
   - Requires a complete `thresholds` map covering every `TARGET_COLUMNS` label with values in `[0, 1]`
   - Validation gates use `PERFORMANCE_THRESHOLDS` from `src/disasterproject/utils/config.py`
   - On success, promoted file named `disaster_{algorithm}_<version>_prod_<YYYY-MM-DD>.pkl` placed under `model/`
-  - By default, `app/config.py` is updated with `.bak` backup created
+  - Does **not** rewrite `app/config.py` by default (auto-discovery); pass `--update-config` only if you maintain a hardcoded `disaster_*` literal
+  - Archives prior production **metadata** + SHA256 to `experiments/model_archive/` (does **not** copy the `.pkl`); rollback is via Git history of tracked `model/*_prod_*.pkl`
   - Missing/invalid evidence fails closed; `--force` overrides metric/provenance gates only (model + thresholds artifacts with hashes, and a loadable `lr`/`rf` model, remain required)
 ### `model_naming_utility.py`
 Model naming helper utilities.
@@ -189,6 +190,16 @@ Ensures virtual environment is activated for local development.
 - **Use when**: Checking venv status in local development
 - **Usage**: `python scripts/utils/ensure_venv.py`
 - **Note**: Automatically detects Replit environment and skips venv check
+
+### `configure_gh_git_credentials.sh`
+Configures **repo-local** git credentials so `git push` works with the `gh` CLI on Replit/Cursor SSH (avoids broken `replit-git-askpass`).
+- **Use when**: `git push` fails with `could not read Username for 'https://github.com'`
+- **Usage**:
+  ```bash
+  gh auth login -h github.com -p https -w   # once
+  bash scripts/utils/configure_gh_git_credentials.sh
+  ```
+- **Note**: Writes only under `.git/` (not committed); see `AGENTS.md`
 
 ### `estimate_search_time.py`
 Time estimation utilities for optimization tasks.

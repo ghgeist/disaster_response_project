@@ -46,13 +46,15 @@ Replace RandomForestClassifier with **LogisticRegression** as the primary algori
 - **Load Time**: 0.076s (LR) vs 6.2s (RF) - **98.8% faster**
 - **Critical Recall**: Massive improvements on all 8 critical labels
 
-**Current Production Model** (vocab15k, 2025-11-06):
-- **F1-Score**: 0.9379 (baseline), 0.9276 (threshold-optimized)
-- **Model Size**: 4.53MB
-- **Critical Recall**: Historical ~65% average across 8 critical categories — see caveat below
-- **Per-category performance**: Better F1 on 19/36 categories vs RF, including 5/8 critical categories
+**Current Production Model** (vocab15k three-way, promoted 2026-09-21):
+- **Artifact**: `disaster_lr_v26-09-21_prod_2026-09-21.pkl`
+- **Frozen-eval critical recall**: **61.5%** (cal-tuned thresholds; report-only on `eval_ids.json`)
+- **Threshold-optimized weighted F1**: **≈89.75%**
+- **Baseline frozen-eval micro F1**: **≈64.5%**
+- **Model Size**: ≈4.59MB
+- **Per-category performance** (earlier LR-vs-RF study): Better F1 on 19/36 categories vs RF, including 5/8 critical categories
 
-**Threshold evaluation caveat (2026-09-21):** Historical ~65% critical recall was measured on the same frozen eval examples used to select per-label thresholds and therefore was not an independent post-calibration estimate. Going forward, thresholds are tuned on `experiments/experimental_configs/eval_sets/cal_ids.json` (train-side) and reported on frozen `eval_ids.json` only. A three-way retrain of the vocab15k LR path (`03_create_experimental_model.py`, fit excludes `cal ∪ eval`; inline F2 thresholds also use cal and are written to `*_f2_thresholds.json`) yielded **61.5%** critical recall and **89.66%** threshold-optimized weighted F1 on frozen eval (calibration diagnostic critical recall remained ~65.1%). Those three-way numbers are **not yet promoted** to `model/`; the deployed production artifact still carries historical tune-on-eval metrics. The historical 92.76% F1 figure came from the earlier tune-on-eval workflow and must not be paired with the new critical-recall number as one operating point. Frozen eval is report-only for threshold calibration; it is not a pristine never-touched final test set because prior engineering decisions already inspected its results.
+**Threshold evaluation caveat:** Historical ~65% critical recall / **92.76%** F1 on the prior `disaster_lr_v25-11-06_prod_2025-11-06` artifact were measured under the pre-three-way **tune-on-eval** workflow and are **not** the current production operating point. Production now follows train/cal/eval (fit excludes `cal ∪ eval`; thresholds on `cal_ids.json`; metrics on frozen eval). Calibration diagnostic critical recall remains ~65.1%; do not pair historical 92.76% F1 with the new 61.5% critical recall as one operating point. Frozen eval is report-only for threshold calibration; it is not a pristine never-touched final test set because prior engineering decisions already inspected its results.
 
 ## Consequences
 
@@ -184,6 +186,7 @@ Replace RandomForestClassifier with **LogisticRegression** as the primary algori
 
 **Completed (2025-09-03)**: Initial LR model deployed  
 **Completed (2025-11-06)**: Vocabulary-optimized LR model (vocab15k) promoted to production  
+**Completed (2026-09-21)**: Three-way train/cal/eval vocab15k LR promoted (`disaster_lr_v26-09-21_prod_2026-09-21.pkl`) under ADR-007 evaluation-contract gates  
 **Current**: LR is the standard algorithm for all new model training  
 **Future**: Continue optimizing LR hyperparameters and vocabulary size; RF retained for experimental comparisons
 

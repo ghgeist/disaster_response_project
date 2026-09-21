@@ -575,7 +575,14 @@ def validate_candidate_model(candidate_dir: Path) -> dict:
 
 
 def archive_current_production_model(model_dir: Path, archive_dir: Path) -> dict:
-    """Archive current production model metadata to model registry."""
+    """Archive current production *metadata* (not the .pkl binary).
+
+    Production ``*_prod_*.pkl`` binaries stay under ``model/`` until
+    ``cleanup_old_production_models`` removes extras per ``--keep-old``.
+    ``experiments/model_archive/`` stores companion metadata and a record with
+    the prior binary's SHA256 so rollback can restore from Git history
+    (tracked ``model/*_prod_*.pkl``) and verify the hash.
+    """
 
     archive_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -592,6 +599,7 @@ def archive_current_production_model(model_dir: Path, archive_dir: Path) -> dict
 
     current_prod_model = prod_models[0]
     base_name = current_prod_model.stem
+    model_sha256 = compute_model_hash(current_prod_model)
 
     archived_metadata = {}
     metadata_extensions = ['.json', '_labels.json', '_thresholds.json', '_training.json']
@@ -610,19 +618,41 @@ def archive_current_production_model(model_dir: Path, archive_dir: Path) -> dict
         archived_metadata['model_info'] = str(archive_info_file)
 
     archive_record = {
+        'prior_production_model': current_prod_model.name,
+        'prior_production_path_at_archive': str(current_prod_model),
+        # Legacy key retained for older readers; path may be deleted after cleanup.
         'archived_model': str(current_prod_model),
         'archive_timestamp': timestamp,
         'model_size_mb': current_prod_model.stat().st_size / (1024 * 1024),
-        'model_hash': compute_model_hash(current_prod_model),
+        'model_hash': model_sha256,
+        'model_sha256': model_sha256,
+        'binary_archived': False,
+        'binary_retention': 'not_copied',
+        'rollback': {
+            'method': 'git_history',
+            'artifact_path': f'model/{current_prod_model.name}',
+            'verify_sha256': model_sha256,
+            'note': (
+                'The production .pkl binary is not copied into '
+                'experiments/model_archive/. After cleanup_old_production_models '
+                'removes superseded binaries from model/, restore from Git '
+                '(tracked model/*_prod_*.pkl) and verify model_sha256.'
+            ),
+        },
         'archived_metadata': archived_metadata,
-        'status': 'archived'
+        'status': 'metadata_archived',
     }
 
     record_file = archive_dir / f"archive_record_{base_name}_{timestamp}.json"
+    archive_record['archive_record_path'] = str(record_file)
     with open(record_file, 'w') as f:
         json.dump(archive_record, f, indent=2)
 
     print(f"Archived production model metadata: {base_name}")
+    print(
+        "Note: .pkl binary was not copied; rollback is via Git history "
+        f"(sha256={model_sha256[:16]}...)"
+    )
     print(f"Archive record: {record_file}")
 
     return archive_record
@@ -1007,17 +1037,30 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
 
 
 def _update_app_config_model_filename(config_path: Path, new_filename: str, backup: bool = True) -> bool:
-    """Safely update app/config.py MODEL_FILENAME to new_filename."""
+    """Safely update a single-line production MODEL_FILENAME string assignment.
+
+    Only rewrites lines like ``MODEL_FILENAME = 'disaster_*_prod_*.pkl'``.
+    Skips when config uses env override / auto-discovery (no disaster_* literal),
+    and never uses DOTALL matching that could erase the Config class body.
+    """
     try:
         text = config_path.read_text(encoding="utf-8")
         if "MODEL_FILENAME" not in text:
             print("Warning: MODEL_FILENAME not found in config; skipping auto-update")
             return False
-        pattern = r"^class Config\b.*?^(\s*MODEL_FILENAME\s*=\s*)(['\"])(.+?)\2"
-        repl = r"\1'" + new_filename + r"'"
-        new_text, n = re.subn(pattern, repl, text, flags=re.MULTILINE | re.DOTALL)
+        # Single-line only: require a disaster_* production literal on the same line.
+        pattern = (
+            r"^(\s*MODEL_FILENAME\s*=\s*)(['\"])"
+            r"(disaster_[^'\"]+_prod_[^'\"]+\.pkl)\2"
+            r"(\s*(?:#.*)?)?$"
+        )
+        repl = r"\1'" + new_filename + r"'\4"
+        new_text, n = re.subn(pattern, repl, text, count=1, flags=re.MULTILINE)
         if n == 0:
-            print("Warning: Could not update MODEL_FILENAME line; skipping auto-update")
+            print(
+                "Warning: No disaster_* production MODEL_FILENAME literal in "
+                "app/config.py (likely auto-discovery); skipping auto-update"
+            )
             return False
         if backup:
             bak = config_path.with_suffix(config_path.suffix + ".bak")
@@ -1029,8 +1072,11 @@ def _update_app_config_model_filename(config_path: Path, new_filename: str, back
         return False
 
 
-def cleanup_old_production_models(model_dir: Path, keep_count: int = 2):
-    """Remove old production model files, keeping only metadata."""
+def cleanup_old_production_models(model_dir: Path, keep_count: int = 2) -> list[str]:
+    """Remove old production model .pkl files, keeping companion metadata.
+
+    Returns basenames of removed binaries. Does not delete thresholds/metrics JSON.
+    """
 
     prod_models = sorted(
         model_dir.glob("*_prod_*.pkl"),
@@ -1039,11 +1085,18 @@ def cleanup_old_production_models(model_dir: Path, keep_count: int = 2):
     )
 
     models_to_remove = prod_models[keep_count:]
+    removed: list[str] = []
 
     for old_model in models_to_remove:
         size_mb = old_model.stat().st_size / (1024 * 1024)
-        print(f"🗑️  Removing old production model: {old_model.name} ({size_mb:.1f}MB)")
+        print(
+            f"🗑️  Removing old production model binary: {old_model.name} "
+            f"({size_mb:.1f}MB); metadata retained; restore via Git + archive sha256"
+        )
         old_model.unlink()
+        removed.append(old_model.name)
+
+    return removed
 
 
 def _format_optional_float(value, digits: int = 4) -> str:
@@ -1065,7 +1118,20 @@ def main():
         ),
     )
     parser.add_argument("--keep-old", type=int, default=1, help="Number of old production models to keep")
-    parser.add_argument("--no-update-config", action="store_true", help="Do not update app/config.py MODEL_FILENAME")
+    parser.add_argument(
+        "--update-config",
+        action="store_true",
+        help=(
+            "Rewrite a disaster_* MODEL_FILENAME string literal in app/config.py. "
+            "Off by default: Config auto-discovers the newest model/*_prod_*.pkl "
+            "(or MODEL_FILENAME env override)."
+        ),
+    )
+    parser.add_argument(
+        "--no-update-config",
+        action="store_true",
+        help=argparse.SUPPRESS,  # deprecated; skipping config update is now the default
+    )
     parser.add_argument("--print-new-path", action="store_true", help="Print promoted model filename for CI logs")
 
     args = parser.parse_args()
@@ -1142,16 +1208,39 @@ def main():
         if args.print_new_path:
             print(f"NEW_PRODUCTION_MODEL={new_filename}")
 
-        if not args.no_update_config:
+        if args.update_config:
             app_config_path = project_root / "app" / "config.py"
             updated = _update_app_config_model_filename(app_config_path, new_filename, backup=True)
             if updated:
                 print(f"🛠  Updated app/config.py MODEL_FILENAME -> {new_filename}")
             else:
                 print("⚠️  Skipped updating app/config.py (see warnings above)")
+        elif args.no_update_config:
+            print("ℹ️  --no-update-config is the default; app/config.py left unchanged")
+        else:
+            print(
+                "ℹ️  Left app/config.py unchanged "
+                "(auto-discovers model/*_prod_*.pkl; pass --update-config to rewrite a literal)"
+            )
 
         print(f"\n🧹 Cleaning up old production models (keeping {args.keep_old})...")
-        cleanup_old_production_models(model_dir, keep_count=args.keep_old)
+        removed_binaries = cleanup_old_production_models(model_dir, keep_count=args.keep_old)
+        if archive_record:
+            prior_name = archive_record.get('prior_production_model') or Path(
+                archive_record.get('archived_model', '')
+            ).name
+            archive_record = {
+                **archive_record,
+                'binary_removed_from_model_dir': prior_name in removed_binaries,
+                'binaries_removed_by_cleanup': removed_binaries,
+            }
+            record_path = archive_record.get('archive_record_path')
+            if record_path:
+                try:
+                    with open(record_path, 'w', encoding='utf-8') as f:
+                        json.dump(archive_record, f, indent=2)
+                except OSError as exc:
+                    print(f"⚠️  Warning: Failed to refresh archive record: {exc}")
 
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         record_file = archive_dir / f"promotion_record_{timestamp}.json"

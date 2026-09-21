@@ -7,16 +7,17 @@ This folder stores production model files and their companion metadata used by t
 **Common Tasks:**
 - **Find current production model**: Look for `disaster_*_prod_*.pkl` files (newest by modification time)
 - **Find model metadata**: `MODEL_INFO.json` (contains algorithm, version, performance, promotion date)
-- **Find thresholds**: `{model_stem}_thresholds.json` (e.g., `disaster_lr_v25-11-06_prod_2025-11-06_thresholds.json`)
+- **Find thresholds**: `{model_stem}_thresholds.json` (e.g., `disaster_lr_v26-09-21_prod_2026-09-21_thresholds.json`)
 - **Find experimental models**: `experiments/experimental_runs/` (see `experiments/README.md`)
-- **Find archived models**: `experiments/model_archive/` (previous production models)
+- **Find archived models**: `experiments/model_archive/` (prior production **metadata** + SHA256 records; `.pkl` binaries are not stored there—restore via Git)
 - **Promote a model**: Use `scripts/07_operations/promote_model.py`
 
 **Current Production Model:**
-- File: `disaster_lr_v25-11-06_prod_2025-11-06.pkl`
-- Algorithm: LogisticRegression
-- Training Date: 2025-11-06
-- Promotion Date: 2026-02-03 (see `MODEL_INFO.json`)
+- File: `disaster_lr_v26-09-21_prod_2026-09-21.pkl`
+- Algorithm: LogisticRegression (vocab15k, three-way train/cal/eval)
+- Training Date: 2026-09-21
+- Promotion Date: 2026-09-21 (see `MODEL_INFO.json`)
+- Operating point: frozen-eval critical recall ≈61.5%, threshold-optimized weighted F1 ≈89.75%, baseline micro F1 ≈64.5%
 
 ## Model Naming Convention
 
@@ -56,12 +57,17 @@ Versions are derived from the training date:
 
 ## Current Production Model
 
-**Model File**: `disaster_lr_v25-11-06_prod_2025-11-06.pkl`
-- **Algorithm**: LogisticRegression
-- **Size**: 4.53 MB
-- **Performance**: F1-weighted=0.9379, F1-micro=0.6502
-- **Training Date**: 2025-11-06
-- **Promotion Date**: 2026-02-03 (stored in MODEL_INFO.json)
+**Model File**: `disaster_lr_v26-09-21_prod_2026-09-21.pkl`
+- **Algorithm**: LogisticRegression (vocab15k)
+- **Size**: 4.59 MB
+- **Evaluation contract**: thresholds tuned on calibration; metrics reported on frozen eval
+- **Performance (promoted operating point)**:
+  - Eval critical recall ≈ **0.615**
+  - Threshold-optimized weighted F1 ≈ **0.8975**
+  - Baseline frozen-eval micro F1 ≈ **0.645**
+- **Training Date**: 2026-09-21
+- **Promotion Date**: 2026-09-21 (stored in `MODEL_INFO.json`)
+- **Prior production** (archived metadata): `disaster_lr_v25-11-06_prod_2025-11-06` — historical tune-on-eval ~65% critical recall / 92.76% F1 (not this operating point)
 
 ## Model Discovery
 
@@ -94,16 +100,21 @@ The Flask app uses auto-discovery to find the latest production model:
 ```json
 {
   "sha256": "model_file_hash",
-  "promoted_from": "experiments/experimental_runs/...",
-  "promotion_timestamp": "2026-02-03T12:28:29.427768",
-  "model_size_mb": 4.53,
+  "promoted_from": "experiments/experimental_runs/2026-09-21",
+  "promotion_timestamp": "2026-09-21T22:36:13.089914",
+  "model_size_mb": 4.59,
   "algorithm": "lr",
   "algorithm_name": "LogisticRegression",
-  "version": "v25-11-06",
+  "version": "v26-09-21",
   "status": "production",
+  "optimization_split": "calibration",
+  "reporting_split": "frozen_eval",
   "performance": {
-    "f1_weighted": 0.9379,
-    "f1_micro": 0.6502
+    "eval_critical_recall": 0.6149,
+    "optimized_f1_weighted": 0.8975,
+    "baseline_f1_micro": 0.6454,
+    "f1_weighted": 0.8975,
+    "f1_micro": 0.6454
   }
 }
 ```
@@ -152,7 +163,8 @@ Tune-on-eval candidates (for example `2025-11-06-vocab15k-promotion`) fail prove
 5. **Hash Verification**: Verifies copied model matches expected hash
 6. **Threshold deploy**: Copies the validated `{model_stem}_thresholds.json` to `{prod_stem}_thresholds.json` and verifies SHA256 identity
 7. **Metadata Creation**: Creates/updates `MODEL_INFO.json` with algorithm and contract metrics
-8. **Archive**: Archives previous production model metadata
+8. **Archive**: Copies previous production **metadata** to `experiments/model_archive/` (not the `.pkl`); records SHA256 for Git-history rollback
+9. **Cleanup**: Removes superseded `model/*_prod_*.pkl` binaries per `--keep-old` (companions may remain)
 
 ### 4. Verification
 

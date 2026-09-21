@@ -1,5 +1,5 @@
 {
-  "sha256": "4b71d88681a271448ca93331f23f11b2abb63c59fbee47b8c91f5693e85c55c5",
+  "sha256": "14cc5719f76429b8533410c2bf94c2693d5f6a9ad40a6fd4c424ce45d5c51717",
   "rf_params": {
     "C": 1.0,
     "class_weight": null,
@@ -40,14 +40,9 @@
     "vocabulary": null
   },
   "label_order_hash": "ce03e505f9fa17f5cd078048b59a6764e48a6b00",
-  "fit_time_seconds": 8.938426494598389,
-  "model_size_mb": 4.587679862976074,
-  "cold_load_seconds": 0.04472017288208008,
-  "threshold_optimization_split": "calibration",
-  "reporting_split": "frozen_eval",
-  "inline_f2_threshold_file": "lr_vocab15k_cal_split_model_f2_thresholds.json",
-  "canonical_thresholds_note": "App-facing thresholds come from optimize_per_category_thresholds.py ({model_stem}_thresholds.json), not from inline F2 output.",
-  "promoted_to_model_dir": false,
+  "fit_time_seconds": 11.145142316818237,
+  "model_size_mb": 4.58836555480957,
+  "cold_load_seconds": 0.08717513084411621,
   "inline_f2_threshold_sources": {
     "medical_help": "optimized",
     "search_and_rescue": "optimized",
@@ -57,5 +52,9 @@
     "hospitals": "optimized",
     "security": "optimized",
     "weather_related": "optimized"
-  }
+  },
+  "inline_f2_threshold_file": "lr_vocab15k_cal_split_model_f2_thresholds.json",
+  "threshold_optimization_split": "calibration",
+  "reporting_split": "frozen_eval",
+  "canonical_thresholds_note": "App-facing thresholds come from optimize_per_category_thresholds.py ({model_stem}_thresholds.json), not from inline F2 output."
 }

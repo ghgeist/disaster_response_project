@@ -38,14 +38,16 @@ Sampling validation scripts remain available for experimentation (`scripts/valid
 
 **This ADR records the preferred strategy when weighting is turned on.** It does not assert that every promoted artifact was trained with weights enabled. See the Amendment below for the current production artifact.
 
-## Amendment (2026-09-20): Current production training fact
+## Amendment (2026-09-21): Current production training fact
 
-The promoted production model `disaster_lr_v25-11-06_prod_2025-11-06.pkl` was trained with **class weighting disabled**:
+The promoted production model `disaster_lr_v26-09-21_prod_2026-09-21.pkl` (three-way vocab15k LR) was trained with **class weighting disabled**:
 
-- Training log: `experiments/experimental_runs/2025-11-06-vocab15k-promotion/training_log.json` records `class_weighting.enabled: false`
+- Training log: `experiments/experimental_runs/2026-09-21/training_log.json` records `class_weighting.enabled: false`
 - Default candidate config: `experiments/model_candidates/class_weights.json` has `class_weights.enabled: false`
 
-**Live imbalance handling for this artifact** relies primarily on **per-label optimized thresholds** at inference (`model/disaster_lr_v25-11-06_prod_2025-11-06_thresholds.json`), not balanced class weights at train time.
+**Live imbalance handling for this artifact** relies primarily on **per-label optimized thresholds** at inference (`model/disaster_lr_v26-09-21_prod_2026-09-21_thresholds.json`), tuned on the calibration split under the train/cal/eval contract.
+
+The prior production artifact `disaster_lr_v25-11-06_prod_2025-11-06.pkl` was likewise trained with weighting disabled (see `experiments/experimental_runs/2025-11-06-vocab15k-promotion/training_log.json`).
 
 Re-enabling class weighting for a future promotion is treated as an **experiment**: do not claim it improves the current LR model until a side-by-side comparison is recorded.
 
@@ -104,7 +106,7 @@ The chosen approach (class weighting when enabled) provides the best balance of 
 ### Production Usage
 - **Experimental models**: `scripts/02_training/03_create_experimental_model.py` uses class weighting when `class_weights.enabled=true` in config
 - **Production models**: `scripts/02_training/04_create_production_model.py` applies class weighting based on config file
-- **Current production model**: `disaster_lr_v25-11-06_prod_2025-11-06.pkl` — LogisticRegression trained with class weighting **disabled**; inference uses optimized per-label thresholds
+- **Current production model**: `disaster_lr_v26-09-21_prod_2026-09-21.pkl` — LogisticRegression trained with class weighting **disabled**; inference uses cal-tuned per-label thresholds
 
 ### Sampling Infrastructure (Retained for Experimentation)
 - **Validation script**: `scripts/validate_multilabel_sampling.py` - Tests SMOTE, ADASYN, and other methods
@@ -117,7 +119,7 @@ The chosen approach (class weighting when enabled) provides the best balance of 
 - **Class Weighting Implementation**: `src/disasterproject/models/samplers.py::get_multilabel_class_weights()`
 - **Sampling Implementation**: `src/disasterproject/models/samplers.py::apply_proper_multilabel_sampling()`
 - **Production Model Training**: `scripts/02_training/03_create_experimental_model.py`, `scripts/02_training/04_create_production_model.py`
-- **Promotion training log**: `experiments/experimental_runs/2025-11-06-vocab15k-promotion/training_log.json`
+- **Promotion training log**: `experiments/experimental_runs/2026-09-21/training_log.json` (prior: `2025-11-06-vocab15k-promotion/training_log.json`)
 - **Sampling Validation**: `scripts/validate_multilabel_sampling.py`
 - **Data Quality Analysis**: `notebooks/02_data_quality_analysis.ipynb` - Documents zero-positive and rare categories
 - **README Documentation**: `README.md` - Documents `child_alone` exclusion from hierarchy constraints
