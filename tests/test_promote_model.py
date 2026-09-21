@@ -515,6 +515,138 @@ class TestThresholdDeployInvariant:
         assert list(model_dir.glob(".promotion_staging_*")) == []
 
 
+class TestProductionArtifactImmutability:
+    """Production model/threshold filenames are immutable once created."""
+
+    def test_idempotent_retry_with_matching_existing_pair(
+        self, temp_dir, candidate_dir_with_lr_model
+    ):
+        model_dir = temp_dir / "model"
+        model_dir.mkdir()
+        validation_results = validate_candidate_model(candidate_dir_with_lr_model)
+        first = promote_model(candidate_dir_with_lr_model, model_dir, validation_results)
+        prod_model = Path(first['promoted_model'])
+        prod_thresholds = model_dir / f"{prod_model.stem}_thresholds.json"
+
+        model_bytes_before = prod_model.read_bytes()
+        thresholds_bytes_before = prod_thresholds.read_bytes()
+        model_hash_before = compute_model_hash(prod_model)
+        thresholds_hash_before = compute_model_hash(prod_thresholds)
+
+        second = promote_model(candidate_dir_with_lr_model, model_dir, validation_results)
+        assert Path(second['promoted_model']) == prod_model
+        assert prod_model.read_bytes() == model_bytes_before
+        assert prod_thresholds.read_bytes() == thresholds_bytes_before
+        assert compute_model_hash(prod_model) == model_hash_before
+        assert compute_model_hash(prod_thresholds) == thresholds_hash_before
+
+    def test_collision_with_different_existing_thresholds(
+        self, temp_dir, candidate_dir_with_lr_model
+    ):
+        model_dir = temp_dir / "model"
+        model_dir.mkdir()
+        validation_results = validate_candidate_model(candidate_dir_with_lr_model)
+        first = promote_model(candidate_dir_with_lr_model, model_dir, validation_results)
+        prod_model = Path(first['promoted_model'])
+        prod_thresholds = model_dir / f"{prod_model.stem}_thresholds.json"
+
+        model_bytes_before = prod_model.read_bytes()
+        thresholds_bytes_before = prod_thresholds.read_bytes()
+        model_hash_before = compute_model_hash(prod_model)
+        thresholds_hash_before = compute_model_hash(prod_thresholds)
+
+        prod_thresholds.write_text(
+            json.dumps({"thresholds": {"related": 0.1}, "tampered": True}),
+            encoding="utf-8",
+        )
+        tampered_thresholds_hash = compute_model_hash(prod_thresholds)
+
+        with pytest.raises(ValueError, match="Production artifact collision"):
+            promote_model(candidate_dir_with_lr_model, model_dir, validation_results)
+
+        assert prod_model.read_bytes() == model_bytes_before
+        assert compute_model_hash(prod_model) == model_hash_before
+        assert prod_thresholds.read_bytes() != thresholds_bytes_before
+        assert compute_model_hash(prod_thresholds) == tampered_thresholds_hash
+        assert compute_model_hash(prod_thresholds) != thresholds_hash_before
+
+    def test_collision_with_different_existing_model(
+        self, temp_dir, candidate_dir_with_lr_model
+    ):
+        model_dir = temp_dir / "model"
+        model_dir.mkdir()
+        validation_results = validate_candidate_model(candidate_dir_with_lr_model)
+        first = promote_model(candidate_dir_with_lr_model, model_dir, validation_results)
+        prod_model = Path(first['promoted_model'])
+        prod_thresholds = model_dir / f"{prod_model.stem}_thresholds.json"
+
+        model_bytes_before = prod_model.read_bytes()
+        thresholds_bytes_before = prod_thresholds.read_bytes()
+        thresholds_hash_before = compute_model_hash(prod_thresholds)
+
+        prod_model.write_bytes(b"tampered-production-model-bytes")
+        tampered_model_hash = compute_model_hash(prod_model)
+
+        with pytest.raises(ValueError, match="Production artifact collision"):
+            promote_model(candidate_dir_with_lr_model, model_dir, validation_results)
+
+        assert prod_model.read_bytes() == b"tampered-production-model-bytes"
+        assert compute_model_hash(prod_model) == tampered_model_hash
+        assert prod_model.read_bytes() != model_bytes_before
+        assert prod_thresholds.read_bytes() == thresholds_bytes_before
+        assert compute_model_hash(prod_thresholds) == thresholds_hash_before
+
+    def test_incomplete_existing_pair_fails_closed(
+        self, temp_dir, candidate_dir_with_lr_model
+    ):
+        model_dir = temp_dir / "model"
+        model_dir.mkdir()
+        validation_results = validate_candidate_model(candidate_dir_with_lr_model)
+        first = promote_model(candidate_dir_with_lr_model, model_dir, validation_results)
+        prod_model = Path(first['promoted_model'])
+        prod_thresholds = model_dir / f"{prod_model.stem}_thresholds.json"
+
+        model_bytes_before = prod_model.read_bytes()
+        model_hash_before = compute_model_hash(prod_model)
+        prod_thresholds.unlink()
+
+        with pytest.raises(ValueError, match="Incomplete production artifact pair"):
+            promote_model(candidate_dir_with_lr_model, model_dir, validation_results)
+
+        assert prod_model.exists()
+        assert prod_model.read_bytes() == model_bytes_before
+        assert compute_model_hash(prod_model) == model_hash_before
+        assert not prod_thresholds.exists()
+
+    def test_rejected_retry_preserves_existing_artifacts_byte_for_byte(
+        self, temp_dir, candidate_dir_with_lr_model
+    ):
+        model_dir = temp_dir / "model"
+        model_dir.mkdir()
+        validation_results = validate_candidate_model(candidate_dir_with_lr_model)
+        first = promote_model(candidate_dir_with_lr_model, model_dir, validation_results)
+        prod_model = Path(first['promoted_model'])
+        prod_thresholds = model_dir / f"{prod_model.stem}_thresholds.json"
+
+        # Different content in both destinations triggers collision without rewrite
+        original_model = prod_model.read_bytes()
+        original_thresholds = prod_thresholds.read_bytes()
+        prod_model.write_bytes(original_model + b"\x00extra")
+        prod_thresholds.write_text(original_thresholds.decode("utf-8") + "\n", encoding="utf-8")
+        model_after_tamper = prod_model.read_bytes()
+        thresholds_after_tamper = prod_thresholds.read_bytes()
+        model_hash_after_tamper = compute_model_hash(prod_model)
+        thresholds_hash_after_tamper = compute_model_hash(prod_thresholds)
+
+        with pytest.raises(ValueError, match="Production artifact collision"):
+            promote_model(candidate_dir_with_lr_model, model_dir, validation_results)
+
+        assert prod_model.read_bytes() == model_after_tamper
+        assert prod_thresholds.read_bytes() == thresholds_after_tamper
+        assert compute_model_hash(prod_model) == model_hash_after_tamper
+        assert compute_model_hash(prod_thresholds) == thresholds_hash_after_tamper
+
+
 class TestRealCandidateAcceptance:
     """Acceptance behavior against checked-in experiment artifacts."""
 

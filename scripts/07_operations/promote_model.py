@@ -663,6 +663,66 @@ def _cleanup_path(path: Path) -> None:
         print(f"⚠️  Warning: Failed to remove {path}: {cleanup_error}")
 
 
+def _resolve_production_destination_action(
+    *,
+    prod_model_path: Path,
+    prod_thresholds_path: Path,
+    expected_model_hash: str,
+    expected_thresholds_hash: str,
+) -> str:
+    """Decide how to treat existing production artifact names.
+
+    Production filenames are immutable once created:
+    - create: neither destination exists
+    - idempotent: both exist with matching SHA-256 hashes
+    - otherwise fail closed (incomplete pair or content collision)
+
+    Returns:
+        "create" or "idempotent"
+    """
+    model_exists = prod_model_path.exists()
+    thresholds_exist = prod_thresholds_path.exists()
+
+    if not model_exists and not thresholds_exist:
+        return "create"
+
+    if model_exists ^ thresholds_exist:
+        present = prod_model_path.name if model_exists else prod_thresholds_path.name
+        missing = prod_thresholds_path.name if model_exists else prod_model_path.name
+        raise ValueError(
+            "Incomplete production artifact pair for immutable destination names:\n"
+            f"  Present: {present}\n"
+            f"  Missing: {missing}\n"
+            "Refusing to overwrite or complete an incomplete production pair in place."
+        )
+
+    existing_model_hash = compute_model_hash(prod_model_path)
+    existing_thresholds_hash = compute_model_hash(prod_thresholds_path)
+    model_matches = existing_model_hash == expected_model_hash
+    thresholds_match = existing_thresholds_hash == expected_thresholds_hash
+
+    if model_matches and thresholds_match:
+        return "idempotent"
+
+    details = []
+    if not model_matches:
+        details.append(
+            f"model {prod_model_path.name}: existing={existing_model_hash[:16]}... "
+            f"expected={expected_model_hash[:16]}..."
+        )
+    if not thresholds_match:
+        details.append(
+            f"thresholds {prod_thresholds_path.name}: "
+            f"existing={existing_thresholds_hash[:16]}... "
+            f"expected={expected_thresholds_hash[:16]}..."
+        )
+    raise ValueError(
+        "Production artifact collision: destination names already exist with "
+        "different content. Production filenames are immutable once created.\n"
+        + "\n".join(f"  - {item}" for item in details)
+    )
+
+
 def _atomic_deploy_model_and_thresholds(
     *,
     candidate_model: Path,
@@ -675,14 +735,29 @@ def _atomic_deploy_model_and_thresholds(
 ) -> None:
     """Stage model + thresholds, verify hashes, then finalize with model last.
 
-    Ensures a failed thresholds deploy never leaves a discoverable production
-    `disaster_*_prod_*.pkl` without its validated operating point.
+    Existing production destinations are never overwritten. Matching pairs are
+    treated as an idempotent retry; collisions and incomplete pairs fail closed.
     """
     model_dir.mkdir(parents=True, exist_ok=True)
+    action = _resolve_production_destination_action(
+        prod_model_path=prod_model_path,
+        prod_thresholds_path=prod_thresholds_path,
+        expected_model_hash=expected_model_hash,
+        expected_thresholds_hash=expected_thresholds_hash,
+    )
+    if action == "idempotent":
+        print(
+            f"✅ Idempotent retry: existing production artifacts already match "
+            f"{prod_model_path.name} and {prod_thresholds_path.name}"
+        )
+        return
+
     staging_dir = model_dir / f".promotion_staging_{os.getpid()}_{uuid.uuid4().hex}"
     staging_dir.mkdir(parents=True, exist_ok=False)
     staged_model = staging_dir / "model.pkl.staging"
     staged_thresholds = staging_dir / "thresholds.json.staging"
+    # Only clean up destinations we create in this call (new pair), never
+    # pre-existing immutable production artifacts.
     thresholds_finalized = False
     model_finalized = False
 
@@ -733,8 +808,24 @@ def _atomic_deploy_model_and_thresholds(
                 f"Deployed thresholds must match the artifact validation scored."
             )
 
+        # Re-check immutability immediately before finalize in case another
+        # process created the destinations while we were staging.
+        action = _resolve_production_destination_action(
+            prod_model_path=prod_model_path,
+            prod_thresholds_path=prod_thresholds_path,
+            expected_model_hash=expected_model_hash,
+            expected_thresholds_hash=expected_thresholds_hash,
+        )
+        if action == "idempotent":
+            print(
+                f"✅ Idempotent retry after staging: existing production artifacts "
+                f"already match {prod_model_path.name}"
+            )
+            return
+
         # Finalize thresholds first; production model last so discovery never sees
         # a new prod model without its validated operating-point file.
+        # Destinations are guaranteed absent here (create path only).
         os.replace(staged_thresholds, prod_thresholds_path)
         thresholds_finalized = True
         if compute_model_hash(prod_thresholds_path) != expected_thresholds_hash:
@@ -761,6 +852,7 @@ def _atomic_deploy_model_and_thresholds(
             f"(hash: {expected_model_hash[:16]}...)"
         )
     except Exception:
+        # Roll back only artifacts created in this create attempt.
         if model_finalized:
             _cleanup_path(prod_model_path)
         if thresholds_finalized:
