@@ -1,148 +1,104 @@
 # Deployment Configuration Guide
 
-## Deployment Strategy Overview
+## Deployment Strategy Overview (current as of 2026-09-21)
 
-- **Production**: Google Drive model storage (required)
-- **Development**: Google Drive primary, local model fallback
+- **Production / Development**: Load a **local, git-tracked** production pickle from `model/`
+- **Discovery**: App auto-selects the newest `disaster_*_prod_*.pkl` (override with `MODEL_FILENAME`)
+- **Current artifact**: `disaster_lr_v26-09-21_prod_2026-09-21.pkl` (≈4.59 MB LogisticRegression)
+
+> **Historical (2025-09 → early 2026)**: Production originally used Google Drive downloads via `GDRIVE_MODEL_ID` so large binaries could stay out of the repo. That runtime path has been removed from the Flask app. Keep old Drive IDs and scripts only for archival context — do not configure them for new deployments.
 
 ## Configuration by Environment
 
-### 🚀 Production Environment
+### Production Environment
 
-**Required Environment Variables:**
+**Required / recommended variables:**
 ```bash
-# REQUIRED: Google Drive model file ID
-GDRIVE_MODEL_ID="1s_sBXnUdJ-rWm4-YEsDixHCbxBca-oXh"
-
-# Production settings
 FLASK_ENV=production
 SECRET_KEY=your-secure-production-secret
 LOG_LEVEL=WARNING
+# Optional: pin a specific artifact instead of auto-discovery
+# MODEL_FILENAME=disaster_lr_v26-09-21_prod_2026-09-21.pkl
 ```
 
-**Model Storage:**
-- ❌ No local model files in production deployment
-- ✅ Model downloaded from Google Drive on startup
-- ✅ Cached locally after first download
+**Model storage:**
+- ✅ Ship / checkout `model/disaster_lr_v26-09-21_prod_2026-09-21.pkl` and companion files (`_thresholds.json`, etc.)
+- ✅ App loads from disk only (no Google Drive download)
+- ❌ Do not rely on `GDRIVE_MODEL_ID` — it is ignored by the current loader
 
-**Deployment Process:**
+**Deployment process:**
 ```bash
-# 1. Set environment variables
-export GDRIVE_MODEL_ID="1s_sBXnUdJ-rWm4-YEsDixHCbxBca-oXh"
 export FLASK_ENV=production
 export SECRET_KEY="your-secure-key"
-
-# 2. Deploy without model files (lightweight deployment)
-# Your deployment script here
-
-# 3. Application will download model on first startup
+# Ensure model/ contains the production *.pkl from git (or upload it once)
+python run.py
+# or: gunicorn --bind 0.0.0.0:5000 --workers 2 --timeout 120 wsgi:application
 ```
 
-### 💻 Development Environment
+### Development Environment
 
-**Environment Variables:**
 ```bash
-# OPTIONAL: Set to test Google Drive functionality
-GDRIVE_MODEL_ID="1s_sBXnUdJ-rWm4-YEsDixHCbxBca-oXh"
-
-# Development settings
 FLASK_ENV=development
 LOG_LEVEL=DEBUG
+# unset MODEL_FILENAME to use auto-discovery
 ```
 
-**Model Storage Priority:**
-1. 🥇 **Local model** (if exists): `model/disaster_rf_v1-2-0_prod_2025-09-11.pkl`
-2. 🥈 **Google Drive** (if GDRIVE_MODEL_ID set): Downloads from Google Drive
-3. 🥉 **Error**: No model available
+**Model resolution:**
+1. If `MODEL_FILENAME` is set → use `model/<that file>`
+2. Else → newest `model/disaster_*_prod_*.pkl` by mtime
+3. Else → startup / health checks fail with a clear missing-model error
 
-**Development Scenarios:**
-
-#### Scenario 1: Local Development (Fast)
 ```bash
-# Don't set GDRIVE_MODEL_ID
-unset GDRIVE_MODEL_ID
-
-# Uses local model for fast development
-python run.py
-```
-
-#### Scenario 2: Test Production Behavior
-```bash
-# Set GDRIVE_MODEL_ID and remove local model
-export GDRIVE_MODEL_ID="1s_sBXnUdJ-rWm4-YEsDixHCbxBca-oXh"
-mv model/*.pkl model/backup/
-
-# Forces Google Drive download (tests production behavior)
-python run.py
-```
-
-#### Scenario 3: Hybrid Development
-```bash
-# Set GDRIVE_MODEL_ID but keep local model
-export GDRIVE_MODEL_ID="1s_sBXnUdJ-rWm4-YEsDixHCbxBca-oXh"
-
-# Uses local model (faster) but validates Google Drive configuration
+# Typical local loop
 python run.py
 ```
 
 ## Model File Management
 
-### Production Deployment Files
+### Include in deployment / checkout
 
-**Include in deployment:**
-```
-app/
-├── config.py
-├── services.py
-├── routes.py
-└── ...
-
-# DO NOT INCLUDE:
-# model/*.pkl  ← Exclude from production builds
-```
-
-**Exclude from production builds:**
-```dockerfile
-# Example Dockerfile
-COPY . /app
-# Exclude model files to keep deployment lightweight
-RUN rm -rf /app/model/*.pkl
-```
-
-### Development Files
-
-**Keep for development:**
 ```
 model/
-├── disaster_rf_v1-2-0_prod_2025-09-11.pkl          # Local development
-├── disaster_rf_v1-2-0_prod_2025-09-11_thresholds.json
-├── disaster_rf_v1-2-0_prod_2025-09-11_labels.json
-└── ...
+├── disaster_lr_v26-09-21_prod_2026-09-21.pkl
+├── disaster_lr_v26-09-21_prod_2026-09-21_thresholds.json
+├── disaster_lr_v26-09-21_prod_2026-09-21_labels.json
+├── disaster_lr_v26-09-21_prod_2026-09-21_performance_metrics.csv
+├── disaster_lr_v26-09-21_prod_2026-09-21_training.json
+└── MODEL_INFO.json
 ```
+
+Companion metadata for the prior production artifact may still appear under `experiments/model_archive/` (metadata + SHA256; binaries restored via Git history).
+
+### Replit
+
+1. Import / pull the repo (production pickle is tracked).
+2. If the binary is missing, upload `disaster_lr_v26-09-21_prod_2026-09-21.pkl` into `model/`.
+3. Ensure `data/02_stg/stg_disaster_response.db` exists.
+4. Run via Replit **Autoscale** + Gunicorn (`wsgi:application`).
 
 ## Environment Variable Configuration
 
-### Option 1: Environment Variables
+### Option 1: Environment variables
 ```bash
-export GDRIVE_MODEL_ID="1s_sBXnUdJ-rWm4-YEsDixHCbxBca-oXh"
 export FLASK_ENV=production
 export SECRET_KEY="your-secure-key"
+# export MODEL_FILENAME=disaster_lr_v26-09-21_prod_2026-09-21.pkl
 ```
 
-### Option 2: .env File (Development)
+### Option 2: `.env` (development)
 ```env
-# .env file for local development
 FLASK_ENV=development
-GDRIVE_MODEL_ID=1s_sBXnUdJ-rWm4-YEsDixHCbxBca-oXh
 LOG_LEVEL=DEBUG
+SECRET_KEY=dev-only-change-me
 ```
 
-### Option 3: Platform-Specific
+### Option 3: Platform-specific
 
 #### Heroku
 ```bash
-heroku config:set GDRIVE_MODEL_ID="1s_sBXnUdJ-rWm4-YEsDixHCbxBca-oXh"
 heroku config:set FLASK_ENV=production
+heroku config:set SECRET_KEY="your-secure-key"
+# Ensure the slug includes model/*.pkl or provide them via release assets
 ```
 
 #### Docker
@@ -151,70 +107,61 @@ heroku config:set FLASK_ENV=production
 services:
   app:
     environment:
-      - GDRIVE_MODEL_ID=1s_sBXnUdJ-rWm4-YEsDixHCbxBca-oXh
       - FLASK_ENV=production
+      - SECRET_KEY=your-secure-key
+    volumes:
+      - ./model:/app/model:ro
 ```
 
 ## Testing Your Configuration
 
-### Test Google Drive Download
+### Confirm local model load
 ```bash
-# Set environment and test
-export GDRIVE_MODEL_ID="1s_sBXnUdJ-rWm4-YEsDixHCbxBca-oXh"
-python test_gdrive_deployment.py
+python -c "from app.config import Config; from app.services.model_service import ModelService; print(Config.MODEL_PATH); ModelService(Config.MODEL_PATH).load_model(); print('ok')"
 ```
 
-### Test Production Scenario
+### Smoke the app factory
 ```bash
-# Remove local model and test Google Drive fallback
-mv model/*.pkl model/backup/
-export GDRIVE_MODEL_ID="1s_sBXnUdJ-rWm4-YEsDixHCbxBca-oXh"
-python -c "from app.app import create_app; from app.config import Config; create_app(Config)"
-```
-
-### Test Development Scenario
-```bash
-# Restore local model and test fallback
-mv model/backup/*.pkl model/
-unset GDRIVE_MODEL_ID
-python -c "from app.app import create_app; from app.config import Config; create_app(Config)"
+python -c "from app.app import create_app; from app.config import Config; create_app(Config); print('app ok')"
 ```
 
 ## Troubleshooting
 
-### Common Issues
+### "Model file not found"
+**Solution**: Ensure `model/disaster_lr_v26-09-21_prod_2026-09-21.pkl` (or another `disaster_*_prod_*.pkl`) exists, or set `MODEL_FILENAME` to a file that is present.
 
-#### "Model file not found and GDRIVE_MODEL_ID not configured"
-**Solution**: Set the GDRIVE_MODEL_ID environment variable
-```bash
-export GDRIVE_MODEL_ID="1s_sBXnUdJ-rWm4-YEsDixHCbxBca-oXh"
-```
+### scikit-learn / imbalanced-learn install conflicts
+**Solution**: Use the ranges in `requirements.txt` (`scikit-learn>=1.7.1,<1.8.0` with `imbalanced-learn>=0.14.0,<0.15.0`). Do not pair sklearn 1.7 with imbalanced-learn 0.12/0.13.
 
-#### "Google Drive returned HTML instead of the model file"
-**Solution**: Ensure the Google Drive file is publicly accessible:
-1. Right-click file in Google Drive
-2. Select "Get shareable link"  
-3. Set to "Anyone with the link can view"
-
-#### "Download timed out"
-**Solution**: Check network connectivity and try again. The 32MB model typically downloads in 2-5 seconds.
+### Stale docs mentioning `GDRIVE_MODEL_ID`
+**Solution**: That variable is historical only. See the Historical section below and ADR-003.
 
 ## Current Configuration
 
-**Google Drive Model:**
-- **File ID**: `1s_sBXnUdJ-rWm4-YEsDixHCbxBca-oXh`
-- **Model**: `disaster_rf_v1-2-0_prod_2025-09-11.pkl` (32MB)
-- **URL**: https://drive.google.com/file/d/1s_sBXnUdJ-rWm4-YEsDixHCbxBca-oXh/view
+**Active production model:**
+- **Path**: `model/disaster_lr_v26-09-21_prod_2026-09-21.pkl`
+- **Size**: ≈4.59 MB
+- **Algorithm**: LogisticRegression (vocab15k, train/cal/eval)
+- **Load path**: Local disk via auto-discovery
 
-**Local Model:**
-- **Path**: `model/disaster_rf_v1-2-0_prod_2025-09-11.pkl`
-- **Size**: 32MB
-- **Use**: Development fallback
+## Historical: Google Drive hybrid deployment (archived)
+
+The following documents the **retired** 2025 hybrid strategy for auditability. Do not use these values for new deploys.
+
+```bash
+# Historical only — ignored by current ModelLoader
+GDRIVE_MODEL_ID="1s_sBXnUdJ-rWm4-YEsDixHCbxBca-oXh"
+```
+
+- **Intent**: Keep ~32 MB RF binaries out of git; download on first startup
+- **Prior Drive-hosted example**: `disaster_rf_v1-2-0_prod_2025-09-11.pkl` (32 MB)
+- **Prior LR prod (pre-three-way)**: `disaster_lr_v25-11-06_prod_2025-11-06.pkl`
+- **Current replacement**: git-tracked `disaster_lr_v26-09-21_prod_2026-09-21.pkl`
+
+See [ADR-003](../adr/adr-003-hybrid-model-deployment-strategy.md) for the original decision and the 2026-09-21 amendment.
 
 ## Security Notes
 
-- **Google Drive File**: Must be publicly readable (anyone with link)
-- **File ID**: Not sensitive, can be stored in environment variables
-- **Model Content**: Contains trained ML model, not sensitive data
-- **SECRET_KEY**: Keep secure, change default value for production
-
+- **SECRET_KEY**: Keep secure; change the default for production
+- **Model content**: Trained ML weights — not credentials, but treat deployment integrity seriously
+- **Google Drive (historical)**: Public link sharing was acceptable for non-sensitive model binaries only

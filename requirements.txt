@@ -13,11 +13,13 @@ plotly>=5.20.0,<7.0.0
 nltk>=3.8.1,<4.0.0
 
 # Machine Learning
-# CRITICAL: Pin ML libraries for model compatibility
-scikit-learn>=1.7.1,<2.0.0
+# CRITICAL: Pin ML libraries for model compatibility.
+# scikit-learn 1.7.x requires imbalanced-learn >= 0.14 (0.12/0.13 reject sklearn>=1.7).
+# Known-good combo for the v26-09-21 production artifact and fresh retrain path.
+scikit-learn>=1.7.1,<1.8.0
 scipy>=1.8.0,<2.0.0
 joblib==1.3.2
-imbalanced-learn==0.12.0
+imbalanced-learn>=0.14.0,<0.15.0
 iterative-stratification==0.1.7
 
 # Web App

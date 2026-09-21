@@ -106,6 +106,7 @@ For multi-file refactors, mass Ruff/pytest failures, or sharded test fixes, use 
 - For UI edits, capture a local screenshot for PR context.
 
 ## Data & Security Notes
-- Never commit secrets. Configure `GDRIVE_MODEL_ID` through the environment when the app needs to download models.
+- Never commit secrets. Prefer local git-tracked production pickles under `model/`; set `MODEL_FILENAME` only when you need to override auto-discovery.
+- Historical deployments used `GDRIVE_MODEL_ID` for Drive downloads — that runtime path is retired (see `docs/runbooks/deployment.md` and ADR-003).
 - Confirm `data/02_stg/stg_disaster_response.db` exists before running the Flask app.
-- Store large datasets and serialized models under `data/` or `model/` (both git-ignored by default).
+- Store large experimental datasets and non-production serialized models under `data/` or gitignored experiment paths; the current production `*_prod_*.pkl` is tracked.

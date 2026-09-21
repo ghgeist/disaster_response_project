@@ -222,29 +222,19 @@ The Flask application is optimized for production deployment on Replit with **Au
 
 1. **Import the project** into your Replit workspace
 2. **Dependencies automatically installed** during deployment build process
-3. **Upload the model file** (4.53 MB production model):
-   - Use Replit's GUI uploader (Files → Upload File) to upload `model/disaster_lr_v25-11-06_prod_2025-11-06.pkl`
-   - Or use `scp` (SSH) for direct upload:
-     ```powershell
-     # PowerShell (Windows)
-     scp -i $env:USERPROFILE/.ssh/replit -P 22 model/disaster_lr_v25-11-06_prod_2025-11-06.pkl username@your-repl-id.replit.dev:~/
-     ```
-     ```bash
-     # macOS/Linux
-     scp -i ~/.ssh/replit -P 22 model/disaster_lr_v25-11-06_prod_2025-11-06.pkl username@your-repl-id.replit.dev:~/
-     ```
-     Then in Replit Shell, move it to the model directory:
-     ```bash
-     cd workspace
-     mv ~/disaster_lr_v25-11-06_prod_2025-11-06.pkl model/
-     ls -lh model/disaster_lr_v25-11-06_prod_2025-11-06.pkl  # Verify
-     ```
+3. **Confirm the production model is present** (≈4.59 MB, tracked in git as of the 2026-09-21 promotion):
+   - Expected file: `model/disaster_lr_v26-09-21_prod_2026-09-21.pkl` (plus matching `_thresholds.json` / companion artifacts)
+   - If the checkout already includes `model/disaster_*_prod_*.pkl`, no upload is required — the app auto-discovers the newest match
+   - Only upload manually when the binary is missing from the workspace:
+     - GUI: Files → Upload File → `model/disaster_lr_v26-09-21_prod_2026-09-21.pkl`
+     - Or `scp` the same filename into the Replit home directory, then `mv ~/disaster_lr_v26-09-21_prod_2026-09-21.pkl model/`
+   - **Historical note**: Older Replit guides used Google Drive (`GDRIVE_MODEL_ID`) and the prior prod filename `disaster_lr_v25-11-06_prod_2025-11-06.pkl`. That path is retired; load from the local tracked artifact instead.
    - **To find your Replit SSH connection info**: Run `echo $REPLIT_SSH_HOST` in Replit Shell
 4. **Ensure the SQLite DB exists** at `data/02_stg/stg_disaster_response.db` (upload it or adjust config)
 5. **Run the application**: Click the "Run" button in Replit
 6. **Access the app**: Use the provided Replit URL
 
-**Note**: The app requires the model file to be present in the `model/` directory. The application auto-discovers the latest production model matching the pattern `disaster_*_prod_*.pkl`. The database file must also exist for the app to function.
+**Note**: The app loads models from the local `model/` directory only (no Google Drive download at runtime). It auto-discovers the latest `disaster_*_prod_*.pkl`. The database file must also exist for the app to function.
 
 ## 📊 Data
 

@@ -1,9 +1,9 @@
 # ML Model Naming Convention
 
-**Version**: 2.0  
-**Date**: 2026-02-03  
+**Version**: 2.1  
+**Date**: 2026-09-21  
 **Status**: Active  
-**Previous Version**: 1.0 (2025-09-12) - Used semantic versioning
+**Previous Version**: 2.0 (2026-02-03) - Date-based versioning with `v25-11-06` production example; 1.0 (2025-09-12) used semantic versioning
 
 ## Overview
 
@@ -23,11 +23,11 @@ This document establishes the standardized naming convention for disaster respon
 |-----------|-------------|--------------|---------|
 | **domain** | Business context | `disaster`, `emergency`, `crisis` | `disaster` |
 | **algorithm** | ML algorithm family | `rf`, `lr` | `lr` |
-| **version** | Date-based versioning | `v{YY}-{MM}-{DD}` derived from training date | `v25-11-06` |
+| **version** | Date-based versioning | `v{YY}-{MM}-{DD}` derived from training date | `v26-09-21` |
 | **environment** | Deployment target | `prod` (production models) | `prod` |
-| **training_date** | Training date (YYYY-MM-DD) | `YYYY-MM-DD` | `2025-11-06` |
+| **training_date** | Training date (YYYY-MM-DD) | `YYYY-MM-DD` | `2026-09-21` |
 
-**Critical**: The version (`v25-11-06`) and the date field (`2025-11-06`) **must match** - they both refer to the training date. The promotion date is stored separately in `MODEL_INFO.json`.
+**Critical**: The version (`v26-09-21`) and the date field (`2026-09-21`) **must match** - they both refer to the training date. The promotion date is stored separately in `MODEL_INFO.json`.
 
 ### Algorithm Codes
 
@@ -48,29 +48,38 @@ This document establishes the standardized naming convention for disaster respon
 
 ## Examples
 
-### Current Production Model (2026-02-03)
+### Current Production Model (2026-09-21)
 ```
-disaster_lr_v25-11-06_prod_2025-11-06.pkl
+disaster_lr_v26-09-21_prod_2026-09-21.pkl
 ```
 - **Domain**: Disaster response
 - **Algorithm**: LogisticRegression (auto-detected)
-- **Version**: `v25-11-06` (derived from training date)
+- **Version**: `v26-09-21` (derived from training date)
 - **Environment**: Production
-- **Training Date**: November 6, 2025
-- **Promotion Date**: February 3, 2026 (stored in `MODEL_INFO.json`)
+- **Training Date**: September 21, 2026
+- **Promotion Date**: September 21, 2026 (stored in `MODEL_INFO.json`)
+- **Split contract**: train / cal / eval (thresholds on calibration; metrics on frozen eval)
 
 **Breaking it down**:
 - `disaster` - Domain prefix
 - `lr` - Algorithm code (LogisticRegression)
-- `v25-11-06` - Version derived from training date (2025-11-06 → v25-11-06)
+- `v26-09-21` - Version derived from training date (2026-09-21 → v26-09-21)
 - `prod` - Environment (production)
-- `2025-11-06` - Training date (YYYY-MM-DD format)
+- `2026-09-21` - Training date (YYYY-MM-DD format)
+
+### Historical Production Example (2026-02-03 → 2026-09-21)
+```
+disaster_lr_v25-11-06_prod_2025-11-06.pkl
+```
+- Prior LogisticRegression production artifact (tune-on-eval workflow)
+- Metadata archived under `experiments/model_archive/` after the 2026-09-21 promotion
+- Keep as a naming example; do not treat as the live operating point
 
 ### Version Format Explanation
 
 The version format `v{YY}-{MM}-{DD}` is derived from the training date:
 - Training date: `2025-11-06` → Version: `v25-11-06`
-- Training date: `2026-01-15` → Version: `v26-01-15`
+- Training date: `2026-09-21` → Version: `v26-09-21`
 
 **Why date-based versioning?**
 - Provides clear traceability to training date
@@ -80,22 +89,22 @@ The version format `v{YY}-{MM}-{DD}` is derived from the training date:
 
 ### Future Models
 ```
-disaster_lr_v26-02-15_prod_2026-02-15.pkl    # Future production model
-disaster_rf_v26-03-01_prod_2026-03-01.pkl    # Future RandomForest model
+disaster_lr_v26-10-01_prod_2026-10-01.pkl    # Future production model
+disaster_rf_v26-11-01_prod_2026-11-01.pkl    # Future RandomForest model
 ```
 
-**Note**: Experimental models use directory-based naming in `experiments/experimental_runs/` (e.g., `2025-11-06-vocab15k-promotion/`).
+**Note**: Experimental models use directory-based naming in `experiments/experimental_runs/` (e.g., `2026-09-21/`).
 
 ## Artifact Naming
 
 Supporting files follow the same base name (model stem) with descriptive suffixes:
 
 ```
-disaster_lr_v25-11-06_prod_2025-11-06.pkl                                    # Main model
-disaster_lr_v25-11-06_prod_2025-11-06_thresholds.json                        # Per-label thresholds (preferred)
-disaster_lr_v25-11-06_prod_2025-11-06_labels.json                            # Label ordering
-disaster_lr_v25-11-06_prod_2025-11-06_training.json                          # Training log
-disaster_lr_v25-11-06_prod_2025-11-06_performance_metrics.csv               # Performance metrics (preferred, model-specific)
+disaster_lr_v26-09-21_prod_2026-09-21.pkl                                    # Main model
+disaster_lr_v26-09-21_prod_2026-09-21_thresholds.json                        # Per-label thresholds (preferred)
+disaster_lr_v26-09-21_prod_2026-09-21_labels.json                            # Label ordering
+disaster_lr_v26-09-21_prod_2026-09-21_training.json                          # Training log
+disaster_lr_v26-09-21_prod_2026-09-21_performance_metrics.csv               # Performance metrics (preferred, model-specific)
 MODEL_INFO.json                                                               # Model metadata (shared, contains promotion info)
 ```
 
@@ -117,14 +126,12 @@ MODEL_INFO.json                                                               # 
 
 ```
 model/
-├── current/                                          # Current production
-│   └── disaster_rf_v1-2-0_prod_2025-09-11.pkl      
-├── staging/                                          # Next deployment
-│   └── disaster_tfidf_v2-0-0_stg_2025-09-13.pkl    
-└── archive/                                          # Previous versions
-    ├── disaster_rf_v1-1-0_prod_2025-09-04.pkl      
-    └── disaster_rf_v1-0-0_prod_2025-08-15.pkl      
+├── disaster_lr_v26-09-21_prod_2026-09-21.pkl   # Current production (flat model/ layout)
+├── disaster_lr_v26-09-21_prod_2026-09-21_*.json
+└── MODEL_INFO.json
 ```
+
+> **Historical note**: Earlier drafts of this standard described `current/` / `staging/` / `archive/` subfolders and Google Drive uploads. Active deploys use the flat `model/` layout above; see [deployment runbook](../runbooks/deployment.md).
 
 ## Usage
 
@@ -136,19 +143,19 @@ Models are promoted using the promotion script, which handles naming automatical
 ```bash
 python scripts/02_training/03_create_experimental_model.py \
   --config experiments/model_candidates/vocab_15k.json \
-  --output-dir experiments/experimental_runs/2025-11-06-vocab15k-promotion
+  --output-dir experiments/experimental_runs/2026-09-21
 ```
 
 #### 2. Validate and Promote
 ```bash
 # Dry run (validate without promoting)
 python scripts/07_operations/promote_model.py \
-  experiments/experimental_runs/2025-11-06-vocab15k-promotion \
+  experiments/experimental_runs/2026-09-21 \
   --dry-run
 
 # Actual promotion (algorithm auto-detected, filename auto-generated)
 python scripts/07_operations/promote_model.py \
-  experiments/experimental_runs/2025-11-06-vocab15k-promotion \
+  experiments/experimental_runs/2026-09-21 \
   --print-new-path
 ```
 
@@ -158,7 +165,7 @@ The promotion script:
 - **Copies** model and metadata files
 - **Verifies** file integrity (hash check)
 - **Updates** `MODEL_INFO.json` with promotion metadata
-- **Archives** previous production model
+- **Archives** previous production model metadata (binaries via Git history)
 
 ### Configuration Updates
 
@@ -174,36 +181,40 @@ The promotion script:
 ### 1. Training Phase
 ```bash
 # Train model with experiments framework
-python scripts/04_create_production_model.py
-
-# Generate standardized name
-python scripts/model_naming_utility.py --generate-name --algorithm rf --version 1.3.0
+python scripts/02_training/04_create_production_model.py \
+  --params experiments/model_candidates/vocab_15k.json \
+  --class-weights experiments/model_candidates/class_weights.json
 ```
 
-### 2. Testing Phase  
+### 2. Testing Phase
 ```bash
-# Rename for testing
-python scripts/model_naming_utility.py --rename-current --execute
-
-# Test locally
-python test_standardized_model.py
+# Promote with dry-run gates, then load via app smoke tests
+python scripts/07_operations/promote_model.py experiments/experimental_runs/2026-09-21 --dry-run
+python scripts/run_tests.py tests/test_app_smoke.py -q
 ```
 
 ### 3. Production Deployment
 ```bash
-# Upload to Google Drive with standardized name
-# disaster_rf_v1-3-0_prod_2025-09-12.pkl
+# Ensure the promoted pickle is present in model/ (git-tracked for current LR artifact)
+ls -lh model/disaster_lr_v26-09-21_prod_2026-09-21.pkl
 
-# Update environment variable
-export GDRIVE_MODEL_ID="your_new_file_id"
+# Optional: pin an explicit filename instead of auto-discovery
+export MODEL_FILENAME=disaster_lr_v26-09-21_prod_2026-09-21.pkl
 
-# Test Google Drive deployment
-python test_gdrive_deployment.py
+python run.py
 ```
+
+> **Historical (retired)**: Older guides uploaded models to Google Drive and set `GDRIVE_MODEL_ID`. The Flask loader no longer downloads from Drive; see ADR-003 and the deployment runbook for archival notes.
 
 ## Version Management
 
-### Semantic Versioning Rules
+### Date-based Versioning (current)
+
+- Version = training date as `v{YY}-{MM}-{DD}`
+- Filename date field must match the version
+- Promotion timestamp lives in `MODEL_INFO.json` only
+
+### Semantic Versioning Rules (legacy, pre-2025-11)
 
 - **Major (X.0.0)**: Breaking changes, new algorithms, major architecture changes
 - **Minor (1.X.0)**: New features, performance improvements, backward compatible
@@ -211,10 +222,9 @@ python test_gdrive_deployment.py
 
 ### Examples
 ```
-v1-0-0  # Initial production model
-v1-1-0  # Improved performance, same architecture  
-v1-1-1  # Bug fix for threshold handling
-v2-0-0  # New algorithm (RandomForest → TF-IDF)
+v1-0-0  # Initial production model (legacy semantic)
+v25-11-06  # Historical date-based LR production
+v26-09-21  # Current date-based LR production
 ```
 
 ## Benefits
@@ -245,22 +255,23 @@ experimental_classifier.pkl      # No environment distinction
 
 ### Standardized State (Current)
 ```
-disaster_lr_v25-11-06_prod_2025-11-06.pkl      # Current production (date-based versioning)
-disaster_rf_v1-2-0_prod_2025-09-11.pkl          # Previous production (semantic versioning, deprecated)
+disaster_lr_v26-09-21_prod_2026-09-21.pkl      # Current production (date-based versioning)
+disaster_lr_v25-11-06_prod_2025-11-06.pkl      # Prior production (historical)
+disaster_rf_v1-2-0_prod_2025-09-11.pkl          # Earlier RF production (semantic versioning, deprecated)
 ```
 
-**Note**: Models using semantic versioning (`v1-2-0`) are legacy. All new models use date-based versioning (`v25-11-06`).
+**Note**: Models using semantic versioning (`v1-2-0`) are legacy. All new models use date-based versioning (`v26-09-21`).
 
 ## Common Pitfalls to Avoid
 
 ### ❌ Don't: Use Promotion Date in Filename
-**Wrong**: `disaster_lr_v25-11-06_prod_2026-02-03.pkl`
-- Version says training date: 2025-11-06
-- Filename date says: 2026-02-03 (promotion date)
+**Wrong**: `disaster_lr_v26-09-21_prod_2026-09-22.pkl`
+- Version says training date: 2026-09-21
+- Filename date says: 2026-09-22 (promotion date)
 - **Confusing**: Two different dates!
 
-**Correct**: `disaster_lr_v25-11-06_prod_2025-11-06.pkl`
-- Both version and date refer to training date: 2025-11-06
+**Correct**: `disaster_lr_v26-09-21_prod_2026-09-21.pkl`
+- Both version and date refer to training date: 2026-09-21
 - Promotion date stored in `MODEL_INFO.json`
 
 ### ❌ Don't: Manually Rename Model Files
@@ -279,4 +290,3 @@ Verify that:
 - `algorithm_name` is correct
 - `promotion_timestamp` reflects when it was promoted
 - File hash matches the model file
-
