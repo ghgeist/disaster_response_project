@@ -119,7 +119,7 @@ const payload = await response.json();
 ```json
 {
   "model": { "id": "MODEL_ID", "version": "2.4.0" },
-  "metrics": { "f1": 0.93, "precision": 0.94, "recall": 0.92 },
+  "metrics": { "f1": 0.93, "precision": 0.94, "recall": 0.92, "evalCriticalRecall": 0.6149 },
   "categories": [
     { "label": "Medical Help", "f1": 0.52, "support": 432 }
   ],
@@ -131,6 +131,8 @@ const payload = await response.json();
   ]
 }
 ```
+
+`evalCriticalRecall` is the frozen-eval critical-label operating point from promoted `MODEL_INFO.json` (`performance.eval_critical_recall`, else `validation_results`). It is a finite probability in `[0, 1]`, or `null` when missing/invalid. It is distinct from aggregate `recall`.
 
 **Example**
 ```ts

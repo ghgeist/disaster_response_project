@@ -15,6 +15,7 @@ export interface DashboardMetrics {
   f1: number;
   precision: number;
   recall: number;
+  evalCriticalRecall: number | null;
 }
 
 export interface DashboardCategory {
