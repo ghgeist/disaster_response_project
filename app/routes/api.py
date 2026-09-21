@@ -214,6 +214,29 @@ def _safe_float_prob(value) -> float:
         return 0.0
 
 
+def _safe_optional_prob(value) -> float | None:
+    """Return a finite probability in [0, 1], else None.
+
+    Unlike ``_safe_float_prob``, missing/malformed/NaN/inf/out-of-range values
+    become None so callers do not treat corruption as a legitimate 0.0.
+    """
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
+        return None
+    try:
+        result = float(value)
+    except (TypeError, ValueError):
+        return None
+    if math.isnan(result) or math.isinf(result):
+        return None
+    if result < 0.0 or result > 1.0:
+        return None
+    return result
+
+
 # Category relationships for improved probability simulation
 CATEGORY_RELATIONSHIPS = {
     # Parent-child relationships (if parent is present, child confidence increases)
@@ -830,6 +853,13 @@ def _build_model_info_dashboard_payload() -> dict:
         f1_weighted = model_info_data.get("validation_results", {}).get("f1_weighted")
     f1_metric = _safe_float_prob(f1_weighted) if f1_weighted is not None else 0.0
 
+    performance_block = model_info_data.get("performance") or {}
+    validation_block = model_info_data.get("validation_results") or {}
+    eval_critical_raw = performance_block.get("eval_critical_recall")
+    if eval_critical_raw is None:
+        eval_critical_raw = validation_block.get("eval_critical_recall")
+    eval_critical_recall = _safe_optional_prob(eval_critical_raw)
+
     thresholds_path = _find_production_thresholds_file(model_dir)
     stem = "unknown"
     category_stats_list: list = []
@@ -965,6 +995,11 @@ def _build_model_info_dashboard_payload() -> dict:
             "f1": round(f1_metric, 4),
             "precision": round(precision_overall, 4),
             "recall": round(recall_overall, 4),
+            "evalCriticalRecall": (
+                round(eval_critical_recall, 4)
+                if eval_critical_recall is not None
+                else None
+            ),
         },
         "categories": categories_payload,
         "criticalThresholds": critical_thresholds_list,
