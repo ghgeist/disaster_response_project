@@ -1,0 +1,28 @@
+{
+  "date": "2026-09-21",
+  "purpose": "three_way_train_cal_eval_threshold_contract",
+  "model": "lr_vocab15k_cal_split_model.pkl",
+  "params": "experiments/model_candidates/vocab_15k.json",
+  "class_weights": "experiments/model_candidates/class_weights.json",
+  "split": {
+    "train": 17697,
+    "cal": 3124,
+    "eval": 5206,
+    "cal_ids": "experiments/experimental_configs/eval_sets/cal_ids.json",
+    "eval_ids": "experiments/experimental_configs/eval_sets/eval_ids.json"
+  },
+  "threshold_optimization": {
+    "target_critical_recall_on_cal": 0.65,
+    "calibration_critical_recall_diagnostic": 0.6511,
+    "eval_critical_recall_reported": 0.6148,
+    "eval_f1_weighted_baseline": 0.9370,
+    "eval_f1_weighted_optimized": 0.8966,
+    "thresholds_file": "lr_vocab15k_cal_split_model_thresholds.json"
+  },
+  "notes": [
+    "Model fitted excluding cal ∪ eval",
+    "Thresholds tuned on cal only",
+    "category_stats and performance measured on frozen eval only",
+    "Historical ~65% critical recall was not an independent post-calibration estimate"
+  ]
+}

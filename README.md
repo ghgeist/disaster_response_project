@@ -23,7 +23,7 @@
 ## Highlights
 
 - **Model Size**: 4.53 MB (93% reduction from 67.69 MB) enabling lightweight deployments
-- **Performance**: 92.76% F1-score with 65% critical recall for safety-critical categories
+- **Performance**: 92.76% F1-score; post-calibration holdout critical recall ~61% across safety-critical categories (see Model Performance)
 - **Load Time**: <0.1s through optimized initialization
 - **Architecture**: LogisticRegression with TF-IDF vectorization for fast inference
 - **Production Ready**: Local file-based deployment with modular Flask architecture
@@ -523,9 +523,20 @@ The system evaluates models using comprehensive metrics:
 - **Model Size**: 4.53 MB
 - **F1-Score (Weighted)**: 92.76%
 - **F1-Score (Micro)**: 65.02%
-- **Critical Recall**: 65% average across 8 safety-critical categories
+- **Critical Recall (historical)**: ~65% was measured on the same frozen eval examples used to select per-label thresholds and therefore was not an independent post-calibration estimate
+- **Critical Recall (post-cal, frozen eval)**: **61.5%** average across 8 safety-critical categories — thresholds tuned on `cal_ids.json`, scored on `eval_ids.json` only ([2026-09-21 three-way retrain](experiments/experimental_runs/2026-09-21/lr_vocab15k_cal_split_model_thresholds.json))
 - **Vocabulary Size**: 15K features (optimized from 230K)
 - **Load Time**: <0.1s
+
+### Evaluation Contract (train / cal / eval)
+
+```text
+TRAIN  →  model parameters   (excludes cal ∪ eval)
+CAL    →  decision thresholds (cal_ids.json)
+EVAL   →  reported performance (eval_ids.json; report-only for threshold calibration)
+```
+
+Frozen eval remains useful for comparable reporting, but it is **not** a pristine never-touched final test set: earlier model comparisons, vocabulary selection, and LR-vs-RF work already looked at its results. The three-way split prevents *further direct threshold fitting* to eval.
 
 ### Key Metrics
 - **Precision**: Accuracy of positive predictions per category

@@ -33,28 +33,46 @@ model/
   "metadata": {
     "created": "2025-11-04T21:39:20.384846",
     "model": "path/to/model.pkl",
-    "target_recall": 0.65,
-    "optimization_method": "precision_recall_curve"
+    "critical_target_recall": 0.65,
+    "non_critical_target_recall": 0.60,
+    "optimization_method": "precision_recall_curve",
+    "optimization_split": "calibration",
+    "reporting_split": "frozen_eval",
+    "calibration_ids": "experiments/experimental_configs/eval_sets/cal_ids.json",
+    "eval_ids": "experiments/experimental_configs/eval_sets/eval_ids.json"
   },
   "thresholds": {
     "medical_help": 0.124,
     "water": 0.362,
-    "food": 0.431,
-    ...
+    "food": 0.431
   },
-  "critical_only": {
-    "medical_help": 0.124,
-    "water": 0.362,
-    ...
-  },
+  "calibration_stats": [
+    {
+      "category": "medical_help",
+      "type": "critical",
+      "threshold": 0.124,
+      "actual_recall": 0.65,
+      "note": "diagnostic only — measured on cal"
+    }
+  ],
+  "category_stats": [
+    {
+      "category": "medical_help",
+      "type": "critical",
+      "threshold": 0.124,
+      "actual_recall": 0.61,
+      "note": "reported performance — measured on frozen eval"
+    }
+  ],
   "performance": {
-    "baseline": {...},
-    "optimized": {...},
-    "delta": {...}
+    "baseline": {"f1_weighted": 0.93, "note": "eval"},
+    "optimized": {"f1_weighted": 0.90, "critical_recall": 0.61, "note": "eval"},
+    "delta": {"f1_weighted": -0.03}
   }
 }
 ```
 
+`category_stats` and `performance` are always **frozen-eval** metrics (model-info / reporting semantics). `calibration_stats` is diagnostic-only and must not replace `category_stats` for dashboards.
 ### Legacy Structure (Flat)
 
 ```json

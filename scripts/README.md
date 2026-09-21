@@ -30,6 +30,13 @@ Creates frozen evaluation datasets for consistent model comparison.
 - **Use when**: Creating reproducible evaluation sets
 - **Output**: Evaluation ID sets for consistent testing
 
+### `create_frozen_cal_ids.py`
+Carves a train-side calibration UID set from the non-eval pool for threshold tuning.
+- **Use when**: Establishing the three-way train/cal/eval contract
+- **Usage**: `python scripts/01_data/create_frozen_cal_ids.py`
+- **Output**: `experiments/experimental_configs/eval_sets/cal_ids.json` (includes per-critical-label positive support)
+- **Note**: Does not modify `eval_ids.json`; fails if any critical label has zero cal positives
+
 ## 02_training/ - Model Training Scripts
 
 ### `01_test_sampling_strategies.py`
@@ -47,10 +54,11 @@ Performs hyperparameter optimization using GridSearchCV.
 - **Dependencies**: `experiments/configs/hyperparameter_optimization.json`
 
 ### `03_create_experimental_model.py`
-Creates experimental models using candidate configurations.
-- **Use when**: Testing new model configurations before production
-- **Usage**: `python scripts/02_training/03_create_experimental_model.py`
+Creates experimental models using candidate configurations (active LogisticRegression training path).
+- **Use when**: Testing new model configurations before production; retraining LR under the train/cal/eval contract
+- **Usage**: `python scripts/02_training/03_create_experimental_model.py --algorithm logistic_regression --params experiments/model_candidates/vocab_15k.json`
 - **Output**: Experimental models saved to `experiments/` directory
+- **Split**: With frozen IDs, fits on residual train only (`~(cal ∪ eval)`); requires `cal_ids.json`
 
 ### `04_create_production_model.py`
 Creates a production disaster response classification model with optional class weighting via config (currently disabled in `experiments/model_candidates/class_weights.json`).
@@ -74,9 +82,10 @@ Tests experimental models for validation.
 ## 03_optimization/ - Model Optimization Scripts
 
 ### `optimize_per_category_thresholds.py`
-Optimizes classification thresholds for individual categories.
-- **Use when**: Fine-tuning per-category decision thresholds
-- **Output**: Optimized threshold configurations
+Tunes per-label thresholds on the calibration split; reports metrics on frozen eval only.
+- **Use when**: Fine-tuning per-category decision thresholds under the three-way contract
+- **Usage**: `python scripts/03_optimization/optimize_per_category_thresholds.py --model-path <model.pkl>`
+- **Output**: `{model_stem}_thresholds.json` with `calibration_stats` (diagnostic) and `category_stats` / `performance` (eval-reported)
 
 ### `optimize_hierarchy_threshold_reduction.py`
 Optimizes hierarchy post-processing threshold reduction parameter.

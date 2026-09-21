@@ -40,6 +40,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 # Local imports
 from disasterproject.data.loader import load_data
+from disasterproject.data.splits import load_three_way_split
 from disasterproject.evaluation.metrics import save_model
 from disasterproject.models.pipeline import (
     build_model,
@@ -316,6 +317,8 @@ def main():
                        help='Random seed (default: 42)')
     parser.add_argument('--eval-ids', dest='eval_ids_path', default=None,
                        help='Path to eval UIDs file (JSON or CSV); if not provided, defaults to experiments/experimental_configs/eval_sets/eval_ids.json if present')
+    parser.add_argument('--cal-ids', dest='cal_ids_path', default=None,
+                       help='Path to calibration UIDs JSON; defaults to experiments/experimental_configs/eval_sets/cal_ids.json when frozen eval is used')
     parser.add_argument('--no-frozen-eval', dest='no_frozen_eval', action='store_true',
                        help='Force random split even if an eval IDs file exists')
     parser.add_argument('--algorithm', dest='algorithm',
@@ -356,57 +359,71 @@ def main():
 
     logging.info(f'Loaded {len(X)} samples with {Y.shape[1]} labels')
 
-    # Determine split mode (frozen eval vs random)
+    # Determine split mode (frozen three-way vs random)
     eval_ids_file = None
+    cal_ids_file = None
     if not args.no_frozen_eval:
-        candidate = args.eval_ids_path or os.path.join('experiments', 'experimental_configs', 'eval_sets', 'eval_ids.json')
-        if os.path.isfile(candidate):
-            eval_ids_file = candidate
-
-    def _compute_uids(messages):
-        uids_local = []
-        for idx, msg in enumerate(messages):
-            text = '' if msg is None else str(msg)
-            uid_src = f"{text}|{idx}"
-            uids_local.append(hashlib.sha1(uid_src.encode('utf-8')).hexdigest())
-        return uids_local
+        eval_candidate = args.eval_ids_path or os.path.join(
+            'experiments', 'experimental_configs', 'eval_sets', 'eval_ids.json'
+        )
+        cal_candidate = args.cal_ids_path or os.path.join(
+            'experiments', 'experimental_configs', 'eval_sets', 'cal_ids.json'
+        )
+        if os.path.isfile(eval_candidate):
+            eval_ids_file = eval_candidate
+            cal_ids_file = cal_candidate
 
     if eval_ids_file:
-        logging.info('Using frozen eval set from %s', eval_ids_file)
+        if not cal_ids_file or not os.path.isfile(cal_ids_file):
+            logging.error(
+                'Frozen eval requires calibration IDs at %s. '
+                'Create them with scripts/01_data/create_frozen_cal_ids.py',
+                cal_ids_file or 'experiments/experimental_configs/eval_sets/cal_ids.json',
+            )
+            sys.exit(1)
+
+        logging.info(
+            'Using three-way frozen split (eval=%s, cal=%s)',
+            eval_ids_file,
+            cal_ids_file,
+        )
         try:
-            # Support both JSON and legacy CSV formats
-            if eval_ids_file.endswith('.json'):
-                with open(eval_ids_file, 'r') as f:
-                    data = json.load(f)
-                eval_uids = set(data['eval_ids'])
-            else:
-                # Legacy CSV format
-                eval_df = pd.read_csv(eval_ids_file)
-                eval_uids = set(eval_df['uid'].astype(str).tolist())
-        except Exception as e:
-            logging.error('Failed to read eval IDs file: %s', e)
+            splits = load_three_way_split(X, Y, eval_ids_file, cal_ids_file)
+        except (OSError, KeyError, ValueError) as e:
+            logging.error('Failed to load three-way split: %s', e)
             sys.exit(1)
 
-        uids = _compute_uids(X)
-        uid_series = pd.Series(uids)
-        is_eval = uid_series.isin(eval_uids).values
+        X_train, Y_train = splits['train']
+        X_cal, Y_cal = splits['cal']
+        X_test, Y_test = splits['eval']
 
-        match_count = int(is_eval.sum())
         expected_eval = int(len(X) * args.test_size)
-        if match_count == 0 or match_count < max(1, int(0.5 * expected_eval)):
-            logging.error('Eval IDs coverage too low (matched %d, expected around %d). Aborting.', match_count, expected_eval)
+        if len(X_test) == 0 or len(X_test) < max(1, int(0.5 * expected_eval)):
+            logging.error(
+                'Eval IDs coverage too low (matched %d, expected around %d). Aborting.',
+                len(X_test),
+                expected_eval,
+            )
             sys.exit(1)
 
-        X_train, X_test = X[~is_eval], X[is_eval]
-        Y_train, Y_test = Y[~is_eval], Y[is_eval]
-        logging.info('Split via frozen eval set. Train: %d, Eval: %d', len(X_train), len(X_test))
-        print(f"Using frozen eval set from {eval_ids_file} (eval samples: {len(X_test)})")
+        logging.info(
+            'Split via frozen train/cal/eval. Train: %d, Cal: %d, Eval: %d',
+            len(X_train),
+            len(X_cal),
+            len(X_test),
+        )
+        print(
+            f"Using three-way frozen split "
+            f"(train={len(X_train)}, cal={len(X_cal)}, eval={len(X_test)})"
+        )
+        print("  Fit excludes cal ∪ eval; cal reserved for threshold tuning")
     else:
         # Random split fallback
         logging.info(f'Splitting data randomly (test_size={args.test_size}, seed={args.seed})...')
         X_train, X_test, Y_train, Y_test = train_test_split(
             X, Y, test_size=args.test_size, random_state=args.seed
         )
+        cal_ids_file = None
 
     # Load hyperparameters
     logging.info(f'Loading hyperparameters from {args.params_path}')
@@ -516,17 +533,24 @@ def main():
         model, X_test, Y_test, TARGET_COLUMNS, experiment_dir
     )
 
-    # Snapshot the eval IDs used for this run (traceability)
+    # Snapshot the eval/cal IDs used for this run (traceability)
     if eval_ids_file:
         try:
-            # Copy eval IDs file to experiment directory with appropriate extension
             if eval_ids_file.endswith('.json'):
                 target_file = os.path.join(experiment_dir, 'eval_ids_used.json')
             else:
                 target_file = os.path.join(experiment_dir, 'eval_ids_used.csv')
             shutil.copyfile(eval_ids_file, target_file)
-        except Exception as e:
+        except OSError as e:
             logging.warning('Could not snapshot eval IDs file: %s', e)
+    if cal_ids_file:
+        try:
+            shutil.copyfile(
+                cal_ids_file,
+                os.path.join(experiment_dir, 'cal_ids_used.json'),
+            )
+        except OSError as e:
+            logging.warning('Could not snapshot cal IDs file: %s', e)
 
     # Save model to new experimental structure
     path_manager = ExperimentalPathManager()
@@ -593,10 +617,13 @@ def main():
             'test_size': args.test_size,
             'random_seed': args.seed,
             'train_samples': len(X_train),
+            'cal_samples': int(len(X_cal)) if eval_ids_file else 0,
             'test_samples': len(X_test),
-            'mode': 'frozen_eval' if eval_ids_file else 'random_split',
+            'mode': 'frozen_train_cal_eval' if eval_ids_file else 'random_split',
             'eval_ids_file': eval_ids_file,
-            'eval_uid_count': int(len(X_test))
+            'cal_ids_file': cal_ids_file,
+            'eval_uid_count': int(len(X_test)),
+            'cal_uid_count': int(len(X_cal)) if eval_ids_file else 0,
         },
         'target_labels': len(TARGET_COLUMNS)
     }

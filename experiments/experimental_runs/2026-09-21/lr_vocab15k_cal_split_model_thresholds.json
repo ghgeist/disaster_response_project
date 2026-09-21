@@ -1,0 +1,802 @@
+{
+  "metadata": {
+    "created": "2026-09-21T20:26:57.937379",
+    "model": "experiments/experimental_runs/2026-09-21/lr_vocab15k_cal_split_model.pkl",
+    "critical_target_recall": 0.65,
+    "non_critical_target_recall": 0.6,
+    "optimization_method": "precision_recall_curve",
+    "optimization_split": "calibration",
+    "reporting_split": "frozen_eval",
+    "calibration_ids": "experiments/experimental_configs/eval_sets/cal_ids.json",
+    "eval_ids": "experiments/experimental_configs/eval_sets/eval_ids.json",
+    "calibration_critical_recall": 0.6511306535292513,
+    "eval_critical_recall": 0.6148491225904134,
+    "critical_label_positive_support_cal": {
+      "food": 396,
+      "hospitals": 38,
+      "medical_help": 233,
+      "medical_products": 173,
+      "search_and_rescue": 88,
+      "security": 47,
+      "shelter": 283,
+      "water": 191
+    }
+  },
+  "thresholds": {
+    "related": 0.8498407105616043,
+    "request": 0.46544229077627647,
+    "offer": 0.00490562637064521,
+    "aid_related": 0.5644833101129737,
+    "medical_help": 0.12397256208116493,
+    "medical_products": 0.08945152495323823,
+    "search_and_rescue": 0.031937605799436206,
+    "security": 0.02110770406736875,
+    "military": 0.11893648147587839,
+    "child_alone": 0.5,
+    "water": 0.2546825695828334,
+    "food": 0.4377291079338846,
+    "shelter": 0.2543339670025451,
+    "clothing": 0.07353201751686324,
+    "money": 0.04916139583254945,
+    "missing_people": 0.011004682523902173,
+    "refugees": 0.08996906064556527,
+    "death": 0.16150756769344274,
+    "other_aid": 0.15446067663615512,
+    "infrastructure_related": 0.08135612512624103,
+    "transport": 0.05538784203164929,
+    "buildings": 0.13687625594479746,
+    "electricity": 0.04527811897606968,
+    "tools": 0.006553652031409877,
+    "hospitals": 0.015237633059688628,
+    "shops": 0.005220564452054714,
+    "aid_centers": 0.01717016394652449,
+    "other_infrastructure": 0.05395846105771257,
+    "weather_related": 0.49776009226431167,
+    "floods": 0.20911091351945787,
+    "storm": 0.31526822965317647,
+    "fire": 0.016899986721951275,
+    "earthquake": 0.5309135185135703,
+    "cold": 0.04043564324637649,
+    "other_weather": 0.0626769865686595,
+    "direct_report": 0.3764612074876062
+  },
+  "calibration_stats": [
+    {
+      "category": "related",
+      "type": "non-critical",
+      "threshold": 0.8498407105616043,
+      "target_recall": 0.6,
+      "actual_recall": 0.5998325659271662,
+      "precision": 0.9649831649831649,
+      "f1": 0.7398038203407331,
+      "support": 2389.0
+    },
+    {
+      "category": "request",
+      "type": "non-critical",
+      "threshold": 0.46544229077627647,
+      "target_recall": 0.6,
+      "actual_recall": 0.6003649635036497,
+      "precision": 0.8004866180048662,
+      "f1": 0.6861313868613139,
+      "support": 548.0
+    },
+    {
+      "category": "offer",
+      "type": "non-critical",
+      "threshold": 0.00490562637064521,
+      "target_recall": 0.6,
+      "actual_recall": 0.625,
+      "precision": 0.020876826722338204,
+      "f1": 0.04040404040404041,
+      "support": 16.0
+    },
+    {
+      "category": "aid_related",
+      "type": "non-critical",
+      "threshold": 0.5644833101129737,
+      "target_recall": 0.6,
+      "actual_recall": 0.600297176820208,
+      "precision": 0.8047808764940239,
+      "f1": 0.6876595744680851,
+      "support": 1346.0
+    },
+    {
+      "category": "medical_help",
+      "type": "critical",
+      "threshold": 0.12397256208116493,
+      "target_recall": 0.65,
+      "actual_recall": 0.648068669527897,
+      "precision": 0.3595238095238095,
+      "f1": 0.46248085758039814,
+      "support": 233.0
+    },
+    {
+      "category": "medical_products",
+      "type": "critical",
+      "threshold": 0.08945152495323823,
+      "target_recall": 0.65,
+      "actual_recall": 0.6473988439306358,
+      "precision": 0.33633633633633636,
+      "f1": 0.4426877470355731,
+      "support": 173.0
+    },
+    {
+      "category": "search_and_rescue",
+      "type": "critical",
+      "threshold": 0.031937605799436206,
+      "target_recall": 0.65,
+      "actual_recall": 0.6477272727272727,
+      "precision": 0.08728943338437979,
+      "f1": 0.15384615384615385,
+      "support": 88.0
+    },
+    {
+      "category": "security",
+      "type": "critical",
+      "threshold": 0.02110770406736875,
+      "target_recall": 0.65,
+      "actual_recall": 0.6595744680851063,
+      "precision": 0.03753026634382567,
+      "f1": 0.07101947308132875,
+      "support": 47.0
+    },
+    {
+      "category": "military",
+      "type": "non-critical",
+      "threshold": 0.11893648147587839,
+      "target_recall": 0.6,
+      "actual_recall": 0.6041666666666666,
+      "precision": 0.4461538461538462,
+      "f1": 0.5132743362831859,
+      "support": 96.0
+    },
+    {
+      "category": "child_alone",
+      "type": "non-critical",
+      "threshold": 0.5,
+      "target_recall": 0.6,
+      "actual_recall": 0.0,
+      "precision": 0.0,
+      "f1": 0.0,
+      "support": 0
+    },
+    {
+      "category": "water",
+      "type": "critical",
+      "threshold": 0.2546825695828334,
+      "target_recall": 0.65,
+      "actual_recall": 0.6492146596858639,
+      "precision": 0.7085714285714285,
+      "f1": 0.6775956284153005,
+      "support": 191.0
+    },
+    {
+      "category": "food",
+      "type": "critical",
+      "threshold": 0.4377291079338846,
+      "target_recall": 0.65,
+      "actual_recall": 0.648989898989899,
+      "precision": 0.8237179487179487,
+      "f1": 0.7259887005649718,
+      "support": 396.0
+    },
+    {
+      "category": "shelter",
+      "type": "critical",
+      "threshold": 0.2543339670025451,
+      "target_recall": 0.65,
+      "actual_recall": 0.6501766784452296,
+      "precision": 0.7272727272727273,
+      "f1": 0.6865671641791045,
+      "support": 283.0
+    },
+    {
+      "category": "clothing",
+      "type": "non-critical",
+      "threshold": 0.07353201751686324,
+      "target_recall": 0.6,
+      "actual_recall": 0.6,
+      "precision": 0.5142857142857142,
+      "f1": 0.5538461538461539,
+      "support": 60.0
+    },
+    {
+      "category": "money",
+      "type": "non-critical",
+      "threshold": 0.04916139583254945,
+      "target_recall": 0.6,
+      "actual_recall": 0.5942028985507246,
+      "precision": 0.23699421965317918,
+      "f1": 0.33884297520661155,
+      "support": 69.0
+    },
+    {
+      "category": "missing_people",
+      "type": "non-critical",
+      "threshold": 0.011004682523902173,
+      "target_recall": 0.6,
+      "actual_recall": 0.6,
+      "precision": 0.009658725048293626,
+      "f1": 0.019011406844106463,
+      "support": 25.0
+    },
+    {
+      "category": "refugees",
+      "type": "non-critical",
+      "threshold": 0.08996906064556527,
+      "target_recall": 0.6,
+      "actual_recall": 0.6,
+      "precision": 0.3475609756097561,
+      "f1": 0.44015444015444016,
+      "support": 95.0
+    },
+    {
+      "category": "death",
+      "type": "non-critical",
+      "threshold": 0.16150756769344274,
+      "target_recall": 0.6,
+      "actual_recall": 0.6030534351145038,
+      "precision": 0.6370967741935484,
+      "f1": 0.6196078431372549,
+      "support": 131.0
+    },
+    {
+      "category": "other_aid",
+      "type": "non-critical",
+      "threshold": 0.15446067663615512,
+      "target_recall": 0.6,
+      "actual_recall": 0.6009280742459396,
+      "precision": 0.30833333333333335,
+      "f1": 0.4075531077891424,
+      "support": 431.0
+    },
+    {
+      "category": "infrastructure_related",
+      "type": "non-critical",
+      "threshold": 0.08135612512624103,
+      "target_recall": 0.6,
+      "actual_recall": 0.601010101010101,
+      "precision": 0.16666666666666666,
+      "f1": 0.26096491228070173,
+      "support": 198.0
+    },
+    {
+      "category": "transport",
+      "type": "non-critical",
+      "threshold": 0.05538784203164929,
+      "target_recall": 0.6,
+      "actual_recall": 0.6029411764705882,
+      "precision": 0.14669051878354203,
+      "f1": 0.23597122302158274,
+      "support": 136.0
+    },
+    {
+      "category": "buildings",
+      "type": "non-critical",
+      "threshold": 0.13687625594479746,
+      "target_recall": 0.6,
+      "actual_recall": 0.5987261146496815,
+      "precision": 0.47715736040609136,
+      "f1": 0.5310734463276836,
+      "support": 157.0
+    },
+    {
+      "category": "electricity",
+      "type": "non-critical",
+      "threshold": 0.04527811897606968,
+      "target_recall": 0.6,
+      "actual_recall": 0.6037735849056604,
+      "precision": 0.31683168316831684,
+      "f1": 0.4155844155844156,
+      "support": 53.0
+    },
+    {
+      "category": "tools",
+      "type": "non-critical",
+      "threshold": 0.006553652031409877,
+      "target_recall": 0.6,
+      "actual_recall": 0.5789473684210527,
+      "precision": 0.008513931888544891,
+      "f1": 0.016781083142639208,
+      "support": 19.0
+    },
+    {
+      "category": "hospitals",
+      "type": "critical",
+      "threshold": 0.015237633059688628,
+      "target_recall": 0.65,
+      "actual_recall": 0.6578947368421053,
+      "precision": 0.08620689655172414,
+      "f1": 0.1524390243902439,
+      "support": 38.0
+    },
+    {
+      "category": "shops",
+      "type": "non-critical",
+      "threshold": 0.005220564452054714,
+      "target_recall": 0.6,
+      "actual_recall": 0.6153846153846154,
+      "precision": 0.011142061281337047,
+      "f1": 0.02188782489740082,
+      "support": 13.0
+    },
+    {
+      "category": "aid_centers",
+      "type": "non-critical",
+      "threshold": 0.01717016394652449,
+      "target_recall": 0.6,
+      "actual_recall": 0.6046511627906976,
+      "precision": 0.08,
+      "f1": 0.14130434782608695,
+      "support": 43.0
+    },
+    {
+      "category": "other_infrastructure",
+      "type": "non-critical",
+      "threshold": 0.05395846105771257,
+      "target_recall": 0.6,
+      "actual_recall": 0.6016260162601627,
+      "precision": 0.10818713450292397,
+      "f1": 0.18339529120198264,
+      "support": 123.0
+    },
+    {
+      "category": "weather_related",
+      "type": "non-critical",
+      "threshold": 0.49776009226431167,
+      "target_recall": 0.6,
+      "actual_recall": 0.6,
+      "precision": 0.8392282958199357,
+      "f1": 0.6997319034852547,
+      "support": 870.0
+    },
+    {
+      "category": "floods",
+      "type": "non-critical",
+      "threshold": 0.20911091351945787,
+      "target_recall": 0.6,
+      "actual_recall": 0.599250936329588,
+      "precision": 0.7339449541284404,
+      "f1": 0.6597938144329897,
+      "support": 267.0
+    },
+    {
+      "category": "storm",
+      "type": "non-critical",
+      "threshold": 0.31526822965317647,
+      "target_recall": 0.6,
+      "actual_recall": 0.5985663082437276,
+      "precision": 0.7198275862068966,
+      "f1": 0.6536203522504892,
+      "support": 279.0
+    },
+    {
+      "category": "fire",
+      "type": "non-critical",
+      "threshold": 0.016899986721951275,
+      "target_recall": 0.6,
+      "actual_recall": 0.5925925925925926,
+      "precision": 0.1103448275862069,
+      "f1": 0.18604651162790697,
+      "support": 27.0
+    },
+    {
+      "category": "earthquake",
+      "type": "non-critical",
+      "threshold": 0.5309135185135703,
+      "target_recall": 0.6,
+      "actual_recall": 0.6007462686567164,
+      "precision": 0.8797814207650273,
+      "f1": 0.7139689578713969,
+      "support": 268.0
+    },
+    {
+      "category": "cold",
+      "type": "non-critical",
+      "threshold": 0.04043564324637649,
+      "target_recall": 0.6,
+      "actual_recall": 0.6060606060606061,
+      "precision": 0.2898550724637681,
+      "f1": 0.39215686274509803,
+      "support": 66.0
+    },
+    {
+      "category": "other_weather",
+      "type": "non-critical",
+      "threshold": 0.0626769865686595,
+      "target_recall": 0.6,
+      "actual_recall": 0.601063829787234,
+      "precision": 0.17384615384615384,
+      "f1": 0.26968973747016706,
+      "support": 188.0
+    },
+    {
+      "category": "direct_report",
+      "type": "non-critical",
+      "threshold": 0.3764612074876062,
+      "target_recall": 0.6,
+      "actual_recall": 0.6003159557661928,
+      "precision": 0.7089552238805971,
+      "f1": 0.6501283147989735,
+      "support": 633.0
+    }
+  ],
+  "category_stats": [
+    {
+      "category": "related",
+      "type": "non-critical",
+      "threshold": 0.8498407105616043,
+      "target_recall": 0.6,
+      "actual_recall": 0.6077348066298343,
+      "precision": 0.9584158415841584,
+      "f1": 0.74381435377286,
+      "support": 3982.0
+    },
+    {
+      "category": "request",
+      "type": "non-critical",
+      "threshold": 0.46544229077627647,
+      "target_recall": 0.6,
+      "actual_recall": 0.591116173120729,
+      "precision": 0.8046511627906977,
+      "f1": 0.6815495732107683,
+      "support": 878.0
+    },
+    {
+      "category": "offer",
+      "type": "non-critical",
+      "threshold": 0.00490562637064521,
+      "target_recall": 0.6,
+      "actual_recall": 0.5517241379310345,
+      "precision": 0.02040816326530612,
+      "f1": 0.03936039360393604,
+      "support": 29.0
+    },
+    {
+      "category": "aid_related",
+      "type": "non-critical",
+      "threshold": 0.5644833101129737,
+      "target_recall": 0.6,
+      "actual_recall": 0.5986175115207373,
+      "precision": 0.8068322981366459,
+      "f1": 0.6873015873015873,
+      "support": 2170.0
+    },
+    {
+      "category": "medical_help",
+      "type": "critical",
+      "threshold": 0.12397256208116493,
+      "target_recall": 0.65,
+      "actual_recall": 0.6180555555555556,
+      "precision": 0.39850746268656717,
+      "f1": 0.484573502722323,
+      "support": 432.0
+    },
+    {
+      "category": "medical_products",
+      "type": "critical",
+      "threshold": 0.08945152495323823,
+      "target_recall": 0.65,
+      "actual_recall": 0.6227106227106227,
+      "precision": 0.33268101761252444,
+      "f1": 0.4336734693877551,
+      "support": 273.0
+    },
+    {
+      "category": "search_and_rescue",
+      "type": "critical",
+      "threshold": 0.031937605799436206,
+      "target_recall": 0.65,
+      "actual_recall": 0.644927536231884,
+      "precision": 0.08157653528872594,
+      "f1": 0.14483319772172498,
+      "support": 138.0
+    },
+    {
+      "category": "security",
+      "type": "critical",
+      "threshold": 0.02110770406736875,
+      "target_recall": 0.65,
+      "actual_recall": 0.5789473684210527,
+      "precision": 0.039711191335740074,
+      "f1": 0.07432432432432433,
+      "support": 95.0
+    },
+    {
+      "category": "military",
+      "type": "non-critical",
+      "threshold": 0.11893648147587839,
+      "target_recall": 0.6,
+      "actual_recall": 0.6013071895424836,
+      "precision": 0.4842105263157895,
+      "f1": 0.5364431486880467,
+      "support": 153.0
+    },
+    {
+      "category": "child_alone",
+      "type": "non-critical",
+      "threshold": 0.5,
+      "target_recall": 0.6,
+      "actual_recall": 0.0,
+      "precision": 0.0,
+      "f1": 0.0,
+      "support": 0
+    },
+    {
+      "category": "water",
+      "type": "critical",
+      "threshold": 0.2546825695828334,
+      "target_recall": 0.65,
+      "actual_recall": 0.6820987654320988,
+      "precision": 0.7222222222222222,
+      "f1": 0.7015873015873015,
+      "support": 324.0
+    },
+    {
+      "category": "food",
+      "type": "critical",
+      "threshold": 0.4377291079338846,
+      "target_recall": 0.65,
+      "actual_recall": 0.6016949152542372,
+      "precision": 0.8333333333333334,
+      "f1": 0.6988188976377953,
+      "support": 590.0
+    },
+    {
+      "category": "shelter",
+      "type": "critical",
+      "threshold": 0.2543339670025451,
+      "target_recall": 0.65,
+      "actual_recall": 0.6231884057971014,
+      "precision": 0.7525,
+      "f1": 0.681766704416761,
+      "support": 483.0
+    },
+    {
+      "category": "clothing",
+      "type": "non-critical",
+      "threshold": 0.07353201751686324,
+      "target_recall": 0.6,
+      "actual_recall": 0.5617977528089888,
+      "precision": 0.5813953488372093,
+      "f1": 0.5714285714285714,
+      "support": 89.0
+    },
+    {
+      "category": "money",
+      "type": "non-critical",
+      "threshold": 0.04916139583254945,
+      "target_recall": 0.6,
+      "actual_recall": 0.7181818181818181,
+      "precision": 0.2705479452054795,
+      "f1": 0.39303482587064675,
+      "support": 110.0
+    },
+    {
+      "category": "missing_people",
+      "type": "non-critical",
+      "threshold": 0.011004682523902173,
+      "target_recall": 0.6,
+      "actual_recall": 0.8181818181818182,
+      "precision": 0.01361573373676248,
+      "f1": 0.026785714285714284,
+      "support": 44.0
+    },
+    {
+      "category": "refugees",
+      "type": "non-critical",
+      "threshold": 0.08996906064556527,
+      "target_recall": 0.6,
+      "actual_recall": 0.5432098765432098,
+      "precision": 0.35772357723577236,
+      "f1": 0.43137254901960786,
+      "support": 162.0
+    },
+    {
+      "category": "death",
+      "type": "non-critical",
+      "threshold": 0.16150756769344274,
+      "target_recall": 0.6,
+      "actual_recall": 0.5371900826446281,
+      "precision": 0.6666666666666666,
+      "f1": 0.5949656750572082,
+      "support": 242.0
+    },
+    {
+      "category": "other_aid",
+      "type": "non-critical",
+      "threshold": 0.15446067663615512,
+      "target_recall": 0.6,
+      "actual_recall": 0.6178623718887262,
+      "precision": 0.326625386996904,
+      "f1": 0.4273417721518987,
+      "support": 683.0
+    },
+    {
+      "category": "infrastructure_related",
+      "type": "non-critical",
+      "threshold": 0.08135612512624103,
+      "target_recall": 0.6,
+      "actual_recall": 0.6448863636363636,
+      "precision": 0.19253604749787956,
+      "f1": 0.29653821032005223,
+      "support": 352.0
+    },
+    {
+      "category": "transport",
+      "type": "non-critical",
+      "threshold": 0.05538784203164929,
+      "target_recall": 0.6,
+      "actual_recall": 0.5959183673469388,
+      "precision": 0.15531914893617021,
+      "f1": 0.24641350210970464,
+      "support": 245.0
+    },
+    {
+      "category": "buildings",
+      "type": "non-critical",
+      "threshold": 0.13687625594479746,
+      "target_recall": 0.6,
+      "actual_recall": 0.5916955017301038,
+      "precision": 0.48441926345609065,
+      "f1": 0.5327102803738317,
+      "support": 289.0
+    },
+    {
+      "category": "electricity",
+      "type": "non-critical",
+      "threshold": 0.04527811897606968,
+      "target_recall": 0.6,
+      "actual_recall": 0.6218487394957983,
+      "precision": 0.35071090047393366,
+      "f1": 0.4484848484848485,
+      "support": 119.0
+    },
+    {
+      "category": "tools",
+      "type": "non-critical",
+      "threshold": 0.006553652031409877,
+      "target_recall": 0.6,
+      "actual_recall": 0.5714285714285714,
+      "precision": 0.007597340930674264,
+      "f1": 0.01499531396438613,
+      "support": 28.0
+    },
+    {
+      "category": "hospitals",
+      "type": "critical",
+      "threshold": 0.015237633059688628,
+      "target_recall": 0.65,
+      "actual_recall": 0.5471698113207547,
+      "precision": 0.06118143459915612,
+      "f1": 0.11005692599620494,
+      "support": 53.0
+    },
+    {
+      "category": "shops",
+      "type": "non-critical",
+      "threshold": 0.005220564452054714,
+      "target_recall": 0.6,
+      "actual_recall": 0.4230769230769231,
+      "precision": 0.009068425391591096,
+      "f1": 0.01775625504439064,
+      "support": 26.0
+    },
+    {
+      "category": "aid_centers",
+      "type": "non-critical",
+      "threshold": 0.01717016394652449,
+      "target_recall": 0.6,
+      "actual_recall": 0.5689655172413793,
+      "precision": 0.058823529411764705,
+      "f1": 0.10662358642972536,
+      "support": 58.0
+    },
+    {
+      "category": "other_infrastructure",
+      "type": "non-critical",
+      "threshold": 0.05395846105771257,
+      "target_recall": 0.6,
+      "actual_recall": 0.6680161943319838,
+      "precision": 0.14114627887082976,
+      "f1": 0.2330508474576271,
+      "support": 247.0
+    },
+    {
+      "category": "weather_related",
+      "type": "non-critical",
+      "threshold": 0.49776009226431167,
+      "target_recall": 0.6,
+      "actual_recall": 0.6175271739130435,
+      "precision": 0.8723608445297505,
+      "f1": 0.7231503579952268,
+      "support": 1472.0
+    },
+    {
+      "category": "floods",
+      "type": "non-critical",
+      "threshold": 0.20911091351945787,
+      "target_recall": 0.6,
+      "actual_recall": 0.6064073226544623,
+      "precision": 0.7528409090909091,
+      "f1": 0.6717363751584284,
+      "support": 437.0
+    },
+    {
+      "category": "storm",
+      "type": "non-critical",
+      "threshold": 0.31526822965317647,
+      "target_recall": 0.6,
+      "actual_recall": 0.5795918367346938,
+      "precision": 0.741514360313316,
+      "f1": 0.6506300114547537,
+      "support": 490.0
+    },
+    {
+      "category": "fire",
+      "type": "non-critical",
+      "threshold": 0.016899986721951275,
+      "target_recall": 0.6,
+      "actual_recall": 0.5806451612903226,
+      "precision": 0.14342629482071714,
+      "f1": 0.23003194888178913,
+      "support": 62.0
+    },
+    {
+      "category": "earthquake",
+      "type": "non-critical",
+      "threshold": 0.5309135185135703,
+      "target_recall": 0.6,
+      "actual_recall": 0.5616698292220114,
+      "precision": 0.9221183800623053,
+      "f1": 0.6981132075471698,
+      "support": 527.0
+    },
+    {
+      "category": "cold",
+      "type": "non-critical",
+      "threshold": 0.04043564324637649,
+      "target_recall": 0.6,
+      "actual_recall": 0.6476190476190476,
+      "precision": 0.3269230769230769,
+      "f1": 0.43450479233226835,
+      "support": 105.0
+    },
+    {
+      "category": "other_weather",
+      "type": "non-critical",
+      "threshold": 0.0626769865686595,
+      "target_recall": 0.6,
+      "actual_recall": 0.6877192982456141,
+      "precision": 0.18421052631578946,
+      "f1": 0.29058561897702,
+      "support": 285.0
+    },
+    {
+      "category": "direct_report",
+      "type": "non-critical",
+      "threshold": 0.3764612074876062,
+      "target_recall": 0.6,
+      "actual_recall": 0.5868263473053892,
+      "precision": 0.690951821386604,
+      "f1": 0.634646519158122,
+      "support": 1002.0
+    }
+  ],
+  "performance": {
+    "baseline": {
+      "f1_weighted": 0.9369814073758634,
+      "f1_micro": 0.6457620953073845
+    },
+    "optimized": {
+      "f1_weighted": 0.8965829284431486,
+      "f1_micro": 0.453437849944009,
+      "critical_recall": 0.6148491225904134
+    },
+    "delta": {
+      "f1_weighted": -0.040398478932714865,
+      "f1_weighted_pct": -4.311556090088915
+    }
+  }
+}
