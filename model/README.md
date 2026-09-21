@@ -127,32 +127,39 @@ python scripts/02_training/03_create_experimental_model.py \
 
 ### 2. Validate and Promote
 
+Promotion enforces the train/cal/eval **evaluation contract** (see [ADR-007](../docs/adr/adr-007-model-promotion-gating.md)): baseline frozen-eval micro F1, frozen-eval critical recall, size cap, weighted-F1 relative-drop guardrail, and `optimization_split=calibration` / `reporting_split=frozen_eval` provenance. The exact `{model_stem}_thresholds.json` that validation scored is copied to `{prod_model_stem}_thresholds.json`.
+
 ```bash
-# Dry run (validate without promoting)
+# Dry run (validate without promoting) — honest three-way candidate
 python scripts/07_operations/promote_model.py \
-  experiments/experimental_runs/2025-11-06-vocab15k-promotion \
+  experiments/experimental_runs/2026-09-21 \
   --dry-run
 
 # Actual promotion
 python scripts/07_operations/promote_model.py \
-  experiments/experimental_runs/2025-11-06-vocab15k-promotion \
+  experiments/experimental_runs/2026-09-21 \
   --print-new-path
 ```
+
+Tune-on-eval candidates (for example `2025-11-06-vocab15k-promotion`) fail provenance checks unless `--force` is used intentionally.
 
 ### 3. What Happens During Promotion
 
 1. **Algorithm Detection**: Script inspects the model file to detect algorithm type
-2. **Filename Generation**: Creates filename using training date (from candidate directory name)
-3. **File Copy**: Copies model file to `model/` directory
-4. **Hash Verification**: Verifies copied file matches expected hash
-5. **Metadata Creation**: Creates/updates `MODEL_INFO.json` with algorithm info
-6. **Archive**: Archives previous production model metadata
+2. **Evaluation-contract validation**: Baseline micro F1, eval critical recall, size, weighted-F1 relative drop, threshold provenance
+3. **Filename Generation**: Creates filename using training date (from candidate directory name)
+4. **File Copy**: Copies model file to `model/` directory
+5. **Hash Verification**: Verifies copied model matches expected hash
+6. **Threshold deploy**: Copies the validated `{model_stem}_thresholds.json` to `{prod_stem}_thresholds.json` and verifies SHA256 identity
+7. **Metadata Creation**: Creates/updates `MODEL_INFO.json` with algorithm and contract metrics
+8. **Archive**: Archives previous production model metadata
 
 ### 4. Verification
 
 After promotion, verify:
 - Model file exists and loads correctly
-- `MODEL_INFO.json` contains correct algorithm information
+- Deployed `{prod_stem}_thresholds.json` SHA matches the candidate thresholds artifact that validation inspected
+- `MODEL_INFO.json` contains correct algorithm information and contract metrics
 - App auto-discovery picks up the new model
 - Dashboard displays correct algorithm name
 
