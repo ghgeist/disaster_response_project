@@ -14,7 +14,7 @@
 {% block content %}
     <!-- Hero Section -->
     {% set hero_title = 'Message Classification Complete' if use_hierarchy else 'Message Classified' %}
-    {% set hero_subtitle = "We've identified the relevant emergency categories and verified the result for logical accuracy." if use_hierarchy else "We've identified the disaster response categories that match your message." %}
+    {% set hero_subtitle = "We've identified the relevant emergency categories and applied hierarchy consistency for parent/child taxonomy rules." if use_hierarchy else "We've identified the disaster response categories that match your message." %}
     {% set hero_icon %}
         <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mr-3">
             <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -38,7 +38,7 @@
 
         {% if use_hierarchy %}
         <!-- Compact System Status Bar -->
-        {{ status_bar(violations, metrics) }}
+        {{ status_bar(violations) }}
         {% endif %}
 
         {% if use_hierarchy %}
@@ -51,7 +51,7 @@
                         <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
                     </svg>
                     <div>
-                        <span class="text-sm font-semibold text-gray-300">Classification Improvements</span>
+                        <span class="text-sm font-semibold text-gray-300">Hierarchy Consistency</span>
                     </div>
                 </div>
                 <svg :class="{'rotate-180':open1}" class="w-4 h-4 text-gray-400 transition-transform" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
@@ -73,7 +73,7 @@
                             <svg class="w-4 h-4 inline mr-2" viewBox="0 0 20 20" fill="currentColor">
                                 <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
                             </svg>
-                            The model detected potential improvements to the initial classification and applied logical refinements to make the results more accurate.
+                            Hierarchy consistency applied: taxonomy adjustments were made so parent/child category labels satisfy hierarchy rules.
                         </p>
                     </div>
                     <table class="w-full text-sm">
@@ -88,11 +88,11 @@
                                 </th>
                                 <th class="text-center py-4 px-4 text-gray-300 font-semibold">
                                     <div class="flex flex-col items-center">
-                                        <span>Refined Prediction</span>
-                                        <span class="text-xs text-gray-400 font-normal">(After Logic Check)</span>
+                                        <span>Adjusted Prediction</span>
+                                        <span class="text-xs text-gray-400 font-normal">(After hierarchy consistency)</span>
                                     </div>
                                 </th>
-                                <th class="text-center py-4 px-4 text-gray-300 font-semibold">Improvement</th>
+                                <th class="text-center py-4 px-4 text-gray-300 font-semibold">Taxonomy adjustment</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -123,18 +123,18 @@
                                     {% set confidence_change = fixed.probabilities[label] - raw.probabilities[label] %}
                                     {% if confidence_change > 0 %}
                                         <div class="flex flex-col items-center">
-                                            <span class="bg-green-500 text-white text-xs px-2 py-1 rounded-full mb-1">IMPROVED</span>
+                                            <span class="bg-green-500 text-white text-xs px-2 py-1 rounded-full mb-1">ADJUSTED</span>
                                             <span class="text-xs text-green-400">+{{ "%.1f"|format(confidence_change * 100) }}% confidence</span>
                                         </div>
                                     {% elif confidence_change < 0 %}
                                         <div class="flex flex-col items-center">
-                                            <span class="bg-green-500 text-white text-xs px-2 py-1 rounded-full mb-1">REFINED</span>
+                                            <span class="bg-green-500 text-white text-xs px-2 py-1 rounded-full mb-1">ADJUSTED</span>
                                             <span class="text-xs text-green-400">{{ "%.1f"|format(confidence_change * 100) }}% confidence</span>
                                         </div>
                                     {% else %}
                                         <div class="flex flex-col items-center">
-                                            <span class="bg-blue-500 text-white text-xs px-2 py-1 rounded-full mb-1">VERIFIED</span>
-                                            <span class="text-xs text-blue-400">Logic check passed</span>
+                                            <span class="bg-blue-500 text-white text-xs px-2 py-1 rounded-full mb-1">LABEL ADJUSTED</span>
+                                            <span class="text-xs text-blue-400">Parent/child consistency</span>
                                         </div>
                                     {% endif %}
                                 </td>
@@ -147,8 +147,8 @@
                         <svg class="w-12 h-12 text-green-400 mx-auto mb-3" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
                         </svg>
-                        <p class="text-gray-300 font-medium">Initial predictions were already optimal</p>
-                        <p class="text-gray-400 text-sm mt-1">No logical refinements were needed - the AI's first assessment was accurate.</p>
+                        <p class="text-gray-300 font-medium">Initial predictions already satisfied hierarchy rules</p>
+                        <p class="text-gray-400 text-sm mt-1">No hierarchy adjustments were needed.</p>
                     </div>
                     {% endif %}
                 </div>

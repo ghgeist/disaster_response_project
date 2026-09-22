@@ -74,11 +74,11 @@ function DashboardHeader({
               <>Loading model info...</>
             ) : modelInfo.status === "production" ? (
               <>
-                Model version: {modelInfo.version} | {modelInfo.f1_score !== null ? `${Math.round(modelInfo.f1_score * 100)}%` : 'N/A'} F1-score | Classifier hierarchy correction: enabled
+                Model version: {modelInfo.version} | {modelInfo.f1_score !== null ? `${Math.round(modelInfo.f1_score * 100)}%` : 'N/A'} optimized weighted F1 | Classifier hierarchy correction: enabled
               </>
             ) : (
               <>
-                Model version: {modelInfo.version} | {modelInfo.f1_score !== null ? `${Math.round(modelInfo.f1_score * 100)}%` : 'N/A'} F1-score
+                Model version: {modelInfo.version} | {modelInfo.f1_score !== null ? `${Math.round(modelInfo.f1_score * 100)}%` : 'N/A'} optimized weighted F1
               </>
             )}
           </TooltipContent>

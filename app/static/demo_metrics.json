@@ -1,7 +1,0 @@
-{
-  "violations": 0,
-  "samples": 26027,
-  "safety_recall": 0.9147,
-  "macro_f1_delta": -0.0143
-}
-
