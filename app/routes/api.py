@@ -9,7 +9,6 @@ import random
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import pandas as pd
 from flask import Blueprint, current_app, jsonify, redirect, request
 
 from app.extensions import csrf
@@ -739,94 +738,61 @@ def _find_production_thresholds_file(
     return None
 
 
-def _discover_production_metrics_file(model_dir: Path, model_stem: str | None = None) -> Path | None:
-    """
-    Discover performance_metrics.csv for the active production model stem.
-
-    Prefer ``{model_stem}_performance_metrics.csv``. If ``model_stem`` is omitted,
-    derive it from the active production pickle (config / mtime discovery).
-    Legacy fallback: ``performance_metrics.csv``.
-    """
-    if not model_dir.is_dir():
-        return None
-
-    stem = model_stem
-    if not stem or stem == "unknown":
-        active_model = _resolve_active_production_model_path(model_dir)
-        if active_model is not None:
-            stem = active_model.stem
-
-    if stem and stem != "unknown":
-        metrics_file = model_dir / f"{stem}_performance_metrics.csv"
-        if metrics_file.exists():
-            return metrics_file
-
-    legacy_metrics = model_dir / "performance_metrics.csv"
-    if legacy_metrics.exists():
-        return legacy_metrics
-    return None
-
-
-def _load_category_stats_from_metrics_csv(metrics_path: Path, thresholds_data: dict) -> list:
-    """
-    Load category statistics from performance_metrics.csv file.
-    
-    Converts the CSV format to category_stats format expected by the dashboard.
-    
-    Args:
-        metrics_path: Path to performance_metrics.csv file
-        thresholds_data: Thresholds JSON data (for determining critical categories)
-        
-    Returns:
-        List of category stats dictionaries
-    """
+def _load_thresholds_json(thresholds_path: Path) -> dict:
+    """Load thresholds JSON already validated by the production-artifact resolver."""
     try:
-        df = pd.read_csv(metrics_path)
+        with open(thresholds_path, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except (OSError, json.JSONDecodeError) as error:
+        logger.warning("Thresholds file read failed %s: %s", thresholds_path, error)
+        return {}
+    if not isinstance(payload, dict):
+        logger.warning("Thresholds file is not a JSON object: %s", thresholds_path)
+        return {}
+    return payload
 
-        # Get critical categories from thresholds if available
-        critical_categories = set()
-        if thresholds_data:
-            critical_thresholds = thresholds_data.get("critical_only", {})
-            critical_categories = set(critical_thresholds.keys())
 
-        category_stats = []
-
-        # Group by category and get weighted avg metrics
-        for category in df['category'].unique():
-            cat_df = df[df['category'] == category]
-            weighted_avg = cat_df[cat_df['output_class'].astype(str).str.lower() == 'weighted avg']
-
-            if weighted_avg.empty:
-                continue
-
-            row = weighted_avg.iloc[0]
-            category_name = str(category)
-
-            # Determine if critical based on thresholds file
-            is_critical = category_name in critical_categories
-
-            stat = {
-                "category": category_name,
-                "type": "critical" if is_critical else "non-critical",
-                "threshold": 0.5,  # Default threshold if not in thresholds file
-                "precision": float(row.get('precision', 0.0)),
-                "recall": float(row.get('recall', 0.0)),
-                "f1": float(row.get('f1-score', 0.0)),
-                "support": float(row.get('support', 0.0)),
-            }
-
-            # Try to get actual threshold from thresholds file
-            if thresholds_data:
-                thresholds = thresholds_data.get("thresholds", {})
-                if category_name in thresholds:
-                    stat["threshold"] = float(thresholds[category_name])
-
-            category_stats.append(stat)
-
-        return category_stats
-    except Exception as e:
-        logger.warning("Failed to load category stats from metrics CSV %s: %s", metrics_path, e)
+def _category_stats_list_from_thresholds(thresholds_payload: dict) -> list:
+    """Return category_stats from the hashed thresholds artifact (empty if absent)."""
+    raw_stats = thresholds_payload.get("category_stats")
+    if not isinstance(raw_stats, list):
         return []
+    return [stat for stat in raw_stats if isinstance(stat, dict)]
+
+
+def _support_weighted_precision_recall(
+    category_stats_list: list,
+) -> tuple[float | None, float | None]:
+    """Support-weighted means of positive-class precision/recall; null when unmeasured."""
+    total_support = 0.0
+    weighted_precision = 0.0
+    weighted_recall = 0.0
+    for stat in category_stats_list:
+        support_val = stat.get("support")
+        try:
+            support = float(support_val) if support_val is not None else 0.0
+        except (TypeError, ValueError):
+            support = 0.0
+        if math.isnan(support) or math.isinf(support) or support < 0:
+            support = 0.0
+        total_support += support
+        precision = _safe_float_prob(stat.get("precision"))
+        if "actual_recall" in stat:
+            recall = _safe_float_prob(stat.get("actual_recall"))
+        else:
+            recall = _safe_float_prob(stat.get("recall"))
+        weighted_precision += precision * support
+        weighted_recall += recall * support
+
+    if total_support <= 0:
+        return None, None
+    precision_overall = weighted_precision / total_support
+    recall_overall = weighted_recall / total_support
+    if math.isnan(precision_overall) or math.isinf(precision_overall):
+        precision_overall = None
+    if math.isnan(recall_overall) or math.isinf(recall_overall):
+        recall_overall = None
+    return precision_overall, recall_overall
 
 
 DASHBOARD_PROVENANCE_UNAVAILABLE = (
@@ -855,9 +821,9 @@ def _unavailable_dashboard_payload(
             "provenanceCode": provenance_code,
         },
         "metrics": {
-            "f1": 0.0,
-            "precision": 0.0,
-            "recall": 0.0,
+            "f1": None,
+            "precision": None,
+            "recall": None,
             "evalCriticalRecall": None,
         },
         "categories": [],
@@ -914,14 +880,11 @@ def _build_model_info_dashboard_payload() -> dict:
     performance_block = model_info_data.get("performance") or {}
     validation_block = model_info_data.get("validation_results") or {}
     # Explicit OP vocabulary only — never fall back to naked f1_weighted.
+    # Missing/invalid → null (not 0.0) so UI can render "—".
     optimized_f1_weighted = performance_block.get("optimized_f1_weighted")
     if optimized_f1_weighted is None:
         optimized_f1_weighted = validation_block.get("optimized_f1_weighted")
-    f1_metric = (
-        _safe_float_prob(optimized_f1_weighted)
-        if optimized_f1_weighted is not None
-        else 0.0
-    )
+    f1_metric = _safe_optional_prob(optimized_f1_weighted)
 
     eval_critical_raw = performance_block.get("eval_critical_recall")
     if eval_critical_raw is None:
@@ -929,95 +892,66 @@ def _build_model_info_dashboard_payload() -> dict:
     eval_critical_recall = _safe_optional_prob(eval_critical_raw)
 
     stem = active_model.stem
-    thresholds_path = _find_production_thresholds_file(model_dir, model_stem=stem)
-    category_stats_list: list = []
+    inference_thresholds = production_artifacts.thresholds
+    thresholds_payload = _load_thresholds_json(production_artifacts.paths.thresholds_path)
+    category_stats_list = _category_stats_list_from_thresholds(thresholds_payload)
+
     critical_thresholds_list: list = []
-    thresh_data = {}
+    categories_payload: list = []
+    precision_overall: float | None = None
+    recall_overall: float | None = None
 
-    # Load stem-bound thresholds for values / critical labels. Do not rebind
-    # ``stem`` from metadata.model — that field is candidate-source provenance
-    # and may intentionally differ from the production filename.
-    if thresholds_path is not None:
-        try:
-            with open(thresholds_path, "r", encoding="utf-8") as f:
-                thresh_data = json.load(f)
-        except (OSError, json.JSONDecodeError) as e:
-            logger.warning("Thresholds file read failed %s: %s", thresholds_path, e)
-
-    # Category stats from the same production stem as the active pickle
-    metrics_path = _discover_production_metrics_file(model_dir, model_stem=stem)
-    if metrics_path is not None:
-        logger.debug("Loading category stats from performance_metrics.csv: %s", metrics_path)
-        category_stats_list = _load_category_stats_from_metrics_csv(metrics_path, thresh_data)
-    else:
-        logger.warning("Performance metrics file not found, category stats will be empty")
-
-    # Extract critical thresholds from loaded stats
-    for stat in category_stats_list:
-        if not isinstance(stat, dict):
-            continue
-        if stat.get("type") == "critical":
+    if category_stats_list:
+        precision_overall, recall_overall = _support_weighted_precision_recall(
+            category_stats_list
+        )
+        for stat in category_stats_list:
             key = stat.get("category")
             if key is None:
                 continue
-            label = _safe_category_display(key)
-            thresh_val = stat.get("threshold")
-            critical_thresholds_list.append({
-                "key": str(key),
+            key_str = str(key)
+            label = _safe_category_display(key_str)
+            support_val = stat.get("support")
+            try:
+                support = float(support_val) if support_val is not None else 0.0
+            except (TypeError, ValueError):
+                support = 0.0
+            if math.isnan(support) or math.isinf(support) or support < 0:
+                support = 0.0
+            precision = _safe_float_prob(stat.get("precision"))
+            if "actual_recall" in stat:
+                recall = _safe_float_prob(stat.get("actual_recall"))
+            else:
+                recall = _safe_float_prob(stat.get("recall"))
+            parent_key = key_str if key_str in TAXONOMY else TAXONOMY_CHILD_TO_PARENT.get(key_str)
+            if parent_key is None:
+                parent_key = HIERARCHY_UNGROUPED_KEY
+                parent_label = HIERARCHY_UNGROUPED_LABEL
+            else:
+                parent_label = _safe_category_display(parent_key)
+            categories_payload.append({
+                "key": key_str,
                 "label": label,
-                "threshold": _safe_float_prob(thresh_val),
+                "f1": _safe_float_prob(stat.get("f1")),
+                "precision": precision,
+                "recall": recall,
+                "support": int(support),
+                "hierarchyParentKey": parent_key,
+                "hierarchyParentLabel": parent_label,
             })
-
-    categories_payload = []
-    total_support = 0.0
-    weighted_precision = 0.0
-    weighted_recall = 0.0
-    for stat in category_stats_list:
-        if not isinstance(stat, dict):
-            continue
-        key = stat.get("category")
-        if key is None:
-            continue
-        label = _safe_category_display(key)
-        support_val = stat.get("support")
-        try:
-            sup = float(support_val) if support_val is not None else 0.0
-        except (TypeError, ValueError):
-            sup = 0.0
-        if math.isnan(sup) or math.isinf(sup) or sup < 0:
-            sup = 0.0
-        total_support += sup
-        prec = _safe_float_prob(stat.get("precision"))
-        rec = _safe_float_prob(stat.get("actual_recall")) if "actual_recall" in stat else _safe_float_prob(stat.get("recall"))
-        weighted_precision += prec * sup
-        weighted_recall += rec * sup
-        parent_key = str(key) if str(key) in TAXONOMY else TAXONOMY_CHILD_TO_PARENT.get(str(key))
-        if parent_key is None:
-            parent_key = HIERARCHY_UNGROUPED_KEY
-            parent_label = HIERARCHY_UNGROUPED_LABEL
-        else:
-            parent_label = _safe_category_display(parent_key)
-        categories_payload.append({
-            "key": str(key),
-            "label": label,
-            "f1": _safe_float_prob(stat.get("f1")),
-            "precision": prec,
-            "recall": rec,
-            "support": int(sup),
-            "hierarchyParentKey": parent_key,
-            "hierarchyParentLabel": parent_label,
-        })
-
-    if total_support > 0:
-        precision_overall = weighted_precision / total_support
-        recall_overall = weighted_recall / total_support
-    else:
-        precision_overall = 0.0
-        recall_overall = 0.0
-    if math.isnan(precision_overall) or math.isinf(precision_overall):
-        precision_overall = 0.0
-    if math.isnan(recall_overall) or math.isinf(recall_overall):
-        recall_overall = 0.0
+            if stat.get("type") == "critical":
+                if key_str not in inference_thresholds:
+                    logger.warning(
+                        "Critical category %s missing from inference threshold map; "
+                        "skipping criticalThresholds entry",
+                        key_str,
+                    )
+                    continue
+                critical_thresholds_list.append({
+                    "key": key_str,
+                    "label": label,
+                    "threshold": _safe_float_prob(inference_thresholds[key_str]),
+                })
 
     registry_allowlist = {".json", ".csv", ".md", ".pkl"}
     registry_list = []
@@ -1056,9 +990,13 @@ def _build_model_info_dashboard_payload() -> dict:
             "algorithmName": algorithm_name,
         },
         "metrics": {
-            "f1": round(f1_metric, 4),
-            "precision": round(precision_overall, 4),
-            "recall": round(recall_overall, 4),
+            "f1": round(f1_metric, 4) if f1_metric is not None else None,
+            "precision": (
+                round(precision_overall, 4) if precision_overall is not None else None
+            ),
+            "recall": (
+                round(recall_overall, 4) if recall_overall is not None else None
+            ),
             "evalCriticalRecall": (
                 round(eval_critical_recall, 4)
                 if eval_critical_recall is not None

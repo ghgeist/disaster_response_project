@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Badge } from "@/app/components/ui/badge";
-import { MODEL_METRICS, CATEGORIES } from "@/app/data/model_info_fallbacks";
 import { fetchDashboard } from "@/app/data/model_info_api";
 import { Info } from 'lucide-react';
 import { cn } from "@/app/components/ui/utils";
@@ -10,8 +9,18 @@ import { DashboardSidebar } from './DashboardSidebar';
 import { StormHeader } from './StormHeader';
 import { Footer } from './Footer';
 
-const MetricCard = ({ label, value, tooltip }: { label: string; value: string; tooltip: string }) => (
-  <div className="bg-white border border-slate-200 p-5 flex flex-col justify-between h-24 hover:border-slate-400 transition-colors rounded-none shadow-sm">
+const MetricCard = ({
+  label,
+  value,
+  tooltip,
+  secondary,
+}: {
+  label: string;
+  value: string;
+  tooltip: string;
+  secondary?: string;
+}) => (
+  <div className="bg-white border border-slate-200 p-5 flex flex-col justify-between min-h-24 hover:border-slate-400 transition-colors rounded-none shadow-sm">
     <Tooltip>
         <TooltipTrigger asChild>
             <div className="flex items-center gap-1.5 w-fit cursor-help group">
@@ -21,11 +30,14 @@ const MetricCard = ({ label, value, tooltip }: { label: string; value: string; t
                 <Info className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 transition-colors" />
             </div>
         </TooltipTrigger>
-        <TooltipContent className="max-w-[200px] bg-slate-900 text-slate-50 border-slate-800">
+        <TooltipContent className="max-w-[280px] bg-slate-900 text-slate-50 border-slate-800">
             <p className="font-sans normal-case tracking-normal">{tooltip}</p>
         </TooltipContent>
     </Tooltip>
     <span className="text-4xl font-mono font-bold text-slate-900 tracking-tighter">{value}</span>
+    {secondary ? (
+      <span className="text-xs font-mono text-slate-500 mt-1">{secondary}</span>
+    ) : null}
   </div>
 );
 
@@ -92,6 +104,13 @@ const HIERARCHY_GROUP_ORDER = [
   UNGROUPED_KEY,
 ];
 
+function formatPctOrDash(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(value)) {
+    return "—";
+  }
+  return `${Math.round(value * 100)}%`;
+}
+
 function useDashboardPayload() {
   const [payload, setPayload] = useState<Awaited<ReturnType<typeof fetchDashboard>> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -122,31 +141,35 @@ function useDashboardPayload() {
 export function ModelInformationDashboard() {
   const { payload, loading, error } = useDashboardPayload();
 
-  const modelId = payload?.model?.id ?? MODEL_METRICS.id;
-  const modelVersion = payload?.model?.version ?? MODEL_METRICS.version;
-  const lastSynced = payload?.model?.generatedAt ?? payload?.model?.lastUpdated ?? MODEL_METRICS.lastUpdated;
+  const isUnavailable =
+    Boolean(error) || payload?.model?.status === "unavailable" || payload == null;
+  const modelId = payload?.model?.id ?? "unknown";
+  const modelVersion = payload?.model?.version ?? "unknown";
+  const lastSynced = payload?.model?.generatedAt ?? payload?.model?.lastUpdated ?? null;
   const algorithmCode = payload?.model?.algorithm ?? "unknown";
   const algorithmName = payload?.model?.algorithmName ?? "Unknown";
-  const f1Pct = payload?.metrics != null ? Math.round(payload.metrics.f1 * 100) : MODEL_METRICS.f1Score;
-  const precisionPct = payload?.metrics != null ? Math.round(payload.metrics.precision * 100) : MODEL_METRICS.precision;
-  const recallPct = payload?.metrics != null ? Math.round(payload.metrics.recall * 100) : MODEL_METRICS.recall;
 
-  const categoriesFromApi = payload?.categories ?? [];
-  const processedCategories = categoriesFromApi.length > 0
-    ? categoriesFromApi.map((cat) => ({
-        name: cat.label,
-        f1: cat.f1,
-        count: cat.support,
-        adjustedF1: cat.f1 * (cat.support / (cat.support + k)),
-        hierarchyParentKey: cat.hierarchyParentKey ?? UNGROUPED_KEY,
-        hierarchyParentLabel: cat.hierarchyParentLabel ?? UNGROUPED_LABEL,
-      }))
-    : CATEGORIES.map((cat) => ({
-        ...cat,
-        adjustedF1: cat.f1 * (cat.count / (cat.count + k)),
-        hierarchyParentKey: UNGROUPED_KEY,
-        hierarchyParentLabel: UNGROUPED_LABEL,
-      }));
+  const f1Display = formatPctOrDash(payload?.metrics?.f1 ?? null);
+  const precisionDisplay = formatPctOrDash(payload?.metrics?.precision ?? null);
+  const recallDisplay = formatPctOrDash(payload?.metrics?.recall ?? null);
+  const evalCritical = payload?.metrics?.evalCriticalRecall ?? null;
+  const criticalRecallSecondary =
+    evalCritical != null && !Number.isNaN(evalCritical)
+      ? `Critical-label mean recall: ${Math.round(evalCritical * 100)}%`
+      : undefined;
+
+  const categoriesFromApi =
+    isUnavailable && (error || payload?.model?.status === "unavailable")
+      ? []
+      : (payload?.categories ?? []);
+  const processedCategories = categoriesFromApi.map((cat) => ({
+    name: cat.label,
+    f1: cat.f1,
+    count: cat.support,
+    adjustedF1: cat.f1 * (cat.support / (cat.support + k)),
+    hierarchyParentKey: cat.hierarchyParentKey ?? UNGROUPED_KEY,
+    hierarchyParentLabel: cat.hierarchyParentLabel ?? UNGROUPED_LABEL,
+  }));
   const sortedCategories = [...processedCategories].sort((a, b) => b.adjustedF1 - a.adjustedF1);
   const groupedCategories = sortedCategories.reduce<Record<string, { label: string; items: MatrixCategory[] }>>(
     (acc, category) => {
@@ -181,9 +204,15 @@ export function ModelInformationDashboard() {
     return left.label.localeCompare(right.label);
   });
 
+  const showUnavailableBanner = Boolean(error) || payload?.model?.status === "unavailable";
+  const headerStatus = loading
+    ? undefined
+    : (error ? "unavailable" : (payload?.model?.status ?? "unavailable"));
+  const headerLoading = loading;
+
   const appContent = loading ? (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col">
-      <StormHeader />
+      <StormHeader loading={headerLoading} />
       <div className="flex-1 overflow-y-auto p-8" aria-busy="true" aria-live="polite">
         <span className="sr-only">Loading model information…</span>
         <div className="max-w-[1400px] mx-auto space-y-8">
@@ -222,14 +251,14 @@ export function ModelInformationDashboard() {
     </div>
   ) : (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col">
-      <StormHeader />
+      <StormHeader status={headerStatus} loading={false} />
 
       <div className="flex flex-1 overflow-hidden">
 
           <main className="flex-1 overflow-y-auto p-8">
-              {error && (
+              {showUnavailableBanner && (
                 <div className="max-w-[1400px] mx-auto mb-4 px-4 py-2 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded">
-                  Model info unavailable. Showing fallback data.
+                  Model info unavailable.
                 </div>
               )}
               <div className="max-w-[1400px] mx-auto space-y-8">
@@ -252,19 +281,20 @@ export function ModelInformationDashboard() {
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <MetricCard
-                        label="F1 Score"
-                        value={`${f1Pct}%`}
-                        tooltip="A single score that balances accuracy and coverage. It reflects how well the system finds important signals without generating too many mistakes."
+                        label="Optimized Weighted F1"
+                        value={f1Display}
+                        tooltip="Mean binary weighted F1 across labels at deployed thresholds (negative and positive classes in each label's weighted avg). Not interchangeable with positive-class precision or recall."
                       />
                       <MetricCard
-                        label="Precision"
-                        value={`${precisionPct}%`}
-                        tooltip="When the system flags something, how often it's actually correct. Higher precision means fewer false alarms."
+                        label="Positive-class Weighted Precision"
+                        value={precisionDisplay}
+                        tooltip="Support-weighted precision across positive disaster labels at the same operating point. Not the precision companion to Optimized Weighted F1."
                       />
                       <MetricCard
-                        label="Recall"
-                        value={`${recallPct}%`}
-                        tooltip="How many real signals the system successfully catches. Higher recall means fewer missed events."
+                        label="Positive-class Weighted Recall"
+                        value={recallDisplay}
+                        secondary={criticalRecallSecondary}
+                        tooltip="Support-weighted recall across positive disaster labels at the same operating point. Critical-label mean recall (secondary) is an unweighted mean over critical labels only — a distinct aggregation family."
                       />
                   </div>
 
@@ -277,15 +307,17 @@ export function ModelInformationDashboard() {
                                       <Info className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 transition-colors" />
                                   </div>
                               </TooltipTrigger>
-                              <TooltipContent className="max-w-[260px] bg-slate-900 text-slate-50 border-slate-800">
+                              <TooltipContent className="max-w-[280px] bg-slate-900 text-slate-50 border-slate-800">
                                   <p className="font-sans normal-case tracking-normal">
-                                      Per-category model performance using F1 score.
-                                      Lower scores often reflect rare or harder-to-detect categories.
+                                      Frozen-eval positive-class F1 per label at deployed thresholds (category_stats), not baseline@0.5.
                                   </p>
                               </TooltipContent>
                           </Tooltip>
                       </div>
 
+                      {groupedCategoryEntries.length === 0 ? (
+                        <p className="text-sm text-slate-500 font-mono">No category metrics available.</p>
+                      ) : (
                       <div className="space-y-5">
                           {groupedCategoryEntries.map((group, groupIndex) => (
                             <section
@@ -328,6 +360,7 @@ export function ModelInformationDashboard() {
                             </section>
                           ))}
                       </div>
+                      )}
                   </div>
 
               </div>

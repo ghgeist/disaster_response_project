@@ -9,12 +9,14 @@ export interface DashboardModel {
   lastUpdated: string | null;
   status: string;
   generatedAt: string;
+  algorithm?: string;
+  algorithmName?: string;
 }
 
 export interface DashboardMetrics {
-  f1: number;
-  precision: number;
-  recall: number;
+  f1: number | null;
+  precision: number | null;
+  recall: number | null;
   evalCriticalRecall: number | null;
 }
 

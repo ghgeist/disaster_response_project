@@ -145,16 +145,37 @@ const payload = await response.json();
 ## `GET /api/model-info/dashboard`
 **Purpose:** Fetch the full payload for the model information dashboard.
 
+**Operating-point sources (one resolved production bundle):**
+- Headline `metrics.f1` / `evalCriticalRecall` from promoted `MODEL_INFO.json` OP fields.
+- Per-category rows and aggregate positive-class P/R from the hashed stem thresholds artifact `category_stats` (frozen-eval @ deployed thresholds).
+- Displayed `criticalThresholds[].threshold` values from the validated inference map `production_artifacts.thresholds`, not from `stat["threshold"]` alone.
+- Critical membership comes from `category_stats[*].type == "critical"`.
+- If a critical `category_stats` key is absent from the inference map, that entry is skipped (not published as threshold `0.0`).
+
+**Three KPI aggregation families (not one conventional P/R/F1 tuple):**
+1. **Optimized Weighted F1** — mean across labels of each binary `classification_report()["weighted avg"]["f1-score"]` (includes negative + positive classes).
+2. **Positive-class Weighted Precision / Recall** — support-weighted means of positive-class `category_stats` precision/recall.
+3. **Critical-label mean recall** (`evalCriticalRecall`) — unweighted mean recall across critical labels only (UI secondary under recall; not a fourth interchangeable card).
+
+**Null semantics:** When `category_stats` is missing/empty, or the payload is unavailable, `metrics.precision` and `metrics.recall` are `null` (UI: `—`). When the payload is unavailable, or `optimized_f1_weighted` is missing/invalid, `metrics.f1` is also `null` (UI: `—`). Never publish `0.0` for “not measured” headline F1 or P/R. Unavailable payloads also return `categories: []` and `criticalThresholds: []`.
+
+**Storm Signal / Model Information headers:** While model status is loading → neutral `Loading model…`. `model.status === "production"` → `SYSTEM: OPERATIONAL`. Otherwise → `MODEL: UNAVAILABLE`. Pages that do not supply model status omit the chip. Tooltip hierarchy wording `Classifier hierarchy correction: enabled` appears only when `status === "production"`.
+
 **Response Format**
 ```json
 {
-  "model": { "id": "MODEL_ID", "version": "2.4.0" },
-  "metrics": { "f1": 0.93, "precision": 0.94, "recall": 0.92, "evalCriticalRecall": 0.6149 },
+  "model": { "id": "MODEL_ID", "version": "v26-09-21", "status": "production", "algorithm": "lr", "algorithmName": "LogisticRegression" },
+  "metrics": {
+    "f1": 0.8975,
+    "precision": 0.7101,
+    "recall": 0.6074,
+    "evalCriticalRecall": 0.6149
+  },
   "categories": [
-    { "label": "Medical Help", "f1": 0.52, "support": 432 }
+    { "key": "medical_help", "label": "Medical Help", "f1": 0.4923, "precision": 0.4032, "recall": 0.6319, "support": 432 }
   ],
   "criticalThresholds": [
-    { "category": "medical_help", "threshold": 0.4 }
+    { "key": "medical_help", "label": "Medical Help", "threshold": 0.1239 }
   ],
   "registry": [
     { "name": "MODEL_INFO.json", "size": 1234, "type": "json" }
@@ -164,10 +185,10 @@ const payload = await response.json();
 
 `metrics.f1` comes from `performance.optimized_f1_weighted` (else
 `validation_results.optimized_f1_weighted`). It does **not** read naked
-`f1_weighted` or `baseline_f1_micro`. When the explicit field is absent,
-`metrics.f1` is `0.0`.
+`f1_weighted` or `baseline_f1_micro`. When the explicit field is absent or
+invalid, `metrics.f1` is `null` (same absence semantics as P/R).
 
-`evalCriticalRecall` is the frozen-eval critical-label operating point from promoted `MODEL_INFO.json` (`performance.eval_critical_recall`, else `validation_results`). It is a finite probability in `[0, 1]`, or `null` when missing/invalid. It is distinct from aggregate `recall`.
+`evalCriticalRecall` is the frozen-eval critical-label **mean** recall from promoted `MODEL_INFO.json` (`performance.eval_critical_recall`, else `validation_results`). It is a finite probability in `[0, 1]`, or `null` when missing/invalid. It is distinct from aggregate positive-class `recall`.
 
 **Example**
 ```ts
