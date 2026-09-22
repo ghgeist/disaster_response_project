@@ -198,7 +198,7 @@ export const MetricsPanel = ({ onCategoryClick }: MetricsPanelProps) => {
         </div>
 
         <div className="text-[10px] text-slate-400 text-center pt-4 border-t border-slate-200 border-dashed">
-          System Status: <span className="text-emerald-600 font-medium">Operational</span> • Last sync: 12s ago
+          Demo activity panel • Presentation values only
         </div>
       </div>
     </div>

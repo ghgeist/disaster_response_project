@@ -127,8 +127,7 @@ paths or raw exception text.
 {
   "version": "v26-09-21",
   "f1_score": 0.8975,
-  "status": "production",
-  "hierarchy_violations": 0.0
+  "status": "production"
 }
 ```
 
@@ -143,7 +142,6 @@ paths or raw exception text.
   "version": "unknown",
   "f1_score": null,
   "status": "unavailable",
-  "hierarchy_violations": 0.0,
   "provenanceError": "Production model provenance unavailable",
   "provenanceCode": "active_model_missing"
 }
