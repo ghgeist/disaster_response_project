@@ -3,7 +3,6 @@
 import hashlib
 import json
 import math
-import random
 from pathlib import Path
 from unittest.mock import patch
 
@@ -11,18 +10,18 @@ import pandas as pd
 import pytest
 
 from app.routes.api import (
-    _row_to_feed_item,
     _safe_label_value,
     _safe_optional_prob,
     _safe_text_value,
-    _simulated_probabilities,
     genre_to_source,
 )
+from app.services.errors import DemoFeedError
 from disasterproject.utils.config import TARGET_COLUMNS
+from tests.test_demo_feed import StubModelService, _FakeArtifacts, _FakePaths
 
 
 class StubDataService:
-    """Minimal data service stub for feed pagination tests."""
+    """Minimal data service stub for metrics/categories tests."""
 
     def __init__(self, df: pd.DataFrame, category_columns: list):
         self._df = df
@@ -47,7 +46,7 @@ def _json_contains_no_nan_or_infinity(obj) -> bool:
 
 
 def _make_feed_df(n_rows: int, category_columns: list | None = None) -> pd.DataFrame:
-    """Build a minimal DataFrame for feed tests (id, message, original, genre + categories)."""
+    """Build a minimal DataFrame for metrics/categories tests."""
     if category_columns is None:
         category_columns = ["water", "food"]
     rows = []
@@ -64,34 +63,130 @@ def _make_feed_df(n_rows: int, category_columns: list | None = None) -> pd.DataF
     return pd.DataFrame(rows)
 
 
-def test_api_feed_contract(client):
-    response = client.get("/api/feed")
-    assert response.status_code == 200
-    payload = response.get_json()
-    assert payload is not None
-    assert "items" in payload
-    assert "pagination" in payload
+def _matching_artifacts() -> _FakeArtifacts:
+    return _FakeArtifacts(
+        paths=_FakePaths(
+            model_path=Path("model/disaster_lr_v_test_prod_2026-01-01.pkl"),
+            thresholds_path=Path(
+                "model/disaster_lr_v_test_prod_2026-01-01_thresholds.json"
+            ),
+            labels_path=Path("model/disaster_lr_v_test_prod_2026-01-01_labels.json"),
+            model_info_path=Path("model/MODEL_INFO.json"),
+        ),
+        thresholds={"water": 0.5, "food": 0.5, "related": 0.5},
+        label_order=["related", "water", "food"],
+        model_sha256="a" * 64,
+        thresholds_sha256="b" * 64,
+        labels_sha256="c" * 64,
+        model_info={"version": "v_test"},
+    )
 
-    items = payload["items"]
-    assert isinstance(items, list)
-    assert items
-    item = items[0]
-    for key in (
-        "id",
-        "timestamp",
-        "source",
-        "content",
-        "language",
-        "riskLevel",
-        "categories",
-        "classifications",
-        "isTranslated",
-    ):
-        assert key in item
 
-    pagination = payload["pagination"]
-    for key in ("page", "limit", "total", "totalPages"):
-        assert key in pagination
+def _mini_demo_feed(n_items: int = 25) -> dict:
+    """Pinned-order mini cache: even message_ids are water-positive."""
+    items = []
+    for message_id in range(1, n_items + 1):
+        water = 1 if message_id % 2 == 0 else 0
+        food = 1 if message_id % 5 == 0 else 0
+        fixed_labels = {"related": 1, "water": water, "food": food}
+        classifications = []
+        categories = []
+        if water:
+            classifications.append({"category": "Water", "confidence": 0.8})
+            categories.append("Water")
+        if food:
+            classifications.append({"category": "Food", "confidence": 0.7})
+            categories.append("Food")
+        items.append(
+            {
+                "id": f"SIG-{message_id}",
+                "message_id": message_id,
+                "source": "Direct Report",
+                "content": f"message {message_id}",
+                "originalContent": None,
+                "language": "en",
+                "riskLevel": "MEDIUM" if water else "LOW",
+                "categories": categories[:3],
+                "classifications": classifications[:10],
+                "isTranslated": False,
+                "raw": {
+                    "probabilities": {"related": 0.9, "water": 0.8 * water, "food": 0.7 * food},
+                    "labels": dict(fixed_labels),
+                },
+                "fixed": {
+                    "probabilities": {"related": 0.9, "water": 0.8 * water, "food": 0.7 * food},
+                    "labels": dict(fixed_labels),
+                },
+            }
+        )
+    return {
+        "schema_version": 1,
+        "generated_at": "2026-09-22T00:00:00Z",
+        "provenance": {
+            "model_version": "v_test",
+            "model_stem": "disaster_lr_v_test_prod_2026-01-01",
+            "model_sha256": "a" * 64,
+            "thresholds_sha256": "b" * 64,
+            "labels_sha256": "c" * 64,
+            "input_message_ids": list(range(1, n_items + 1)),
+            "input_rows_sha256": "d" * 64,
+        },
+        "items": items,
+    }
+
+
+def _install_demo_feed(app, payload: dict, artifacts: _FakeArtifacts | None = None):
+    """Point feed endpoint at an in-memory mini cache with matching artifacts."""
+    artifacts = artifacts or _matching_artifacts()
+    stub_model = StubModelService(artifacts=artifacts)
+    original_model = getattr(app, "model_service", None)
+    app.model_service = stub_model
+    patcher = patch("app.routes.api.load_demo_feed", return_value=payload)
+    patcher.start()
+    return original_model, patcher
+
+
+def _restore_demo_feed(app, original_model, patcher):
+    patcher.stop()
+    app.model_service = original_model
+
+
+def test_api_feed_contract(app, client):
+    payload = _mini_demo_feed(5)
+    original_model, patcher = _install_demo_feed(app, payload)
+    try:
+        response = client.get("/api/feed")
+        assert response.status_code == 200
+        body = response.get_json()
+        assert body is not None
+        assert "items" in body
+        assert "pagination" in body
+
+        items = body["items"]
+        assert isinstance(items, list)
+        assert items
+        item = items[0]
+        for key in (
+            "id",
+            "timestamp",
+            "source",
+            "content",
+            "language",
+            "riskLevel",
+            "categories",
+            "classifications",
+            "isTranslated",
+        ):
+            assert key in item
+        assert "raw" not in item
+        assert "fixed" not in item
+        assert "message_id" not in item
+
+        pagination = body["pagination"]
+        for key in ("page", "limit", "total", "totalPages"):
+            assert key in pagination
+    finally:
+        _restore_demo_feed(app, original_model, patcher)
 
 
 def test_api_metrics_contract(client):
@@ -223,35 +318,12 @@ def test_safe_label_value_handles_nan():
     assert _safe_label_value("invalid") == 0
 
 
-def test_simulated_probabilities_accept_nan():
-    """Test that NaN values are handled correctly (treated as 0, get low probabilities)."""
-    row = {"medical_help": float("nan"), "water": 1, "food": 0}
-    result = _simulated_probabilities(row, ["medical_help", "water", "food"])
-    assert set(result.keys()) == {"medical_help", "water", "food"}
-    # NaN treated as 0, so gets low probability (new range: 0.05-0.30 depending on context)
-    assert 0.05 <= result["medical_help"] <= 0.35
-    # water=1 gets high probability (new range: 0.70-0.98 for non-critical, but water is critical so 0.80-0.98)
-    assert 0.70 <= result["water"] <= 0.98
-    # food=0 gets low probability
-    assert 0.05 <= result["food"] <= 0.35
-
-
-def test_row_to_feed_item_handles_nan_message_genre():
-    row = {"id": 7, "message": float("nan"), "genre": float("nan")}
-    item = _row_to_feed_item(row, [])
-    assert item["content"] == ""
-    assert item["source"] == "Direct Report"
-
-
-# ---- Pagination: use stub data_service so total/offset/limit are deterministic ----
+# ---- Pagination: stub demo-feed cache + matching production artifacts ----
 
 
 def test_feed_pagination_offset_in_range(app, client):
     """Offset in range: limit=10, offset=5, total=25 → items are indices 5–14 (ids 6–15)."""
-    df = _make_feed_df(25, ["water", "food"])
-    stub = StubDataService(df, ["water", "food"])
-    original = app.data_service
-    app.data_service = stub
+    original_model, patcher = _install_demo_feed(app, _mini_demo_feed(25))
     try:
         response = client.get("/api/feed?limit=10&offset=5")
         assert response.status_code == 200
@@ -266,15 +338,12 @@ def test_feed_pagination_offset_in_range(app, client):
         assert items[0]["id"] == "SIG-6"
         assert items[-1]["id"] == "SIG-15"
     finally:
-        app.data_service = original
+        _restore_demo_feed(app, original_model, patcher)
 
 
 def test_feed_pagination_clamp_out_of_range_offset(app, client):
     """When offset >= total: page == totalPages, items are last page, effective_offset clamped."""
-    df = _make_feed_df(25, ["water", "food"])
-    stub = StubDataService(df, ["water", "food"])
-    original = app.data_service
-    app.data_service = stub
+    original_model, patcher = _install_demo_feed(app, _mini_demo_feed(25))
     try:
         response = client.get("/api/feed?limit=10&offset=30")
         assert response.status_code == 200
@@ -288,17 +357,14 @@ def test_feed_pagination_clamp_out_of_range_offset(app, client):
         assert items[0]["id"] == "SIG-21"
         assert items[-1]["id"] == "SIG-25"
     finally:
-        app.data_service = original
+        _restore_demo_feed(app, original_model, patcher)
 
 
-def test_feed_pagination_empty_dataset(app, client):
-    """Empty dataset: items=[], total=0, totalPages=0, page=1."""
-    df = _make_feed_df(0, ["water", "food"])
-    stub = StubDataService(df, ["water", "food"])
-    original = app.data_service
-    app.data_service = stub
+def test_feed_pagination_empty_after_filter(app, client):
+    """Filter that matches no fixed positives: items=[], total=0, totalPages=0, page=1."""
+    original_model, patcher = _install_demo_feed(app, _mini_demo_feed(25))
     try:
-        response = client.get("/api/feed")
+        response = client.get("/api/feed?categories[]=shelter")
         assert response.status_code == 200
         data = response.get_json()
         assert data["items"] == []
@@ -306,15 +372,12 @@ def test_feed_pagination_empty_dataset(app, client):
         assert data["pagination"]["totalPages"] == 0
         assert data["pagination"]["page"] == 1
     finally:
-        app.data_service = original
+        _restore_demo_feed(app, original_model, patcher)
 
 
 def test_feed_limit_bounds(app, client):
     """limit=0 becomes 1; limit=999 is capped at 100."""
-    df = _make_feed_df(150, ["water", "food"])
-    stub = StubDataService(df, ["water", "food"])
-    original = app.data_service
-    app.data_service = stub
+    original_model, patcher = _install_demo_feed(app, _mini_demo_feed(150))
     try:
         r0 = client.get("/api/feed?limit=0")
         assert r0.status_code == 200
@@ -326,15 +389,12 @@ def test_feed_limit_bounds(app, client):
         assert r999.get_json()["pagination"]["limit"] == 100
         assert len(r999.get_json()["items"]) == 100
     finally:
-        app.data_service = original
+        _restore_demo_feed(app, original_model, patcher)
 
 
 def test_feed_filter_categories_offset_clamp(app, client):
     """When filters reduce results and offset is out of range, return last page (valid items)."""
-    df = _make_feed_df(25, ["water", "food"])
-    stub = StubDataService(df, ["water", "food"])
-    original = app.data_service
-    app.data_service = stub
+    original_model, patcher = _install_demo_feed(app, _mini_demo_feed(25))
     try:
         response = client.get("/api/feed?limit=10&offset=20&categories[]=water")
         assert response.status_code == 200
@@ -342,12 +402,43 @@ def test_feed_filter_categories_offset_clamp(app, client):
         pagination = data["pagination"]
         items = data["items"]
         total = pagination["total"]
-        assert total <= 13
+        # Even ids 2..24 → 12 water-positive items
+        assert total == 12
         assert pagination["page"] == pagination["totalPages"]
-        if total > 0:
-            assert len(items) >= 1
+        assert len(items) >= 1
+        for item in items:
+            assert "Water" in item["categories"]
+            assert "raw" not in item
+            assert "fixed" not in item
     finally:
-        app.data_service = original
+        _restore_demo_feed(app, original_model, patcher)
+
+
+def test_feed_hash_mismatch_returns_503(app, client):
+    """Stale cache provenance vs production artifacts → 503, no fake-confidence fallback."""
+    payload = _mini_demo_feed(3)
+    payload["provenance"]["model_sha256"] = "f" * 64
+    original_model, patcher = _install_demo_feed(app, payload)
+    try:
+        response = client.get("/api/feed")
+        assert response.status_code == 503
+        assert response.get_json().get("error") == "Feed unavailable right now."
+    finally:
+        _restore_demo_feed(app, original_model, patcher)
+
+
+def test_feed_load_error_returns_503(app, client):
+    """Loader failure fails closed with 503."""
+    original_model = getattr(app, "model_service", None)
+    app.model_service = StubModelService(artifacts=_matching_artifacts())
+    with patch(
+        "app.routes.api.load_demo_feed",
+        side_effect=DemoFeedError("cache missing"),
+    ):
+        response = client.get("/api/feed")
+    app.model_service = original_model
+    assert response.status_code == 503
+    assert response.get_json().get("error") == "Feed unavailable right now."
 
 
 # ---- Genre / _safe_text_value ----
@@ -370,148 +461,18 @@ def test_genre_unknown_maps_to_x():
     assert genre_to_source("unknown") == "X"
 
 
-# ---- Classification inclusion threshold ----
-
-
-def test_classification_inclusion_threshold_label_0_excluded_label_1_included():
-    """With random.uniform fixed to 0.0, label=0 categories not in classifications, label=1 in."""
-    row = {"id": 1, "water": 1, "food": 0, "shelter": 0}
-    category_columns = ["water", "food", "shelter"]
-    with patch.object(random, "uniform", return_value=0.0):
-        item = _row_to_feed_item(row, category_columns)
-    classifications = {c["category"] for c in item["classifications"]}
-    assert "Water" in classifications
-    assert "Food" not in classifications
-    assert "Shelter" not in classifications
-
-
-def test_feed_categories_only_from_actual_labels():
-    """
-    Regression test: categories shown must only come from actual label=1 in training data.
-    
-    This prevents the bug where messages with no labels (only related=1) were showing
-    random categories due to simulated probabilities being assigned to label=0 categories.
-    """
-    category_columns = ["electricity", "infrastructure_related", "medical_help", "water", "food"]
-    
-    # Test case 1: Message with no labels (only related=1) should show empty categories
-    row_no_labels = {
-        "id": 2,
-        "message": "Weather update - a cold front from Cuba that could pass over Haiti",
-        "original": None,
-        "genre": "direct",
-        "related": 1,
-        "electricity": 0,
-        "infrastructure_related": 0,
-        "medical_help": 0,
-        "water": 0,
-        "food": 0,
-    }
-    item_no_labels = _row_to_feed_item(row_no_labels, category_columns)
-    assert item_no_labels["categories"] == [], (
-        "Messages with no category labels should show empty categories list, "
-        "not random categories from simulated probabilities"
-    )
-    assert item_no_labels["classifications"] == []
-    
-    # Test case 2: Message with actual labels should only show those labels
-    row_with_labels = {
-        "id": 9,
-        "message": "UN reports Leogane 80-90 destroyed. Only Hospital St. Croix functioning.",
-        "original": None,
-        "genre": "direct",
-        "related": 1,
-        "electricity": 0,
-        "infrastructure_related": 1,
-        "medical_help": 0,
-        "water": 0,
-        "food": 0,
-    }
-    item_with_labels = _row_to_feed_item(row_with_labels, category_columns)
-    categories_set = set(item_with_labels["categories"])
-    assert "Infrastructure" in categories_set, "Should show Infrastructure (label=1)"
-    assert "Electricity" not in categories_set, "Should NOT show Electricity (label=0)"
-    assert "Medical Help" not in categories_set, "Should NOT show Medical Help (label=0)"
-    
-    # Verify classifications also only include label=1 categories
-    classification_categories = {c["category"] for c in item_with_labels["classifications"]}
-    assert "Infrastructure" in classification_categories
-    assert "Electricity" not in classification_categories
-    assert "Medical Help" not in classification_categories
-
-
-def test_risk_level_consistency_with_labeled_categories():
-    """
-    Regression test: risk level should only consider categories with label=1.
-    
-    This ensures that a message with no labeled critical categories cannot get
-    HIGH/MEDIUM risk level based on simulated probabilities for label=0 categories.
-    """
-    category_columns = ["medical_help", "water", "food", "search_and_rescue", "infrastructure_related"]
-    
-    # Test case: Message with no critical categories labeled (all critical have label=0)
-    # Even if simulated probabilities for critical categories are high, risk should be LOW
-    # Use a non-critical category like "infrastructure_related" or "buildings"
-    row_no_critical_labels = {
-        "id": 100,
-        "message": "General weather update - no immediate emergency",
-        "original": None,
-        "genre": "news",
-        "related": 1,
-        "medical_help": 0,  # Critical category with label=0
-        "water": 0,  # Critical category with label=0
-        "food": 0,  # Critical category with label=0
-        "search_and_rescue": 0,  # Critical category with label=0
-        "infrastructure_related": 1,  # Non-critical category with label=1
-    }
-    
-    # Run multiple times to account for randomness in probability simulation
-    risk_levels = []
-    for _ in range(10):
-        item = _row_to_feed_item(row_no_critical_labels, category_columns)
-        risk_levels.append(item["riskLevel"])
-    
-    # All risk levels should be LOW since no critical categories have label=1
-    # (Even if simulated probabilities for label=0 critical categories are high)
-    assert all(level == "LOW" for level in risk_levels), (
-        "Messages with no labeled critical categories should always get LOW risk level, "
-        "regardless of simulated probabilities for label=0 categories"
-    )
-    
-    # Test case: Message with labeled critical categories should get appropriate risk level
-    row_with_critical_labels = {
-        "id": 101,
-        "message": "Urgent: Medical assistance needed, water supplies running low",
-        "original": None,
-        "genre": "direct",
-        "related": 1,
-        "medical_help": 1,  # Critical category with label=1
-        "water": 1,  # Critical category with label=1
-        "food": 0,
-        "search_and_rescue": 0,
-        "shelter": 0,
-    }
-    
-    item_with_critical = _row_to_feed_item(row_with_critical_labels, category_columns)
-    # Should get HIGH or MEDIUM since we have 2 critical categories with label=1
-    assert item_with_critical["riskLevel"] in ["HIGH", "MEDIUM"], (
-        "Messages with labeled critical categories should get HIGH or MEDIUM risk level"
-    )
-    
-    # Verify classifications include the critical categories
-    classification_categories = {c["category"] for c in item_with_critical["classifications"]}
-    assert "Medical Help" in classification_categories
-    assert "Water" in classification_categories
-
-
 # ---- Data Reality Gate: no NaN/Infinity in JSON ----
 
 
-def test_api_responses_contain_no_nan_or_infinity(client):
+def test_api_responses_contain_no_nan_or_infinity(app, client):
     """Invariant: feed, metrics, categories, and classify responses contain no NaN or Infinity in JSON."""
-    feed_resp = client.get("/api/feed")
-    assert feed_resp.status_code == 200
-    assert _json_contains_no_nan_or_infinity(feed_resp.get_json()), "GET /api/feed must not emit NaN/Infinity"
+    original_model, patcher = _install_demo_feed(app, _mini_demo_feed(5))
+    try:
+        feed_resp = client.get("/api/feed")
+        assert feed_resp.status_code == 200
+        assert _json_contains_no_nan_or_infinity(feed_resp.get_json()), "GET /api/feed must not emit NaN/Infinity"
+    finally:
+        _restore_demo_feed(app, original_model, patcher)
 
     metrics_resp = client.get("/api/metrics")
     assert metrics_resp.status_code == 200

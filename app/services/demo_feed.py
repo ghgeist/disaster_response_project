@@ -18,7 +18,7 @@ from typing import Any, Mapping, Sequence
 
 import pandas as pd
 
-from app.services.errors import ModelServiceError
+from app.services.errors import DemoFeedError, ModelServiceError
 from app.utils.feed_display import (
     _safe_float_prob,
     _safe_text_value,
@@ -31,6 +31,8 @@ from app.utils.hierarchy_helpers import run_hierarchy_correction
 SCHEMA_VERSION = 1
 MAX_CLASSIFICATIONS = 10
 MAX_CATEGORY_NAMES = 3
+DEFAULT_DEMO_FEED_PATH = Path(__file__).resolve().parents[1] / "data" / "demo_feed.json"
+_PROVENANCE_HASH_FIELDS = ("model_sha256", "thresholds_sha256", "labels_sha256")
 
 # Accept common ISO-8601 forms including trailing Z and explicit offsets.
 _ISO8601_PATTERN = re.compile(
@@ -54,6 +56,65 @@ def validate_generated_at(generated_at: str) -> str:
     except ValueError as error:
         raise ValueError(f"generated_at must be ISO-8601, got {generated_at!r}") from error
     return candidate
+
+
+def load_demo_feed(path: Path | str | None = None) -> dict[str, Any]:
+    """
+    Load and validate a schema_version=1 demo-feed cache.
+
+    Requires ``provenance`` and a non-empty ``items`` list. Does not compare
+    hashes to the live production bundle (see ``assert_demo_feed_matches_production``).
+    """
+    feed_path = Path(path) if path is not None else DEFAULT_DEMO_FEED_PATH
+    if not feed_path.is_file():
+        raise DemoFeedError(f"Demo feed cache not found: {feed_path}")
+
+    try:
+        with open(feed_path, encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except json.JSONDecodeError as error:
+        raise DemoFeedError(f"Invalid JSON in demo feed cache {feed_path}: {error}") from error
+    except OSError as error:
+        raise DemoFeedError(f"Failed to read demo feed cache {feed_path}: {error}") from error
+
+    if not isinstance(payload, dict):
+        raise DemoFeedError(f"Demo feed cache must be a JSON object: {feed_path}")
+    if payload.get("schema_version") != SCHEMA_VERSION:
+        raise DemoFeedError(
+            f"Unsupported demo feed schema_version "
+            f"{payload.get('schema_version')!r}; expected {SCHEMA_VERSION}"
+        )
+    provenance = payload.get("provenance")
+    if not isinstance(provenance, dict) or not provenance:
+        raise DemoFeedError("Demo feed cache missing non-empty provenance object")
+    items = payload.get("items")
+    if not isinstance(items, list) or not items:
+        raise DemoFeedError("Demo feed cache must include a non-empty items list")
+    return payload
+
+
+def assert_demo_feed_matches_production(payload: Mapping[str, Any], artifacts: Any) -> None:
+    """
+    Fail closed when cache provenance hashes diverge from production artifacts.
+
+    Compares ``model_sha256``, ``thresholds_sha256``, and ``labels_sha256``.
+    """
+    provenance = payload.get("provenance")
+    if not isinstance(provenance, dict):
+        raise DemoFeedError("Demo feed provenance missing or invalid")
+
+    for field in _PROVENANCE_HASH_FIELDS:
+        expected = getattr(artifacts, field, None)
+        actual = provenance.get(field)
+        if not isinstance(expected, str) or not expected:
+            raise DemoFeedError(f"Production artifacts missing {field}")
+        if not isinstance(actual, str) or not actual:
+            raise DemoFeedError(f"Demo feed provenance missing {field}")
+        if actual != expected:
+            raise DemoFeedError(
+                f"Demo feed {field} mismatch: cache={actual[:12]}… "
+                f"production={expected[:12]}…"
+            )
 
 
 def load_message_ids(path: Path | str) -> list[int]:
