@@ -21,14 +21,19 @@ python scripts/process_data.py data/01_raw/disaster_messages.csv data/01_raw/dis
 # Option 1: pip install -e . (installs disasterproject package)
 # Option 2: PYTHONPATH=src python <script>
 
-# Production model (recommended)
-PYTHONPATH=src python scripts/04_create_production_model.py
+# Production candidate (LogisticRegression) + promotion
+PYTHONPATH=src python scripts/02_training/03_create_experimental_model.py --algorithm logistic_regression
+PYTHONPATH=src python scripts/03_optimization/optimize_per_category_thresholds.py --model-path <candidate.pkl>
+PYTHONPATH=src python scripts/07_operations/promote_model.py experiments/experimental_runs/<date> --dry-run
+
+# Legacy RandomForest experiments (outputs under experiments/legacy_rf/)
+PYTHONPATH=src python scripts/02_training/04_create_production_model.py --params experiments/model_candidates/vocab_15k.json --class-weights experiments/model_candidates/class_weights.json
 
 # Test sampling strategies
-PYTHONPATH=src python scripts/01_test_sampling_strategies.py data/02_stg/stg_disaster_response.db
+PYTHONPATH=src python scripts/02_training/01_test_sampling_strategies.py data/02_stg/stg_disaster_response.db
 
 # Compare models
-PYTHONPATH=src python scripts/compare_models.py
+PYTHONPATH=src python scripts/04_evaluation/compare_models.py
 ```
 
 ### Web Application

@@ -65,8 +65,8 @@ Contains:
 - **Other tested parameter sets** ready for model training
 
 **Usage:** These files are used as INPUT by:
-- `scripts/02_training/03_create_experimental_model.py`
-- `scripts/02_training/04_create_production_model.py`
+- `scripts/02_training/03_create_experimental_model.py` (production LR workflow)
+- `scripts/02_training/04_create_production_model.py` (legacy RandomForest only; outputs under `experiments/legacy_rf/`)
 
 **Note:** These are specific tested parameter sets, not reusable templates. For reusable experiment templates, see `experimental_configs/`.
 

@@ -12,6 +12,7 @@ src/disasterproject/data/column_definitions.py
 src/disasterproject/data/etl_pipeline.py
 src/disasterproject/data/loader.py
 src/disasterproject/data/preprocessor.py
+src/disasterproject/data/splits.py
 src/disasterproject/evaluation/__init__.py
 src/disasterproject/evaluation/metrics.py
 src/disasterproject/models/__init__.py
@@ -29,6 +30,7 @@ src/disasterproject/utils/metrics_io.py
 src/disasterproject/utils/model_defaults.py
 src/disasterproject/utils/secure_subprocess.py
 tests/test_agent_pipeline_harness.py
+tests/test_api_classify_hierarchy.py
 tests/test_api_contract_stubs.py
 tests/test_api_invariants.py
 tests/test_app_smoke.py
@@ -36,6 +38,7 @@ tests/test_compare_models_paths.py
 tests/test_csrf_smoke.py
 tests/test_flask_standardized.py
 tests/test_hierarchy.py
+tests/test_legacy_rf_output_paths.py
 tests/test_metrics_io.py
 tests/test_optimization.py
 tests/test_perf.py
@@ -43,4 +46,5 @@ tests/test_promote_model.py
 tests/test_request_logging_utils.py
 tests/test_security.py
 tests/test_smoke.py
+tests/test_threshold_calibration_split.py
 tests/test_thresholds_alignment.py

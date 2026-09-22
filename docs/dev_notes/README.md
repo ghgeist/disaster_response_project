@@ -2,7 +2,7 @@
 
 **Last Updated**: 2026-02-28  
 **Total Entries**: 17 dev notes spanning September 2025 - February 2026  
-**Project Status**: Production-ready with optimized model (4.53 MB, F1=92.76%, Critical Recall=65%), modular architecture, unified Storm Signal + Model Information dashboard (React Router), standardized model naming conventions, and security hardening complete
+**Project Status**: Production-ready with promoted LR model (≈4.59 MB, ≈89.75% threshold-optimized weighted F1 on frozen eval, ≈61.5% frozen-eval critical recall), modular architecture, unified Storm Signal + Model Information dashboard (React Router), standardized model naming conventions, and security hardening complete
 
 ---
 

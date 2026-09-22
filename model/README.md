@@ -235,8 +235,8 @@ If promotion fails with hash mismatch:
 
 **Note**: `model/parameters.json` and `model/class_weights.json` were removed on 2026-01-22.
 
-- **Reason**: These files were defaults for `scripts/04_create_production_model.py` (RandomForest only), but the current production model is LogisticRegression created via `scripts/03_create_experimental_model.py`.
-- **Impact**: If you need to run `scripts/04_create_production_model.py`, you must provide `--params` and `--class-weights` arguments pointing to appropriate config files.
+- **Reason**: These files were defaults for legacy `scripts/02_training/04_create_production_model.py` (RandomForest only). Production is LogisticRegression via `03_create_experimental_model.py` + `promote_model.py`.
+- **Impact**: Legacy RF runs require `--params` and `--class-weights`, default to `experiments/legacy_rf/<date>/`, and refuse `model/` unless `--allow-write-to-model-dir` is set.
 - **Current workflow**: Use `scripts/03_create_experimental_model.py` with configs from `experiments/model_candidates/` (e.g., `vocab_15k.json`), then promote via `scripts/07_operations/promote_model.py`.
 
 ## Related Documentation
