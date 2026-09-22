@@ -334,7 +334,9 @@ def load_rows_frame(
     )
 
 
-def rows_by_id_from_frame(df: pd.DataFrame, message_ids: Sequence[int]) -> dict[int, dict[str, Any]]:
+def rows_by_id_from_frame(
+    df: pd.DataFrame, message_ids: Sequence[int]
+) -> dict[int, dict[str, Any]]:
     """Index required rows by id; fail if any id is missing or has empty message."""
     if "id" not in df.columns:
         raise ValueError("DataFrame must include an 'id' column")
