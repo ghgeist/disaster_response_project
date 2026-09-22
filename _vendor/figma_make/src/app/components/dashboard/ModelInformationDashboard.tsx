@@ -105,7 +105,7 @@ const HIERARCHY_GROUP_ORDER = [
 ];
 
 function formatPctOrDash(value: number | null | undefined): string {
-  if (value == null || Number.isNaN(value) || value <= 0) {
+  if (value == null || Number.isNaN(value)) {
     return "—";
   }
   return `${Math.round(value * 100)}%`;
