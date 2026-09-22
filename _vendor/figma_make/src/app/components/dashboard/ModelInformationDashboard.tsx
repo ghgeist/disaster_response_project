@@ -105,7 +105,7 @@ const HIERARCHY_GROUP_ORDER = [
 ];
 
 function formatPctOrDash(value: number | null | undefined): string {
-  if (value == null || Number.isNaN(value)) {
+  if (value == null || Number.isNaN(value) || value <= 0) {
     return "—";
   }
   return `${Math.round(value * 100)}%`;
@@ -150,13 +150,9 @@ export function ModelInformationDashboard() {
   const algorithmName = payload?.model?.algorithmName ?? "Unknown";
 
   const f1Display = formatPctOrDash(payload?.metrics?.f1 ?? null);
-  const precisionDisplay = formatPctOrDash(payload?.metrics?.precision ?? null);
   const recallDisplay = formatPctOrDash(payload?.metrics?.recall ?? null);
   const evalCritical = payload?.metrics?.evalCriticalRecall ?? null;
-  const criticalRecallSecondary =
-    evalCritical != null && !Number.isNaN(evalCritical)
-      ? `Critical-label mean recall: ${Math.round(evalCritical * 100)}%`
-      : undefined;
+  const criticalRecallDisplay = formatPctOrDash(evalCritical);
 
   const categoriesFromApi =
     isUnavailable && (error || payload?.model?.status === "unavailable")
@@ -281,20 +277,19 @@ export function ModelInformationDashboard() {
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <MetricCard
+                        label="Frozen-eval Critical Recall"
+                        value={criticalRecallDisplay}
+                        tooltip="Unweighted mean recall over safety-critical labels on the frozen eval split at calibration-tuned production thresholds."
+                      />
+                      <MetricCard
                         label="Optimized Weighted F1"
                         value={f1Display}
                         tooltip="Mean binary weighted F1 across labels at deployed thresholds (negative and positive classes in each label's weighted avg). Not interchangeable with positive-class precision or recall."
                       />
                       <MetricCard
-                        label="Positive-class Weighted Precision"
-                        value={precisionDisplay}
-                        tooltip="Support-weighted precision across positive disaster labels at the same operating point. Not the precision companion to Optimized Weighted F1."
-                      />
-                      <MetricCard
                         label="Positive-class Weighted Recall"
                         value={recallDisplay}
-                        secondary={criticalRecallSecondary}
-                        tooltip="Support-weighted recall across positive disaster labels at the same operating point. Critical-label mean recall (secondary) is an unweighted mean over critical labels only — a distinct aggregation family."
+                        tooltip="Support-weighted recall across positive disaster labels at the same operating point."
                       />
                   </div>
 

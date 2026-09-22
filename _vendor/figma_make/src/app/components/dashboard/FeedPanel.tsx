@@ -57,9 +57,9 @@ export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFil
   };
 
   return (
-    <div className="h-full flex flex-col bg-slate-50 min-w-0">
+    <div className="h-full min-h-0 flex flex-col bg-slate-50 min-w-0">
       {/* Header */}
-      <div className="p-3 border-b border-slate-200 bg-white flex justify-between items-center sticky top-0 z-20">
+      <div className="p-3 border-b border-slate-200 bg-white flex justify-between items-center sticky top-0 z-20 shrink-0">
         <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2 uppercase tracking-wide">
           <Radio className="w-4 h-4 text-slate-500" />
           Live Feed 
@@ -184,7 +184,7 @@ export const FeedPanel = ({ signals, selectedFilters, onToggleFilter, onClearFil
       )}
       
       {/* Feed List */}
-      <div className="flex-1 overflow-y-auto p-0 scrollbar-thin" data-feed-panel>
+      <div className="flex-1 min-h-0 overflow-y-auto p-0 scrollbar-thin" data-feed-panel>
         {loading ? (
           <div className="p-3 space-y-3" aria-busy="true" aria-live="polite">
             <span className="sr-only">Loading feed…</span>

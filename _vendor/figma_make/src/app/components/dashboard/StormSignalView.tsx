@@ -285,7 +285,7 @@ export function StormSignalView() {
 
   return (
     <DashboardSidebar activePage="overview">
-      <div className="min-h-screen w-full flex flex-col bg-slate-50 font-sans text-slate-900">
+      <div className="h-svh max-h-svh w-full flex flex-col bg-slate-50 font-sans text-slate-900 overflow-hidden">
         <div className="lg:hidden fixed inset-0 z-[100] bg-slate-900/90 flex items-center justify-center p-6 backdrop-blur-sm">
           <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm text-center">
             <Radar className="w-12 h-12 text-blue-500 mx-auto mb-4" />
@@ -306,11 +306,11 @@ export function StormSignalView() {
 
         <DashboardHeader modelInfo={modelInfo} modelInfoLoading={modelInfoLoading} />
 
-        <main className="flex-1 overflow-hidden relative">
+        <main className="flex-1 min-h-0 overflow-hidden relative">
           {isDesktop ? (
-            <div className="h-full w-full">
-              <PanelGroup direction="horizontal">
-                <Panel defaultSize={38} minSize={25} order={1} className="bg-white min-w-0 overflow-hidden">
+            <div className="h-full min-h-0 w-full">
+              <PanelGroup direction="horizontal" className="h-full">
+                <Panel defaultSize={38} minSize={25} order={1} className="bg-white min-w-0 min-h-0 overflow-hidden">
                   <FeedPanel
                     signals={filteredSignals}
                     selectedFilters={selectedFilters}
@@ -324,13 +324,13 @@ export function StormSignalView() {
 
                 <ResizeHandle />
 
-                <Panel defaultSize={34} minSize={20} order={2} className="bg-slate-50 min-w-0 overflow-hidden">
+                <Panel defaultSize={34} minSize={20} order={2} className="bg-slate-50 min-w-0 min-h-0 overflow-hidden">
                   <MetricsPanel onCategoryClick={handleAddFilter} />
                 </Panel>
 
                 <ResizeHandle />
 
-                <Panel defaultSize={28} minSize={22} collapsible order={3} className="bg-white min-w-0 overflow-hidden">
+                <Panel defaultSize={28} minSize={22} collapsible order={3} className="bg-white min-w-0 min-h-0 overflow-hidden">
                   <ClassificationPanel onDispatch={handleDispatch} />
                 </Panel>
               </PanelGroup>
