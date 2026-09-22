@@ -1,9 +1,7 @@
 """
 Message classification routes for the Disaster Response application.
 """
-import json
 import logging
-from pathlib import Path
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 
@@ -57,18 +55,6 @@ def _render_home_with_form_errors(form: MessageForm):
             graphJSON="[]",
             descriptions=[],
         )
-
-
-def _load_demo_metrics():
-    """Load static demo metrics for hierarchy results (non-fatal if missing)."""
-    try:
-        metrics_path = Path(current_app.static_folder) / "demo_metrics.json"
-        if metrics_path.exists():
-            with open(metrics_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-    except Exception:
-        return None
-    return None
 
 
 def _get_classify_query(form: MessageForm):
@@ -126,7 +112,6 @@ def _build_classify_response(prediction_result: dict, model_service):
             "labels": fixed_labels,
         },
         "violations": violations,
-        "metrics": _load_demo_metrics(),
     }
 
 
