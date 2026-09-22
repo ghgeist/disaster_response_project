@@ -285,9 +285,9 @@ python scripts/06_validation/validate_multilabel_sampling.py
 ## Script Dependencies
 
 - **Data**: `data/02_stg/stg_disaster_response.db`
-- **Parameters**: `model/parameters.json` or experiment-specific configs
-- **Class Weights**: `model/class_weights.json` or experiment-specific configs
-- **Hyperparameters**: `experiments/configs/hyperparameter_optimization.json`
+- **Parameters**: `experiments/model_candidates/` (e.g. `vocab_15k.json`)
+- **Class Weights**: `experiments/model_candidates/class_weights.json`
+- **Hyperparameters**: `experiments/experimental_configs/hyperparameters/` (search spaces) or `experiments/model_candidates/` (ready-to-use sets)
 - **Source Code**: `src/disasterproject/`
 
 ## Output Locations
