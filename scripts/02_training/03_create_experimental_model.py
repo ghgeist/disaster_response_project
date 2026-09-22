@@ -326,8 +326,8 @@ def main():
                        help='Force random split even if an eval IDs file exists')
     parser.add_argument('--algorithm', dest='algorithm',
                        choices=['random_forest', 'logistic_regression'],
-                       default='random_forest',
-                       help='Algorithm to use (default: random_forest)')
+                       default='logistic_regression',
+                       help='Algorithm to use (default: logistic_regression; random_forest still available)')
 
     args = parser.parse_args()
 

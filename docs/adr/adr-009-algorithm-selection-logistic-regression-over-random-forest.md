@@ -177,7 +177,10 @@ Replace RandomForestClassifier with **LogisticRegression** as the primary algori
 - **RF better**: 2/8 critical categories (search_and_rescue, food)
 - **Tied**: 1/8 critical categories (hospitals)
 
-### Overall Metrics
+### Historical LR-vs-RF study (pre-three-way / tune-on-eval)
+
+These figures are from the earlier LR-vs-RF comparison under the pre-three-way **tune-on-eval** workflow. They are retained as decision evidence and are **not** the current production operating point. For current production metrics (frozen-eval critical recall **61.5%**, threshold-optimized weighted F1 **≈89.75%**, baseline frozen-eval micro F1 **≈64.5%**), see **Current Production Model** under Performance Characteristics above.
+
 - **Baseline F1**: LR 0.9379 vs RF 0.9366 (+0.14% improvement)
 - **Threshold-optimized F1**: LR 0.9276 vs RF 0.8869 (+4.59% improvement)
 - **Model size**: LR 4.53MB vs RF 31MB+ (85% reduction)
