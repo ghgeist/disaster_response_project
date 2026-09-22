@@ -37,7 +37,9 @@ Preferred communication style: Simple, everyday language.
 - **Error Handling**: Structured error pages with user-friendly messaging
 
 ### Deployment Strategy
-- **Hybrid Model Deployment**: Google Drive primary storage with local fallback for development
+- **Local promoted production artifact**: Runtime loads the promoted pickle under `model/` (not a live remote download)
+- **Stem-bound thresholds and labels**: Thresholds and category labels are bound to the model stem; provenance is recorded in `MODEL_INFO`
+- **No active Google Drive runtime download path**: Historical hybrid Drive-primary deployment is retired (see ADR-003 / deployment runbook)
 - **Module Compatibility**: Runtime path patching to handle legacy model dependencies
 - **Environment-based Configuration**: Separate configs for development, staging, and production
 - **Health Monitoring**: Model performance dashboard with real-time metrics
@@ -45,7 +47,7 @@ Preferred communication style: Simple, everyday language.
 ## External Dependencies
 
 ### Third-party Services
-- **Google Drive**: Production model storage and distribution (file ID: 1s_sBXnUdJ-rWm4-YEsDixHCbxBca-oXh)
+- **Google Drive** *(historical / retired)*: Formerly used for production model distribution (`GDRIVE_MODEL_ID`); not part of the current runtime path
 
 ### APIs and Libraries
 - **Machine Learning**: scikit-learn, joblib, imblearn for model training and sampling strategies

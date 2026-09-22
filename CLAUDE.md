@@ -62,9 +62,10 @@ Disaster response message classification system with modular ML pipeline targeti
 ### Key Data Flow
 1. Raw CSV → SQLite staging DB (via `scripts/process_data.py`)
 2. ETL pipeline processes text + creates multi-label targets
-3. Sampling strategies handle severe class imbalance
-4. RandomForest with MultiOutputClassifier for 36 categories
-5. Models serialized with joblib in `model/` directory
+3. Class imbalance handled mainly via per-label thresholds (class-weighting available; see ADR-008)
+4. LogisticRegression with MultiOutputClassifier for 36 categories (RandomForest retained for explicit experimental comparisons)
+5. Candidate training → calibration threshold tuning → frozen-eval reporting → promotion
+6. Promoted production artifacts live under `model/` with stem-bound thresholds/labels and `MODEL_INFO` provenance (strict model/threshold/label binding)
 
 ### Experiment System
 - Organized experiments in `experiments/` with clear structure:
@@ -80,7 +81,7 @@ Disaster response message classification system with modular ML pipeline targeti
 - Flask factory pattern in `app/`
 - **Important**: Use `run.py` as entry point (handles factory setup)
 - Single React app in `_vendor/figma_make` serves both Storm Signal dashboard and Model Information; build with `scripts/build_dashboard.py`, output in `app/static/dashboard/`
-- Auto-downloads models from Google Drive for cloud deployment
+- Loads locally promoted production pickles from `model/` (historical Google Drive auto-download path is retired; see ADR-003)
 - Optimized for both local development and Replit
 
 ## AI Model Usage
