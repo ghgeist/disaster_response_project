@@ -179,6 +179,25 @@ Promotes validated experimental models to production.
   - Does **not** rewrite `app/config.py` by default (auto-discovery); pass `--update-config` only if you maintain a hardcoded `disaster_*` literal
   - Archives prior production **metadata** + SHA256 to `experiments/model_archive/` (does **not** copy the `.pkl`); rollback is via Git history of tracked `model/*_prod_*.pkl`
   - Missing/invalid evidence fails closed; `--force` overrides metric/provenance gates only (model + thresholds artifacts with hashes, and a loadable `lr`/`rf` model, remain required)
+
+### `build_demo_feed.py`
+Builds the deterministic cached demo feed (`app/data/demo_feed.json`) from hierarchy-corrected production predictions on a pinned message ID list.
+- **Use when**: After promoting a new production model, or first-time ID pinning
+- **Usage**:
+  ```bash
+  # First-time: pin IDs (refuses to overwrite an existing IDs file)
+  python scripts/07_operations/build_demo_feed.py --init-ids \
+    --generated-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+  # After promotion: regenerate feed for the same pinned IDs (do NOT pass --init-ids)
+  python scripts/07_operations/build_demo_feed.py \
+    --generated-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  ```
+- **Notes**:
+  - Display classifications come only from hierarchy-corrected positive labels (no simulation / ground-truth columns)
+  - Staging SQLite may lack `id`; the CLI falls back to sibling `stg_disaster_messages.csv`
+  - `--generated-at` is required so regen is byte-stable when inputs are unchanged
+
 ### `model_naming_utility.py`
 Model naming helper utilities.
 - **Use when**: Generating consistent model names
