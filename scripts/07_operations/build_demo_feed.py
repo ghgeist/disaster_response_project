@@ -131,7 +131,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
 
     # --limit is only meaningful with --init-ids
-    limit_explicit = any(arg == "--limit" or arg.startswith("--limit=") for arg in (argv or sys.argv[1:]))
+    argv_tokens = argv if argv is not None else sys.argv[1:]
+    limit_explicit = any(
+        arg == "--limit" or arg.startswith("--limit=") for arg in argv_tokens
+    )
     if limit_explicit and not args.init_ids:
         print("❌ --limit requires --init-ids")
         return 1
@@ -141,9 +144,14 @@ def main(argv: list[str] | None = None) -> int:
 
     output_path = _resolve_path(args.output)
     ids_path = _resolve_path(args.ids_file)
-    model_path = _resolve_path(args.model_path) if args.model_path else Path(Config.MODEL_PATH).resolve()
+    if args.model_path:
+        model_path = _resolve_path(args.model_path)
+    else:
+        model_path = Path(Config.MODEL_PATH).resolve()
     database_path = (
-        _resolve_path(args.database) if args.database else Path(Config.DATABASE_PATH).resolve()
+        _resolve_path(args.database)
+        if args.database
+        else Path(Config.DATABASE_PATH).resolve()
     )
     csv_path = _resolve_path(args.csv) if args.csv else None
 

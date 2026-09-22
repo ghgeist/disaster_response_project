@@ -362,9 +362,15 @@ def rows_by_id_from_frame(df: pd.DataFrame, message_ids: Sequence[int]) -> dict[
         record = working.loc[mid]
         row = {
             "id": mid,
-            "message": _canonicalize_text(record["message"] if "message" in working.columns else ""),
-            "original": _canonicalize_text(record["original"] if "original" in working.columns else ""),
-            "genre": _canonicalize_text(record["genre"] if "genre" in working.columns else ""),
+            "message": _canonicalize_text(
+                record["message"] if "message" in working.columns else ""
+            ),
+            "original": _canonicalize_text(
+                record["original"] if "original" in working.columns else ""
+            ),
+            "genre": _canonicalize_text(
+                record["genre"] if "genre" in working.columns else ""
+            ),
         }
         if not row["message"].strip():
             empty.append(mid)
