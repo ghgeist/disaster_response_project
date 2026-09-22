@@ -73,8 +73,8 @@ def _matching_artifacts() -> _FakeArtifacts:
             labels_path=Path("model/disaster_lr_v_test_prod_2026-01-01_labels.json"),
             model_info_path=Path("model/MODEL_INFO.json"),
         ),
-        thresholds={"water": 0.5, "food": 0.5, "related": 0.5},
-        label_order=["related", "water", "food"],
+        thresholds={"water": 0.5, "food": 0.5, "shelter": 0.5, "related": 0.5},
+        label_order=["related", "water", "food", "shelter"],
         model_sha256="a" * 64,
         thresholds_sha256="b" * 64,
         labels_sha256="c" * 64,
@@ -412,6 +412,51 @@ def test_feed_filter_categories_offset_clamp(app, client):
             assert "fixed" not in item
     finally:
         _restore_demo_feed(app, original_model, patcher)
+
+
+def test_feed_filter_unknown_only_returns_unfiltered(app, client):
+    """Unknown category names are ignored; filter is a no-op when none are valid."""
+    original_model, patcher = _install_demo_feed(app, _mini_demo_feed(10))
+    try:
+        response = client.get("/api/feed?limit=25&categories[]=not_a_real_category")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["pagination"]["total"] == 10
+        assert len(data["items"]) == 10
+    finally:
+        _restore_demo_feed(app, original_model, patcher)
+
+
+def test_feed_filter_mixed_valid_and_unknown(app, client):
+    """Mixed filters keep only known labels and still apply them."""
+    original_model, patcher = _install_demo_feed(app, _mini_demo_feed(10))
+    try:
+        response = client.get(
+            "/api/feed?limit=25&categories[]=water&categories[]=typo_category"
+        )
+        assert response.status_code == 200
+        data = response.get_json()
+        # Even ids 2..10 → 5 water-positive items
+        assert data["pagination"]["total"] == 5
+        assert len(data["items"]) == 5
+        for item in data["items"]:
+            assert "Water" in item["categories"]
+    finally:
+        _restore_demo_feed(app, original_model, patcher)
+
+
+def test_feed_unexpected_error_returns_500(app, client):
+    """Programming errors are 500, not 503."""
+    original_model = getattr(app, "model_service", None)
+    app.model_service = StubModelService(artifacts=_matching_artifacts())
+    with patch(
+        "app.routes.api.load_demo_feed",
+        side_effect=RuntimeError("boom"),
+    ):
+        response = client.get("/api/feed")
+    app.model_service = original_model
+    assert response.status_code == 500
+    assert response.get_json().get("error") == "Feed unavailable right now."
 
 
 def test_feed_hash_mismatch_returns_503(app, client):

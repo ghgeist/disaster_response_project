@@ -323,6 +323,19 @@ def _prepare_displayable_data(df, category_columns: list):
     return df, displayable_category_columns
 
 
+def _resolve_valid_feed_filter_categories(
+    filter_cats: list, label_order: list | None
+) -> list:
+    """
+    Keep only production label names from the request; drop unknowns and ``related``.
+
+    Mirrors the prior DB-feed behavior: unknown names are ignored, and filtering
+    applies only when at least one valid displayable label remains.
+    """
+    allowed = {name for name in (label_order or []) if name and name != "related"}
+    return [cat for cat in filter_cats if cat in allowed]
+
+
 def _item_matches_category_filter(item: dict, filter_cats: list) -> bool:
     """True when any requested internal name is a hierarchy-corrected positive."""
     labels = (item.get("fixed") or {}).get("labels") or {}
@@ -387,11 +400,16 @@ def feed():
         offset_raw = request.args.get("offset", 0, type=int)
         limit = min(max(1, limit_raw if limit_raw is not None else 25), 100)
         offset = max(0, offset_raw if offset_raw is not None else 0)
-        filter_cats = _get_feed_filter_categories()
+        filter_cats = _resolve_valid_feed_filter_categories(
+            _get_feed_filter_categories(),
+            getattr(artifacts, "label_order", None),
+        )
 
         items = list(cached.get("items") or [])
         if filter_cats:
-            items = [item for item in items if _item_matches_category_filter(item, filter_cats)]
+            items = [
+                item for item in items if _item_matches_category_filter(item, filter_cats)
+            ]
 
         page_items, pagination = _paginate_feed_items(items, limit, offset)
         payload = {
@@ -399,12 +417,12 @@ def feed():
             "pagination": pagination,
         }
         return jsonify(payload)
-    except (DemoFeedError, ModelServiceError, FileNotFoundError, OSError, ValueError) as error:
+    except (DemoFeedError, ModelServiceError) as error:
         _log_api_error("GET /api/feed", error)
         return jsonify({"error": "Feed unavailable right now."}), 503
     except Exception as error:
         _log_api_error("GET /api/feed", error)
-        return jsonify({"error": "Feed unavailable right now."}), 503
+        return jsonify({"error": "Feed unavailable right now."}), 500
 
 
 @api_bp.route("/metrics", methods=["GET"])

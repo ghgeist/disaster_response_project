@@ -17,7 +17,7 @@ Historical disaster-response messages are classified once with the active produc
 **Query Params**
 - `limit` (int): max number of items (default 25, capped at 100).
 - `offset` (int): pagination offset.
-- `categories[]` (string[]): filter to items whose hierarchy-corrected `fixed.labels` mark the given **internal** names as positive (`value == 1`). Staging ground-truth columns are never used for display or filter decisions.
+- `categories[]` (string[]): filter to items whose hierarchy-corrected `fixed.labels` mark the given **internal** names as positive (`value == 1`). Names are validated against the active production `label_order` (the `related` meta-label is excluded). Unknown names are ignored; filtering applies only when at least one valid name remains. Staging ground-truth columns are never used for display or filter decisions.
 
 **Response Format**
 ```json
@@ -50,7 +50,9 @@ Historical disaster-response messages are classified once with the active produc
 
 `timestamp` is **required** and injected by the server via a deterministic synthetic clock (`generate_timestamp_for_id`); it is not stored in the cache. Cached `raw` / `fixed` / `message_id` fields are omitted from the public JSON.
 
-**Fail-closed behavior:** If the cache is missing/invalid, `schema_version` is unsupported, provenance hashes (`model_sha256`, `thresholds_sha256`, `labels_sha256`) do not match `ModelService.get_production_artifacts()`, or the model service is unavailable, the endpoint returns HTTP **503** with `{"error": "Feed unavailable right now."}` — there is no simulated-confidence fallback.
+The endpoint performs **no per-message inference**; it serves only cached hierarchy-corrected classifications. The first request may still lazy-load the production bundle via `ModelService.get_production_artifacts()` (shared provenance contract); artifacts are then cached in the service.
+
+**Fail-closed behavior:** If the cache is missing/invalid, `schema_version` is unsupported, provenance hashes (`model_sha256`, `thresholds_sha256`, `labels_sha256`) do not match `ModelService.get_production_artifacts()`, or the model service is unavailable, the endpoint returns HTTP **503** with `{"error": "Feed unavailable right now."}` — there is no simulated-confidence fallback. Unexpected server errors return **500** with the same error payload.
 
 **Regeneration:** After promoting a new production model, rebuild the cache with `python scripts/07_operations/build_demo_feed.py` (do **not** pass `--init-ids` unless intentionally re-pinning message IDs).
 
