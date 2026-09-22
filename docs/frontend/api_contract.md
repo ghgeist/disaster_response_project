@@ -115,8 +115,10 @@ paths or raw exception text.
 }
 ```
 
-`f1_score` prefers `performance.f1_weighted`, then `validation_results.f1_weighted`,
-or `null` when absent.
+`f1_score` comes from `performance.optimized_f1_weighted` (else
+`validation_results.optimized_f1_weighted`). It does **not** read naked
+`f1_weighted` or `baseline_f1_micro`. When the explicit field is absent,
+`f1_score` is `null`.
 
 **Response Format (unavailable)**
 ```json
@@ -159,6 +161,11 @@ const payload = await response.json();
   ]
 }
 ```
+
+`metrics.f1` comes from `performance.optimized_f1_weighted` (else
+`validation_results.optimized_f1_weighted`). It does **not** read naked
+`f1_weighted` or `baseline_f1_micro`. When the explicit field is absent,
+`metrics.f1` is `0.0`.
 
 `evalCriticalRecall` is the frozen-eval critical-label operating point from promoted `MODEL_INFO.json` (`performance.eval_critical_recall`, else `validation_results`). It is a finite probability in `[0, 1]`, or `null` when missing/invalid. It is distinct from aggregate `recall`.
 
