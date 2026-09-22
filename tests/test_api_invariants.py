@@ -1,15 +1,11 @@
 """Regression/invariant tests for dashboard API (severity, probability bands, safe helpers).
 
-Option A: Severity and simulated probability invariants — lock in business rules.
+Option A: Severity invariants — lock in business rules.
 Option B: Safe helpers / NaN contract (Data Reality Gate) — no NaN/Infinity in JSON.
 """
 
 import json
 import math
-import random
-from unittest.mock import patch
-
-import pytest
 
 from app.routes.api import (
     CATEGORY_GROUPS,
@@ -18,11 +14,9 @@ from app.routes.api import (
     _safe_float_prob,
     _safe_label_value,
     _safe_text_value,
-    _simulated_probabilities,
     calculate_severity,
     to_display_name,
 )
-
 
 # ---- Option A: Severity invariants ----
 
@@ -98,19 +92,19 @@ def test_calculate_severity_treats_new_critical_categories_as_critical():
         "water": 0.7,
     }
     assert calculate_severity(probs_missing) == "HIGH"
-    
+
     # Test refugees
     probs_refugees = {
         "refugees": 0.75,
     }
     assert calculate_severity(probs_refugees) == "MEDIUM"
-    
+
     # Test death
     probs_death = {
         "death": 0.9,
     }
     assert calculate_severity(probs_death) == "HIGH"
-    
+
     # Test combination of new critical categories
     probs_combined = {
         "missing_people": 0.6,
@@ -153,7 +147,7 @@ def test_critical_internal_categories_matches_critical_needs_group():
     """CRITICAL_INTERNAL_CATEGORIES must match Critical Needs group in CATEGORY_GROUPS."""
     critical_needs_display = CATEGORY_GROUPS["Critical Needs"]
     critical_needs_internal = {_display_to_internal(name) for name in critical_needs_display}
-    
+
     assert critical_needs_internal == CRITICAL_INTERNAL_CATEGORIES, (
         f"CRITICAL_INTERNAL_CATEGORIES mismatch:\n"
         f"  Expected (from Critical Needs): {sorted(critical_needs_internal)}\n"
@@ -166,7 +160,7 @@ def test_critical_internal_categories_matches_critical_needs_group():
 def test_all_critical_needs_categories_have_display_name_mapping():
     """All critical internal categories must have valid display name mappings."""
     critical_needs_display = CATEGORY_GROUPS["Critical Needs"]
-    
+
     for internal_cat in CRITICAL_INTERNAL_CATEGORIES:
         display_name = to_display_name(internal_cat)
         assert display_name in critical_needs_display, (
@@ -187,50 +181,11 @@ def test_category_groups_other_does_not_contain_critical_categories():
     """Other group must not contain categories that are in Critical Needs."""
     other_group = CATEGORY_GROUPS["Other"]
     critical_needs = CATEGORY_GROUPS["Critical Needs"]
-    
+
     overlap = set(other_group) & set(critical_needs)
     assert not overlap, (
         f"Categories in both Other and Critical Needs (should not happen): {overlap}"
     )
-
-
-# ---- Option A: Simulated probability bands (Tripwire #6) ----
-
-
-def test_simulated_probability_bands_label_0_below_half_label_1_at_or_above_half():
-    """Simulated probs for label=0 must be < 0.5; for label=1 must be >= 0.5."""
-    category_columns = ["water", "food", "shelter"]
-    n_samples = 80
-    for _ in range(n_samples):
-        row = {
-            "water": 1,
-            "food": 0,
-            "shelter": 0,
-        }
-        result = _simulated_probabilities(row, category_columns)
-        assert result["water"] >= 0.5, "label=1 must yield prob >= 0.5"
-        assert result["food"] < 0.5, "label=0 must yield prob < 0.5"
-        assert result["shelter"] < 0.5, "label=0 must yield prob < 0.5"
-
-
-def test_simulated_probability_bands_deterministic_with_mocked_random():
-    """With fixed random, label=1 critical category gets base 0.80, label=0 gets low prob."""
-    # PRESERVED: Deterministic probability calculation test
-    # TRANSFORMED: Expected values and random mocking to match current implementation
-    # ADDED: Proper random mocking for both label=1 (variation) and label=0 (base prob)
-    row = {"water": 1, "food": 0}
-    category_columns = ["water", "food"]
-    # Mock random.uniform calls:
-    # 1. For water (label=1): random.uniform(-0.05, 0.05) for variation → return 0.0 (no variation)
-    # 2. For food (label=0): random.uniform(0.05, 0.20) for base prob → return 0.1 (mid-low range)
-    with patch.object(random, "uniform", side_effect=[0.0, 0.1]):
-        result = _simulated_probabilities(row, category_columns)
-    # Water is a critical category, so base_prob = 0.80, boost = 0.0, random variation = 0.0
-    # Final: max(0.5, min(0.98, 0.80 + 0.0)) = 0.80
-    assert result["water"] == 0.80, "Critical category with label=1 should have base prob 0.80"
-    # Food with label=0: positive_count=1 (< 3), so uses random.uniform(0.05, 0.20)
-    # With mocked random returning 0.1, base_prob = 0.1
-    assert result["food"] == 0.1, "Label=0 should yield prob from random.uniform(0.05, 0.20)"
 
 
 # ---- Option B: _safe_float_prob ----

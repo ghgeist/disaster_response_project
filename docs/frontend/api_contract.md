@@ -10,34 +10,51 @@ The React dashboard consumes Flask endpoints under `/api/*` using relative URLs.
 ---
 
 ## `GET /api/feed`
-**Purpose:** Fetch the real-time message feed.
+**Purpose:** Serve the Storm Signal message feed from the committed demo-feed cache.
+
+Historical disaster-response messages are classified once with the active production model (hierarchy-corrected positives) and stored in `app/data/demo_feed.json`. The endpoint replays that cache as a demo operational stream: classifications and category labels are real production decisions; synthetic `timestamp` values and aggregate `/api/metrics` volume/trends remain presentation simulation.
 
 **Query Params**
 - `limit` (int): max number of items (default 25, capped at 100).
 - `offset` (int): pagination offset.
-- `categories[]` (string[]): category filters.
+- `categories[]` (string[]): filter to items whose hierarchy-corrected `fixed.labels` mark the given **internal** names as positive (`value == 1`). Names are validated against the active production `label_order` (the `related` meta-label is excluded). Unknown names are ignored; filtering applies only when at least one valid name remains. Staging ground-truth columns are never used for display or filter decisions.
 
 **Response Format**
 ```json
 {
   "items": [
     {
-      "id": "string",
+      "id": "SIG-2",
       "timestamp": "2024-01-01T12:00:00Z",
       "source": "Direct Report",
       "content": "Message text",
+      "originalContent": null,
+      "language": "en",
       "riskLevel": "LOW",
-      "categories": ["Medical Help", "Water"]
+      "categories": ["Weather Related", "Cold", "Other Weather"],
+      "classifications": [
+        {"category": "Weather Related", "confidence": 0.45},
+        {"category": "Cold", "confidence": 0.26}
+      ],
+      "isTranslated": false
     }
   ],
   "pagination": {
     "page": 1,
     "limit": 25,
-    "total": 250,
-    "totalPages": 10
+    "total": 50,
+    "totalPages": 2
   }
 }
 ```
+
+`timestamp` is **required** and injected by the server via a deterministic synthetic clock (`generate_timestamp_for_id`); it is not stored in the cache. Cached `raw` / `fixed` / `message_id` fields are omitted from the public JSON.
+
+The endpoint performs **no per-message inference**; it serves only cached hierarchy-corrected classifications. The first request may still lazy-load the production bundle via `ModelService.get_production_artifacts()` (shared provenance contract); artifacts are then cached in the service.
+
+**Fail-closed behavior:** If the cache is missing/invalid, `schema_version` is unsupported, provenance hashes (`model_sha256`, `thresholds_sha256`, `labels_sha256`) do not match `ModelService.get_production_artifacts()`, or the model service is unavailable, the endpoint returns HTTP **503** with `{"error": "Feed unavailable right now."}` — there is no simulated-confidence fallback. Unexpected server errors return **500** with the same error payload.
+
+**Regeneration:** After promoting a new production model, rebuild the cache with `python scripts/07_operations/build_demo_feed.py` (do **not** pass `--init-ids` unless intentionally re-pinning message IDs).
 
 **Example**
 ```ts

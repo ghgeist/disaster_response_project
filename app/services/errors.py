@@ -10,3 +10,7 @@ class DataServiceError(RuntimeError):
 
 class ModelServiceError(RuntimeError):
     """Raised when the model service encounters an unrecoverable issue."""
+
+
+class DemoFeedError(RuntimeError):
+    """Raised when the cached demo feed is missing, invalid, or stale."""

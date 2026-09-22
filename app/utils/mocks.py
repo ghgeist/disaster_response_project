@@ -1,9 +1,17 @@
 """
 Mock services for testing.
 """
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from types import SimpleNamespace
+
 import pandas as pd
 
 from disasterproject.utils.config import TARGET_COLUMNS
+
+_DEMO_FEED_PATH = Path(__file__).resolve().parents[1] / "data" / "demo_feed.json"
 
 
 class MockDataService:
@@ -72,6 +80,31 @@ class MockDataService:
         return df.columns[4:].tolist()
 
 
+def _demo_feed_provenance_hashes() -> dict[str, str]:
+    """Read cache provenance hashes so TestConfig feed smoke stays aligned."""
+    defaults = {
+        "model_sha256": "a" * 64,
+        "thresholds_sha256": "b" * 64,
+        "labels_sha256": "c" * 64,
+    }
+    if not _DEMO_FEED_PATH.is_file():
+        return defaults
+    try:
+        with open(_DEMO_FEED_PATH, encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except (OSError, json.JSONDecodeError):
+        return defaults
+    provenance = payload.get("provenance") if isinstance(payload, dict) else None
+    if not isinstance(provenance, dict):
+        return defaults
+    return {
+        field: provenance[field]
+        if isinstance(provenance.get(field), str) and provenance.get(field)
+        else defaults[field]
+        for field in defaults
+    }
+
+
 class MockModelService:
     """Mock model service for testing."""
 
@@ -138,3 +171,27 @@ class MockModelService:
     def get_thresholds_map(self) -> dict:
         """Mock thresholds map aligned with the production label contract."""
         return {label: 0.5 for label in TARGET_COLUMNS}
+
+    def get_production_artifacts(self):
+        """
+        Return artifact provenance matching the committed demo-feed cache.
+
+        TestConfig apps use this mock instead of a real pickle; aligning hashes
+        lets ``GET /api/feed`` serve the cached production classifications.
+        """
+        hashes = _demo_feed_provenance_hashes()
+        model_path = Path("model/mock_prod_model.pkl")
+        return SimpleNamespace(
+            paths=SimpleNamespace(
+                model_path=model_path,
+                thresholds_path=Path(f"{model_path.stem}_thresholds.json"),
+                labels_path=Path(f"{model_path.stem}_labels.json"),
+                model_info_path=Path("model/MODEL_INFO.json"),
+            ),
+            thresholds=self.get_thresholds_map(),
+            label_order=list(TARGET_COLUMNS),
+            model_sha256=hashes["model_sha256"],
+            thresholds_sha256=hashes["thresholds_sha256"],
+            labels_sha256=hashes["labels_sha256"],
+            model_info={"version": "mock"},
+        )

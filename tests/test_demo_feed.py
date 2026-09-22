@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Mapping
@@ -12,14 +13,16 @@ import pytest
 
 from app.services import demo_feed as demo_feed_module
 from app.services.demo_feed import (
+    assert_demo_feed_matches_production,
     build_demo_feed,
     hash_input_rows,
+    load_demo_feed,
     load_message_ids,
     select_initial_message_ids,
     serialize_demo_feed,
     validate_generated_at,
 )
-from app.services.errors import ModelServiceError
+from app.services.errors import DemoFeedError, ModelServiceError
 
 
 @dataclass(frozen=True)
@@ -467,3 +470,82 @@ def test_build_demo_feed_fails_closed_on_model_service_error():
             message_ids=[1],
             generated_at="2026-09-22T00:00:00Z",
         )
+
+
+def _minimal_cached_payload(**provenance_overrides) -> dict:
+    provenance = {
+        "model_version": "v_test",
+        "model_stem": "disaster_lr_v_test_prod_2026-01-01",
+        "model_sha256": "a" * 64,
+        "thresholds_sha256": "b" * 64,
+        "labels_sha256": "c" * 64,
+        "input_message_ids": [1],
+        "input_rows_sha256": "d" * 64,
+    }
+    provenance.update(provenance_overrides)
+    return {
+        "schema_version": 1,
+        "generated_at": "2026-09-22T00:00:00Z",
+        "provenance": provenance,
+        "items": [
+            {
+                "id": "SIG-1",
+                "message_id": 1,
+                "source": "Direct Report",
+                "content": "Need water",
+                "originalContent": None,
+                "language": "en",
+                "riskLevel": "MEDIUM",
+                "categories": ["Water"],
+                "classifications": [{"category": "Water", "confidence": 0.8}],
+                "isTranslated": False,
+                "raw": {"probabilities": {"water": 0.8}, "labels": {"water": 1}},
+                "fixed": {"probabilities": {"water": 0.8}, "labels": {"water": 1}},
+            }
+        ],
+    }
+
+
+def test_load_demo_feed_accepts_valid_cache(tmp_path: Path):
+    path = tmp_path / "demo_feed.json"
+    path.write_text(json.dumps(_minimal_cached_payload()), encoding="utf-8")
+    payload = load_demo_feed(path)
+    assert payload["schema_version"] == 1
+    assert len(payload["items"]) == 1
+    assert payload["provenance"]["model_sha256"] == "a" * 64
+
+
+def test_load_demo_feed_rejects_bad_schema_and_empty_items(tmp_path: Path):
+    bad_schema = tmp_path / "bad_schema.json"
+    bad_schema.write_text(
+        json.dumps({**_minimal_cached_payload(), "schema_version": 99}),
+        encoding="utf-8",
+    )
+    with pytest.raises(DemoFeedError, match="schema_version"):
+        load_demo_feed(bad_schema)
+
+    empty_items = tmp_path / "empty_items.json"
+    empty_payload = _minimal_cached_payload()
+    empty_payload["items"] = []
+    empty_items.write_text(json.dumps(empty_payload), encoding="utf-8")
+    with pytest.raises(DemoFeedError, match="non-empty items"):
+        load_demo_feed(empty_items)
+
+    missing = tmp_path / "missing.json"
+    with pytest.raises(DemoFeedError, match="not found"):
+        load_demo_feed(missing)
+
+
+def test_assert_demo_feed_matches_production_ok_and_mismatch():
+    artifacts = StubModelService()._artifacts
+    payload = _minimal_cached_payload()
+    assert_demo_feed_matches_production(payload, artifacts)
+
+    mismatched = _minimal_cached_payload(model_sha256="f" * 64)
+    with pytest.raises(DemoFeedError, match="model_sha256"):
+        assert_demo_feed_matches_production(mismatched, artifacts)
+
+    missing_field = _minimal_cached_payload()
+    del missing_field["provenance"]["labels_sha256"]
+    with pytest.raises(DemoFeedError, match="labels_sha256"):
+        assert_demo_feed_matches_production(missing_field, artifacts)

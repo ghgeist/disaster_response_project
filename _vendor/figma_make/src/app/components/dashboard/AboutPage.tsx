@@ -28,7 +28,7 @@ function AboutPageContent() {
             <section className="space-y-4">
               <h2 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Platform Overview</h2>
               <p className="text-sm text-slate-900 leading-relaxed">
-                Storm Signal is a working prototype that simulates real-time disaster intelligence delivery from high-volume public communication streams. It monitors incoming messages, classifies them across disaster-relevant categories, and surfaces signals that may warrant attention when volume, speed, and uncertainty exceed what manual review can handle.
+                Storm Signal is a working prototype that replays historical disaster-response messages through the current production model and presents the results as a demo operational stream. Classifications come from hierarchy-corrected production decisions; the live cadence and aggregate activity views remain simulated for demonstration.
               </p>
             </section>
 

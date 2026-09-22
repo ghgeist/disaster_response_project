@@ -5,14 +5,18 @@ import hashlib
 import json
 import logging
 import math
-import random
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from flask import Blueprint, current_app, jsonify, redirect, request
 
 from app.extensions import csrf
-from app.services.errors import DataServiceError
+from app.services.demo_feed import (
+    DEFAULT_DEMO_FEED_PATH,
+    assert_demo_feed_matches_production,
+    load_demo_feed,
+)
+from app.services.errors import DataServiceError, DemoFeedError
 from app.services.model_service import ModelServiceError
 from app.services.production_artifacts import (
     ProductionArtifactError,
@@ -172,182 +176,6 @@ def _safe_optional_prob(value) -> float | None:
     return result
 
 
-# Category relationships for improved probability simulation
-CATEGORY_RELATIONSHIPS = {
-    # Parent-child relationships (if parent is present, child confidence increases)
-    "aid_related": ["medical_help", "medical_products", "water", "food", "shelter"],
-    "infrastructure_related": ["buildings", "electricity", "transport", "hospitals"],
-    "weather_related": ["floods", "storm", "cold"],
-    # Co-occurrence patterns (if one is present, related ones get boost)
-    "medical_help": ["hospitals", "medical_products"],
-    "hospitals": ["medical_help", "medical_products"],
-    "buildings": ["infrastructure_related", "electricity"],
-    "electricity": ["infrastructure_related", "buildings"],
-    "water": ["food", "shelter"],
-    "food": ["water", "shelter"],
-}
-
-# Keywords that suggest higher confidence for categories
-CATEGORY_KEYWORDS = {
-    "medical_help": ["hospital", "doctor", "medical", "injured", "wound", "sick", "illness"],
-    "medical_products": ["medicine", "supplies", "medication", "drugs", "bandage"],
-    "water": ["water", "thirst", "drink", "hydrate"],
-    "food": ["food", "hunger", "starving", "eat", "meal"],
-    "shelter": ["shelter", "home", "house", "building", "roof"],
-    "search_and_rescue": ["missing", "rescue", "search", "trapped", "stuck"],
-    "infrastructure_related": ["road", "bridge", "building", "destroyed", "damage"],
-    "buildings": ["building", "house", "structure", "destroyed", "collapsed"],
-    "electricity": ["power", "electric", "light", "generator"],
-    "weather_related": ["weather", "storm", "rain", "wind", "hurricane"],
-    "storm": ["storm", "hurricane", "wind", "rain"],
-    "floods": ["flood", "water", "drowned"],
-    "fire": ["fire", "burning", "smoke"],
-    "earthquake": ["earthquake", "shake", "tremor"],
-}
-
-
-def _improved_simulated_probabilities(row, category_columns: list, message: str = "") -> dict:
-    """
-    Build more realistic probabilities from binary labels using heuristics.
-    
-    Uses category relationships, keyword matching, and critical category
-    weighting to generate more realistic probability distributions.
-    """
-    message_lower = (message or "").lower()
-    probabilities = {}
-
-    # Count how many categories are positive for this message
-    positive_count = sum(1 for col in category_columns if _safe_label_value(row.get(col, 0)) == 1)
-
-    for col in category_columns:
-        label = _safe_label_value(row.get(col, 0))
-
-        if label == 1:
-            # Base probability for positive labels - higher for critical categories
-            if col in CRITICAL_INTERNAL_CATEGORIES:
-                base_prob = 0.80  # Critical categories get higher base
-            else:
-                base_prob = 0.70  # Non-critical positive labels
-
-            # Boost if related categories are also present
-            boost = 0.0
-            if col in CATEGORY_RELATIONSHIPS:
-                related_cats = CATEGORY_RELATIONSHIPS[col]
-                related_count = sum(
-                    1 for related_cat in related_cats
-                    if _safe_label_value(row.get(related_cat, 0)) == 1
-                )
-                if related_count > 0:
-                    boost += min(0.15, related_count * 0.05)  # Up to 15% boost
-
-            # Boost if parent category is present (e.g., aid_related -> medical_help)
-            for parent, children in CATEGORY_RELATIONSHIPS.items():
-                if col in children and _safe_label_value(row.get(parent, 0)) == 1:
-                    boost += 0.08
-
-            # Boost if keywords match message content
-            if col in CATEGORY_KEYWORDS:
-                keywords = CATEGORY_KEYWORDS[col]
-                matches = sum(1 for keyword in keywords if keyword in message_lower)
-                if matches > 0:
-                    boost += min(0.10, matches * 0.03)  # Up to 10% boost for keyword matches
-
-            # Adjust based on how many categories are positive (more = slightly lower individual)
-            if positive_count > 5:
-                base_prob -= 0.05  # Slight reduction when many categories
-
-            final_prob = base_prob + boost
-            # Add small random variation (±5%)
-            probabilities[col] = max(0.5, min(0.98, final_prob + random.uniform(-0.05, 0.05)))
-
-        else:
-            # For negative labels, use lower probabilities but with some variation
-            # Messages with many positive categories might have slightly higher negatives
-            if positive_count > 3:
-                base_prob = random.uniform(0.15, 0.30)  # Slightly higher when many positives
-            else:
-                base_prob = random.uniform(0.05, 0.20)  # Lower baseline
-
-            # If keywords strongly suggest this category but label is 0, keep it low
-            if col in CATEGORY_KEYWORDS:
-                keywords = CATEGORY_KEYWORDS[col]
-                matches = sum(1 for keyword in keywords if keyword in message_lower)
-                if matches > 2:  # Strong keyword match but label=0
-                    base_prob = random.uniform(0.20, 0.35)  # Slightly higher but still below threshold
-
-            probabilities[col] = base_prob
-
-    return probabilities
-
-
-def _simulated_probabilities(row, category_columns: list) -> dict:
-    """
-    Legacy wrapper for backward compatibility with tests.
-    
-    Calls _improved_simulated_probabilities without message context.
-    """
-    return _improved_simulated_probabilities(row, category_columns, "")
-
-
-def _row_to_feed_item(row, category_columns: list) -> dict:
-    """Convert a database row to a SignalItem dict for the feed."""
-    raw_id = row.get("id", 0)
-    msg = _safe_text_value(row.get("message")).strip()
-    original = row.get("original")
-    if hasattr(original, "strip"):
-        original = (original or "").strip() or None
-    else:
-        original = None
-    is_translated = bool(original and original != msg)
-    content_preview = (msg[:120] + "...") if len(msg) > 120 else msg
-
-    probabilities = _improved_simulated_probabilities(row, category_columns, msg)
-
-    # Only consider categories that actually have label=1 for severity calculation
-    # This ensures consistency with displayed classifications
-    filtered_probabilities = {
-        internal: conf
-        for internal, conf in probabilities.items()
-        if _safe_label_value(row.get(internal, 0)) == 1
-    }
-    risk_level = calculate_severity(filtered_probabilities)
-
-    # Only show categories that actually have label=1 in the training data
-    # Filter to categories with actual positive labels before sorting
-    labeled_cats = [
-        (internal, conf)
-        for internal, conf in filtered_probabilities.items()
-    ]
-    sorted_cats = sorted(
-        labeled_cats,
-        key=lambda x: -x[1],
-    )
-    top_three = [to_display_name(internal) for internal, _ in sorted_cats[:3]]
-    # Classifications should only include categories with actual label=1 and probability > 0.5
-    classifications = [
-        {"category": to_display_name(internal), "confidence": round(_safe_float_prob(conf), 2)}
-        for internal, conf in sorted_cats
-        if _safe_float_prob(conf) > 0.5
-    ][:10]
-
-    genre = row.get("genre")
-    ts = generate_timestamp_for_id(raw_id)
-    timestamp_iso = ts.replace(microsecond=0).isoformat().replace("+00:00", "Z")
-
-    return {
-        "id": f"SIG-{raw_id}",
-        "timestamp": timestamp_iso,
-        "source": genre_to_source(genre),
-        "content": content_preview,
-        "originalContent": original if is_translated else None,
-        "language": "en",
-        "riskLevel": risk_level,
-        "categories": top_three,
-        "classifications": classifications,
-        "isTranslated": is_translated,
-    }
-
-
 TREND_LABELS = [
     "6h ago",
     "5h ago",
@@ -495,64 +323,103 @@ def _prepare_displayable_data(df, category_columns: list):
     return df, displayable_category_columns
 
 
+def _resolve_valid_feed_filter_categories(
+    filter_cats: list, label_order: list | None
+) -> list:
+    """
+    Keep only production label names from the request; drop unknowns and ``related``.
+
+    Mirrors the prior DB-feed behavior: unknown names are ignored, and filtering
+    applies only when at least one valid displayable label remains.
+    """
+    allowed = {name for name in (label_order or []) if name and name != "related"}
+    return [cat for cat in filter_cats if cat in allowed]
+
+
+def _item_matches_category_filter(item: dict, filter_cats: list) -> bool:
+    """True when any requested internal name is a hierarchy-corrected positive."""
+    labels = (item.get("fixed") or {}).get("labels") or {}
+    return any(_safe_label_value(labels.get(cat, 0)) == 1 for cat in filter_cats)
+
+
+def _shape_public_feed_item(cached_item: dict) -> dict:
+    """Project a cached demo-feed item to the public feed contract."""
+    message_id = cached_item.get("message_id", cached_item.get("id", 0))
+    ts = generate_timestamp_for_id(message_id)
+    timestamp_iso = ts.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return {
+        "id": cached_item.get("id"),
+        "timestamp": timestamp_iso,
+        "source": cached_item.get("source"),
+        "content": cached_item.get("content"),
+        "originalContent": cached_item.get("originalContent"),
+        "language": cached_item.get("language", "en"),
+        "riskLevel": cached_item.get("riskLevel"),
+        "categories": list(cached_item.get("categories") or []),
+        "classifications": list(cached_item.get("classifications") or []),
+        "isTranslated": bool(cached_item.get("isTranslated")),
+    }
+
+
+def _paginate_feed_items(items: list, limit: int, offset: int) -> tuple[list, dict]:
+    """Apply existing limit/offset clamps and return the page plus pagination meta."""
+    total = len(items)
+    if total == 0:
+        return [], {"page": 1, "limit": limit, "total": 0, "totalPages": 0}
+
+    page = (offset // limit) + 1
+    total_pages = (total + limit - 1) // limit
+    if offset >= total:
+        page = total_pages
+        effective_offset = (total_pages - 1) * limit
+    else:
+        effective_offset = offset
+    page_items = items[effective_offset : effective_offset + limit]
+    return page_items, {
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "totalPages": total_pages,
+    }
+
+
 @api_bp.route("/feed", methods=["GET"])
 def feed():
-    """Return paginated feed items from the database (binary labels + simulated confidences)."""
+    """Return paginated feed items from the production-classified demo-feed cache."""
     try:
-        data_service = getattr(current_app, "data_service", None)
-        if data_service is None:
-            raise DataServiceError("Data service not configured.")
-        df = data_service.get_data()
-        category_columns = data_service.get_category_columns()
-        df, displayable_category_columns = _prepare_displayable_data(df, category_columns)
+        model_service = getattr(current_app, "model_service", None)
+        if model_service is None:
+            raise ModelServiceError("Model service not configured.")
+
+        feed_path = current_app.config.get("DEMO_FEED_PATH", DEFAULT_DEMO_FEED_PATH)
+        cached = load_demo_feed(feed_path)
+        artifacts = model_service.get_production_artifacts()
+        assert_demo_feed_matches_production(cached, artifacts)
 
         limit_raw = request.args.get("limit", 25, type=int)
         offset_raw = request.args.get("offset", 0, type=int)
         limit = min(max(1, limit_raw if limit_raw is not None else 25), 100)
         offset = max(0, offset_raw if offset_raw is not None else 0)
-        filter_cats = _get_feed_filter_categories()
+        filter_cats = _resolve_valid_feed_filter_categories(
+            _get_feed_filter_categories(),
+            getattr(artifacts, "label_order", None),
+        )
 
+        items = list(cached.get("items") or [])
         if filter_cats:
-            valid_cats = [c for c in filter_cats if c in displayable_category_columns]
-            if valid_cats:
-                mask = df[valid_cats].sum(axis=1) > 0
-                df = df.loc[mask]
-        total = len(df)
-        if total == 0:
-            page = 1
-            total_pages = 0
-            effective_offset = 0
-        else:
-            page = (offset // limit) + 1
-            total_pages = (total + limit - 1) // limit
-            if offset >= total:
-                page = total_pages
-                effective_offset = (total_pages - 1) * limit
-            else:
-                effective_offset = offset
-        slice_df = df.iloc[effective_offset : effective_offset + limit]
+            items = [
+                item for item in items if _item_matches_category_filter(item, filter_cats)
+            ]
 
-        items = []
-        # PRESERVED: Function signature, return structure, item processing logic
-        # TRANSFORMED: Iteration pattern (iterrows() → itertuples()) for 10-100x performance improvement
-        # ADDED: Explicit performance optimization with fallback to dict conversion
-        # Boundary: itertuples() is faster but requires dict conversion for row access
-        for row_tuple in slice_df.itertuples(index=False):
-            # Convert namedtuple to dict for compatibility with _row_to_feed_item
-            row_dict = row_tuple._asdict()
-            item = _row_to_feed_item(row_dict, displayable_category_columns)
-            items.append(item)
-
+        page_items, pagination = _paginate_feed_items(items, limit, offset)
         payload = {
-            "items": items,
-            "pagination": {
-                "page": page,
-                "limit": limit,
-                "total": total,
-                "totalPages": total_pages,
-            },
+            "items": [_shape_public_feed_item(item) for item in page_items],
+            "pagination": pagination,
         }
         return jsonify(payload)
+    except (DemoFeedError, ModelServiceError) as error:
+        _log_api_error("GET /api/feed", error)
+        return jsonify({"error": "Feed unavailable right now."}), 503
     except Exception as error:
         _log_api_error("GET /api/feed", error)
         return jsonify({"error": "Feed unavailable right now."}), 500
