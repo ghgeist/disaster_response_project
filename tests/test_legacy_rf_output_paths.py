@@ -9,6 +9,8 @@ import pytest
 
 _SCRIPT = Path(__file__).resolve().parents[1] / 'scripts/02_training/04_create_production_model.py'
 _REPO_ROOT = Path(__file__).resolve().parents[1]
+_PARAMS = str(_REPO_ROOT / 'experiments/model_candidates/vocab_15k.json')
+_CLASS_WEIGHTS = str(_REPO_ROOT / 'experiments/model_candidates/class_weights.json')
 
 
 def _load_legacy_rf_script():
@@ -58,6 +60,27 @@ def test_model_dir_write_allowed_with_flag(legacy_rf_script):
     )
 
 
+def test_relative_legacy_path_resolves_via_cwd(legacy_rf_script, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    relative = 'experiments/legacy_rf/test/run.pkl'
+    resolved = legacy_rf_script.resolve_output_path(relative)
+    assert resolved == (tmp_path / relative).resolve()
+    assert not legacy_rf_script.resolves_under_production_model_dir(
+        resolved,
+        repo_root=_REPO_ROOT,
+    )
+
+
+def test_production_model_directory_itself_is_blocked(legacy_rf_script):
+    with pytest.raises(ValueError, match='not a directory|Refusing to write'):
+        legacy_rf_script.validate_legacy_rf_output_path(
+            'model/',
+            allow_model_dir=False,
+            repo_root=_REPO_ROOT,
+            cli_path='model/',
+        )
+
+
 def test_legacy_rf_path_not_under_production_model_dir(legacy_rf_script):
     assert not legacy_rf_script.resolves_under_production_model_dir(
         'experiments/legacy_rf/2026-09-22/153045/disaster_rf_legacy.pkl',
@@ -89,9 +112,9 @@ def test_cli_refuses_model_output_without_override():
             '--output',
             'model/disaster_rf_legacy.pkl',
             '--params',
-            'experiments/model_candidates/vocab_15k.json',
+            _PARAMS,
             '--class-weights',
-            'experiments/model_candidates/class_weights.json',
+            _CLASS_WEIGHTS,
         ],
         cwd=_REPO_ROOT,
         capture_output=True,
@@ -100,3 +123,64 @@ def test_cli_refuses_model_output_without_override():
     )
     assert result.returncode == 2
     assert 'Refusing to write RandomForest artifacts into model/' in result.stderr
+
+
+def test_cli_cwd_relative_escape_into_model_dir():
+    """../../model/... from scripts/02_training must use CWD semantics and refuse."""
+    nested = _REPO_ROOT / 'scripts' / '02_training'
+    target = _REPO_ROOT / 'model' / 'disaster_rf_legacy_cwd_escape.pkl'
+    sidecar = _REPO_ROOT / 'model' / 'disaster_rf_legacy_cwd_escape_performance_metrics.csv'
+    for path in (target, sidecar):
+        if path.exists():
+            path.unlink()
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(_SCRIPT),
+            '--output',
+            '../../model/disaster_rf_legacy_cwd_escape.pkl',
+            '--params',
+            _PARAMS,
+            '--class-weights',
+            _CLASS_WEIGHTS,
+        ],
+        cwd=nested,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 2
+    assert 'Refusing to write RandomForest artifacts into model/' in result.stderr
+    assert not target.exists()
+    assert not sidecar.exists()
+
+
+def test_cli_refuses_model_directory_output_without_override():
+    """--output model/ must fail before any writes into production model/."""
+    model_dir = _REPO_ROOT / 'model'
+    before = {p.name for p in model_dir.iterdir()} if model_dir.is_dir() else set()
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(_SCRIPT),
+            '--output',
+            'model/',
+            '--params',
+            _PARAMS,
+            '--class-weights',
+            _CLASS_WEIGHTS,
+        ],
+        cwd=_REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 2
+    assert (
+        'not a directory' in result.stderr
+        or 'Refusing to write RandomForest artifacts into model/' in result.stderr
+    )
+    after = {p.name for p in model_dir.iterdir()} if model_dir.is_dir() else set()
+    assert after == before

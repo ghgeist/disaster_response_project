@@ -73,29 +73,33 @@ def repo_root_from_script() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
-def resolve_output_path(output_path: str, repo_root: Path | None = None) -> Path:
-    """Resolve an output path against the repository root when relative."""
-    root = repo_root or repo_root_from_script()
-    candidate = Path(output_path)
-    if candidate.is_absolute():
-        return candidate.resolve()
-    return (root / candidate).resolve()
+def resolve_output_path(output_path: str | Path) -> Path:
+    """Resolve an output path using normal CLI / CWD semantics."""
+    return Path(output_path).expanduser().resolve()
 
 
 def resolves_under_production_model_dir(
-    output_path: str,
+    artifact_path: str | Path,
     repo_root: Path | None = None,
 ) -> bool:
-    """Return True when the resolved artifact directory is under model/."""
+    """Return True when the resolved path is the production model/ dir or beneath it."""
     root = repo_root or repo_root_from_script()
     production_model_dir = (root / 'model').resolve()
-    artifact_path = resolve_output_path(output_path, root)
-    artifact_dir = artifact_path.parent
-    try:
-        artifact_dir.relative_to(production_model_dir)
-    except ValueError:
-        return False
-    return True
+    path = (
+        artifact_path
+        if isinstance(artifact_path, Path)
+        else resolve_output_path(artifact_path)
+    )
+    return path == production_model_dir or production_model_dir in path.parents
+
+
+def is_directory_like_output(output_path: str | Path, resolved: Path | None = None) -> bool:
+    """Return True when --output names a directory rather than a model file."""
+    raw = str(output_path)
+    if raw.endswith(('/', '\\')):
+        return True
+    path = resolved if resolved is not None else resolve_output_path(output_path)
+    return path.is_dir()
 
 
 def default_legacy_rf_output_path(
@@ -109,17 +113,34 @@ def default_legacy_rf_output_path(
 
 
 def validate_legacy_rf_output_path(
-    output_path: str,
+    output_path: str | Path,
     allow_model_dir: bool,
     repo_root: Path | None = None,
-) -> None:
-    """Block accidental writes into model/ unless explicitly allowed."""
-    if resolves_under_production_model_dir(output_path, repo_root) and not allow_model_dir:
+    *,
+    cli_path: str | None = None,
+) -> Path:
+    """
+    Block accidental writes into model/ unless explicitly allowed.
+
+    Returns the resolved path that callers must use for all subsequent writes.
+    """
+    display = cli_path if cli_path is not None else str(output_path)
+    resolved = (
+        output_path
+        if isinstance(output_path, Path)
+        else resolve_output_path(output_path)
+    )
+    if is_directory_like_output(display, resolved):
+        raise ValueError(
+            f'--output must be a model file path, not a directory: {display}'
+        )
+    if resolves_under_production_model_dir(resolved, repo_root) and not allow_model_dir:
         raise ValueError(
             'Refusing to write RandomForest artifacts into model/. '
             'Use the default experiments/legacy_rf/ output, or pass '
             '--allow-write-to-model-dir with --output model/... intentionally.'
         )
+    return resolved
 
 
 def load_class_weights_config(file_path):
@@ -661,15 +682,22 @@ def main():
     if args.model_out is None:
         args.model_out = default_legacy_rf_output_path()
 
+    cli_output = args.model_out
     try:
-        validate_legacy_rf_output_path(args.model_out, args.allow_write_to_model_dir)
+        resolved_output = validate_legacy_rf_output_path(
+            resolve_output_path(cli_output),
+            args.allow_write_to_model_dir,
+            cli_path=cli_output,
+        )
     except ValueError as exc:
         print(f'ERROR: {exc}', file=sys.stderr)
         sys.exit(2)
 
-    setup_logging()
+    # All subsequent writes must use this same normalized path.
+    args.model_out = str(resolved_output)
+    model_dir = str(resolved_output.parent)
 
-    model_dir = os.path.dirname(args.model_out) or LEGACY_RF_ROOT
+    setup_logging()
 
     print("\nLegacy RandomForest training run (experimental — not production promotion)")
     print(f"{'='*60}")
