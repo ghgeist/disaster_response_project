@@ -764,8 +764,8 @@ def test_model_info_returns_validated_production_metadata(client, tmp_path):
     """GET /api/model-info uses resolver-valid bundle metadata."""
     _write_resolver_valid_dashboard_bundle(
         tmp_path,
-        performance={"f1_weighted": 0.8975},
-        validation_results={"f1_weighted": 0.1},
+        performance={"optimized_f1_weighted": 0.8975},
+        validation_results={"optimized_f1_weighted": 0.1},
     )
     active = tmp_path / "disaster_lr_v_test_prod_2026-09-21.pkl"
     with patch("app.routes.api._get_model_dir", return_value=tmp_path):
@@ -782,6 +782,86 @@ def test_model_info_returns_validated_production_metadata(client, tmp_path):
     assert payload["hierarchy_violations"] == 0.0
 
 
+def test_optimized_f1_prefers_performance_over_validation(client, tmp_path):
+    """performance.optimized_f1_weighted wins over differing validation_results."""
+    active = _write_resolver_valid_dashboard_bundle(
+        tmp_path,
+        performance={"optimized_f1_weighted": 0.8975},
+        validation_results={"optimized_f1_weighted": 0.1},
+    )
+    with patch("app.routes.api._get_model_dir", return_value=tmp_path):
+        with patch(
+            "app.routes.api._resolve_active_production_model_path",
+            return_value=active,
+        ):
+            info_response = client.get("/api/model-info")
+            dash_response = client.get("/api/model-info/dashboard")
+    assert info_response.status_code == 200
+    assert info_response.get_json()["f1_score"] == pytest.approx(0.8975)
+    assert dash_response.status_code == 200
+    assert dash_response.get_json()["metrics"]["f1"] == pytest.approx(0.8975)
+
+
+def test_optimized_f1_falls_back_to_validation_results(client, tmp_path):
+    """validation_results.optimized_f1_weighted used when performance field absent."""
+    active = _write_resolver_valid_dashboard_bundle(
+        tmp_path,
+        performance={"eval_critical_recall": 0.61},
+        validation_results={"optimized_f1_weighted": 0.75},
+    )
+    with patch("app.routes.api._get_model_dir", return_value=tmp_path):
+        with patch(
+            "app.routes.api._resolve_active_production_model_path",
+            return_value=active,
+        ):
+            info_response = client.get("/api/model-info")
+            dash_response = client.get("/api/model-info/dashboard")
+    assert info_response.status_code == 200
+    assert info_response.get_json()["f1_score"] == pytest.approx(0.75)
+    assert dash_response.status_code == 200
+    assert dash_response.get_json()["metrics"]["f1"] == pytest.approx(0.75)
+
+
+def test_naked_f1_weighted_does_not_populate_f1_wire_keys(client, tmp_path):
+    """Naked f1_weighted alone must not populate f1_score or metrics.f1."""
+    active = _write_resolver_valid_dashboard_bundle(
+        tmp_path,
+        performance={"f1_weighted": 0.99},
+        validation_results={"f1_weighted": 0.88},
+    )
+    with patch("app.routes.api._get_model_dir", return_value=tmp_path):
+        with patch(
+            "app.routes.api._resolve_active_production_model_path",
+            return_value=active,
+        ):
+            info_response = client.get("/api/model-info")
+            dash_response = client.get("/api/model-info/dashboard")
+    assert info_response.status_code == 200
+    assert info_response.get_json()["f1_score"] is None
+    assert dash_response.status_code == 200
+    assert dash_response.get_json()["metrics"]["f1"] == 0.0
+
+
+def test_missing_optimized_f1_defaults_dashboard_zero_api_null(client, tmp_path):
+    """Missing explicit OP F1: dashboard metrics.f1=0.0; /api/model-info f1_score=null."""
+    active = _write_resolver_valid_dashboard_bundle(
+        tmp_path,
+        performance={"eval_critical_recall": 0.61},
+        validation_results={},
+    )
+    with patch("app.routes.api._get_model_dir", return_value=tmp_path):
+        with patch(
+            "app.routes.api._resolve_active_production_model_path",
+            return_value=active,
+        ):
+            info_response = client.get("/api/model-info")
+            dash_response = client.get("/api/model-info/dashboard")
+    assert info_response.status_code == 200
+    assert info_response.get_json()["f1_score"] is None
+    assert dash_response.status_code == 200
+    assert dash_response.get_json()["metrics"]["f1"] == 0.0
+
+
 def test_model_info_fails_closed_for_orphan_model_info(client, tmp_path):
     """Orphan MODEL_INFO without an active pickle must not look healthy."""
     (tmp_path / "MODEL_INFO.json").write_text(
@@ -789,7 +869,7 @@ def test_model_info_fails_closed_for_orphan_model_info(client, tmp_path):
             {
                 "version": "orphan-v1",
                 "status": "production",
-                "performance": {"f1_weighted": 0.99},
+                "performance": {"optimized_f1_weighted": 0.99},
             }
         ),
         encoding="utf-8",
@@ -813,7 +893,7 @@ def test_model_info_fails_closed_on_hash_mismatch(client, tmp_path):
     """Active pickle with mismatched MODEL_INFO hashes reports unavailable."""
     active = _write_resolver_valid_dashboard_bundle(
         tmp_path,
-        performance={"f1_weighted": 0.8975},
+        performance={"optimized_f1_weighted": 0.8975},
     )
     info_path = tmp_path / "MODEL_INFO.json"
     info = json.loads(info_path.read_text(encoding="utf-8"))

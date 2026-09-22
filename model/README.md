@@ -112,9 +112,7 @@ The Flask app uses auto-discovery to find the latest production model:
   "performance": {
     "eval_critical_recall": 0.6149,
     "optimized_f1_weighted": 0.8975,
-    "baseline_f1_micro": 0.6454,
-    "f1_weighted": 0.8975,
-    "f1_micro": 0.6454
+    "baseline_f1_micro": 0.6454
   }
 }
 ```

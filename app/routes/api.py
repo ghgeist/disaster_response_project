@@ -911,13 +911,18 @@ def _build_model_info_dashboard_payload() -> dict:
     if not isinstance(status, str):
         status = "unknown"
 
-    f1_weighted = model_info_data.get("performance", {}).get("f1_weighted")
-    if f1_weighted is None:
-        f1_weighted = model_info_data.get("validation_results", {}).get("f1_weighted")
-    f1_metric = _safe_float_prob(f1_weighted) if f1_weighted is not None else 0.0
-
     performance_block = model_info_data.get("performance") or {}
     validation_block = model_info_data.get("validation_results") or {}
+    # Explicit OP vocabulary only — never fall back to naked f1_weighted.
+    optimized_f1_weighted = performance_block.get("optimized_f1_weighted")
+    if optimized_f1_weighted is None:
+        optimized_f1_weighted = validation_block.get("optimized_f1_weighted")
+    f1_metric = (
+        _safe_float_prob(optimized_f1_weighted)
+        if optimized_f1_weighted is not None
+        else 0.0
+    )
+
     eval_critical_raw = performance_block.get("eval_critical_recall")
     if eval_critical_raw is None:
         eval_critical_raw = validation_block.get("eval_critical_recall")
@@ -1107,11 +1112,18 @@ def model_info():
         if not isinstance(version, str):
             version = "unknown"
 
-        f1_weighted = model_info_data.get("performance", {}).get("f1_weighted")
-        if f1_weighted is None:
-            f1_weighted = model_info_data.get("validation_results", {}).get("f1_weighted")
+        performance_block = model_info_data.get("performance") or {}
+        validation_block = model_info_data.get("validation_results") or {}
+        # Explicit OP vocabulary only — never fall back to naked f1_weighted.
+        optimized_f1_weighted = performance_block.get("optimized_f1_weighted")
+        if optimized_f1_weighted is None:
+            optimized_f1_weighted = validation_block.get("optimized_f1_weighted")
         try:
-            f1_score = float(f1_weighted) if f1_weighted is not None else None
+            f1_score = (
+                float(optimized_f1_weighted)
+                if optimized_f1_weighted is not None
+                else None
+            )
         except (TypeError, ValueError):
             f1_score = None
         if f1_score is not None and (math.isnan(f1_score) or math.isinf(f1_score)):

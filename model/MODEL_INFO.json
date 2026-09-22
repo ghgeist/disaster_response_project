@@ -19,8 +19,6 @@
     "thresholds_sha256": "20caecccca1339cb79b1654dfd4934541aeb383e7ff73389d32a8f59d2e83a4f",
     "optimization_split": "calibration",
     "reporting_split": "frozen_eval",
-    "f1_weighted": 0.8974507784044915,
-    "f1_micro": 0.6454499163453844,
     "validation_passed": true,
     "validation_errors": []
   },
@@ -29,9 +27,7 @@
     "eval_critical_recall": 0.6149371857288635,
     "baseline_f1_weighted": 0.936908740498482,
     "optimized_f1_weighted": 0.8974507784044915,
-    "weighted_f1_relative_drop": 0.042115053887742525,
-    "f1_weighted": 0.8974507784044915,
-    "f1_micro": 0.6454499163453844
+    "weighted_f1_relative_drop": 0.042115053887742525
   },
   "thresholds_sha256": "20caecccca1339cb79b1654dfd4934541aeb383e7ff73389d32a8f59d2e83a4f",
   "labels_sha256": "849ffd27ee327ad598c2c0f77a33e23d16ae05999a41331140e565f181510910",

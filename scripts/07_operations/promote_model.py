@@ -498,9 +498,6 @@ def validate_candidate_model(candidate_dir: Path) -> dict:
         'labels_sha256': None,
         'optimization_split': None,
         'reporting_split': None,
-        # Legacy aliases kept for older promotion-record consumers
-        'f1_weighted': None,
-        'f1_micro': None,
         'validation_passed': False,
         'validation_errors': errors,
     }
@@ -542,7 +539,6 @@ def validate_candidate_model(candidate_dir: Path) -> dict:
             )
         else:
             validation_results['baseline_f1_micro'] = baseline_micro
-            validation_results['f1_micro'] = baseline_micro
             if baseline_micro < min_baseline_micro:
                 errors.append(
                     f"Baseline frozen-eval micro F1 {baseline_micro:.4f} below "
@@ -626,7 +622,6 @@ def validate_candidate_model(candidate_dir: Path) -> dict:
         if baseline_w is not None and optimized_w is not None:
             validation_results['baseline_f1_weighted'] = baseline_w
             validation_results['optimized_f1_weighted'] = optimized_w
-            validation_results['f1_weighted'] = optimized_w
             try:
                 relative_drop = weighted_f1_relative_drop(baseline_w, optimized_w)
             except ValueError as exc:
@@ -1162,8 +1157,6 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
             'baseline_f1_weighted': validation_results.get('baseline_f1_weighted'),
             'optimized_f1_weighted': validation_results.get('optimized_f1_weighted'),
             'weighted_f1_relative_drop': validation_results.get('weighted_f1_relative_drop'),
-            'f1_weighted': validation_results.get('f1_weighted'),
-            'f1_micro': validation_results.get('f1_micro'),
         },
         'thresholds_sha256': validation_results.get('thresholds_sha256'),
         'labels_sha256': validation_results.get('labels_sha256'),

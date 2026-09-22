@@ -47,6 +47,25 @@ from promote_model import (  # noqa: E402
 
 from disasterproject.utils.config import TARGET_COLUMNS  # noqa: E402
 
+EXPLICIT_OP_METRIC_KEYS = (
+    "baseline_f1_micro",
+    "eval_critical_recall",
+    "baseline_f1_weighted",
+    "optimized_f1_weighted",
+    "weighted_f1_relative_drop",
+)
+LEGACY_ALIAS_METRIC_KEYS = ("f1_micro", "f1_weighted")
+
+
+def _assert_explicit_op_metrics(metric_block: dict) -> None:
+    """Assert explicit OP fields are present and legacy aliases are omitted."""
+    for key in EXPLICIT_OP_METRIC_KEYS:
+        assert key in metric_block, f"missing explicit OP metric: {key}"
+        assert metric_block[key] is not None, f"explicit OP metric is None: {key}"
+    for key in LEGACY_ALIAS_METRIC_KEYS:
+        assert key not in metric_block, f"legacy alias must be omitted: {key}"
+
+
 
 def _full_thresholds_map(default: float = 0.5) -> dict:
     return {label: default for label in TARGET_COLUMNS}
@@ -255,6 +274,10 @@ class TestEvaluationContractValidation:
         assert results['validation_passed'] is True
         assert results['baseline_f1_micro'] == pytest.approx(0.6458)
         assert results['eval_critical_recall'] == pytest.approx(0.6148)
+        assert results['baseline_f1_weighted'] == pytest.approx(0.9370)
+        assert results['optimized_f1_weighted'] == pytest.approx(0.8966)
+        assert results['weighted_f1_relative_drop'] is not None
+        _assert_explicit_op_metrics(results)
         assert results['thresholds_path'] is not None
         assert results['thresholds_sha256'] is not None
         assert Path(results['model_path']).is_absolute()
@@ -856,6 +879,20 @@ class TestPromotionFlow:
         model_info = json.loads((model_dir / "MODEL_INFO.json").read_text(encoding='utf-8'))
         assert model_info['algorithm'] == 'lr'
         assert model_info['algorithm_name'] == 'LogisticRegression'
+        _assert_explicit_op_metrics(model_info['performance'])
+        _assert_explicit_op_metrics(model_info['validation_results'])
+
+    def test_model_info_omits_legacy_f1_aliases(self, temp_dir, candidate_dir_with_lr_model):
+        """Written MODEL_INFO uses explicit OP fields only (no f1_micro / f1_weighted)."""
+        model_dir = temp_dir / "model"
+        model_dir.mkdir()
+        validation_results = validate_candidate_model(candidate_dir_with_lr_model)
+        _assert_explicit_op_metrics(validation_results)
+        promote_model(candidate_dir_with_lr_model, model_dir, validation_results)
+        model_info = json.loads((model_dir / "MODEL_INFO.json").read_text(encoding='utf-8'))
+        _assert_explicit_op_metrics(model_info['performance'])
+        _assert_explicit_op_metrics(model_info['validation_results'])
+        assert set(model_info['performance']) == set(EXPLICIT_OP_METRIC_KEYS)
 
     def test_promotion_record_includes_algorithm_info(self, temp_dir, candidate_dir_with_rf_model):
         model_dir = temp_dir / "model"
@@ -881,6 +918,15 @@ class TestHashMismatchProtection:
 
 class TestIntegrationWithRealModels:
     """Integration tests using actual model files if available."""
+
+    def test_committed_model_info_omits_legacy_f1_aliases(self):
+        """Checked-in production MODEL_INFO must not carry legacy metric aliases."""
+        model_info_path = PROJECT_ROOT / "model" / "MODEL_INFO.json"
+        if not model_info_path.exists():
+            pytest.skip("checked-in model/MODEL_INFO.json not available")
+        model_info = json.loads(model_info_path.read_text(encoding="utf-8"))
+        _assert_explicit_op_metrics(model_info["performance"])
+        _assert_explicit_op_metrics(model_info["validation_results"])
 
     def test_detect_algorithm_from_production_rf_model(self):
         prod_model = PROJECT_ROOT / "model" / "disaster_rf_prod_2026-01-22.pkl"
