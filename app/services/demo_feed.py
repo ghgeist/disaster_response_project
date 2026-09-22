@@ -10,7 +10,9 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 import sqlite3
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -29,6 +31,29 @@ from app.utils.hierarchy_helpers import run_hierarchy_correction
 SCHEMA_VERSION = 1
 MAX_CLASSIFICATIONS = 10
 MAX_CATEGORY_NAMES = 3
+
+# Accept common ISO-8601 forms including trailing Z and explicit offsets.
+_ISO8601_PATTERN = re.compile(
+    r"^\d{4}-\d{2}-\d{2}"
+    r"(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?"
+    r"(?:Z|[+-]\d{2}:?\d{2})?)?$"
+)
+
+
+def validate_generated_at(generated_at: str) -> str:
+    """Require a non-empty ISO-8601 timestamp string for ``generated_at``."""
+    if not isinstance(generated_at, str) or not generated_at.strip():
+        raise ValueError("generated_at must be a non-empty ISO-8601 string")
+    candidate = generated_at.strip()
+    if not _ISO8601_PATTERN.match(candidate):
+        raise ValueError(f"generated_at must be ISO-8601, got {generated_at!r}")
+    # Reject structurally matching but invalid calendar values (e.g. month 13).
+    normalized = candidate.replace("Z", "+00:00").replace(" ", "T", 1)
+    try:
+        datetime.fromisoformat(normalized)
+    except ValueError as error:
+        raise ValueError(f"generated_at must be ISO-8601, got {generated_at!r}") from error
+    return candidate
 
 
 def load_message_ids(path: Path | str) -> list[int]:
@@ -170,6 +195,7 @@ def _build_feed_item(
     categories = [to_display_name(internal) for internal, _ in positive[:MAX_CATEGORY_NAMES]]
     return {
         "id": f"SIG-{message_id}",
+        "message_id": int(message_id),
         "source": genre_to_source(_canonicalize_text(row.get("genre"))),
         "content": message,
         "originalContent": original if is_translated else None,
@@ -189,7 +215,12 @@ def _build_feed_item(
     }
 
 
-def _provenance_fields(artifacts: Any) -> dict[str, str]:
+def _build_provenance(
+    artifacts: Any,
+    *,
+    message_ids: Sequence[int],
+    input_rows_sha256: str,
+) -> dict[str, Any]:
     model_path = artifacts.paths.model_path
     model_stem = model_path.stem
     model_info = artifacts.model_info or {}
@@ -202,6 +233,8 @@ def _provenance_fields(artifacts: Any) -> dict[str, str]:
         "model_sha256": artifacts.model_sha256,
         "thresholds_sha256": artifacts.thresholds_sha256,
         "labels_sha256": artifacts.labels_sha256,
+        "input_message_ids": [int(message_id) for message_id in message_ids],
+        "input_rows_sha256": input_rows_sha256,
     }
 
 
@@ -218,8 +251,7 @@ def build_demo_feed(
     Fails closed on ``ModelServiceError``. Display fields derive only from
     hierarchy-corrected labels/probabilities.
     """
-    if not generated_at or not isinstance(generated_at, str):
-        raise ValueError("generated_at must be a non-empty ISO-8601 string")
+    generated_at = validate_generated_at(generated_at)
     if not message_ids:
         raise ValueError("message_ids must be a non-empty sequence")
 
@@ -273,9 +305,11 @@ def build_demo_feed(
     payload: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "generated_at": generated_at,
-        **_provenance_fields(artifacts),
-        "input_message_ids": [int(message_id) for message_id in message_ids],
-        "input_rows_sha256": hash_input_rows(ordered_rows),
+        "provenance": _build_provenance(
+            artifacts,
+            message_ids=message_ids,
+            input_rows_sha256=hash_input_rows(ordered_rows),
+        ),
         "items": items,
     }
     return payload

@@ -2,20 +2,22 @@
 
 from __future__ import annotations
 
+import ast
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Mapping
-from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
 
+from app.services import demo_feed as demo_feed_module
 from app.services.demo_feed import (
     build_demo_feed,
     hash_input_rows,
     load_message_ids,
     select_initial_message_ids,
     serialize_demo_feed,
+    validate_generated_at,
 )
 from app.services.errors import ModelServiceError
 
@@ -54,7 +56,9 @@ class StubModelService:
         self._artifacts = artifacts or _FakeArtifacts(
             paths=_FakePaths(
                 model_path=Path("model/disaster_lr_v_test_prod_2026-01-01.pkl"),
-                thresholds_path=Path("model/disaster_lr_v_test_prod_2026-01-01_thresholds.json"),
+                thresholds_path=Path(
+                    "model/disaster_lr_v_test_prod_2026-01-01_thresholds.json"
+                ),
                 labels_path=Path("model/disaster_lr_v_test_prod_2026-01-01_labels.json"),
                 model_info_path=Path("model/MODEL_INFO.json"),
             ),
@@ -110,35 +114,74 @@ def test_select_initial_message_ids_deterministic_and_ignores_categories():
     assert select_initial_message_ids(flipped, n=2) == selected
 
 
-def test_build_demo_feed_never_calls_simulation():
+def test_builder_uses_hierarchy_helper_and_display_from_fixed():
+    """Predict output must pass through real hierarchy; display from fixed result."""
     service = StubModelService(
         predictions={
             "Need water": {
-                "labels": {"related": 1, "water": 1},
-                "probabilities": {"related": 0.9, "water": 0.8},
+                "labels": {"related": 1, "water": 1, "aid_related": 0},
+                "probabilities": {
+                    "related": 0.9,
+                    "water": 0.40,
+                    "aid_related": 0.40,
+                },
             }
         },
-        thresholds={"related": 0.5, "water": 0.5},
+        thresholds={"related": 0.5, "water": 0.30, "aid_related": 0.5},
     )
     rows = {
         1: {"id": 1, "message": "Need water", "original": "", "genre": "direct"},
     }
 
-    with (
-        patch("app.routes.api._improved_simulated_probabilities") as sim,
-        patch("app.routes.api._row_to_feed_item") as row_to_item,
-    ):
-        payload = build_demo_feed(
-            model_service=service,
-            rows_by_id=rows,
-            message_ids=[1],
-            generated_at="2026-09-22T00:00:00Z",
-        )
-        sim.assert_not_called()
-        row_to_item.assert_not_called()
+    assert demo_feed_module.run_hierarchy_correction is not None
+    payload = build_demo_feed(
+        model_service=service,
+        rows_by_id=rows,
+        message_ids=[1],
+        generated_at="2026-09-22T00:00:00Z",
+    )
+    item = payload["items"][0]
+    assert service.predict_calls == ["Need water"]
+    # Hierarchy activates parent; display must not use ground-truth columns.
+    assert item["fixed"]["labels"]["water"] == 1
+    assert item["fixed"]["labels"]["aid_related"] == 1
+    assert item["raw"]["labels"]["aid_related"] == 0
+    names = [entry["category"] for entry in item["classifications"]]
+    assert "Water" in names
+    assert "Aid Related" in names
 
-    assert payload["schema_version"] == 1
-    assert payload["items"][0]["classifications"]
+
+def test_demo_feed_module_does_not_import_routes_or_simulation():
+    """Architectural boundary: builder must not import Flask routes / simulation."""
+    source = Path(demo_feed_module.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    imported: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                imported.add(alias.name)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported.add(node.module)
+            for alias in node.names:
+                imported.add(f"{node.module}.{alias.name}")
+
+    forbidden_prefixes = (
+        "app.routes",
+        "app.routes.api",
+    )
+    forbidden_names = (
+        "_improved_simulated_probabilities",
+        "_row_to_feed_item",
+        "_simulated_probabilities",
+    )
+    for module_name in imported:
+        assert not any(
+            module_name == prefix or module_name.startswith(prefix + ".")
+            for prefix in forbidden_prefixes
+        ), f"Unexpected routes import: {module_name}"
+        assert not any(
+            module_name.endswith(name) for name in forbidden_names
+        ), f"Unexpected simulation import: {module_name}"
 
 
 def test_schema_provenance_and_item_order():
@@ -166,9 +209,11 @@ def test_schema_provenance_and_item_order():
         generated_at="2026-09-22T01:02:03Z",
     )
 
+    assert payload["schema_version"] == 1
+    assert payload["generated_at"] == "2026-09-22T01:02:03Z"
+    assert "provenance" in payload
+    provenance = payload["provenance"]
     for key in (
-        "schema_version",
-        "generated_at",
         "model_version",
         "model_stem",
         "model_sha256",
@@ -176,12 +221,15 @@ def test_schema_provenance_and_item_order():
         "labels_sha256",
         "input_message_ids",
         "input_rows_sha256",
-        "items",
     ):
-        assert key in payload
+        assert key in provenance
+    # Provenance fields must not be flattened at the top level.
+    assert "model_sha256" not in payload
+    assert "input_rows_sha256" not in payload
 
-    assert payload["input_message_ids"] == [3, 9]
+    assert provenance["input_message_ids"] == [3, 9]
     assert [item["id"] for item in payload["items"]] == ["SIG-3", "SIG-9"]
+    assert [item["message_id"] for item in payload["items"]] == [3, 9]
     assert payload["items"][0]["content"] == "first"
     assert payload["items"][0]["isTranslated"] is True
     assert "timestamp" not in payload["items"][0]
@@ -258,6 +306,57 @@ def test_low_confidence_hierarchy_positive_preserved():
     assert water["confidence"] == 0.12
 
 
+def test_hierarchy_activates_parent_when_child_clears_threshold():
+    """Raw water=1 / aid_related=0 must become aid_related=1 after hierarchy."""
+    service = StubModelService(
+        predictions={
+            "Need water urgently": {
+                "labels": {
+                    "related": 1,
+                    "aid_related": 0,
+                    "water": 1,
+                    "food": 0,
+                },
+                "probabilities": {
+                    "related": 0.9,
+                    "aid_related": 0.40,
+                    "water": 0.40,
+                    "food": 0.01,
+                },
+            }
+        },
+        thresholds={
+            "related": 0.5,
+            "aid_related": 0.5,
+            "water": 0.30,
+            "food": 0.5,
+        },
+    )
+    rows = {
+        42: {
+            "id": 42,
+            "message": "Need water urgently",
+            "original": "",
+            "genre": "direct",
+        }
+    }
+    payload = build_demo_feed(
+        model_service=service,
+        rows_by_id=rows,
+        message_ids=[42],
+        generated_at="2026-09-22T00:00:00Z",
+    )
+    item = payload["items"][0]
+    assert item["message_id"] == 42
+    assert item["raw"]["labels"]["water"] == 1
+    assert item["raw"]["labels"]["aid_related"] == 0
+    assert item["fixed"]["labels"]["water"] == 1
+    assert item["fixed"]["labels"]["aid_related"] == 1
+    names = [entry["category"] for entry in item["classifications"]]
+    assert "Water" in names
+    assert "Aid Related" in names
+
+
 def test_changing_message_text_changes_input_rows_sha256():
     rows_a = [{"id": 1, "message": "hello", "original": "", "genre": "direct"}]
     rows_b = [{"id": 1, "message": "hello!", "original": "", "genre": "direct"}]
@@ -278,8 +377,14 @@ def test_changing_message_text_changes_input_rows_sha256():
         message_ids=[1],
         generated_at="2026-09-22T00:00:00Z",
     )
-    assert payload_a["input_rows_sha256"] != payload_b["input_rows_sha256"]
-    assert payload_a["input_message_ids"] == payload_b["input_message_ids"]
+    assert (
+        payload_a["provenance"]["input_rows_sha256"]
+        != payload_b["provenance"]["input_rows_sha256"]
+    )
+    assert (
+        payload_a["provenance"]["input_message_ids"]
+        == payload_b["provenance"]["input_message_ids"]
+    )
 
 
 def test_missing_ids_file_fails(tmp_path: Path):
@@ -288,12 +393,33 @@ def test_missing_ids_file_fails(tmp_path: Path):
         load_message_ids(missing)
 
 
+def test_generated_at_rejects_non_iso8601():
+    assert validate_generated_at("2026-09-22T00:00:00Z") == "2026-09-22T00:00:00Z"
+    with pytest.raises(ValueError, match="ISO-8601"):
+        validate_generated_at("banana")
+    with pytest.raises(ValueError, match="ISO-8601"):
+        build_demo_feed(
+            model_service=StubModelService(),
+            rows_by_id={1: {"id": 1, "message": "x", "original": "", "genre": "direct"}},
+            message_ids=[1],
+            generated_at="banana",
+        )
+
+
 def test_build_demo_feed_fails_closed_on_model_service_error():
-    service = MagicMock()
-    service.get_production_artifacts.side_effect = ModelServiceError("unavailable")
+    class BrokenService:
+        def get_production_artifacts(self):
+            raise ModelServiceError("unavailable")
+
+        def get_thresholds_map(self):
+            raise AssertionError("should not be reached")
+
+        def predict(self, text: str):
+            raise AssertionError("should not be reached")
+
     with pytest.raises(ModelServiceError):
         build_demo_feed(
-            model_service=service,
+            model_service=BrokenService(),
             rows_by_id={1: {"id": 1, "message": "x", "original": "", "genre": "direct"}},
             message_ids=[1],
             generated_at="2026-09-22T00:00:00Z",

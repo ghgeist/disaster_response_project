@@ -204,7 +204,7 @@ def main(argv: list[str] | None = None) -> int:
             f"✅ Wrote demo feed ({len(payload['items'])} items, "
             f"{len(payload_bytes)} bytes) -> {output_path}"
         )
-        print(f"   input_rows_sha256={payload['input_rows_sha256']}")
+        print(f"   input_rows_sha256={payload['provenance']['input_rows_sha256']}")
         return 0
     except (FileNotFoundError, KeyError, ValueError, ModelServiceError) as error:
         print(f"❌ {error}")
