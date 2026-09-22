@@ -21,6 +21,11 @@ function mapFeedItem(item: { timestamp: string; [k: string]: unknown }): SignalI
 
 function DashboardHeader({ modelInfo }: { modelInfo: ModelInfo | null }) {
   const { toggleSidebar } = useSidebar();
+  const isOperational = modelInfo?.status === "production";
+  const statusLabel = isOperational ? "SYSTEM: OPERATIONAL" : "MODEL: UNAVAILABLE";
+  const statusDotClass = isOperational
+    ? "w-2 h-2 rounded-full bg-emerald-500 animate-pulse"
+    : "w-2 h-2 rounded-full bg-amber-500";
   return (
     <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4 flex-shrink-0 z-50">
       <div className="flex items-center gap-4">
@@ -48,14 +53,14 @@ function DashboardHeader({ modelInfo }: { modelInfo: ModelInfo | null }) {
               className="hidden lg:flex items-center gap-2 text-xs text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200 font-medium tracking-wide cursor-pointer hover:bg-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               aria-label="System status - hover for model details"
             >
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              SYSTEM: OPERATIONAL
+              <span className={statusDotClass}></span>
+              {statusLabel}
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom" sideOffset={8} className="bg-slate-900 text-white text-xs max-w-xs z-[100]">
             {modelInfo ? (
               <>
-                Model version: {modelInfo.version} | {modelInfo.f1_score !== null ? `${Math.round(modelInfo.f1_score * 100)}%` : 'N/A'} F1-score | {Math.round(modelInfo.hierarchy_violations)}% Hierarchy Violations
+                Model version: {modelInfo.version} | {modelInfo.f1_score !== null ? `${Math.round(modelInfo.f1_score * 100)}%` : 'N/A'} F1-score | Classifier hierarchy correction: enabled
               </>
             ) : (
               <>Loading model info...</>

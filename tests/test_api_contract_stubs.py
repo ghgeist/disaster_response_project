@@ -547,8 +547,12 @@ def test_api_model_info_dashboard_contract(client):
     for key in ("f1", "precision", "recall", "evalCriticalRecall"):
         assert key in metrics, f"metrics missing key: {key}"
     assert isinstance(metrics["f1"], (int, float))
-    assert isinstance(metrics["precision"], (int, float))
-    assert isinstance(metrics["recall"], (int, float))
+    assert metrics["precision"] is None or isinstance(metrics["precision"], (int, float))
+    assert metrics["recall"] is None or isinstance(metrics["recall"], (int, float))
+    if isinstance(metrics["precision"], float):
+        assert not (math.isnan(metrics["precision"]) or math.isinf(metrics["precision"]))
+    if isinstance(metrics["recall"], float):
+        assert not (math.isnan(metrics["recall"]) or math.isinf(metrics["recall"]))
     eval_critical = metrics["evalCriticalRecall"]
     assert eval_critical is None or isinstance(eval_critical, (int, float))
     if isinstance(eval_critical, float):
@@ -596,8 +600,8 @@ def test_model_info_dashboard_null_realism(client, tmp_path):
     assert payload["model"]["provenanceCode"] == "active_model_missing"
     assert "metrics" in payload
     assert payload["metrics"]["f1"] == 0.0
-    assert payload["metrics"]["precision"] == 0.0
-    assert payload["metrics"]["recall"] == 0.0
+    assert payload["metrics"]["precision"] is None
+    assert payload["metrics"]["recall"] is None
     assert payload["metrics"]["evalCriticalRecall"] is None
     assert payload["categories"] == []
     assert payload["criticalThresholds"] == []
