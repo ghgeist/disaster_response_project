@@ -306,6 +306,49 @@ def test_low_confidence_hierarchy_positive_preserved():
     assert water["confidence"] == 0.12
 
 
+def test_risk_level_ignores_sub_threshold_critical_probability():
+    """Critical prob above severity cutoffs but below deployed threshold → LOW.
+
+    Future models may set critical thresholds above 0.5; severity must still
+    follow hierarchy-corrected production-positive decisions only.
+    """
+    service = StubModelService(
+        predictions={
+            "subthreshold critical": {
+                "labels": {"related": 1, "water": 0, "food": 0},
+                "probabilities": {
+                    "related": 0.95,
+                    "water": 0.80,
+                    "food": 0.01,
+                },
+            }
+        },
+        # Deployed water threshold above the probability → fixed label stays 0.
+        thresholds={"related": 0.5, "water": 0.90, "food": 0.5},
+    )
+    rows = {
+        8: {
+            "id": 8,
+            "message": "subthreshold critical",
+            "original": "",
+            "genre": "direct",
+        }
+    }
+    payload = build_demo_feed(
+        model_service=service,
+        rows_by_id=rows,
+        message_ids=[8],
+        generated_at="2026-09-22T00:00:00Z",
+    )
+    item = payload["items"][0]
+    assert item["fixed"]["labels"]["water"] == 0
+    assert item["fixed"]["probabilities"]["water"] == 0.8
+    assert "Water" not in [
+        entry["category"] for entry in item["classifications"]
+    ]
+    assert item["riskLevel"] == "LOW"
+
+
 def test_hierarchy_activates_parent_when_child_clears_threshold():
     """Raw water=1 / aid_related=0 must become aid_related=1 after hierarchy."""
     service = StubModelService(

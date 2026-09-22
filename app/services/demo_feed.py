@@ -185,6 +185,14 @@ def _build_feed_item(
     original = original_raw or None
     is_translated = bool(original and original != message)
     positive = _positive_pairs(fixed_labels, fixed_probs)
+    # Severity must use the same production-positive set as classifications/
+    # categories — not raw critical probabilities that failed the deployed
+    # threshold (future models may set critical thresholds above 0.5).
+    positive_probabilities = {
+        category: fixed_probs.get(category, 0.0)
+        for category, label in fixed_labels.items()
+        if int(label) == 1
+    }
     classifications = [
         {
             "category": to_display_name(internal),
@@ -200,7 +208,7 @@ def _build_feed_item(
         "content": message,
         "originalContent": original if is_translated else None,
         "language": "en",
-        "riskLevel": calculate_severity(fixed_probs),
+        "riskLevel": calculate_severity(positive_probabilities),
         "categories": categories,
         "classifications": classifications,
         "isTranslated": is_translated,
