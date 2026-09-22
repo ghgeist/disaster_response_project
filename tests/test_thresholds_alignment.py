@@ -375,6 +375,55 @@ def test_critical_thresholds_use_inference_map_not_stat_threshold(
     assert critical[0]["threshold"] != pytest.approx(0.99)
 
 
+def test_critical_thresholds_skip_keys_missing_from_inference_map(
+    client, app, tmp_path: Path
+) -> None:
+    """Do not publish threshold 0.0 when a critical stats key is absent from the map."""
+    model_dir = tmp_path / "model"
+    model_dir.mkdir()
+    active = model_dir / "disaster_lr_v26-09-21_prod_2026-09-21.pkl"
+    active.write_bytes(b"active-model")
+    stats = [
+        {
+            "category": "water",
+            "type": "critical",
+            "threshold": 0.42,
+            "actual_recall": 0.8,
+            "precision": 0.7,
+            "f1": 0.75,
+            "support": 10.0,
+        },
+        {
+            "category": "not_in_inference_map",
+            "type": "critical",
+            "threshold": 0.99,
+            "actual_recall": 0.5,
+            "precision": 0.5,
+            "f1": 0.5,
+            "support": 1.0,
+        },
+    ]
+    _write_stem_bound_production_bundle(
+        active,
+        thresholds_extra={"water": 0.42},
+        category_stats=stats,
+    )
+
+    previous_model_path = app.config.get("MODEL_PATH")
+    try:
+        app.config["MODEL_PATH"] = active
+        with patch("app.routes.api._get_model_dir", return_value=model_dir):
+            response = client.get("/api/model-info/dashboard")
+    finally:
+        app.config["MODEL_PATH"] = previous_model_path
+
+    payload = response.get_json()
+    critical_by_key = {row["key"]: row for row in payload["criticalThresholds"]}
+    assert "water" in critical_by_key
+    assert critical_by_key["water"]["threshold"] == pytest.approx(0.42)
+    assert "not_in_inference_map" not in critical_by_key
+
+
 def test_dashboard_null_precision_recall_when_category_stats_missing(
     client, app, tmp_path: Path
 ) -> None:

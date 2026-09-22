@@ -546,9 +546,11 @@ def test_api_model_info_dashboard_contract(client):
     metrics = payload["metrics"]
     for key in ("f1", "precision", "recall", "evalCriticalRecall"):
         assert key in metrics, f"metrics missing key: {key}"
-    assert isinstance(metrics["f1"], (int, float))
+    assert metrics["f1"] is None or isinstance(metrics["f1"], (int, float))
     assert metrics["precision"] is None or isinstance(metrics["precision"], (int, float))
     assert metrics["recall"] is None or isinstance(metrics["recall"], (int, float))
+    if isinstance(metrics["f1"], float):
+        assert not (math.isnan(metrics["f1"]) or math.isinf(metrics["f1"]))
     if isinstance(metrics["precision"], float):
         assert not (math.isnan(metrics["precision"]) or math.isinf(metrics["precision"]))
     if isinstance(metrics["recall"], float):
@@ -599,7 +601,7 @@ def test_model_info_dashboard_null_realism(client, tmp_path):
     assert payload["model"]["provenanceError"] == "Production model provenance unavailable"
     assert payload["model"]["provenanceCode"] == "active_model_missing"
     assert "metrics" in payload
-    assert payload["metrics"]["f1"] == 0.0
+    assert payload["metrics"]["f1"] is None
     assert payload["metrics"]["precision"] is None
     assert payload["metrics"]["recall"] is None
     assert payload["metrics"]["evalCriticalRecall"] is None
@@ -758,7 +760,7 @@ def test_dashboard_fails_closed_when_model_info_exists_without_pickle(client, tm
     assert payload["model"]["version"] == "unknown"
     assert payload["model"]["provenanceCode"] == "active_model_missing"
     assert payload["metrics"]["evalCriticalRecall"] is None
-    assert payload["metrics"]["f1"] == 0.0
+    assert payload["metrics"]["f1"] is None
 
 
 def test_model_info_returns_validated_production_metadata(client, tmp_path):
@@ -840,11 +842,11 @@ def test_legacy_f1_aliases_do_not_populate_f1_wire_keys(client, tmp_path):
     assert info_response.status_code == 200
     assert info_response.get_json()["f1_score"] is None
     assert dash_response.status_code == 200
-    assert dash_response.get_json()["metrics"]["f1"] == 0.0
+    assert dash_response.get_json()["metrics"]["f1"] is None
 
 
-def test_missing_optimized_f1_defaults_dashboard_zero_api_null(client, tmp_path):
-    """Missing explicit OP F1: dashboard metrics.f1=0.0; /api/model-info f1_score=null."""
+def test_missing_optimized_f1_defaults_dashboard_null_api_null(client, tmp_path):
+    """Missing explicit OP F1: dashboard metrics.f1=null; /api/model-info f1_score=null."""
     active = _write_resolver_valid_dashboard_bundle(
         tmp_path,
         performance={"eval_critical_recall": 0.61},
@@ -860,7 +862,7 @@ def test_missing_optimized_f1_defaults_dashboard_zero_api_null(client, tmp_path)
     assert info_response.status_code == 200
     assert info_response.get_json()["f1_score"] is None
     assert dash_response.status_code == 200
-    assert dash_response.get_json()["metrics"]["f1"] == 0.0
+    assert dash_response.get_json()["metrics"]["f1"] is None
 
 
 def test_model_info_fails_closed_for_orphan_model_info(client, tmp_path):

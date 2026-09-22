@@ -150,15 +150,16 @@ const payload = await response.json();
 - Per-category rows and aggregate positive-class P/R from the hashed stem thresholds artifact `category_stats` (frozen-eval @ deployed thresholds).
 - Displayed `criticalThresholds[].threshold` values from the validated inference map `production_artifacts.thresholds`, not from `stat["threshold"]` alone.
 - Critical membership comes from `category_stats[*].type == "critical"`.
+- If a critical `category_stats` key is absent from the inference map, that entry is skipped (not published as threshold `0.0`).
 
 **Three KPI aggregation families (not one conventional P/R/F1 tuple):**
 1. **Optimized Weighted F1** — mean across labels of each binary `classification_report()["weighted avg"]["f1-score"]` (includes negative + positive classes).
 2. **Positive-class Weighted Precision / Recall** — support-weighted means of positive-class `category_stats` precision/recall.
 3. **Critical-label mean recall** (`evalCriticalRecall`) — unweighted mean recall across critical labels only (UI secondary under recall; not a fourth interchangeable card).
 
-**Null semantics:** When `category_stats` is missing/empty, or the payload is unavailable, `metrics.precision` and `metrics.recall` are `null` (UI: `—`). Never publish `0.0` for “not measured” P/R. Unavailable payloads also return `categories: []` and `criticalThresholds: []`.
+**Null semantics:** When `category_stats` is missing/empty, or the payload is unavailable, `metrics.precision` and `metrics.recall` are `null` (UI: `—`). When the payload is unavailable, or `optimized_f1_weighted` is missing/invalid, `metrics.f1` is also `null` (UI: `—`). Never publish `0.0` for “not measured” headline F1 or P/R. Unavailable payloads also return `categories: []` and `criticalThresholds: []`.
 
-**Storm Signal header:** `model.status === "production"` → `SYSTEM: OPERATIONAL`; otherwise `MODEL: UNAVAILABLE`. Tooltip hierarchy wording is `Classifier hierarchy correction: enabled` (not a Violations %).
+**Storm Signal / Model Information headers:** While model status is loading → neutral `Loading model…`. `model.status === "production"` → `SYSTEM: OPERATIONAL`. Otherwise → `MODEL: UNAVAILABLE`. Pages that do not supply model status omit the chip. Tooltip hierarchy wording `Classifier hierarchy correction: enabled` appears only when `status === "production"`.
 
 **Response Format**
 ```json
@@ -184,8 +185,8 @@ const payload = await response.json();
 
 `metrics.f1` comes from `performance.optimized_f1_weighted` (else
 `validation_results.optimized_f1_weighted`). It does **not** read naked
-`f1_weighted` or `baseline_f1_micro`. When the explicit field is absent,
-`metrics.f1` is `0.0`.
+`f1_weighted` or `baseline_f1_micro`. When the explicit field is absent or
+invalid, `metrics.f1` is `null` (same absence semantics as P/R).
 
 `evalCriticalRecall` is the frozen-eval critical-label **mean** recall from promoted `MODEL_INFO.json` (`performance.eval_critical_recall`, else `validation_results`). It is a finite probability in `[0, 1]`, or `null` when missing/invalid. It is distinct from aggregate positive-class `recall`.
 

@@ -9,8 +9,50 @@ import {
 } from 'lucide-react';
 import { useSidebar } from '@/app/components/ui/sidebar';
 
-export function StormHeader() {
+export type StormHeaderModelStatusProps = {
+  /** When omitted (and not loading), the model-status chip is hidden. */
+  status?: string | null;
+  /** Neutral chip while model status is still being fetched. */
+  loading?: boolean;
+};
+
+function ModelStatusChip({ status, loading }: StormHeaderModelStatusProps) {
+  if (loading) {
+    return (
+      <div className="hidden md:flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
+        <div className="h-2 w-2 rounded-full bg-slate-300" />
+        <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wide">
+          Loading model…
+        </span>
+      </div>
+    );
+  }
+
+  if (status == null) {
+    return null;
+  }
+
+  const isOperational = status === "production";
+  return (
+    <div className="hidden md:flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
+      <div
+        className={
+          isOperational
+            ? "h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_4px_2px_rgba(16,185,129,0.2)]"
+            : "h-2 w-2 rounded-full bg-amber-500"
+        }
+      />
+      <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wide">
+        {isOperational ? "SYSTEM: OPERATIONAL" : "MODEL: UNAVAILABLE"}
+      </span>
+    </div>
+  );
+}
+
+export function StormHeader({ status, loading }: StormHeaderModelStatusProps) {
   const { toggleSidebar, open } = useSidebar();
+  const showStatusChip = Boolean(loading) || status != null;
+
   return (
     <header className="h-16 bg-white border-b border-slate-200 px-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
       <div className="flex items-center gap-4">
@@ -32,10 +74,7 @@ export function StormHeader() {
       </div>
 
       <div className="flex items-center gap-2 sm:gap-4">
-        <div className="hidden md:flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
-          <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_4px_2px_rgba(16,185,129,0.2)]" />
-          <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wide">System: Operational</span>
-        </div>
+        {showStatusChip ? <ModelStatusChip status={status} loading={loading} /> : null}
 
         <div className="flex items-center text-slate-400 gap-1">
           <button className="p-2 hover:bg-slate-100 rounded-full transition-colors hover:text-slate-600"><Settings className="h-5 w-5" /></button>

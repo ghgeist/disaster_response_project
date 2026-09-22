@@ -821,7 +821,7 @@ def _unavailable_dashboard_payload(
             "provenanceCode": provenance_code,
         },
         "metrics": {
-            "f1": 0.0,
+            "f1": None,
             "precision": None,
             "recall": None,
             "evalCriticalRecall": None,
@@ -880,14 +880,11 @@ def _build_model_info_dashboard_payload() -> dict:
     performance_block = model_info_data.get("performance") or {}
     validation_block = model_info_data.get("validation_results") or {}
     # Explicit OP vocabulary only — never fall back to naked f1_weighted.
+    # Missing/invalid → null (not 0.0) so UI can render "—".
     optimized_f1_weighted = performance_block.get("optimized_f1_weighted")
     if optimized_f1_weighted is None:
         optimized_f1_weighted = validation_block.get("optimized_f1_weighted")
-    f1_metric = (
-        _safe_float_prob(optimized_f1_weighted)
-        if optimized_f1_weighted is not None
-        else 0.0
-    )
+    f1_metric = _safe_optional_prob(optimized_f1_weighted)
 
     eval_critical_raw = performance_block.get("eval_critical_recall")
     if eval_critical_raw is None:
@@ -943,11 +940,17 @@ def _build_model_info_dashboard_payload() -> dict:
                 "hierarchyParentLabel": parent_label,
             })
             if stat.get("type") == "critical":
-                threshold_val = inference_thresholds.get(key_str)
+                if key_str not in inference_thresholds:
+                    logger.warning(
+                        "Critical category %s missing from inference threshold map; "
+                        "skipping criticalThresholds entry",
+                        key_str,
+                    )
+                    continue
                 critical_thresholds_list.append({
                     "key": key_str,
                     "label": label,
-                    "threshold": _safe_float_prob(threshold_val),
+                    "threshold": _safe_float_prob(inference_thresholds[key_str]),
                 })
 
     registry_allowlist = {".json", ".csv", ".md", ".pkl"}
@@ -987,7 +990,7 @@ def _build_model_info_dashboard_payload() -> dict:
             "algorithmName": algorithm_name,
         },
         "metrics": {
-            "f1": round(f1_metric, 4),
+            "f1": round(f1_metric, 4) if f1_metric is not None else None,
             "precision": (
                 round(precision_overall, 4) if precision_overall is not None else None
             ),

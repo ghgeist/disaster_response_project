@@ -14,7 +14,7 @@ export interface DashboardModel {
 }
 
 export interface DashboardMetrics {
-  f1: number;
+  f1: number | null;
   precision: number | null;
   recall: number | null;
   evalCriticalRecall: number | null;

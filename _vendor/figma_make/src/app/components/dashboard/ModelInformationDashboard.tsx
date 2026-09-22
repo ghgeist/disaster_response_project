@@ -149,9 +149,7 @@ export function ModelInformationDashboard() {
   const algorithmCode = payload?.model?.algorithm ?? "unknown";
   const algorithmName = payload?.model?.algorithmName ?? "Unknown";
 
-  const f1Display = isUnavailable && payload == null
-    ? "—"
-    : formatPctOrDash(payload?.metrics?.f1);
+  const f1Display = formatPctOrDash(payload?.metrics?.f1 ?? null);
   const precisionDisplay = formatPctOrDash(payload?.metrics?.precision ?? null);
   const recallDisplay = formatPctOrDash(payload?.metrics?.recall ?? null);
   const evalCritical = payload?.metrics?.evalCriticalRecall ?? null;
@@ -207,10 +205,14 @@ export function ModelInformationDashboard() {
   });
 
   const showUnavailableBanner = Boolean(error) || payload?.model?.status === "unavailable";
+  const headerStatus = loading
+    ? undefined
+    : (error ? "unavailable" : (payload?.model?.status ?? "unavailable"));
+  const headerLoading = loading;
 
   const appContent = loading ? (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col">
-      <StormHeader />
+      <StormHeader loading={headerLoading} />
       <div className="flex-1 overflow-y-auto p-8" aria-busy="true" aria-live="polite">
         <span className="sr-only">Loading model information…</span>
         <div className="max-w-[1400px] mx-auto space-y-8">
@@ -249,7 +251,7 @@ export function ModelInformationDashboard() {
     </div>
   ) : (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col">
-      <StormHeader />
+      <StormHeader status={headerStatus} loading={false} />
 
       <div className="flex flex-1 overflow-hidden">
 
