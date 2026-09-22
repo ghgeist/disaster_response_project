@@ -1066,50 +1066,65 @@ def _build_model_info_dashboard_payload() -> dict:
     }
 
 
+def _unavailable_model_info_payload(
+    *,
+    provenance_code: str = "provenance_unavailable",
+) -> dict:
+    """Stable unavailable payload for GET /api/model-info."""
+    return {
+        "version": "unknown",
+        "f1_score": None,
+        "status": "unavailable",
+        "hierarchy_violations": 0.0,
+        "provenanceError": DASHBOARD_PROVENANCE_UNAVAILABLE,
+        "provenanceCode": provenance_code,
+    }
+
+
 @api_bp.route("/model-info", methods=["GET"])
 def model_info():
-    """Return production model metadata (version, F1 score, status)."""
+    """Return production model metadata from a provenance-valid active bundle."""
     try:
-        # Try to load MODEL_INFO.json from model directory
         model_dir = _get_model_dir()
-        model_info_path = model_dir / "MODEL_INFO.json"
+        active_model = _resolve_active_production_model_path(model_dir)
+        if active_model is None:
+            return jsonify(
+                _unavailable_model_info_payload(provenance_code="active_model_missing")
+            )
 
-        if model_info_path.exists():
-            with open(model_info_path, "r", encoding="utf-8") as f:
-                model_info_data = json.load(f)
+        try:
+            production_artifacts = resolve_production_artifacts(active_model)
+            model_info_data = dict(production_artifacts.model_info)
+        except ProductionArtifactError as error:
+            logger.warning(
+                "Production artifact provenance failed for /api/model-info: %s", error
+            )
+            return jsonify(
+                _unavailable_model_info_payload(provenance_code="provenance_failed")
+            )
 
-            # Extract relevant fields
-            version = model_info_data.get("version", "unknown")
-            f1_weighted = model_info_data.get("performance", {}).get("f1_weighted")
-            if f1_weighted is None:
-                f1_weighted = model_info_data.get("validation_results", {}).get("f1_weighted")
-            status = model_info_data.get("status", "unknown")
+        version = model_info_data.get("version", "unknown")
+        if not isinstance(version, str):
+            version = "unknown"
 
-            # For now, hierarchy violations is 0% (can be calculated later if needed)
-            hierarchy_violations = 0.0
+        f1_weighted = model_info_data.get("performance", {}).get("f1_weighted")
+        if f1_weighted is None:
+            f1_weighted = model_info_data.get("validation_results", {}).get("f1_weighted")
+        try:
+            f1_score = float(f1_weighted) if f1_weighted is not None else None
+        except (TypeError, ValueError):
+            f1_score = None
+        if f1_score is not None and (math.isnan(f1_score) or math.isinf(f1_score)):
+            f1_score = None
 
-            return jsonify({
-                "version": version,
-                "f1_score": float(f1_weighted) if f1_weighted is not None else None,
-                "status": status,
-                "hierarchy_violations": hierarchy_violations,
-            })
-        else:
-            # Fallback to default values if file doesn't exist
-            logger.warning("MODEL_INFO.json not found at %s, using defaults", model_info_path)
-            return jsonify({
-                "version": "unknown",
-                "f1_score": None,
-                "status": "unknown",
-                "hierarchy_violations": 0.0,
-            })
-    except (OSError, json.JSONDecodeError, KeyError) as error:
-        _log_api_error("GET /api/model-info", error)
-        # Return defaults on error
+        status = model_info_data.get("status", "unknown")
+        if not isinstance(status, str):
+            status = "unknown"
+
         return jsonify({
-            "version": "unknown",
-            "f1_score": None,
-            "status": "unknown",
+            "version": version,
+            "f1_score": f1_score,
+            "status": status,
             "hierarchy_violations": 0.0,
         })
     except Exception as error:

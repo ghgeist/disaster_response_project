@@ -94,15 +94,43 @@ await fetch('/api/classify', {
 ## `GET /api/model-info`
 **Purpose:** Fetch model metadata for the dashboard header.
 
-**Response Format**
+Metadata is returned **only** from a provenance-valid active production bundle
+(active `disaster_*_prod_*.pkl` plus stem-bound thresholds/labels whose SHA-256
+values match `MODEL_INFO.json`). The endpoint uses the same
+`resolve_production_artifacts(...)` contract as production inference and
+`GET /api/model-info/dashboard`.
+
+When there is no active production pickle, or when provenance validation fails,
+the endpoint returns HTTP 200 with `status: "unavailable"` and does **not**
+surface orphan/stale `MODEL_INFO.json` fields. Clients never receive filesystem
+paths or raw exception text.
+
+**Response Format (available)**
 ```json
 {
-  "version": "2.4.0",
-  "f1_score": 0.938,
-  "status": "operational",
+  "version": "v26-09-21",
+  "f1_score": 0.8975,
+  "status": "production",
   "hierarchy_violations": 0.0
 }
 ```
+
+`f1_score` prefers `performance.f1_weighted`, then `validation_results.f1_weighted`,
+or `null` when absent.
+
+**Response Format (unavailable)**
+```json
+{
+  "version": "unknown",
+  "f1_score": null,
+  "status": "unavailable",
+  "hierarchy_violations": 0.0,
+  "provenanceError": "Production model provenance unavailable",
+  "provenanceCode": "active_model_missing"
+}
+```
+
+`provenanceCode` is `active_model_missing` or `provenance_failed`.
 
 **Example**
 ```ts

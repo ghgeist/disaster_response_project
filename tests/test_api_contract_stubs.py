@@ -760,6 +760,83 @@ def test_dashboard_fails_closed_when_model_info_exists_without_pickle(client, tm
     assert payload["metrics"]["f1"] == 0.0
 
 
+def test_model_info_returns_validated_production_metadata(client, tmp_path):
+    """GET /api/model-info uses resolver-valid bundle metadata."""
+    _write_resolver_valid_dashboard_bundle(
+        tmp_path,
+        performance={"f1_weighted": 0.8975},
+        validation_results={"f1_weighted": 0.1},
+    )
+    active = tmp_path / "disaster_lr_v_test_prod_2026-09-21.pkl"
+    with patch("app.routes.api._get_model_dir", return_value=tmp_path):
+        with patch(
+            "app.routes.api._resolve_active_production_model_path",
+            return_value=active,
+        ):
+            response = client.get("/api/model-info")
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["version"] == "test"
+    assert payload["status"] == "production"
+    assert payload["f1_score"] == pytest.approx(0.8975)
+    assert payload["hierarchy_violations"] == 0.0
+
+
+def test_model_info_fails_closed_for_orphan_model_info(client, tmp_path):
+    """Orphan MODEL_INFO without an active pickle must not look healthy."""
+    (tmp_path / "MODEL_INFO.json").write_text(
+        json.dumps(
+            {
+                "version": "orphan-v1",
+                "status": "production",
+                "performance": {"f1_weighted": 0.99},
+            }
+        ),
+        encoding="utf-8",
+    )
+    with patch("app.routes.api._get_model_dir", return_value=tmp_path):
+        with patch(
+            "app.routes.api._resolve_active_production_model_path",
+            return_value=None,
+        ):
+            response = client.get("/api/model-info")
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["status"] == "unavailable"
+    assert payload["version"] == "unknown"
+    assert payload["f1_score"] is None
+    assert payload["provenanceCode"] == "active_model_missing"
+    assert payload["provenanceError"] == "Production model provenance unavailable"
+
+
+def test_model_info_fails_closed_on_hash_mismatch(client, tmp_path):
+    """Active pickle with mismatched MODEL_INFO hashes reports unavailable."""
+    active = _write_resolver_valid_dashboard_bundle(
+        tmp_path,
+        performance={"f1_weighted": 0.8975},
+    )
+    info_path = tmp_path / "MODEL_INFO.json"
+    info = json.loads(info_path.read_text(encoding="utf-8"))
+    info["sha256"] = "0" * 64
+    info["version"] = "stale-should-not-surface"
+    info["status"] = "production"
+    info_path.write_text(json.dumps(info), encoding="utf-8")
+
+    with patch("app.routes.api._get_model_dir", return_value=tmp_path):
+        with patch(
+            "app.routes.api._resolve_active_production_model_path",
+            return_value=active,
+        ):
+            response = client.get("/api/model-info")
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["status"] == "unavailable"
+    assert payload["version"] == "unknown"
+    assert payload["f1_score"] is None
+    assert payload["provenanceCode"] == "provenance_failed"
+    assert "stale-should-not-surface" not in json.dumps(payload)
+
+
 def test_eval_critical_recall_matches_checked_in_model_info(client):
     """Live endpoint equals the checked-in MODEL_INFO value when present and valid."""
     model_info_path = Path("model") / "MODEL_INFO.json"
