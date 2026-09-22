@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
 """
-Create a production disaster response classification model.
+Legacy RandomForest training tool (not the production workflow).
 
-⚠️ IMPORTANT (2026-01-22): This script requires --params and --class-weights arguments.
-The default files (model/parameters.json, model/class_weights.json) were removed.
-These defaults were for RandomForest models only.
-
-Current production models use LogisticRegression and are created via:
+Production models are LogisticRegression artifacts promoted via:
   scripts/02_training/03_create_experimental_model.py --algorithm logistic_regression
+  scripts/03_optimization/optimize_per_category_thresholds.py  (calibration split)
+  scripts/07_operations/promote_model.py
 
-This script creates a production model and saves results in a clean, obvious structure:
-- model/disaster_rf_v1-2-0_prod_2025-09-11.pkl (the current production model)
-- model/performance_metrics.csv (current model performance)
-- model/training_log.json (training metadata)
+This script trains a RandomForest pipeline for historical comparison or RF experiments.
+By default, artifacts land under experiments/legacy_rf/<YYYY-MM-DD>/<HHMMSS>/ (model
+pickle, metrics, training_log.json, thresholds). Writing into model/ requires
+--allow-write-to-model-dir.
+
+Thresholds written here are eval-tuned diagnostics only (not the cal-tuned
+{model_stem}_thresholds.json required by promote_model.py).
+
+Requires --params and --class-weights (model/parameters.json defaults were removed).
 
 Usage:
     python scripts/02_training/04_create_production_model.py \
@@ -28,6 +31,7 @@ import logging
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
 from time import time
 
 # Third-party imports
@@ -60,6 +64,83 @@ from disasterproject.utils.config import (
     setup_logging,
 )
 from disasterproject.utils.json_io import load_model_parameters
+
+LEGACY_RF_ROOT = os.path.join('experiments', 'legacy_rf')
+
+
+def repo_root_from_script() -> Path:
+    """Repository root (parent of scripts/)."""
+    return Path(__file__).resolve().parents[2]
+
+
+def resolve_output_path(output_path: str | Path) -> Path:
+    """Resolve an output path using normal CLI / CWD semantics."""
+    return Path(output_path).expanduser().resolve()
+
+
+def resolves_under_production_model_dir(
+    artifact_path: str | Path,
+    repo_root: Path | None = None,
+) -> bool:
+    """Return True when the resolved path is the production model/ dir or beneath it."""
+    root = repo_root or repo_root_from_script()
+    production_model_dir = (root / 'model').resolve()
+    path = (
+        artifact_path
+        if isinstance(artifact_path, Path)
+        else resolve_output_path(artifact_path)
+    )
+    return path == production_model_dir or production_model_dir in path.parents
+
+
+def is_directory_like_output(output_path: str | Path, resolved: Path | None = None) -> bool:
+    """Return True when --output names a directory rather than a model file."""
+    raw = str(output_path)
+    if raw.endswith(('/', '\\')):
+        return True
+    path = resolved if resolved is not None else resolve_output_path(output_path)
+    return path.is_dir()
+
+
+def default_legacy_rf_output_path(
+    run_date: str | None = None,
+    run_time: str | None = None,
+) -> str:
+    """Return the default legacy RF artifact path outside model/."""
+    date_part = run_date or datetime.now().strftime('%Y-%m-%d')
+    time_part = run_time or datetime.now().strftime('%H%M%S')
+    return os.path.join(LEGACY_RF_ROOT, date_part, time_part, 'disaster_rf_legacy.pkl')
+
+
+def validate_legacy_rf_output_path(
+    output_path: str | Path,
+    allow_model_dir: bool,
+    repo_root: Path | None = None,
+    *,
+    cli_path: str | None = None,
+) -> Path:
+    """
+    Block accidental writes into model/ unless explicitly allowed.
+
+    Returns the resolved path that callers must use for all subsequent writes.
+    """
+    display = cli_path if cli_path is not None else str(output_path)
+    resolved = (
+        output_path
+        if isinstance(output_path, Path)
+        else resolve_output_path(output_path)
+    )
+    if is_directory_like_output(display, resolved):
+        raise ValueError(
+            f'--output must be a model file path, not a directory: {display}'
+        )
+    if resolves_under_production_model_dir(resolved, repo_root) and not allow_model_dir:
+        raise ValueError(
+            'Refusing to write RandomForest artifacts into model/. '
+            'Use the default experiments/legacy_rf/ output, or pass '
+            '--allow-write-to-model-dir with --output model/... intentionally.'
+        )
+    return resolved
 
 
 def load_class_weights_config(file_path):
@@ -416,7 +497,7 @@ def evaluate_model_to_model_folder(model, X_test, Y_test, category_names, model_
         ]
 
         os.makedirs(model_dir, exist_ok=True)
-        
+
         # Use model-specific naming if model_filename is provided
         if model_filename:
             # Extract base name (without .pkl extension and path)
@@ -425,7 +506,7 @@ def evaluate_model_to_model_folder(model, X_test, Y_test, category_names, model_
         else:
             # Legacy naming for backwards compatibility
             results_file_path = os.path.join(model_dir, "performance_metrics.csv")
-        
+
         results_df.to_csv(results_file_path, index=False)
         logging.info("Performance metrics saved to: %s", results_file_path)
 
@@ -566,21 +647,27 @@ def _json_safe(obj):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Create production disaster response classification model with clean results structure.'
+        description=(
+            'Train a legacy RandomForest model for experiments (not production promotion). '
+            'Defaults to experiments/legacy_rf/<date>/; model/ requires --allow-write-to-model-dir.'
+        )
     )
 
     parser.add_argument('--db', dest='database_filepath',
                        default='data/02_stg/stg_disaster_response.db',
                        help='Path to SQLite database (default: data/02_stg/stg_disaster_response.db)')
-    parser.add_argument('--params', dest='params_path',
-                       default='model/parameters.json',
-                       help='Path to hyperparameters JSON (default: model/parameters.json)')
-    parser.add_argument('--class-weights', dest='class_weights_path',
-                       default='model/class_weights.json',
-                       help='Path to class weights JSON (default: model/class_weights.json)')
-    parser.add_argument('--output', dest='model_out',
-                       default='model/disaster_rf_v1-2-0_prod_2025-09-11.pkl',
-                       help='Output model path (default: model/disaster_rf_v1-2-0_prod_2025-09-11.pkl)')
+    parser.add_argument('--params', dest='params_path', required=True,
+                       help='Path to hyperparameters JSON (e.g. experiments/model_candidates/vocab_15k.json)')
+    parser.add_argument('--class-weights', dest='class_weights_path', required=True,
+                       help='Path to class weights JSON (e.g. experiments/model_candidates/class_weights.json)')
+    parser.add_argument('--output', dest='model_out', default=None,
+                       help='Output model path (default: experiments/legacy_rf/<YYYY-MM-DD>/<HHMMSS>/disaster_rf_legacy.pkl)')
+    parser.add_argument(
+        '--allow-write-to-model-dir',
+        dest='allow_write_to_model_dir',
+        action='store_true',
+        help='Required when --output is under model/ (discouraged; use promote_model.py for production)',
+    )
     parser.add_argument('--test-size', dest='test_size', type=float, default=DEFAULT_TEST_SIZE,
                        help=f'Test size fraction (default: {DEFAULT_TEST_SIZE})')
     parser.add_argument('--seed', dest='seed', type=int, default=DEFAULT_RANDOM_SEED,
@@ -592,15 +679,33 @@ def main():
 
     args = parser.parse_args()
 
+    if args.model_out is None:
+        args.model_out = default_legacy_rf_output_path()
+
+    cli_output = args.model_out
+    try:
+        resolved_output = validate_legacy_rf_output_path(
+            resolve_output_path(cli_output),
+            args.allow_write_to_model_dir,
+            cli_path=cli_output,
+        )
+    except ValueError as exc:
+        print(f'ERROR: {exc}', file=sys.stderr)
+        sys.exit(2)
+
+    # All subsequent writes must use this same normalized path.
+    args.model_out = str(resolved_output)
+    model_dir = str(resolved_output.parent)
+
     setup_logging()
 
-    print("\nCreating Production Disaster Response Model")
+    print("\nLegacy RandomForest training run (experimental — not production promotion)")
     print(f"{'='*60}")
     print(f"Database: {args.database_filepath}")
     print(f"Hyperparameters: {args.params_path}")
     print(f"Class weights: {args.class_weights_path}")
     print(f"Output: {args.model_out}")
-    print("Results will be saved to model/ directory for clarity")
+    print(f"Derived metrics/logs: {model_dir}/")
     print(f"{'='*60}")
 
     # Load data
@@ -731,7 +836,7 @@ def main():
 
     # Guardrail: if artifact would be >200MB, refit with max_leaf_nodes=10000
     try:
-        tmp_path = os.path.join('model', '_tmp_size_check.pkl')
+        tmp_path = os.path.join(model_dir, '_tmp_size_check.pkl')
         os.makedirs(os.path.dirname(tmp_path), exist_ok=True)
         save_model(model, tmp_path)
         size_mb = os.path.getsize(tmp_path) / (1024 * 1024)
@@ -749,9 +854,7 @@ def main():
     except Exception as size_exc:
         logging.warning('Size guardrail check failed: %s', size_exc)
 
-    # Evaluate model and save to model folder
-    logging.info('Evaluating model and saving results to model/ directory...')
-    model_dir = os.path.dirname(args.model_out) or "model"
+    logging.info('Evaluating model and saving results to %s ...', model_dir)
     # Extract model filename for metrics naming
     model_filename = os.path.basename(args.model_out) if args.model_out else None
     performance_summary = evaluate_model_to_model_folder(
@@ -825,7 +928,7 @@ def main():
     )
 
     # Success summary
-    print('\nProduction Model Created Successfully!')
+    print('\nLegacy RandomForest model run completed successfully!')
     print(f"{'='*60}")
     print(f'Model: {args.model_out}')
     # Show metrics file path (model-specific if available)
@@ -850,11 +953,11 @@ def main():
     if class_weights_enabled:
         print('   Model uses balanced class weights for improved minority class detection')
 
-    print('\nResults Structure:')
-    print('   model/disaster_rf_v1-2-0_prod_2025-09-11.pkl          <- Current production model')
-    print('   model/performance_metrics.csv <- Current model performance')
-    print('   model/training_log.json       <- Training metadata & config')
-    print('\nThis clear structure makes it easy to find current model results!')
+    print('\nProduction workflow (LogisticRegression):')
+    print('   scripts/02_training/03_create_experimental_model.py --algorithm logistic_regression')
+    print('   scripts/03_optimization/optimize_per_category_thresholds.py')
+    print('   scripts/07_operations/promote_model.py <candidate_dir>')
+    print('\nLegacy RF artifacts remain under experiments/legacy_rf/ unless you opted into model/.')
 
 
 if __name__ == '__main__':

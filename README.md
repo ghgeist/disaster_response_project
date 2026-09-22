@@ -69,7 +69,7 @@ scripts/                          # Professional training and testing interface
 │   ├── 01_test_sampling_strategies.py  # Sampling strategy testing (interactive)
 │   ├── 02_test_hyperparameters.py     # Hyperparameter optimization
 │   ├── 03_create_experimental_model.py # Experimental model creation
-│   ├── 04_create_production_model.py  # Production model creation
+│   ├── 04_create_production_model.py  # Legacy RandomForest experiments (not production)
 │   ├── run_batch_experiments.py       # Batch experiment runner
 │   └── test_experimental_model.py     # Experimental model testing
 ├── 03_optimization/              # Model optimization
@@ -176,10 +176,10 @@ source .venv/bin/activate
    ```bash
    # Recommended - installs package in development mode
    pip install -e .
-   # Or set PYTHONPATH per call (macOS/Linux)
-   PYTHONPATH=src python scripts/02_training/04_create_production_model.py --params experiments/model_candidates/vocab_15k.json --class-weights experiments/model_candidates/class_weights.json
+   # Or set PYTHONPATH per call when running training scripts (macOS/Linux)
+   PYTHONPATH=src python scripts/02_training/03_create_experimental_model.py --algorithm logistic_regression --params experiments/model_candidates/vocab_15k.json
    # PowerShell
-   $env:PYTHONPATH = "src"; python scripts/02_training/04_create_production_model.py --params experiments/model_candidates/vocab_15k.json --class-weights experiments/model_candidates/class_weights.json
+   $env:PYTHONPATH = "src"; python scripts/02_training/03_create_experimental_model.py --algorithm logistic_regression --params experiments/model_candidates/vocab_15k.json
    ```
 
 3. **Download NLTK resources** (handled automatically):
@@ -194,14 +194,26 @@ source .venv/bin/activate
    python scripts/01_data/process_data.py data/01_raw/disaster_messages.csv data/01_raw/disaster_categories.csv data/02_stg/stg_disaster_response.db
    ```
 
-2. **Train a model**:
+2. **Train and promote a model** (canonical production path):
    ```bash
-   # Create production model
-   # Note: class_weights.json currently has weights disabled (enabled: false)
-   python scripts/02_training/04_create_production_model.py --params experiments/model_candidates/vocab_15k.json --class-weights experiments/model_candidates/class_weights.json
-   
-   # Alternative: Create experimental model with custom parameters
-   python scripts/02_training/03_create_experimental_model.py
+   # Train LogisticRegression candidate (train/cal/eval when frozen ID files exist)
+   python scripts/02_training/03_create_experimental_model.py \
+     --algorithm logistic_regression \
+     --params experiments/model_candidates/vocab_15k.json \
+     --class-weights experiments/model_candidates/class_weights.json
+
+   # Calibrate thresholds on cal (writes {model_stem}_thresholds.json); report on frozen eval
+   python scripts/03_optimization/optimize_per_category_thresholds.py \
+     --model-path experiments/experimental_runs/<date>/<candidate>.pkl
+   python scripts/07_operations/promote_model.py experiments/experimental_runs/<date> --dry-run
+   python scripts/07_operations/promote_model.py experiments/experimental_runs/<date> --print-new-path
+   ```
+
+   Legacy RandomForest re-runs (experimental only; outputs under `experiments/legacy_rf/`):
+   ```bash
+   python scripts/02_training/04_create_production_model.py \
+     --params experiments/model_candidates/vocab_15k.json \
+     --class-weights experiments/model_candidates/class_weights.json
    ```
 
 3. **Run the web application**:
@@ -315,10 +327,13 @@ python scripts/02_training/01_test_sampling_strategies.py data/02_stg/stg_disast
 # Test hyperparameters (uses experimental_configs/hyperparameters/)
 python scripts/02_training/02_test_hyperparameters.py data/02_stg/stg_disaster_response.db
 
-# Create experimental model (uses model_candidates/ configs)
-python scripts/02_training/03_create_experimental_model.py
+# Create experimental LR candidate (uses model_candidates/ configs)
+python scripts/02_training/03_create_experimental_model.py --algorithm logistic_regression
 
-# Create production model (uses model_candidates/ configs)
+# Promote validated candidate to model/ (production)
+python scripts/07_operations/promote_model.py experiments/experimental_runs/<date> --dry-run
+
+# Legacy RandomForest baseline (outputs to experiments/legacy_rf/, not model/)
 python scripts/02_training/04_create_production_model.py --params experiments/model_candidates/vocab_15k.json --class-weights experiments/model_candidates/class_weights.json
 
 # Compare experiment results
@@ -433,7 +448,7 @@ python run.py
 The application is pre-configured for Replit deployment:
 - **Port Configuration**: Automatically uses Replit's assigned port
 - **Error Handling**: Robust error handling for cloud deployment scenarios
-- **Model Management**: Production model files (4.53 MB) must be uploaded to the `model/` directory
+- **Model Management**: Production model files (≈4.59 MB) must be present under `model/` (tracked in git or uploaded once)
 - **Auto-Discovery**: Application automatically discovers the latest production model matching `disaster_*_prod_*.pkl` pattern
 
 For complete application documentation, see [app/README.md](app/README.md).
@@ -544,7 +559,7 @@ Frozen eval remains useful for comparable reporting, but it is **not** a pristin
 ### Evaluation Approach
 - **Multi-label Classification**: Handles overlapping categories
 - **Class Imbalance**: Production model trained without class weighting (class weighting infrastructure available but disabled in config)
-- **Cross-validation**: Robust performance estimation
+- **Cross-validation**: Used in hyperparameter search (`02_test_hyperparameters.py`); **production gates** use the frozen train/cal/eval contract (thresholds on cal, metrics on eval) via `promote_model.py`, not a standalone CV score alone
 
 ### Hierarchy Post-Processing
 
@@ -692,8 +707,8 @@ For questions, issues, or contributions:
 
 **Model not found error:**
 ```bash
-# Ensure you've trained a model first
-python scripts/02_training/04_create_production_model.py --params experiments/model_candidates/vocab_15k.json --class-weights experiments/model_candidates/class_weights.json
+# Promote a validated candidate, or confirm model/disaster_*_prod_*.pkl is present from git
+python scripts/07_operations/promote_model.py experiments/experimental_runs/<date> --print-new-path
 ```
 
 **Database connection issues:**
@@ -725,5 +740,5 @@ pip install -r requirements.txt
 # Install local package
 pip install -e .
 # Or set PYTHONPATH
-PYTHONPATH=src python scripts/02_training/04_create_production_model.py --params experiments/model_candidates/vocab_15k.json --class-weights experiments/model_candidates/class_weights.json
+PYTHONPATH=src python scripts/02_training/03_create_experimental_model.py --algorithm logistic_regression
 ```

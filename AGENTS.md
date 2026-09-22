@@ -31,8 +31,8 @@ This document explains how to work on the Disaster Response project when operati
   - Standard venv location: `.venv/` at the project root.
   - Create once: `python -m venv .venv`.
   - Do **not** activate the venv; call the interpreter directly:
-    - Bash: `./.venv/bin/python scripts/04_create_production_model.py`
-    - PowerShell: `.\.venv\Scripts\python scripts\04_create_production_model.py`
+    - Bash: `./.venv/bin/python scripts/02_training/03_create_experimental_model.py --algorithm logistic_regression`
+    - PowerShell: `.\.venv\Scripts\python scripts/02_training/03_create_experimental_model.py --algorithm logistic_regression`
 
 - **Replit Environment (SSH)**: Virtual environment is **not required**
   - Replit manages Python environment automatically
@@ -40,8 +40,8 @@ This document explains how to work on the Disaster Response project when operati
   - Environment detection: Uses `REPLIT_DB_URL` or `REPL_ID` environment variables
   - Scripts automatically skip venv checks when running in Replit
   - In Codex CLI shell calls, execute commands directly without venv activation:
-    - Bash example: `["bash", "-lc", "python scripts/04_create_production_model.py"]` (set `workdir` to the repo root)
-    - PowerShell example: `["pwsh", "-NoProfile", "-Command", "python scripts/04_create_production_model.py"]`
+    - Bash example: `["bash", "-lc", "python scripts/02_training/03_create_experimental_model.py --algorithm logistic_regression"]` (set `workdir` to the repo root)
+    - PowerShell example: `["pwsh", "-NoProfile", "-Command", "python scripts/02_training/03_create_experimental_model.py --algorithm logistic_regression"]`
 
 - Prefer `python -m pip ...` to ensure installs land in the active venv (local) or correct environment (Replit).
 
@@ -66,9 +66,11 @@ python scripts/process_data.py data/01_raw/disaster_messages.csv data/01_raw/dis
 
 ### Model Training & Evaluation
 ```bash
-python scripts/04_create_production_model.py
+python scripts/02_training/03_create_experimental_model.py --algorithm logistic_regression
+python scripts/03_optimization/optimize_per_category_thresholds.py --model-path <candidate.pkl>
+python scripts/07_operations/promote_model.py experiments/experimental_runs/<date> --dry-run
 python scripts/01_test_sampling_strategies.py data/02_stg/stg_disaster_response.db
-python scripts/compare_models.py
+python scripts/04_evaluation/compare_models.py
 ```
 
 ### Application & Quality Gates

@@ -60,11 +60,12 @@ Creates experimental models using candidate configurations (active LogisticRegre
 - **Output**: Experimental models saved to `experiments/` directory; diagnostic `{stem}_f2_thresholds.json` (not the canonical thresholds file)
 - **Split**: With frozen IDs, fits on residual train only (`~(cal ∪ eval)`); requires `cal_ids.json`; inline F2 tunes on cal
 
-### `04_create_production_model.py`
-Creates a production disaster response classification model with optional class weighting via config (currently disabled in `experiments/model_candidates/class_weights.json`).
-- **Use when**: Creating the main production model for deployment
+### `04_create_production_model.py` (legacy RandomForest)
+Trains a **legacy RandomForest** pipeline for historical comparison or RF-only experiments. **Not** the production workflow.
+- **Use when**: Re-running RandomForest baselines or comparing against archived RF artifacts
+- **Production path instead**: `03_create_experimental_model.py` (LR) → `03_optimization/optimize_per_category_thresholds.py` → `07_operations/promote_model.py`
 - **Usage**: `python scripts/02_training/04_create_production_model.py --params experiments/model_candidates/vocab_15k.json --class-weights experiments/model_candidates/class_weights.json`
-- **Output**: Production model under `model/`, performance metrics, and training logs
+- **Output (default)**: `experiments/legacy_rf/<YYYY-MM-DD>/<HHMMSS>/` (model pickle, metrics, training log). Writing to `model/` requires `--allow-write-to-model-dir`.
 - **Dependencies**: Parameter and class weight configuration files
 
 ### `run_batch_experiments.py`
@@ -233,11 +234,32 @@ The `archive/` directory contains legacy scripts that are no longer actively use
 python scripts/01_data/process_data.py data/01_raw/disaster_messages.csv data/01_raw/disaster_categories.csv data/02_stg/stg_disaster_response.db
 ```
 
-**Model Training:**
+**Model Training (production — LogisticRegression):**
 ```bash
-# Create production model
-python scripts/02_training/04_create_production_model.py --params experiments/model_candidates/vocab_15k.json --class-weights experiments/model_candidates/class_weights.json
+# Train candidate (honest train/cal/eval when cal_ids + eval_ids are present)
+python scripts/02_training/03_create_experimental_model.py \
+  --params experiments/model_candidates/vocab_15k.json \
+  --class-weights experiments/model_candidates/class_weights.json \
+  --algorithm logistic_regression
 
+# Calibrate thresholds on cal; writes canonical {model_stem}_thresholds.json
+python scripts/03_optimization/optimize_per_category_thresholds.py \
+  --model-path experiments/experimental_runs/<date>/<candidate>.pkl
+
+# Promote (gates require cal-tuned thresholds + frozen-eval metrics)
+python scripts/07_operations/promote_model.py experiments/experimental_runs/<date> --dry-run
+python scripts/07_operations/promote_model.py experiments/experimental_runs/<date> --print-new-path
+```
+
+**Legacy RandomForest experiments:**
+```bash
+python scripts/02_training/04_create_production_model.py \
+  --params experiments/model_candidates/vocab_15k.json \
+  --class-weights experiments/model_candidates/class_weights.json
+```
+
+**Other training:**
+```bash
 # Test sampling strategies (interactive)
 python scripts/02_training/01_test_sampling_strategies.py data/02_stg/stg_disaster_response.db
 
@@ -263,14 +285,15 @@ python scripts/06_validation/validate_multilabel_sampling.py
 ## Script Dependencies
 
 - **Data**: `data/02_stg/stg_disaster_response.db`
-- **Parameters**: `model/parameters.json` or experiment-specific configs
-- **Class Weights**: `model/class_weights.json` or experiment-specific configs
-- **Hyperparameters**: `experiments/configs/hyperparameter_optimization.json`
+- **Parameters**: `experiments/model_candidates/` (e.g. `vocab_15k.json`)
+- **Class Weights**: `experiments/model_candidates/class_weights.json`
+- **Hyperparameters**: `experiments/experimental_configs/hyperparameters/` (search spaces) or `experiments/model_candidates/` (ready-to-use sets)
 - **Source Code**: `src/disasterproject/`
 
 ## Output Locations
 
-- **Models**: `model/` directory
+- **Production models**: `model/` (via `promote_model.py` only)
+- **Legacy RF training runs**: `experiments/legacy_rf/<YYYY-MM-DD>/<HHMMSS>/`
 - **Results**: `data/04_fct/` directory
 - **Experiments**: `experiments/` directory
 - **Logs**: `app.log` and console output

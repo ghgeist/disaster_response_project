@@ -29,7 +29,7 @@ The project initially considered multi-label sampling approaches (SMOTE, ADASYN)
 
 Prefer **class weighting** (via `get_multilabel_class_weights()`) over data resampling techniques (SMOTE, ADASYN, or other oversampling methods) when the training pipeline enables imbalance mitigation.
 
-The training pipeline (`scripts/02_training/03_create_experimental_model.py`, `scripts/02_training/04_create_production_model.py`) supports:
+The training pipeline (`scripts/02_training/03_create_experimental_model.py` for production candidates; `scripts/02_training/04_create_production_model.py` for legacy RandomForest only) supports:
 - `get_multilabel_class_weights(y_train, strategy='balanced')` to calculate per-label weights
 - `create_pipeline_with_custom_weights()` or `create_pipeline_logistic_regression_weighted()` to apply weights
 - No data resampling or synthetic sample generation when weights are enabled via config
@@ -104,8 +104,8 @@ The chosen approach (class weighting when enabled) provides the best balance of 
 - **Fallback**: Labels with missing classes (0 positives) receive equal weights (1.0, 1.0) to prevent undefined behavior
 
 ### Production Usage
-- **Experimental models**: `scripts/02_training/03_create_experimental_model.py` uses class weighting when `class_weights.enabled=true` in config
-- **Production models**: `scripts/02_training/04_create_production_model.py` applies class weighting based on config file
+- **Production candidates**: `scripts/02_training/03_create_experimental_model.py` uses class weighting when `class_weights.enabled=true` in config, then thresholds are calibrated and the run is promoted via `scripts/07_operations/promote_model.py`
+- **Legacy RandomForest**: `scripts/02_training/04_create_production_model.py` applies class weighting from config but is not the production path (outputs under `experiments/legacy_rf/`)
 - **Current production model**: `disaster_lr_v26-09-21_prod_2026-09-21.pkl` — LogisticRegression trained with class weighting **disabled**; inference uses cal-tuned per-label thresholds
 
 ### Sampling Infrastructure (Retained for Experimentation)
@@ -118,7 +118,8 @@ The chosen approach (class weighting when enabled) provides the best balance of 
 - **Data Quality Discovery**: [Dev Note 2025-09-16](../dev_notes/2025-09-16.md) - Hyperparameter optimization work where `child_alone` issue was discovered
 - **Class Weighting Implementation**: `src/disasterproject/models/samplers.py::get_multilabel_class_weights()`
 - **Sampling Implementation**: `src/disasterproject/models/samplers.py::apply_proper_multilabel_sampling()`
-- **Production Model Training**: `scripts/02_training/03_create_experimental_model.py`, `scripts/02_training/04_create_production_model.py`
+- **Production model training**: `scripts/02_training/03_create_experimental_model.py` (+ `scripts/07_operations/promote_model.py`)
+- **Legacy RF training**: `scripts/02_training/04_create_production_model.py`
 - **Promotion training log**: `experiments/experimental_runs/2026-09-21/training_log.json` (prior: `2025-11-06-vocab15k-promotion/training_log.json`)
 - **Sampling Validation**: `scripts/validate_multilabel_sampling.py`
 - **Data Quality Analysis**: `notebooks/02_data_quality_analysis.ipynb` - Documents zero-positive and rare categories
