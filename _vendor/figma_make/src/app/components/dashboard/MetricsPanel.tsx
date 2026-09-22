@@ -103,6 +103,9 @@ export const MetricsPanel = ({ onCategoryClick }: MetricsPanelProps) => {
   return (
     <div className="h-full flex flex-col bg-slate-50 overflow-y-auto min-w-0 scrollbar-thin">
       <div className="pt-4 px-6 pb-6 space-y-6">
+        <div className="text-[10px] font-medium uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 text-center">
+          Demo / Simulated activity — not live operational telemetry
+        </div>
         {/* KPI Cards */}
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
@@ -198,7 +201,7 @@ export const MetricsPanel = ({ onCategoryClick }: MetricsPanelProps) => {
         </div>
 
         <div className="text-[10px] text-slate-400 text-center pt-4 border-t border-slate-200 border-dashed">
-          System Status: <span className="text-emerald-600 font-medium">Operational</span> • Last sync: 12s ago
+          Demo activity panel • Presentation values only
         </div>
       </div>
     </div>

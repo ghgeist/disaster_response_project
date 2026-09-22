@@ -788,7 +788,7 @@ def test_model_info_returns_validated_production_metadata(client, tmp_path):
     assert payload["version"] == "test"
     assert payload["status"] == "production"
     assert payload["f1_score"] == pytest.approx(0.8975)
-    assert payload["hierarchy_violations"] == 0.0
+    assert "hierarchy_violations" not in payload
 
 
 def test_optimized_f1_prefers_performance_over_validation(client, tmp_path):

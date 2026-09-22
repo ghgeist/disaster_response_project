@@ -155,7 +155,6 @@ export function StormSignalView() {
           version: "unavailable",
           f1_score: null,
           status: "unknown",
-          hierarchy_violations: 0,
         });
       })
       .finally(() => {

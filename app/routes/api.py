@@ -817,7 +817,6 @@ def _unavailable_model_info_payload(
         "version": "unknown",
         "f1_score": None,
         "status": "unavailable",
-        "hierarchy_violations": 0.0,
         "provenanceError": DASHBOARD_PROVENANCE_UNAVAILABLE,
         "provenanceCode": provenance_code,
     }
@@ -874,7 +873,6 @@ def model_info():
             "version": version,
             "f1_score": f1_score,
             "status": status,
-            "hierarchy_violations": 0.0,
         })
     except Exception as error:
         _log_api_error("GET /api/model-info", error)

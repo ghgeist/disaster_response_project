@@ -288,12 +288,14 @@ Together, they provide complete context: the decision rationale (ADR) and the im
 
 ### **Model Performance Evolution**
 
-| Metric | Initial (Sep 11) | Optimized (Nov 6) | Production (Jan 22) |
-|--------|------------------|-------------------|---------------------|
+| Metric | Initial (Sep 11) | Optimized (Nov 6) | Historical (Nov 6–Jan 22) |
+|--------|------------------|-------------------|---------------------------|
 | **Model Size** | 1GB → 1.5MB | 67.69 MB → 4.53 MB | 4.53 MB (maintained) |
-| **F1-Score** | 93.57% | 92.76% | 92.76% (maintained) |
-| **Critical Recall** | 0% (discovered Sep 17) | 64.97% | 65% (maintained) |
+| **F1-Score** | 93.57% | 92.76% | 92.76% (historical tune-on-eval) |
+| **Critical Recall** | 0% (discovered Sep 17) | 64.97% | ~65% (historical tune-on-eval) |
 | **Load Time** | 6.2s | <0.1s | <0.1s (maintained) |
+
+*Current production operating point (2026-09-21 train/cal/eval) is in [Current State & Architecture](#current-state--architecture) below — not the Historical column.*
 
 ### **Infrastructure Improvements**
 
@@ -356,10 +358,11 @@ Together, they provide complete context: the decision rationale (ADR) and the im
 
 ### **Production Model**
 - **Algorithm**: TF-IDF + LogisticRegression
-- **Size**: 4.53 MB (93.3% reduction from 67.69 MB)
-- **Performance**: F1=92.76%, Critical Recall=65%
+- **Size**: ≈4.59 MB (vocab15k LogisticRegression)
+- **Performance** (2026-09-21 train/cal/eval): optimized frozen-eval weighted F1 ≈89.75%; frozen-eval critical recall 61.5%
+- **Historical (pre-three-way tune-on-eval)**: F1=92.76%, Critical Recall≈65% — not the current operating point
 - **Vocabulary**: 15K features (optimized from 230K)
-- **Thresholds**: Category-specific optimized thresholds
+- **Thresholds**: Calibration-tuned per-label production thresholds (critical recall is from these thresholds, not hierarchy softening)
 
 ### **Infrastructure**
 - **Deployment**: Local model file management (Google Drive dependency removed)

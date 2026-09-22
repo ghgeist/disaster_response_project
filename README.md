@@ -565,28 +565,27 @@ Frozen eval remains useful for comparable reporting, but it is **not** a pristin
 
 The system includes a hierarchy post-processor that enforces parent-child consistency in multi-label predictions. It runs on the Storm Signal dashboard classify API (`POST /api/classify`) and on the legacy `/classify` comparison path.
 
-- **Parent ≥ Child Probabilities**: Ensures hierarchical relationships (e.g., `aid_related` ≥ `medical_help`)
-- **Decision-Level Forcing**: If any child predicts positive, parent is forced positive
-- **Critical Label Thresholds**: Reduced thresholds for safety-critical labels to improve recall
-- **Violation Reduction**: Eliminates parent < child probability violations post-processing
+**Active hierarchy behavior**
+- **Parent ≥ Child Probabilities**: Constrains taxonomy groups so parent probability is at least each child's (e.g., `aid_related` ≥ `medical_help`)
+- **Decision-Level Forcing**: If any child predicts positive, the parent decision is forced positive
+- **Configured exclusions / special cases**: Labels such as `child_alone` are excluded from hierarchy constraints (see below)
+
+**Inactive hierarchy behavior**
+- **Critical-threshold reduction**: `HIERARCHY_CRITICAL_THRESHOLD_REDUCTION = 0.0` in `src/disasterproject/utils/config.py`, so the hierarchy layer does **not** further soften critical-label thresholds at runtime
+- Current **61.5%** frozen-eval critical recall comes from the **calibration-tuned per-label production thresholds**, not from hierarchy threshold softening
 
 API and Config
 - Shared helper: `app.utils.hierarchy_helpers.run_hierarchy_correction` → `apply_hierarchy(...)`
-- Config default: `HIERARCHY_CRITICAL_THRESHOLD_REDUCTION = 0.0` (in `src/disasterproject/utils/config.py`). Scripts import and pass this value explicitly.
-- Metrics: hierarchy violation rate is reported as "violations per 1k edges" (normalized by total parent→child edges evaluated), improving comparability across taxonomies.
+- Scripts may still pass `HIERARCHY_CRITICAL_THRESHOLD_REDUCTION` explicitly; with the current `0.0` default it has no effect on thresholds
+- Offline hierarchy evaluation scripts can report violations per 1k edges when measuring constraint quality; that metric is **not** exposed by `GET /api/model-info`
 
-Metric Definition Change
-- As of 2025-09-18, "violations per 1k" is normalized by total parent→child edges evaluated (per-edge), not by samples.
-- Earlier runs may show "per 1k samples". When comparing across runs, ensure you compare the same denominator.
+Metric Definition Note (offline evaluation only)
+- As of 2025-09-18, "violations per 1k" in hierarchy evaluation scripts is normalized by total parent→child edges evaluated (per-edge), not by samples
+- Earlier runs may show "per 1k samples"; compare only matching denominators
 
-Note on Edge Metrics
-- Samples lacking complete probabilities (for any label) are excluded from hierarchy edge metrics to avoid mixing hard labels with probabilities. See the session note for details: `docs/sessions/active/2025-09-17-implement-hierarchy.md`.
-
-Reproducibility: Persisted Thresholds
-- During evaluation, the effective per-label thresholds used for hierarchy decisions are saved for reproducibility:
-  - Production evaluation: `model/thresholds_used_hierarchy.json`
-  - Experimental evaluator: `experiments/hierarchy_evaluation/thresholds_used_hierarchy_<timestamp>.json`
-- The saved values reflect any configured critical-label reduction; with the current default (0.0), they typically remain 0.5 unless overridden by experiment thresholds.
+Reproducibility Note
+- Experimental hierarchy evaluators may write `experiments/hierarchy_evaluation/thresholds_used_hierarchy_<timestamp>.json`
+- There is **no** current production artifact at `model/thresholds_used_hierarchy.json`; production decisions use the promoted per-label threshold file bound to the active model stem
 
 #### Label Exclusions
 

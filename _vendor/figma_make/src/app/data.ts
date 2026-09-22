@@ -25,7 +25,6 @@ export interface ModelInfo {
   version: string;
   f1_score: number | null;
   status: string;
-  hierarchy_violations: number;
 }
 
 /** Category group name -> list of display category names. Runtime source: GET /api/categories. */
