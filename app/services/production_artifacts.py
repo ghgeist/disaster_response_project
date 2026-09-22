@@ -209,11 +209,16 @@ def _load_json(path: Path) -> Any:
 
 def _require_sha256_field(model_info: Mapping[str, Any], field: str) -> str:
     value = model_info.get(field)
-    if not isinstance(value, str) or len(value) != 64:
+    normalized = value.lower() if isinstance(value, str) else ""
+    if (
+        not isinstance(value, str)
+        or len(normalized) != 64
+        or not all(ch in "0123456789abcdef" for ch in normalized)
+    ):
         raise ProductionArtifactError(
             f"MODEL_INFO.json missing valid {field} (64-char hex SHA-256)"
         )
-    return value.lower()
+    return normalized
 
 
 def resolve_production_artifacts(

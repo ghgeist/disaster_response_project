@@ -35,6 +35,7 @@ sys.path.insert(0, str(PROJECT_ROOT / 'src'))
 
 # pylint: disable=import-error
 from promote_model import (  # noqa: E402
+    _update_app_config_model_filename,
     assert_force_promotion_prerequisites,
     compute_model_hash,
     detect_algorithm_type,
@@ -42,7 +43,6 @@ from promote_model import (  # noqa: E402
     promote_model,
     validate_candidate_model,
     weighted_f1_relative_drop,
-    _update_app_config_model_filename,
 )
 
 from disasterproject.utils.config import TARGET_COLUMNS  # noqa: E402
@@ -536,7 +536,25 @@ class TestThresholdDeployInvariant:
 
         assert list(model_dir.glob("disaster_*_prod_*.pkl")) == []
         assert list(model_dir.glob("*_thresholds.json")) == []
+        assert list(model_dir.glob("*_labels.json")) == []
         assert list(model_dir.glob(".promotion_staging_*")) == []
+
+    def test_labels_hash_failure_leaves_no_discoverable_production_model(
+        self, temp_dir, candidate_dir_with_lr_model
+    ):
+        model_dir = temp_dir / "model"
+        model_dir.mkdir()
+
+        validation_results = validate_candidate_model(candidate_dir_with_lr_model)
+        assert validation_results['validation_passed'] is True
+        validation_results['labels_sha256'] = '0' * 64
+
+        with pytest.raises(ValueError, match="[Ll]abels .*integrity check failed"):
+            promote_model(candidate_dir_with_lr_model, model_dir, validation_results)
+
+        assert list(model_dir.glob("disaster_*_prod_*.pkl")) == []
+        assert list(model_dir.glob("*_thresholds.json")) == []
+        assert list(model_dir.glob("*_labels.json")) == []
 
 
 class TestProductionArtifactImmutability:
@@ -634,7 +652,7 @@ class TestProductionArtifactImmutability:
         model_hash_before = compute_model_hash(prod_model)
         prod_thresholds.unlink()
 
-        with pytest.raises(ValueError, match="Incomplete production artifact pair"):
+        with pytest.raises(ValueError, match="Incomplete production artifact bundle"):
             promote_model(candidate_dir_with_lr_model, model_dir, validation_results)
 
         assert prod_model.exists()

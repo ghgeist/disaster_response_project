@@ -9,7 +9,9 @@ from unittest.mock import MagicMock
 import pytest
 
 from app.services.category_mapper import CategoryMapper
+from app.services.errors import ModelServiceError
 from app.services.model_predictor import ModelPredictor
+from app.services.model_service import ModelService
 from app.services.production_artifacts import (
     ProductionArtifactError,
     compute_file_sha256,
@@ -133,7 +135,6 @@ def test_labels_hash_mismatch_raises(tmp_path: Path) -> None:
 def test_incomplete_threshold_map_raises(tmp_path: Path) -> None:
     model_path = _install_production_bundle(tmp_path)
     thresholds = model_path.with_name(f"{model_path.stem}_thresholds.json")
-    _write_thresholds(thresholds, overrides={"medical_help": 0.4})
     thresholds.write_text(json.dumps({"thresholds": {"medical_help": 0.4}}), encoding="utf-8")
     info_path = model_path.with_name("MODEL_INFO.json")
     info = json.loads(info_path.read_text(encoding="utf-8"))
@@ -154,6 +155,18 @@ def test_label_order_mismatch_raises(tmp_path: Path) -> None:
     info_path.write_text(json.dumps(info), encoding="utf-8")
     with pytest.raises(ProductionArtifactError, match="order mismatch"):
         resolve_production_artifacts(model_path)
+
+
+def test_model_service_fails_closed_on_provenance_mismatch(tmp_path: Path) -> None:
+    model_path = _install_production_bundle(tmp_path)
+    info_path = model_path.with_name("MODEL_INFO.json")
+    info = json.loads(info_path.read_text(encoding="utf-8"))
+    info["sha256"] = "0" * 64
+    info_path.write_text(json.dumps(info), encoding="utf-8")
+
+    service = ModelService(model_path)
+    with pytest.raises(ModelServiceError, match="provenance failed"):
+        service.load_model()
 
 
 def test_predict_proba_failure_does_not_fallback_when_disabled() -> None:

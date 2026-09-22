@@ -3,6 +3,8 @@ Mock services for testing.
 """
 import pandas as pd
 
+from disasterproject.utils.config import TARGET_COLUMNS
+
 
 class MockDataService:
     """Mock data service for testing."""
@@ -134,14 +136,5 @@ class MockModelService:
         return {"labels": predictions, "probabilities": probabilities}
 
     def get_thresholds_map(self) -> dict:
-        """Mock thresholds map for testing."""
-        # Return default thresholds similar to real ModelService
-        return {
-            'related': 0.5,
-            'request': 0.5,
-            'aid_related': 0.5,
-            'medical_help': 0.5,
-            'food': 0.5,
-            'water': 0.5,
-            'direct_report': 0.5,
-        }
+        """Mock thresholds map aligned with the production label contract."""
+        return {label: 0.5 for label in TARGET_COLUMNS}

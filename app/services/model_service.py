@@ -39,8 +39,8 @@ class ModelService:
             return self._model
 
         try:
-            self._model = self._loader.load_model()
             self._load_artifacts()
+            self._model = self._loader.load_model()
         except ProductionArtifactError as error:
             self._model = None
             self._thresholds = None
@@ -68,11 +68,6 @@ class ModelService:
                 self._thresholds,
                 allow_predict_fallback=False,
             )
-        except ProductionArtifactError as error:
-            logger.error("Prediction blocked by provenance failure: %s", error)
-            raise ModelServiceError(
-                "Model unavailable: production artifact provenance failed."
-            ) from error
         except (ValueError, TypeError, AttributeError) as error:
             logger.error("Model prediction unavailable: %s", error)
             raise ModelServiceError(
