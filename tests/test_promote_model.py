@@ -686,6 +686,15 @@ class TestRealCandidateAcceptance:
         if not (candidate / model_name).exists():
             shutil.copy2(lr_model_path, candidate / model_name)
 
+        model_stem = Path(model_name).stem
+        labels_artifact = candidate / f"{model_stem}_labels.json"
+        if not labels_artifact.exists():
+            legacy_labels = candidate / "label_order.json"
+            if legacy_labels.exists():
+                shutil.copy2(legacy_labels, labels_artifact)
+            else:
+                _write_contract_labels(labels_artifact)
+
         results = validate_candidate_model(candidate)
         assert results['validation_passed'] is True, results['validation_errors']
         assert results['optimization_split'] == "calibration"

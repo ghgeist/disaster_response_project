@@ -10,12 +10,12 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
-
 from flask import Blueprint, current_app, jsonify, redirect, request
 
 from app.extensions import csrf
 from app.services.errors import DataServiceError
 from app.services.model_service import ModelServiceError
+from app.services.production_artifacts import stem_bound_thresholds_path
 from app.utils.formatting import format_request_context
 from app.utils.hierarchy_helpers import run_hierarchy_correction
 from app.utils.prediction_helpers import process_prediction_result
@@ -729,7 +729,7 @@ def _find_production_thresholds_file(
             return None
         stem = active_model.stem
 
-    stem_thresholds = model_dir / f"{stem}_thresholds.json"
+    stem_thresholds = stem_bound_thresholds_path(model_dir / f"{stem}.pkl")
     if stem_thresholds.is_file() and not stem_thresholds.name.startswith("optimized_"):
         return stem_thresholds
     return None
