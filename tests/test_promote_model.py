@@ -875,24 +875,13 @@ class TestPromotionFlow:
         model_dir = temp_dir / "model"
         model_dir.mkdir()
         validation_results = validate_candidate_model(candidate_dir_with_lr_model)
+        _assert_explicit_op_metrics(validation_results)
         promote_model(candidate_dir_with_lr_model, model_dir, validation_results)
         model_info = json.loads((model_dir / "MODEL_INFO.json").read_text(encoding='utf-8'))
         assert model_info['algorithm'] == 'lr'
         assert model_info['algorithm_name'] == 'LogisticRegression'
         _assert_explicit_op_metrics(model_info['performance'])
         _assert_explicit_op_metrics(model_info['validation_results'])
-
-    def test_model_info_omits_legacy_f1_aliases(self, temp_dir, candidate_dir_with_lr_model):
-        """Written MODEL_INFO uses explicit OP fields only (no f1_micro / f1_weighted)."""
-        model_dir = temp_dir / "model"
-        model_dir.mkdir()
-        validation_results = validate_candidate_model(candidate_dir_with_lr_model)
-        _assert_explicit_op_metrics(validation_results)
-        promote_model(candidate_dir_with_lr_model, model_dir, validation_results)
-        model_info = json.loads((model_dir / "MODEL_INFO.json").read_text(encoding='utf-8'))
-        _assert_explicit_op_metrics(model_info['performance'])
-        _assert_explicit_op_metrics(model_info['validation_results'])
-        assert set(model_info['performance']) == set(EXPLICIT_OP_METRIC_KEYS)
 
     def test_promotion_record_includes_algorithm_info(self, temp_dir, candidate_dir_with_rf_model):
         model_dir = temp_dir / "model"

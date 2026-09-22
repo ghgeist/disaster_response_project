@@ -661,7 +661,7 @@ def test_eval_critical_recall_prefers_performance_block(client, tmp_path):
     """When performance.eval_critical_recall is present, the API returns that value."""
     _write_resolver_valid_dashboard_bundle(
         tmp_path,
-        performance={"eval_critical_recall": 0.61, "f1_weighted": 0.5},
+        performance={"eval_critical_recall": 0.61},
         validation_results={"eval_critical_recall": 0.42},
     )
     with patch("app.routes.api._get_model_dir", return_value=tmp_path):
@@ -679,7 +679,7 @@ def test_eval_critical_recall_falls_back_to_validation_results(client, tmp_path)
     """When performance is missing the field, validation_results is used."""
     _write_resolver_valid_dashboard_bundle(
         tmp_path,
-        performance={"f1_weighted": 0.5},
+        performance={},
         validation_results={"eval_critical_recall": 0.42},
     )
     with patch("app.routes.api._get_model_dir", return_value=tmp_path):
@@ -701,10 +701,7 @@ def test_eval_critical_recall_null_when_missing_or_malformed(client, tmp_path, b
     """Missing or invalid eval_critical_recall values surface as null, not 0.0."""
     _write_resolver_valid_dashboard_bundle(
         tmp_path,
-        performance={
-            "f1_weighted": 0.5,
-            "eval_critical_recall": bad_value,
-        },
+        performance={"eval_critical_recall": bad_value},
     )
     with patch("app.routes.api._get_model_dir", return_value=tmp_path):
         with patch(
@@ -720,8 +717,8 @@ def test_eval_critical_recall_null_when_key_absent(client, tmp_path):
     """Absent eval_critical_recall keys yield null."""
     _write_resolver_valid_dashboard_bundle(
         tmp_path,
-        performance={"f1_weighted": 0.5},
-        validation_results={"f1_weighted": 0.5},
+        performance={},
+        validation_results={},
     )
     with patch("app.routes.api._get_model_dir", return_value=tmp_path):
         with patch(
@@ -740,7 +737,7 @@ def test_dashboard_fails_closed_when_model_info_exists_without_pickle(client, tm
             {
                 "version": "orphan-v1",
                 "status": "production",
-                "performance": {"f1_weighted": 0.99, "eval_critical_recall": 0.88},
+                "performance": {"eval_critical_recall": 0.88},
             }
         ),
         encoding="utf-8",
@@ -822,12 +819,12 @@ def test_optimized_f1_falls_back_to_validation_results(client, tmp_path):
     assert dash_response.get_json()["metrics"]["f1"] == pytest.approx(0.75)
 
 
-def test_naked_f1_weighted_does_not_populate_f1_wire_keys(client, tmp_path):
-    """Naked f1_weighted alone must not populate f1_score or metrics.f1."""
+def test_legacy_f1_aliases_do_not_populate_f1_wire_keys(client, tmp_path):
+    """Naked f1_weighted and baseline_f1_micro must not populate f1_score / metrics.f1."""
     active = _write_resolver_valid_dashboard_bundle(
         tmp_path,
-        performance={"f1_weighted": 0.99},
-        validation_results={"f1_weighted": 0.88},
+        performance={"f1_weighted": 0.99, "baseline_f1_micro": 0.77},
+        validation_results={"f1_weighted": 0.88, "baseline_f1_micro": 0.66},
     )
     with patch("app.routes.api._get_model_dir", return_value=tmp_path):
         with patch(
