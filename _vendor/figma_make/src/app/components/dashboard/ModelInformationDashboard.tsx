@@ -261,7 +261,7 @@ export function ModelInformationDashboard() {
                   <div className="flex justify-between items-end border-b border-slate-200 pb-4">
                       <div>
                           <div className="flex items-center gap-3 mb-1">
-                              <h1 className="text-2xl font-bold text-slate-900 tracking-tight uppercase">{modelId}</h1>
+                              <h1 className="text-2xl font-bold text-slate-900 tracking-tight uppercase">MODEL: {modelId}</h1>
                               <Badge className="rounded-none bg-slate-900 text-white hover:bg-slate-800 font-mono text-xs">v{modelVersion}</Badge>
                               {algorithmCode !== "unknown" && (
                                 <Badge className="rounded-none bg-blue-600 text-white hover:bg-blue-700 font-mono text-xs">
@@ -277,7 +277,7 @@ export function ModelInformationDashboard() {
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <MetricCard
-                        label="Frozen-eval Critical Recall"
+                        label="Critical Recall"
                         value={criticalRecallDisplay}
                         tooltip="Unweighted mean recall over safety-critical labels on the frozen eval split at calibration-tuned production thresholds."
                       />
