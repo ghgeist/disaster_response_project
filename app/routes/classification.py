@@ -96,9 +96,7 @@ def _build_classify_response(prediction_result: dict, model_service):
     raw_probabilities = prediction_result["probabilities"]
 
     service_thresholds = model_service.get_thresholds_map()
-    thresholds = {
-        label: service_thresholds.get(label, 0.5) for label in raw_probabilities.keys()
-    }
+    thresholds = {label: service_thresholds[label] for label in raw_probabilities}
 
     violations = compute_violations(
         raw_probabilities,

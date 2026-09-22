@@ -25,30 +25,50 @@ class ModelPredictor:
         text: str,
         label_order: List[str] | None,
         thresholds: Dict[str, float] | None,
+        *,
+        allow_predict_fallback: bool = False,
     ) -> dict:
-        """Predict labels and probabilities for an input message."""
-        category_names = self._category_mapper.get_label_order(label_order)
+        """Predict labels and probabilities for an input message.
+
+        Production inference must keep ``allow_predict_fallback=False`` so a
+        ``predict_proba`` / threshold failure cannot silently abandon the
+        deployed operating point via ``model.predict()``.
+        """
+        if not isinstance(label_order, list) or not label_order:
+            raise ValueError(
+                "Production label order is required; category-mapper defaults are disabled"
+            )
+        if not isinstance(thresholds, dict) or not thresholds:
+            raise ValueError("Production thresholds map is required")
+
+        category_names = list(label_order)
 
         try:
             return self._predict_with_probabilities(model, text, category_names, thresholds)
         except Exception as prob_exc:
-            logger.warning(
-                "Probability path failed (%s); falling back to default predict",
+            if allow_predict_fallback:
+                logger.warning(
+                    "Probability path failed (%s); falling back to default predict",
+                    prob_exc,
+                )
+                return self._predict_fallback(model, text, category_names)
+            logger.error(
+                "Probability/threshold path failed; predict() fallback disabled: %s",
                 prob_exc,
             )
-            return self._predict_fallback(model, text, category_names)
+            raise
 
     def _predict_with_probabilities(
         self,
         model: Any,
         text: str,
         category_names: List[str],
-        thresholds: Dict[str, float] | None,
+        thresholds: Dict[str, float],
     ) -> dict:
-        """Use predict_proba and per-label thresholds when available."""
+        """Use predict_proba and the deployed per-label thresholds."""
         proba = model.predict_proba([text])
         if not isinstance(proba, list):
-            raise TypeError("Unexpected predict_proba output; using predict fallback")
+            raise TypeError("Unexpected predict_proba output")
 
         model_probs, category_mapping = self._extract_probabilities(model, proba, category_names)
         normalized_probs = self._normalize_outputs(
@@ -57,12 +77,15 @@ class ModelPredictor:
             category_mapping=category_mapping,
         )
 
-        thresholds_map = self._threshold_manager.get_thresholds_map(category_names, thresholds)
+        thresholds_map = self._threshold_manager.require_loaded_thresholds(
+            category_names,
+            thresholds,
+        )
         labels = self._apply_thresholds(category_names, normalized_probs, thresholds_map)
         return self._build_prediction(category_names, labels, normalized_probs)
 
     def _predict_fallback(self, model: Any, text: str, category_names: List[str]) -> dict:
-        """Fallback to simple predict when probabilities are unavailable."""
+        """Non-production fallback when probabilities are unavailable."""
         raw_predictions = model.predict([text])[0]
         normalized_labels = self._normalize_outputs(
             category_names,
@@ -168,11 +191,13 @@ class ModelPredictor:
         probabilities: Dict[str, float],
         thresholds_map: Dict[str, float],
     ) -> List[int]:
-        return [
-            1 if probabilities.get(category_name, 0.0) >= thresholds_map.get(category_name, 0.5) else 0
-            for category_name in category_names
-        ]
-
+        labels: List[int] = []
+        for category_name in category_names:
+            if category_name not in thresholds_map:
+                raise ValueError(f"Missing threshold for category {category_name!r}")
+            probability = probabilities.get(category_name, 0.0)
+            labels.append(1 if probability >= thresholds_map[category_name] else 0)
+        return labels
     def _normalize_outputs(
         self,
         category_names: List[str],

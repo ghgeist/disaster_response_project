@@ -35,6 +35,7 @@ sys.path.insert(0, str(PROJECT_ROOT / 'src'))
 
 # pylint: disable=import-error
 from promote_model import (  # noqa: E402
+    _update_app_config_model_filename,
     assert_force_promotion_prerequisites,
     compute_model_hash,
     detect_algorithm_type,
@@ -42,7 +43,6 @@ from promote_model import (  # noqa: E402
     promote_model,
     validate_candidate_model,
     weighted_f1_relative_drop,
-    _update_app_config_model_filename,
 )
 
 from disasterproject.utils.config import TARGET_COLUMNS  # noqa: E402
@@ -108,6 +108,13 @@ def _write_training_log(path: Path, micro_f1: float = 0.6458, overall_f1: float 
     )
 
 
+def _write_contract_labels(path: Path, labels: list | None = None) -> None:
+    path.write_text(
+        json.dumps(labels if labels is not None else list(TARGET_COLUMNS)),
+        encoding="utf-8",
+    )
+
+
 def _build_contract_candidate(
     candidate_dir: Path,
     model_path: Path,
@@ -122,6 +129,7 @@ def _build_contract_candidate(
         candidate_dir / f"{dest_model.stem}_thresholds.json",
         **threshold_kwargs,
     )
+    _write_contract_labels(candidate_dir / f"{dest_model.stem}_labels.json")
     return candidate_dir
 
 
@@ -435,8 +443,20 @@ class TestForcePathPrerequisites:
         candidate.mkdir()
         shutil.copy2(lr_model_path, candidate / "lr_model.pkl")
         _write_training_log(candidate / "training_log.json")
+        _write_contract_labels(candidate / "lr_model_labels.json")
         results = validate_candidate_model(candidate)
         assert results['thresholds_path'] is None
+        with pytest.raises(ValueError, match="structural promotion prerequisites"):
+            assert_force_promotion_prerequisites(results)
+
+    def test_force_prerequisites_reject_missing_labels(self, temp_dir, lr_model_path):
+        candidate = temp_dir / "2026-09-21-force-no-labels"
+        candidate.mkdir()
+        shutil.copy2(lr_model_path, candidate / "lr_model.pkl")
+        _write_training_log(candidate / "training_log.json")
+        _write_contract_thresholds(candidate / "lr_model_thresholds.json")
+        results = validate_candidate_model(candidate)
+        assert results['labels_path'] is None
         with pytest.raises(ValueError, match="structural promotion prerequisites"):
             assert_force_promotion_prerequisites(results)
 
@@ -458,8 +478,11 @@ class TestForcePathPrerequisites:
         promotion_record = promote_model(candidate, model_dir, results)
         promoted = Path(promotion_record['promoted_model'])
         deployed = model_dir / f"{promoted.stem}_thresholds.json"
+        deployed_labels = model_dir / f"{promoted.stem}_labels.json"
         assert deployed.exists()
+        assert deployed_labels.exists()
         assert compute_model_hash(deployed) == results['thresholds_sha256']
+        assert compute_model_hash(deployed_labels) == results['labels_sha256']
 
     def test_promote_refuses_missing_thresholds_even_if_forced_fields_cleared(
         self, temp_dir, candidate_dir_with_lr_model
@@ -513,7 +536,25 @@ class TestThresholdDeployInvariant:
 
         assert list(model_dir.glob("disaster_*_prod_*.pkl")) == []
         assert list(model_dir.glob("*_thresholds.json")) == []
+        assert list(model_dir.glob("*_labels.json")) == []
         assert list(model_dir.glob(".promotion_staging_*")) == []
+
+    def test_labels_hash_failure_leaves_no_discoverable_production_model(
+        self, temp_dir, candidate_dir_with_lr_model
+    ):
+        model_dir = temp_dir / "model"
+        model_dir.mkdir()
+
+        validation_results = validate_candidate_model(candidate_dir_with_lr_model)
+        assert validation_results['validation_passed'] is True
+        validation_results['labels_sha256'] = '0' * 64
+
+        with pytest.raises(ValueError, match="[Ll]abels .*integrity check failed"):
+            promote_model(candidate_dir_with_lr_model, model_dir, validation_results)
+
+        assert list(model_dir.glob("disaster_*_prod_*.pkl")) == []
+        assert list(model_dir.glob("*_thresholds.json")) == []
+        assert list(model_dir.glob("*_labels.json")) == []
 
 
 class TestProductionArtifactImmutability:
@@ -540,6 +581,38 @@ class TestProductionArtifactImmutability:
         assert prod_thresholds.read_bytes() == thresholds_bytes_before
         assert compute_model_hash(prod_model) == model_hash_before
         assert compute_model_hash(prod_thresholds) == thresholds_hash_before
+
+    def test_matching_triple_with_stale_model_info_repairs_manifest(
+        self, temp_dir, candidate_dir_with_lr_model
+    ):
+        """Matching stem triple + wrong MODEL_INFO must repair, not claim idempotence."""
+        model_dir = temp_dir / "model"
+        model_dir.mkdir()
+        validation_results = validate_candidate_model(candidate_dir_with_lr_model)
+        first = promote_model(candidate_dir_with_lr_model, model_dir, validation_results)
+        prod_model = Path(first['promoted_model'])
+        prod_thresholds = model_dir / f"{prod_model.stem}_thresholds.json"
+        prod_labels = model_dir / f"{prod_model.stem}_labels.json"
+        model_info_path = model_dir / "MODEL_INFO.json"
+
+        model_bytes_before = prod_model.read_bytes()
+        thresholds_bytes_before = prod_thresholds.read_bytes()
+        labels_bytes_before = prod_labels.read_bytes()
+
+        stale = json.loads(model_info_path.read_text(encoding="utf-8"))
+        stale["sha256"] = "0" * 64
+        model_info_path.write_text(json.dumps(stale), encoding="utf-8")
+
+        second = promote_model(candidate_dir_with_lr_model, model_dir, validation_results)
+        assert Path(second['promoted_model']) == prod_model
+        assert prod_model.read_bytes() == model_bytes_before
+        assert prod_thresholds.read_bytes() == thresholds_bytes_before
+        assert prod_labels.read_bytes() == labels_bytes_before
+
+        repaired = json.loads(model_info_path.read_text(encoding="utf-8"))
+        assert repaired["sha256"] == validation_results["model_hash"]
+        assert repaired["thresholds_sha256"] == validation_results["thresholds_sha256"]
+        assert repaired["labels_sha256"] == validation_results["labels_sha256"]
 
     def test_collision_with_different_existing_thresholds(
         self, temp_dir, candidate_dir_with_lr_model
@@ -611,7 +684,7 @@ class TestProductionArtifactImmutability:
         model_hash_before = compute_model_hash(prod_model)
         prod_thresholds.unlink()
 
-        with pytest.raises(ValueError, match="Incomplete production artifact pair"):
+        with pytest.raises(ValueError, match="Incomplete production artifact bundle"):
             promote_model(candidate_dir_with_lr_model, model_dir, validation_results)
 
         assert prod_model.exists()
@@ -662,6 +735,15 @@ class TestRealCandidateAcceptance:
         model_name = "lr_vocab15k_cal_split_model.pkl"
         if not (candidate / model_name).exists():
             shutil.copy2(lr_model_path, candidate / model_name)
+
+        model_stem = Path(model_name).stem
+        labels_artifact = candidate / f"{model_stem}_labels.json"
+        if not labels_artifact.exists():
+            legacy_labels = candidate / "label_order.json"
+            if legacy_labels.exists():
+                shutil.copy2(legacy_labels, labels_artifact)
+            else:
+                _write_contract_labels(labels_artifact)
 
         results = validate_candidate_model(candidate)
         assert results['validation_passed'] is True, results['validation_errors']

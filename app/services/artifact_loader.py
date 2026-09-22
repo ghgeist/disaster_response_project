@@ -1,75 +1,52 @@
 """
 Model artifact loading utilities (thresholds, label order).
+
+Production loading delegates to the shared strict provenance resolver.
 """
 from __future__ import annotations
 
-import json
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
+from .production_artifacts import (
+    ProductionArtifactError,
+    ProductionArtifacts,
+    resolve_production_artifacts,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class ModelArtifactLoader:
-    """Load model artifacts from the model directory."""
+    """Load and validate production model companion artifacts."""
 
     def __init__(self, model_path: Path) -> None:
         self.model_path = model_path
+        self._resolved: Optional[ProductionArtifacts] = None
 
-    def load_artifacts(self) -> Tuple[Optional[Dict[str, float]], Optional[List[str]]]:
-        """Load thresholds and label order from disk if present."""
+    def load_artifacts(self) -> Tuple[Dict[str, float], List[str]]:
+        """
+        Load production thresholds and label order with provenance checks.
+
+        Raises:
+            ProductionArtifactError: On missing, malformed, incomplete, or
+                hash-mismatched production artifacts.
+        """
+        artifacts = self.resolve()
+        return artifacts.thresholds, artifacts.label_order
+
+    def resolve(self) -> ProductionArtifacts:
+        """Return the validated production artifact bundle (cached)."""
+        if self._resolved is not None:
+            return self._resolved
         try:
-            thresholds = self._load_thresholds()
-            label_order = self._load_label_order()
-            return thresholds, label_order
-        except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
-            logger.warning("Failed loading model artifacts (thresholds/label_order): %s", exc)
-            return None, None
-
-    def _load_thresholds(self) -> Optional[Dict[str, float]]:
-        model_dir = self.model_path.parent
-        model_stem = self.model_path.stem
-        # Standard naming: {model_stem}_thresholds.json (preferred)
-        # Legacy fallback: thresholds.json (for backward compatibility)
-        # Note: optimized_* files are deprecated - use model-specific naming instead
-        thresholds_candidates = [
-            model_dir / f"{model_stem}_thresholds.json",
-            model_dir / "thresholds.json",
-        ]
-
-        for thresholds_path in thresholds_candidates:
-            if thresholds_path.exists():
-                with open(thresholds_path, "r", encoding="utf-8") as f:
-                    loaded_data = json.load(f)
-
-                if isinstance(loaded_data, dict) and "thresholds" in loaded_data:
-                    thresholds = loaded_data["thresholds"]
-                    logger.info(
-                        "Loaded optimized thresholds from %s (target recall: %s)",
-                        thresholds_path.name,
-                        loaded_data.get("metadata", {}).get("target_recall", "unknown"),
-                    )
-                    return thresholds
-
-                logger.info("Loaded thresholds from %s", thresholds_path.name)
-                return loaded_data
-
-        return None
-
-    def _load_label_order(self) -> Optional[List[str]]:
-        model_dir = self.model_path.parent
-        model_stem = self.model_path.stem
-        label_order_candidates = [
-            model_dir / f"{model_stem}_labels.json",
-            model_dir / "label_order.json",
-        ]
-
-        for label_order_path in label_order_candidates:
-            if label_order_path.exists():
-                with open(label_order_path, "r", encoding="utf-8") as f:
-                    label_order = json.load(f)
-                logger.info("Loaded label order from %s", label_order_path.name)
-                return label_order
-
-        return None
+            self._resolved = resolve_production_artifacts(self.model_path)
+        except ProductionArtifactError:
+            logger.error(
+                "Production artifact provenance failed for %s",
+                self.model_path,
+                exc_info=False,
+            )
+            raise
+        return self._resolved

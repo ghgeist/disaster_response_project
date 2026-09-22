@@ -34,6 +34,7 @@
     "f1_micro": 0.6454499163453844
   },
   "thresholds_sha256": "20caecccca1339cb79b1654dfd4934541aeb383e7ff73389d32a8f59d2e83a4f",
+  "labels_sha256": "849ffd27ee327ad598c2c0f77a33e23d16ae05999a41331140e565f181510910",
   "optimization_split": "calibration",
   "reporting_split": "frozen_eval",
   "version": "v26-09-21",

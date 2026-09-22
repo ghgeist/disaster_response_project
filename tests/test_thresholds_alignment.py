@@ -17,6 +17,7 @@ from app.routes.api import (
     _find_production_thresholds_file,
     _resolve_active_production_model_path,
 )
+from disasterproject.utils.config import TARGET_COLUMNS
 
 
 def _sha256(path: Path) -> str:
@@ -27,6 +28,7 @@ def test_production_thresholds_sha_matches_model_info_provenance() -> None:
     """Deployed thresholds must stay byte-identical to the validated evidence SHA."""
     model_path = Config.MODEL_PATH
     thresholds_path = model_path.with_name(f"{model_path.stem}_thresholds.json")
+    labels_path = model_path.with_name(f"{model_path.stem}_labels.json")
     model_info_path = model_path.with_name("MODEL_INFO.json")
 
     if not model_path.exists() or not thresholds_path.exists() or not model_info_path.exists():
@@ -42,9 +44,19 @@ def test_production_thresholds_sha_matches_model_info_provenance() -> None:
         "(exact validated artifact; do not rewrite metadata after hashing)"
     )
 
+    expected_labels = info.get("labels_sha256")
+    assert isinstance(expected_labels, str) and len(expected_labels) == 64, (
+        "MODEL_INFO.json must record labels_sha256 from promotion validation"
+    )
+    assert labels_path.exists(), "Production stem-bound labels artifact is required"
+    assert _sha256(labels_path) == expected_labels, (
+        "Production labels bytes must match MODEL_INFO labels_sha256"
+    )
+
     # Filename stem pairs the pickle to companions; metadata.model may still
     # name the experimental candidate used during calibration.
     assert thresholds_path.name == f"{model_path.stem}_thresholds.json"
+    assert labels_path.name == f"{model_path.stem}_labels.json"
 
 
 def test_find_production_thresholds_prefers_active_stem_over_newer_orphan(tmp_path: Path) -> None:
@@ -116,6 +128,49 @@ def test_discover_production_metrics_prefers_active_stem_over_orphan(tmp_path: P
         assert found == active_metrics
 
 
+def _write_stem_bound_production_bundle(
+    model_path: Path,
+    *,
+    thresholds_extra: dict | None = None,
+    model_info_fields: dict | None = None,
+) -> None:
+    """Write a resolver-valid stem-bound production bundle for dashboard tests."""
+    model_path.parent.mkdir(parents=True, exist_ok=True)
+    if not model_path.is_file():
+        model_path.write_bytes(b"test-model")
+
+    thresholds_map = {label: 0.5 for label in TARGET_COLUMNS}
+    if thresholds_extra:
+        thresholds_map.update(thresholds_extra)
+    thresholds_path = model_path.with_name(f"{model_path.stem}_thresholds.json")
+    labels_path = model_path.with_name(f"{model_path.stem}_labels.json")
+    thresholds_path.write_text(
+        json.dumps(
+            {
+                "metadata": {"model": "experiments/test/model.pkl"},
+                "critical_only": {"water": thresholds_map["water"]},
+                "thresholds": thresholds_map,
+            }
+        ),
+        encoding="utf-8",
+    )
+    labels_path.write_text(json.dumps(list(TARGET_COLUMNS)), encoding="utf-8")
+
+    info = {
+        "version": "v26-09-21",
+        "status": "production",
+        "algorithm": "lr",
+        "algorithm_name": "LogisticRegression",
+        "performance": {"f1_weighted": 0.8975},
+    }
+    if model_info_fields:
+        info.update(model_info_fields)
+    info["sha256"] = _sha256(model_path)
+    info["thresholds_sha256"] = _sha256(thresholds_path)
+    info["labels_sha256"] = _sha256(labels_path)
+    (model_path.parent / "MODEL_INFO.json").write_text(json.dumps(info), encoding="utf-8")
+
+
 def _write_metrics_csv(path: Path, *, precision: float, support: float = 100.0) -> None:
     path.write_text(
         (
@@ -136,35 +191,12 @@ def test_model_info_dashboard_binds_active_stem_despite_newer_orphan(
 
     active = model_dir / "disaster_lr_v26-09-21_prod_2026-09-21.pkl"
     active.write_bytes(b"active-v26-model")
-    (model_dir / f"{active.stem}_thresholds.json").write_text(
-        json.dumps(
-            {
-                "metadata": {
-                    "model": (
-                        "experiments/experimental_runs/2026-09-21/"
-                        "lr_vocab15k_cal_split_model.pkl"
-                    )
-                },
-                "critical_only": {"water": 0.25},
-                "thresholds": {"water": 0.25, "related": 0.5},
-            }
-        ),
-        encoding="utf-8",
+    _write_stem_bound_production_bundle(
+        active,
+        thresholds_extra={"water": 0.25},
     )
     _write_metrics_csv(
         model_dir / f"{active.stem}_performance_metrics.csv", precision=0.91
-    )
-    (model_dir / "MODEL_INFO.json").write_text(
-        json.dumps(
-            {
-                "version": "v26-09-21",
-                "status": "production",
-                "algorithm": "lr",
-                "algorithm_name": "LogisticRegression",
-                "performance": {"f1_weighted": 0.8975},
-            }
-        ),
-        encoding="utf-8",
     )
 
     time.sleep(0.05)

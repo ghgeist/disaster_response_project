@@ -10,12 +10,16 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
-
 from flask import Blueprint, current_app, jsonify, redirect, request
 
 from app.extensions import csrf
 from app.services.errors import DataServiceError
 from app.services.model_service import ModelServiceError
+from app.services.production_artifacts import (
+    ProductionArtifactError,
+    resolve_production_artifacts,
+    stem_bound_thresholds_path,
+)
 from app.utils.formatting import format_request_context
 from app.utils.hierarchy_helpers import run_hierarchy_correction
 from app.utils.prediction_helpers import process_prediction_result
@@ -280,20 +284,20 @@ def _improved_simulated_probabilities(row, category_columns: list, message: str 
     """
     message_lower = (message or "").lower()
     probabilities = {}
-    
+
     # Count how many categories are positive for this message
     positive_count = sum(1 for col in category_columns if _safe_label_value(row.get(col, 0)) == 1)
-    
+
     for col in category_columns:
         label = _safe_label_value(row.get(col, 0))
-        
+
         if label == 1:
             # Base probability for positive labels - higher for critical categories
             if col in CRITICAL_INTERNAL_CATEGORIES:
                 base_prob = 0.80  # Critical categories get higher base
             else:
                 base_prob = 0.70  # Non-critical positive labels
-            
+
             # Boost if related categories are also present
             boost = 0.0
             if col in CATEGORY_RELATIONSHIPS:
@@ -304,27 +308,27 @@ def _improved_simulated_probabilities(row, category_columns: list, message: str 
                 )
                 if related_count > 0:
                     boost += min(0.15, related_count * 0.05)  # Up to 15% boost
-            
+
             # Boost if parent category is present (e.g., aid_related -> medical_help)
             for parent, children in CATEGORY_RELATIONSHIPS.items():
                 if col in children and _safe_label_value(row.get(parent, 0)) == 1:
                     boost += 0.08
-            
+
             # Boost if keywords match message content
             if col in CATEGORY_KEYWORDS:
                 keywords = CATEGORY_KEYWORDS[col]
                 matches = sum(1 for keyword in keywords if keyword in message_lower)
                 if matches > 0:
                     boost += min(0.10, matches * 0.03)  # Up to 10% boost for keyword matches
-            
+
             # Adjust based on how many categories are positive (more = slightly lower individual)
             if positive_count > 5:
                 base_prob -= 0.05  # Slight reduction when many categories
-            
+
             final_prob = base_prob + boost
             # Add small random variation (±5%)
             probabilities[col] = max(0.5, min(0.98, final_prob + random.uniform(-0.05, 0.05)))
-        
+
         else:
             # For negative labels, use lower probabilities but with some variation
             # Messages with many positive categories might have slightly higher negatives
@@ -332,16 +336,16 @@ def _improved_simulated_probabilities(row, category_columns: list, message: str 
                 base_prob = random.uniform(0.15, 0.30)  # Slightly higher when many positives
             else:
                 base_prob = random.uniform(0.05, 0.20)  # Lower baseline
-            
+
             # If keywords strongly suggest this category but label is 0, keep it low
             if col in CATEGORY_KEYWORDS:
                 keywords = CATEGORY_KEYWORDS[col]
                 matches = sum(1 for keyword in keywords if keyword in message_lower)
                 if matches > 2:  # Strong keyword match but label=0
                     base_prob = random.uniform(0.20, 0.35)  # Slightly higher but still below threshold
-            
+
             probabilities[col] = base_prob
-    
+
     return probabilities
 
 
@@ -367,7 +371,7 @@ def _row_to_feed_item(row, category_columns: list) -> dict:
     content_preview = (msg[:120] + "...") if len(msg) > 120 else msg
 
     probabilities = _improved_simulated_probabilities(row, category_columns, msg)
-    
+
     # Only consider categories that actually have label=1 for severity calculation
     # This ensures consistency with displayed classifications
     filtered_probabilities = {
@@ -713,8 +717,8 @@ def _find_production_thresholds_file(
     Find production thresholds for the active model stem.
 
     Binding is by filename stem (``{model_stem}_thresholds.json``), matching
-    ``ModelArtifactLoader`` inference — never newest-by-mtime across orphans.
-    Legacy fallback: ``thresholds.json``. Deprecated ``optimized_*`` files are ignored.
+    the shared production-artifact resolver used by inference — never
+    newest-by-mtime across orphans and never legacy ``thresholds.json``.
 
     ``metadata.model`` inside the JSON is training-source provenance and may
     still name the experimental candidate; it is not used for discovery.
@@ -726,16 +730,13 @@ def _find_production_thresholds_file(
     if not stem or stem == "unknown":
         active_model = _resolve_active_production_model_path(model_dir)
         if active_model is None:
-            legacy = model_dir / "thresholds.json"
-            return legacy if legacy.exists() else None
+            return None
         stem = active_model.stem
 
-    stem_thresholds = model_dir / f"{stem}_thresholds.json"
+    stem_thresholds = stem_bound_thresholds_path(model_dir / f"{stem}.pkl")
     if stem_thresholds.is_file() and not stem_thresholds.name.startswith("optimized_"):
         return stem_thresholds
-
-    legacy = model_dir / "thresholds.json"
-    return legacy if legacy.exists() else None
+    return None
 
 
 def _discover_production_metrics_file(model_dir: Path, model_stem: str | None = None) -> Path | None:
@@ -781,29 +782,29 @@ def _load_category_stats_from_metrics_csv(metrics_path: Path, thresholds_data: d
     """
     try:
         df = pd.read_csv(metrics_path)
-        
+
         # Get critical categories from thresholds if available
         critical_categories = set()
         if thresholds_data:
             critical_thresholds = thresholds_data.get("critical_only", {})
             critical_categories = set(critical_thresholds.keys())
-        
+
         category_stats = []
-        
+
         # Group by category and get weighted avg metrics
         for category in df['category'].unique():
             cat_df = df[df['category'] == category]
             weighted_avg = cat_df[cat_df['output_class'].astype(str).str.lower() == 'weighted avg']
-            
+
             if weighted_avg.empty:
                 continue
-            
+
             row = weighted_avg.iloc[0]
             category_name = str(category)
-            
+
             # Determine if critical based on thresholds file
             is_critical = category_name in critical_categories
-            
+
             stat = {
                 "category": category_name,
                 "type": "critical" if is_critical else "non-critical",
@@ -813,40 +814,88 @@ def _load_category_stats_from_metrics_csv(metrics_path: Path, thresholds_data: d
                 "f1": float(row.get('f1-score', 0.0)),
                 "support": float(row.get('support', 0.0)),
             }
-            
+
             # Try to get actual threshold from thresholds file
             if thresholds_data:
                 thresholds = thresholds_data.get("thresholds", {})
                 if category_name in thresholds:
                     stat["threshold"] = float(thresholds[category_name])
-            
+
             category_stats.append(stat)
-        
+
         return category_stats
     except Exception as e:
         logger.warning("Failed to load category stats from metrics CSV %s: %s", metrics_path, e)
         return []
 
 
+DASHBOARD_PROVENANCE_UNAVAILABLE = (
+    "Production model provenance unavailable"
+)
+
+
+def _unavailable_dashboard_payload(
+    *,
+    generated_at: str,
+    stem: str = "unknown",
+    provenance_code: str = "provenance_unavailable",
+) -> dict:
+    """Stable unavailable payload when production artifacts cannot be resolved."""
+    model_id = stem.upper().replace("-", "_") if stem != "unknown" else stem
+    return {
+        "model": {
+            "id": model_id,
+            "version": "unknown",
+            "lastUpdated": None,
+            "status": "unavailable",
+            "generatedAt": generated_at,
+            "algorithm": "unknown",
+            "algorithmName": "Unknown",
+            "provenanceError": DASHBOARD_PROVENANCE_UNAVAILABLE,
+            "provenanceCode": provenance_code,
+        },
+        "metrics": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "evalCriticalRecall": None,
+        },
+        "categories": [],
+        "criticalThresholds": [],
+        "registry": [],
+    }
+
+
 def _build_model_info_dashboard_payload() -> dict:
     """
     Build single payload for Model Information dashboard.
-    Category stats loaded from performance_metrics.csv (model-specific naming);
-    thresholds file used for threshold values and critical category determination;
-    metrics f1 from MODEL_INFO, precision/recall weighted from category_stats;
-    registry allowlist .json/.csv/.md/.pkl; no NaN/Infinity in JSON.
+
+    Uses the shared production-artifact resolver whenever an active production
+    pickle exists. Reports unavailable when no pickle is present or provenance
+    fails — never surfaces orphan MODEL_INFO metadata alone.
     """
     model_dir = _get_model_dir()
     generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
 
-    model_info_data = {}
-    model_info_path = model_dir / "MODEL_INFO.json"
-    if model_info_path.exists():
-        try:
-            with open(model_info_path, "r", encoding="utf-8") as f:
-                model_info_data = json.load(f)
-        except (OSError, json.JSONDecodeError) as e:
-            logger.warning("MODEL_INFO.json read failed: %s", e)
+    active_model = _resolve_active_production_model_path(model_dir)
+    if active_model is None:
+        return _unavailable_dashboard_payload(
+            generated_at=generated_at,
+            provenance_code="active_model_missing",
+        )
+
+    try:
+        production_artifacts = resolve_production_artifacts(active_model)
+        model_info_data = dict(production_artifacts.model_info)
+    except ProductionArtifactError as error:
+        logger.warning(
+            "Production artifact provenance failed for dashboard: %s", error
+        )
+        return _unavailable_dashboard_payload(
+            generated_at=generated_at,
+            stem=active_model.stem,
+            provenance_code="provenance_failed",
+        )
 
     version = model_info_data.get("version", "unknown")
     if not isinstance(version, str):
@@ -874,8 +923,7 @@ def _build_model_info_dashboard_payload() -> dict:
         eval_critical_raw = validation_block.get("eval_critical_recall")
     eval_critical_recall = _safe_optional_prob(eval_critical_raw)
 
-    active_model = _resolve_active_production_model_path(model_dir)
-    stem = active_model.stem if active_model is not None else "unknown"
+    stem = active_model.stem
     thresholds_path = _find_production_thresholds_file(model_dir, model_stem=stem)
     category_stats_list: list = []
     critical_thresholds_list: list = []
@@ -1018,50 +1066,65 @@ def _build_model_info_dashboard_payload() -> dict:
     }
 
 
+def _unavailable_model_info_payload(
+    *,
+    provenance_code: str = "provenance_unavailable",
+) -> dict:
+    """Stable unavailable payload for GET /api/model-info."""
+    return {
+        "version": "unknown",
+        "f1_score": None,
+        "status": "unavailable",
+        "hierarchy_violations": 0.0,
+        "provenanceError": DASHBOARD_PROVENANCE_UNAVAILABLE,
+        "provenanceCode": provenance_code,
+    }
+
+
 @api_bp.route("/model-info", methods=["GET"])
 def model_info():
-    """Return production model metadata (version, F1 score, status)."""
+    """Return production model metadata from a provenance-valid active bundle."""
     try:
-        # Try to load MODEL_INFO.json from model directory
         model_dir = _get_model_dir()
-        model_info_path = model_dir / "MODEL_INFO.json"
-        
-        if model_info_path.exists():
-            with open(model_info_path, "r", encoding="utf-8") as f:
-                model_info_data = json.load(f)
-            
-            # Extract relevant fields
-            version = model_info_data.get("version", "unknown")
-            f1_weighted = model_info_data.get("performance", {}).get("f1_weighted")
-            if f1_weighted is None:
-                f1_weighted = model_info_data.get("validation_results", {}).get("f1_weighted")
-            status = model_info_data.get("status", "unknown")
-            
-            # For now, hierarchy violations is 0% (can be calculated later if needed)
-            hierarchy_violations = 0.0
-            
-            return jsonify({
-                "version": version,
-                "f1_score": float(f1_weighted) if f1_weighted is not None else None,
-                "status": status,
-                "hierarchy_violations": hierarchy_violations,
-            })
-        else:
-            # Fallback to default values if file doesn't exist
-            logger.warning("MODEL_INFO.json not found at %s, using defaults", model_info_path)
-            return jsonify({
-                "version": "unknown",
-                "f1_score": None,
-                "status": "unknown",
-                "hierarchy_violations": 0.0,
-            })
-    except (OSError, json.JSONDecodeError, KeyError) as error:
-        _log_api_error("GET /api/model-info", error)
-        # Return defaults on error
+        active_model = _resolve_active_production_model_path(model_dir)
+        if active_model is None:
+            return jsonify(
+                _unavailable_model_info_payload(provenance_code="active_model_missing")
+            )
+
+        try:
+            production_artifacts = resolve_production_artifacts(active_model)
+            model_info_data = dict(production_artifacts.model_info)
+        except ProductionArtifactError as error:
+            logger.warning(
+                "Production artifact provenance failed for /api/model-info: %s", error
+            )
+            return jsonify(
+                _unavailable_model_info_payload(provenance_code="provenance_failed")
+            )
+
+        version = model_info_data.get("version", "unknown")
+        if not isinstance(version, str):
+            version = "unknown"
+
+        f1_weighted = model_info_data.get("performance", {}).get("f1_weighted")
+        if f1_weighted is None:
+            f1_weighted = model_info_data.get("validation_results", {}).get("f1_weighted")
+        try:
+            f1_score = float(f1_weighted) if f1_weighted is not None else None
+        except (TypeError, ValueError):
+            f1_score = None
+        if f1_score is not None and (math.isnan(f1_score) or math.isinf(f1_score)):
+            f1_score = None
+
+        status = model_info_data.get("status", "unknown")
+        if not isinstance(status, str):
+            status = "unknown"
+
         return jsonify({
-            "version": "unknown",
-            "f1_score": None,
-            "status": "unknown",
+            "version": version,
+            "f1_score": f1_score,
+            "status": status,
             "hierarchy_violations": 0.0,
         })
     except Exception as error:

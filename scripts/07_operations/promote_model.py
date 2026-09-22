@@ -47,6 +47,8 @@ FORCE_REQUIRED_FIELDS = (
     "model_hash",
     "thresholds_path",
     "thresholds_sha256",
+    "labels_path",
+    "labels_sha256",
     "algorithm",
 )
 
@@ -233,12 +235,71 @@ def discover_candidate_thresholds(
     return thresholds_path, payload, errors
 
 
+def discover_candidate_labels(
+    candidate_dir: Path, model_stem: Optional[str] = None
+) -> Tuple[Optional[Path], Optional[list], list]:
+    """Discover required `{model_stem}_labels.json` for validation and promotion.
+
+    Returns (path, payload, errors). Legacy ``label_order.json`` is not accepted.
+    """
+    errors: list = []
+    if model_stem is None:
+        model_file, model_errors = _discover_model_file(candidate_dir)
+        if model_errors:
+            return None, None, model_errors
+        model_stem = model_file.stem
+
+    labels_path = (candidate_dir / f"{model_stem}_labels.json").resolve()
+    if not labels_path.exists():
+        errors.append(
+            f"Required labels artifact not found: {labels_path.name} "
+            f"(expected {{model_stem}}_labels.json for stem '{model_stem}')"
+        )
+        return None, None, errors
+
+    try:
+        with open(labels_path, "r", encoding="utf-8") as f:
+            payload = json.load(f)
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        errors.append(f"Unable to parse labels artifact {labels_path.name}: {exc}")
+        return None, None, errors
+
+    if not isinstance(payload, list):
+        errors.append(f"Labels artifact {labels_path.name} must be a JSON array")
+        return None, None, errors
+
+    return labels_path, payload, errors
+
+
+def _validate_labels_order(payload: list) -> list:
+    """Require exact TARGET_COLUMNS order and coverage."""
+    errors: list = []
+    labels = [str(item) for item in payload]
+    expected = list(TARGET_COLUMNS)
+    if labels == expected:
+        return errors
+
+    if set(labels) != set(expected):
+        missing = [label for label in expected if label not in labels]
+        extra = [label for label in labels if label not in expected]
+        errors.append(
+            "Labels artifact coverage mismatch with TARGET_COLUMNS: "
+            f"missing={missing[:8]!r} extra={extra[:8]!r}"
+        )
+    else:
+        errors.append(
+            "Labels artifact order mismatch with TARGET_COLUMNS "
+            f"(expected {len(expected)} labels in contract order)"
+        )
+    return errors
+
+
 def assert_force_promotion_prerequisites(validation_results: dict) -> None:
     """Require structural deploy artifacts; --force cannot bypass these.
 
     --force may override metric/provenance gate failures only. Promoting still
-    requires a loadable supported model and the thresholds artifact validation
-    would deploy.
+    requires a loadable supported model plus the thresholds and labels artifacts
+    validation would deploy.
     """
     missing = [key for key in FORCE_REQUIRED_FIELDS if not validation_results.get(key)]
     algorithm = validation_results.get("algorithm")
@@ -249,9 +310,9 @@ def assert_force_promotion_prerequisites(validation_results: dict) -> None:
     if deduped:
         raise ValueError(
             "--force cannot override missing structural promotion prerequisites: "
-            f"{deduped}. A loadable supported model and thresholds artifact "
-            "(with hashes) are required so the deployed operating point matches "
-            "validated evidence."
+            f"{deduped}. A loadable supported model, thresholds artifact, and "
+            "labels artifact (with hashes) are required so the deployed "
+            "operating point matches validated evidence."
         )
 
 
@@ -433,6 +494,8 @@ def validate_candidate_model(candidate_dir: Path) -> dict:
         'weighted_f1_relative_drop': None,
         'thresholds_path': None,
         'thresholds_sha256': None,
+        'labels_path': None,
+        'labels_sha256': None,
         'optimization_split': None,
         'reporting_split': None,
         # Legacy aliases kept for older promotion-record consumers
@@ -493,6 +556,15 @@ def validate_candidate_model(candidate_dir: Path) -> dict:
             candidate_dir, model_stem=model_stem
         )
         errors.extend(threshold_errors)
+        labels_path, labels_payload, label_errors = discover_candidate_labels(
+            candidate_dir, model_stem=model_stem
+        )
+        errors.extend(label_errors)
+        if labels_path is not None and labels_payload is not None:
+            labels_path = labels_path.resolve()
+            validation_results['labels_path'] = str(labels_path)
+            validation_results['labels_sha256'] = compute_model_hash(labels_path)
+            errors.extend(_validate_labels_order(labels_payload))
 
     if thresholds_path is not None and thresholds_payload is not None:
         thresholds_path = thresholds_path.resolve()
@@ -693,46 +765,108 @@ def _cleanup_path(path: Path) -> None:
         print(f"⚠️  Warning: Failed to remove {path}: {cleanup_error}")
 
 
-def _resolve_production_destination_action(
+def _model_info_provenance_matches(
+    model_info_path: Path,
+    *,
+    expected_model_hash: str,
+    expected_thresholds_hash: str,
+    expected_labels_hash: str,
+) -> bool:
+    """Return True when MODEL_INFO records the expected production SHA-256 trio."""
+    if not model_info_path.is_file():
+        return False
+    try:
+        with open(model_info_path, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except (OSError, json.JSONDecodeError, ValueError):
+        return False
+    if not isinstance(payload, dict):
+        return False
+
+    def _normalized(field: str) -> str | None:
+        value = payload.get(field)
+        if not isinstance(value, str):
+            return None
+        return value.lower()
+
+    return (
+        _normalized("sha256") == expected_model_hash.lower()
+        and _normalized("thresholds_sha256") == expected_thresholds_hash.lower()
+        and _normalized("labels_sha256") == expected_labels_hash.lower()
+    )
+
+
+def _resolve_production_bundle_destination_action(
     *,
     prod_model_path: Path,
     prod_thresholds_path: Path,
+    prod_labels_path: Path,
+    model_info_path: Path,
     expected_model_hash: str,
     expected_thresholds_hash: str,
+    expected_labels_hash: str,
 ) -> str:
     """Decide how to treat existing production artifact names.
 
-    Production filenames are immutable once created:
-    - create: neither destination exists
-    - idempotent: both exist with matching SHA-256 hashes
-    - otherwise fail closed (incomplete pair or content collision)
+    Production stem filenames are immutable once created:
+    - create: none of the stem-bound destinations exist
+    - idempotent: model + thresholds + labels + MODEL_INFO provenance match
+    - repair_model_info: stem triple matches but MODEL_INFO is missing/stale
+    - otherwise fail closed (incomplete bundle or content collision)
 
     Returns:
-        "create" or "idempotent"
+        "create", "idempotent", or "repair_model_info"
     """
     model_exists = prod_model_path.exists()
     thresholds_exist = prod_thresholds_path.exists()
+    labels_exist = prod_labels_path.exists()
+    present_count = sum((model_exists, thresholds_exist, labels_exist))
 
-    if not model_exists and not thresholds_exist:
+    if present_count == 0:
         return "create"
 
-    if model_exists ^ thresholds_exist:
-        present = prod_model_path.name if model_exists else prod_thresholds_path.name
-        missing = prod_thresholds_path.name if model_exists else prod_model_path.name
+    if present_count != 3:
+        present = [
+            path.name
+            for path, exists in (
+                (prod_model_path, model_exists),
+                (prod_thresholds_path, thresholds_exist),
+                (prod_labels_path, labels_exist),
+            )
+            if exists
+        ]
+        missing = [
+            path.name
+            for path, exists in (
+                (prod_model_path, not model_exists),
+                (prod_thresholds_path, not thresholds_exist),
+                (prod_labels_path, not labels_exist),
+            )
+            if exists
+        ]
         raise ValueError(
-            "Incomplete production artifact pair for immutable destination names:\n"
-            f"  Present: {present}\n"
-            f"  Missing: {missing}\n"
-            "Refusing to overwrite or complete an incomplete production pair in place."
+            "Incomplete production artifact bundle for immutable destination names:\n"
+            f"  Present: {', '.join(present) or '(none)'}\n"
+            f"  Missing: {', '.join(missing) or '(none)'}\n"
+            "Refusing to overwrite or complete an incomplete production bundle in place."
         )
 
     existing_model_hash = compute_model_hash(prod_model_path)
     existing_thresholds_hash = compute_model_hash(prod_thresholds_path)
+    existing_labels_hash = compute_model_hash(prod_labels_path)
     model_matches = existing_model_hash == expected_model_hash
     thresholds_match = existing_thresholds_hash == expected_thresholds_hash
+    labels_match = existing_labels_hash == expected_labels_hash
 
-    if model_matches and thresholds_match:
-        return "idempotent"
+    if model_matches and thresholds_match and labels_match:
+        if _model_info_provenance_matches(
+            model_info_path,
+            expected_model_hash=expected_model_hash,
+            expected_thresholds_hash=expected_thresholds_hash,
+            expected_labels_hash=expected_labels_hash,
+        ):
+            return "idempotent"
+        return "repair_model_info"
 
     details = []
     if not model_matches:
@@ -746,6 +880,12 @@ def _resolve_production_destination_action(
             f"existing={existing_thresholds_hash[:16]}... "
             f"expected={expected_thresholds_hash[:16]}..."
         )
+    if not labels_match:
+        details.append(
+            f"labels {prod_labels_path.name}: "
+            f"existing={existing_labels_hash[:16]}... "
+            f"expected={expected_labels_hash[:16]}..."
+        )
     raise ValueError(
         "Production artifact collision: destination names already exist with "
         "different content. Production filenames are immutable once created.\n"
@@ -753,56 +893,110 @@ def _resolve_production_destination_action(
     )
 
 
-def _atomic_deploy_model_and_thresholds(
+def _write_model_info_atomically(model_info_path: Path, payload: dict) -> None:
+    """Write MODEL_INFO.json via a sibling staging file then os.replace."""
+    staging = model_info_path.with_suffix(model_info_path.suffix + ".staging")
+    try:
+        with open(staging, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, indent=2)
+        os.replace(staging, model_info_path)
+    except Exception:
+        _cleanup_path(staging)
+        raise
+
+
+def _deploy_production_bundle_fail_closed(
     *,
     candidate_model: Path,
     expected_model_hash: str,
     candidate_thresholds: Path,
     expected_thresholds_hash: str,
+    candidate_labels: Path,
+    expected_labels_hash: str,
+    model_info_payload: dict,
+    model_info_path: Path,
     model_dir: Path,
     prod_model_path: Path,
     prod_thresholds_path: Path,
+    prod_labels_path: Path,
 ) -> None:
-    """Stage model + thresholds, verify hashes, then finalize with model last.
+    """Publish production companions fail-closed; finalize the pickle last.
 
-    Existing production destinations are never overwritten. Matching pairs are
-    treated as an idempotent retry; collisions and incomplete pairs fail closed.
+    This is exception-rollback-safe, not a single filesystem transaction.
+    ``MODEL_INFO.json`` is a singleton while discovery selects the newest
+    ``*_prod_*.pkl`` by mtime, so no ordering can make switchover truly atomic:
+
+    - MODEL_INFO first → old pickle + new manifest may briefly disagree
+    - pickle first → new pickle + old manifest may briefly disagree
+
+    We choose MODEL_INFO before the pickle so auto-discovery never selects a
+    new model against stale provenance. A hard kill between those steps can
+    leave production unavailable until repair. A future active-pointer design
+    would replace that singleton last.
     """
     model_dir.mkdir(parents=True, exist_ok=True)
-    action = _resolve_production_destination_action(
+    action = _resolve_production_bundle_destination_action(
         prod_model_path=prod_model_path,
         prod_thresholds_path=prod_thresholds_path,
+        prod_labels_path=prod_labels_path,
+        model_info_path=model_info_path,
         expected_model_hash=expected_model_hash,
         expected_thresholds_hash=expected_thresholds_hash,
+        expected_labels_hash=expected_labels_hash,
     )
     if action == "idempotent":
         print(
-            f"✅ Idempotent retry: existing production artifacts already match "
-            f"{prod_model_path.name} and {prod_thresholds_path.name}"
+            f"✅ Idempotent retry: existing production bundle already matches "
+            f"{prod_model_path.name}, companions, and MODEL_INFO provenance"
         )
+        return
+    if action == "repair_model_info":
+        print(
+            "🛠️  Stem-bound artifacts match; repairing MODEL_INFO provenance "
+            f"at {model_info_path.name}"
+        )
+        _write_model_info_atomically(model_info_path, model_info_payload)
+        if not _model_info_provenance_matches(
+            model_info_path,
+            expected_model_hash=expected_model_hash,
+            expected_thresholds_hash=expected_thresholds_hash,
+            expected_labels_hash=expected_labels_hash,
+        ):
+            raise ValueError(
+                "MODEL_INFO repair failed: provenance hashes still mismatch "
+                "the validated production stem-bound artifacts."
+            )
+        print(f"✅ MODEL_INFO repaired: {model_info_path.name}")
         return
 
     staging_dir = model_dir / f".promotion_staging_{os.getpid()}_{uuid.uuid4().hex}"
     staging_dir.mkdir(parents=True, exist_ok=False)
     staged_model = staging_dir / "model.pkl.staging"
     staged_thresholds = staging_dir / "thresholds.json.staging"
-    # Only clean up destinations we create in this call (new pair), never
-    # pre-existing immutable production artifacts.
+    staged_labels = staging_dir / "labels.json.staging"
+    staged_model_info = staging_dir / "model_info.json.staging"
+    model_info_backup = staging_dir / "MODEL_INFO.backup"
+    if model_info_path.is_file():
+        shutil.copy2(model_info_path, model_info_backup)
+
     thresholds_finalized = False
+    labels_finalized = False
+    model_info_finalized = False
     model_finalized = False
 
     try:
-        print(f"📋 Staging model from {candidate_model.name}...")
-        try:
-            shutil.copy2(candidate_model, staged_model)
-        except OSError as exc:
-            raise RuntimeError(
-                f"Failed to stage model file:\n"
-                f"  Source: {candidate_model}\n"
-                f"  Destination: {staged_model}\n"
-                f"  Error: {exc}"
-            ) from exc
+        if not candidate_thresholds.exists():
+            raise FileNotFoundError(
+                f"Validated thresholds artifact missing at promotion time: "
+                f"{candidate_thresholds}"
+            )
+        if not candidate_labels.exists():
+            raise FileNotFoundError(
+                f"Validated labels artifact missing at promotion time: {candidate_labels}"
+            )
 
+        print(f"📋 Staging model from {candidate_model.name}...")
+        shutil.copy2(candidate_model, staged_model)
         staged_model_hash = compute_model_hash(staged_model)
         if staged_model_hash != expected_model_hash:
             raise ValueError(
@@ -812,23 +1006,8 @@ def _atomic_deploy_model_and_thresholds(
                 f"The staged model file does not match the validated candidate."
             )
 
-        if not candidate_thresholds.exists():
-            raise FileNotFoundError(
-                f"Validated thresholds artifact missing at promotion time: "
-                f"{candidate_thresholds}"
-            )
-
         print(f"📋 Staging thresholds from {candidate_thresholds.name}...")
-        try:
-            shutil.copy2(candidate_thresholds, staged_thresholds)
-        except OSError as exc:
-            raise RuntimeError(
-                f"Failed to stage thresholds file:\n"
-                f"  Source: {candidate_thresholds}\n"
-                f"  Destination: {staged_thresholds}\n"
-                f"  Error: {exc}"
-            ) from exc
-
+        shutil.copy2(candidate_thresholds, staged_thresholds)
         staged_thresholds_hash = compute_model_hash(staged_thresholds)
         if staged_thresholds_hash != expected_thresholds_hash:
             raise ValueError(
@@ -838,53 +1017,80 @@ def _atomic_deploy_model_and_thresholds(
                 f"Deployed thresholds must match the artifact validation scored."
             )
 
-        # Re-check immutability immediately before finalize in case another
-        # process created the destinations while we were staging.
-        action = _resolve_production_destination_action(
+        print(f"📋 Staging labels from {candidate_labels.name}...")
+        shutil.copy2(candidate_labels, staged_labels)
+        staged_labels_hash = compute_model_hash(staged_labels)
+        if staged_labels_hash != expected_labels_hash:
+            raise ValueError(
+                f"Staged labels integrity check failed!\n"
+                f"  Expected hash: {expected_labels_hash}\n"
+                f"  Staged hash:   {staged_labels_hash}\n"
+                f"Deployed labels must match the artifact validation scored."
+            )
+
+        with open(staged_model_info, "w", encoding="utf-8") as handle:
+            json.dump(model_info_payload, handle, indent=2)
+
+        action = _resolve_production_bundle_destination_action(
             prod_model_path=prod_model_path,
             prod_thresholds_path=prod_thresholds_path,
+            prod_labels_path=prod_labels_path,
+            model_info_path=model_info_path,
             expected_model_hash=expected_model_hash,
             expected_thresholds_hash=expected_thresholds_hash,
+            expected_labels_hash=expected_labels_hash,
         )
         if action == "idempotent":
             print(
-                f"✅ Idempotent retry after staging: existing production artifacts "
-                f"already match {prod_model_path.name}"
+                f"✅ Idempotent retry after staging: existing production bundle "
+                f"already matches {prod_model_path.name}"
             )
             return
+        if action == "repair_model_info":
+            os.replace(staged_model_info, model_info_path)
+            print(f"✅ MODEL_INFO repaired after staging: {model_info_path.name}")
+            return
 
-        # Finalize thresholds first; production model last so discovery never sees
-        # a new prod model without its validated operating-point file.
-        # Destinations are guaranteed absent here (create path only).
         os.replace(staged_thresholds, prod_thresholds_path)
         thresholds_finalized = True
         if compute_model_hash(prod_thresholds_path) != expected_thresholds_hash:
-            raise ValueError(
-                f"Final thresholds integrity check failed!\n"
-                f"  Expected hash: {expected_thresholds_hash}\n"
-                f"  Final hash:    {compute_model_hash(prod_thresholds_path)}"
-            )
+            raise ValueError("Final thresholds integrity check failed!")
         print(
             f"✅ Thresholds deployed: {prod_thresholds_path.name} "
             f"(hash: {expected_thresholds_hash[:16]}...)"
         )
 
+        os.replace(staged_labels, prod_labels_path)
+        labels_finalized = True
+        if compute_model_hash(prod_labels_path) != expected_labels_hash:
+            raise ValueError("Final labels integrity check failed!")
+        print(
+            f"✅ Labels deployed: {prod_labels_path.name} "
+            f"(hash: {expected_labels_hash[:16]}...)"
+        )
+
+        os.replace(staged_model_info, model_info_path)
+        model_info_finalized = True
+        print(f"✅ MODEL_INFO updated: {model_info_path.name}")
+
         os.replace(staged_model, prod_model_path)
         model_finalized = True
         if compute_model_hash(prod_model_path) != expected_model_hash:
-            raise ValueError(
-                f"Final model integrity check failed!\n"
-                f"  Expected hash: {expected_model_hash}\n"
-                f"  Final hash:    {compute_model_hash(prod_model_path)}"
-            )
+            raise ValueError("Final model integrity check failed!")
         print(
             f"✅ Model deployed: {prod_model_path.name} "
             f"(hash: {expected_model_hash[:16]}...)"
         )
     except Exception:
-        # Roll back only artifacts created in this create attempt.
         if model_finalized:
             _cleanup_path(prod_model_path)
+        if model_info_finalized:
+            if model_info_backup.is_file():
+                shutil.copy2(model_info_backup, model_info_path)
+            else:
+                _cleanup_path(model_info_path)
+        if labels_finalized:
+            _cleanup_path(prod_labels_path)
         if thresholds_finalized:
             _cleanup_path(prod_thresholds_path)
         raise
@@ -893,7 +1099,7 @@ def _atomic_deploy_model_and_thresholds(
 
 
 def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict) -> dict:
-    """Promote validated candidate model to production atomically."""
+    """Promote validated candidate model to production (fail-closed publish)."""
 
     assert_force_promotion_prerequisites(validation_results)
 
@@ -938,46 +1144,9 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
     prod_model_path = model_dir / prod_model_name
     base_name = prod_model_path.stem
     prod_thresholds_path = model_dir / f"{base_name}_thresholds.json"
+    prod_labels_path = model_dir / f"{base_name}_labels.json"
     candidate_thresholds = Path(validation_results['thresholds_path'])
-
-    _atomic_deploy_model_and_thresholds(
-        candidate_model=candidate_model,
-        expected_model_hash=validation_results['model_hash'],
-        candidate_thresholds=candidate_thresholds,
-        expected_thresholds_hash=validation_results['thresholds_sha256'],
-        model_dir=model_dir,
-        prod_model_path=prod_model_path,
-        prod_thresholds_path=prod_thresholds_path,
-    )
-
-    metadata_files = {
-        '_thresholds.json': str(prod_thresholds_path),
-    }
-
-    # Copy optional label metadata if present under either naming convention
-    for candidate_labels in [
-        candidate_dir / f"{candidate_dir.name}_labels.json",
-        candidate_dir / "label_order.json",
-        candidate_dir / f"{candidate_model.stem}_labels.json",
-    ]:
-        if candidate_labels.exists():
-            prod_labels = model_dir / f"{base_name}_labels.json"
-            shutil.copy2(candidate_labels, prod_labels)
-            metadata_files['_labels.json'] = str(prod_labels)
-            break
-
-    training_log = candidate_dir / "training_log.json"
-    if training_log.exists():
-        prod_training = model_dir / f"{base_name}_training.json"
-        shutil.copy2(training_log, prod_training)
-        metadata_files['_training.json'] = str(prod_training)
-
-    metrics_csv = candidate_dir / "performance_metrics.csv"
-    if metrics_csv.exists():
-        prod_metrics_csv = model_dir / f"{base_name}_performance_metrics.csv"
-        shutil.copy2(metrics_csv, prod_metrics_csv)
-        metadata_files['performance_metrics.csv'] = str(prod_metrics_csv)
-        print(f"📊 Copied performance metrics: {prod_metrics_csv.name}")
+    candidate_labels = Path(validation_results['labels_path'])
 
     model_info = {
         'sha256': validation_results['model_hash'],
@@ -997,17 +1166,47 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
             'f1_micro': validation_results.get('f1_micro'),
         },
         'thresholds_sha256': validation_results.get('thresholds_sha256'),
+        'labels_sha256': validation_results.get('labels_sha256'),
         'optimization_split': validation_results.get('optimization_split'),
         'reporting_split': validation_results.get('reporting_split'),
         'version': version,
-        'status': 'production'
+        'status': 'production',
+    }
+    model_info_path = model_dir / "MODEL_INFO.json"
+
+    _deploy_production_bundle_fail_closed(
+        candidate_model=candidate_model,
+        expected_model_hash=validation_results['model_hash'],
+        candidate_thresholds=candidate_thresholds,
+        expected_thresholds_hash=validation_results['thresholds_sha256'],
+        candidate_labels=candidate_labels,
+        expected_labels_hash=validation_results['labels_sha256'],
+        model_info_payload=model_info,
+        model_info_path=model_info_path,
+        model_dir=model_dir,
+        prod_model_path=prod_model_path,
+        prod_thresholds_path=prod_thresholds_path,
+        prod_labels_path=prod_labels_path,
+    )
+
+    metadata_files = {
+        '_thresholds.json': str(prod_thresholds_path),
+        '_labels.json': str(prod_labels_path),
+        'MODEL_INFO.json': str(model_info_path),
     }
 
-    model_info_path = model_dir / "MODEL_INFO.json"
-    with open(model_info_path, 'w') as f:
-        json.dump(model_info, f, indent=2)
+    training_log = candidate_dir / "training_log.json"
+    if training_log.exists():
+        prod_training = model_dir / f"{base_name}_training.json"
+        shutil.copy2(training_log, prod_training)
+        metadata_files['_training.json'] = str(prod_training)
 
-    metadata_files['MODEL_INFO.json'] = str(model_info_path)
+    metrics_csv = candidate_dir / "performance_metrics.csv"
+    if metrics_csv.exists():
+        prod_metrics_csv = model_dir / f"{base_name}_performance_metrics.csv"
+        shutil.copy2(metrics_csv, prod_metrics_csv)
+        metadata_files['performance_metrics.csv'] = str(prod_metrics_csv)
+        print(f"📊 Copied performance metrics: {prod_metrics_csv.name}")
 
     promotion_record = {
         'promoted_model': str(prod_model_path),
@@ -1114,7 +1313,7 @@ def main():
         action="store_true",
         help=(
             "Override metric/provenance gate failures only; "
-            "still requires model + thresholds artifacts with hashes"
+            "still requires model + thresholds + labels artifacts with hashes"
         ),
     )
     parser.add_argument("--keep-old", type=int, default=1, help="Number of old production models to keep")
