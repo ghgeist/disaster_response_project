@@ -829,39 +829,73 @@ def _load_category_stats_from_metrics_csv(metrics_path: Path, thresholds_data: d
         return []
 
 
+DASHBOARD_PROVENANCE_UNAVAILABLE = (
+    "Production model provenance unavailable"
+)
+
+
+def _unavailable_dashboard_payload(
+    *,
+    generated_at: str,
+    stem: str = "unknown",
+    provenance_code: str = "provenance_unavailable",
+) -> dict:
+    """Stable unavailable payload when production artifacts cannot be resolved."""
+    model_id = stem.upper().replace("-", "_") if stem != "unknown" else stem
+    return {
+        "model": {
+            "id": model_id,
+            "version": "unknown",
+            "lastUpdated": None,
+            "status": "unavailable",
+            "generatedAt": generated_at,
+            "algorithm": "unknown",
+            "algorithmName": "Unknown",
+            "provenanceError": DASHBOARD_PROVENANCE_UNAVAILABLE,
+            "provenanceCode": provenance_code,
+        },
+        "metrics": {
+            "f1": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "evalCriticalRecall": None,
+        },
+        "categories": [],
+        "criticalThresholds": [],
+        "registry": [],
+    }
+
+
 def _build_model_info_dashboard_payload() -> dict:
     """
     Build single payload for Model Information dashboard.
-    Category stats loaded from performance_metrics.csv (model-specific naming);
-    thresholds file used for threshold values and critical category determination;
-    metrics f1 from MODEL_INFO, precision/recall weighted from category_stats;
-    registry allowlist .json/.csv/.md/.pkl; no NaN/Infinity in JSON.
+
+    Uses the shared production-artifact resolver whenever an active production
+    pickle exists. Reports unavailable when no pickle is present or provenance
+    fails — never surfaces orphan MODEL_INFO metadata alone.
     """
     model_dir = _get_model_dir()
     generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
 
     active_model = _resolve_active_production_model_path(model_dir)
-    model_info_data: dict = {}
-    provenance_error: str | None = None
-    if active_model is not None:
-        try:
-            production_artifacts = resolve_production_artifacts(active_model)
-            model_info_data = dict(production_artifacts.model_info)
-        except ProductionArtifactError as error:
-            provenance_error = str(error)
-            logger.warning(
-                "Production artifact provenance failed for dashboard: %s", error
-            )
-    else:
-        model_info_path = model_dir / "MODEL_INFO.json"
-        if model_info_path.is_file():
-            try:
-                with open(model_info_path, "r", encoding="utf-8") as handle:
-                    loaded = json.load(handle)
-                if isinstance(loaded, dict):
-                    model_info_data = loaded
-            except (OSError, json.JSONDecodeError) as error:
-                logger.warning("MODEL_INFO.json read failed: %s", error)
+    if active_model is None:
+        return _unavailable_dashboard_payload(
+            generated_at=generated_at,
+            provenance_code="active_model_missing",
+        )
+
+    try:
+        production_artifacts = resolve_production_artifacts(active_model)
+        model_info_data = dict(production_artifacts.model_info)
+    except ProductionArtifactError as error:
+        logger.warning(
+            "Production artifact provenance failed for dashboard: %s", error
+        )
+        return _unavailable_dashboard_payload(
+            generated_at=generated_at,
+            stem=active_model.stem,
+            provenance_code="provenance_failed",
+        )
 
     version = model_info_data.get("version", "unknown")
     if not isinstance(version, str):
@@ -889,35 +923,8 @@ def _build_model_info_dashboard_payload() -> dict:
         eval_critical_raw = validation_block.get("eval_critical_recall")
     eval_critical_recall = _safe_optional_prob(eval_critical_raw)
 
-    stem = active_model.stem if active_model is not None else "unknown"
-    if provenance_error is not None:
-        return {
-            "model": {
-                "id": stem.upper().replace("-", "_") if stem != "unknown" else stem,
-                "version": version,
-                "lastUpdated": last_updated,
-                "status": "unavailable",
-                "generatedAt": generated_at,
-                "algorithm": model_info_data.get("algorithm", "unknown"),
-                "algorithmName": model_info_data.get("algorithm_name", "Unknown"),
-                "provenanceError": provenance_error,
-            },
-            "metrics": {
-                "f1": 0.0,
-                "precision": 0.0,
-                "recall": 0.0,
-                "evalCriticalRecall": None,
-            },
-            "categories": [],
-            "criticalThresholds": [],
-            "registry": [],
-        }
-
-    thresholds_path = (
-        _find_production_thresholds_file(model_dir, model_stem=stem)
-        if active_model is not None
-        else None
-    )
+    stem = active_model.stem
+    thresholds_path = _find_production_thresholds_file(model_dir, model_stem=stem)
     category_stats_list: list = []
     critical_thresholds_list: list = []
     thresh_data = {}

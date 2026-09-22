@@ -1,5 +1,6 @@
 """Contract smoke tests for stubbed dashboard API endpoints."""
 
+import hashlib
 import json
 import math
 import random
@@ -17,6 +18,7 @@ from app.routes.api import (
     _simulated_probabilities,
     genre_to_source,
 )
+from disasterproject.utils.config import TARGET_COLUMNS
 
 
 class StubDataService:
@@ -578,18 +580,20 @@ def test_api_model_info_dashboard_contract(client):
 
 
 def test_model_info_dashboard_null_realism(client, tmp_path):
-    """When model dir has no MODEL_INFO or no thresholds file, dashboard returns 200 with sensible defaults and no NaN."""
+    """Empty model dir fails closed: unavailable status, no orphan MODEL_INFO metadata."""
     from unittest.mock import patch
 
-    # Empty model dir: no MODEL_INFO.json, no *_thresholds.json
     with patch("app.routes.api._get_model_dir", return_value=tmp_path):
         response = client.get("/api/model-info/dashboard")
     assert response.status_code == 200
     payload = response.get_json()
     assert payload is not None
     assert "model" in payload
+    assert payload["model"]["status"] == "unavailable"
     assert payload["model"]["id"] in ("unknown", "UNKNOWN")
     assert payload["model"]["version"] == "unknown"
+    assert payload["model"]["provenanceError"] == "Production model provenance unavailable"
+    assert payload["model"]["provenanceCode"] == "active_model_missing"
     assert "metrics" in payload
     assert payload["metrics"]["f1"] == 0.0
     assert payload["metrics"]["precision"] == 0.0
@@ -601,12 +605,41 @@ def test_model_info_dashboard_null_realism(client, tmp_path):
     assert _json_contains_no_nan_or_infinity(payload), "Dashboard with empty model dir must not emit NaN/Infinity"
 
 
-def _write_model_info(model_dir: Path, payload: dict) -> None:
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _write_resolver_valid_dashboard_bundle(
+    model_dir: Path,
+    *,
+    performance: dict | None = None,
+    validation_results: dict | None = None,
+) -> Path:
+    """Write a stem-bound production bundle the dashboard resolver accepts."""
     model_dir.mkdir(parents=True, exist_ok=True)
-    (model_dir / "MODEL_INFO.json").write_text(
-        json.dumps(payload),
+    model_path = model_dir / "disaster_lr_v_test_prod_2026-09-21.pkl"
+    model_path.write_bytes(b"dashboard-contract-model")
+    thresholds_path = model_dir / f"{model_path.stem}_thresholds.json"
+    labels_path = model_dir / f"{model_path.stem}_labels.json"
+    thresholds_map = {label: 0.5 for label in TARGET_COLUMNS}
+    thresholds_path.write_text(
+        json.dumps({"thresholds": thresholds_map, "critical_only": {"water": 0.5}}),
         encoding="utf-8",
     )
+    labels_path.write_text(json.dumps(list(TARGET_COLUMNS)), encoding="utf-8")
+    info = {
+        "version": "test",
+        "status": "production",
+        "algorithm": "lr",
+        "algorithm_name": "LogisticRegression",
+        "performance": performance or {},
+        "validation_results": validation_results or {},
+        "sha256": _sha256(model_path),
+        "thresholds_sha256": _sha256(thresholds_path),
+        "labels_sha256": _sha256(labels_path),
+    }
+    (model_dir / "MODEL_INFO.json").write_text(json.dumps(info), encoding="utf-8")
+    return model_path
 
 
 def test_safe_optional_prob_rejects_invalid_values():
@@ -626,17 +659,17 @@ def test_safe_optional_prob_rejects_invalid_values():
 
 def test_eval_critical_recall_prefers_performance_block(client, tmp_path):
     """When performance.eval_critical_recall is present, the API returns that value."""
-    _write_model_info(
+    _write_resolver_valid_dashboard_bundle(
         tmp_path,
-        {
-            "version": "test",
-            "status": "production",
-            "performance": {"eval_critical_recall": 0.61, "f1_weighted": 0.5},
-            "validation_results": {"eval_critical_recall": 0.42},
-        },
+        performance={"eval_critical_recall": 0.61, "f1_weighted": 0.5},
+        validation_results={"eval_critical_recall": 0.42},
     )
     with patch("app.routes.api._get_model_dir", return_value=tmp_path):
-        response = client.get("/api/model-info/dashboard")
+        with patch(
+            "app.routes.api._resolve_active_production_model_path",
+            return_value=tmp_path / "disaster_lr_v_test_prod_2026-09-21.pkl",
+        ):
+            response = client.get("/api/model-info/dashboard")
     assert response.status_code == 200
     metrics = response.get_json()["metrics"]
     assert metrics["evalCriticalRecall"] == pytest.approx(0.61)
@@ -644,17 +677,17 @@ def test_eval_critical_recall_prefers_performance_block(client, tmp_path):
 
 def test_eval_critical_recall_falls_back_to_validation_results(client, tmp_path):
     """When performance is missing the field, validation_results is used."""
-    _write_model_info(
+    _write_resolver_valid_dashboard_bundle(
         tmp_path,
-        {
-            "version": "test",
-            "status": "production",
-            "performance": {"f1_weighted": 0.5},
-            "validation_results": {"eval_critical_recall": 0.42},
-        },
+        performance={"f1_weighted": 0.5},
+        validation_results={"eval_critical_recall": 0.42},
     )
     with patch("app.routes.api._get_model_dir", return_value=tmp_path):
-        response = client.get("/api/model-info/dashboard")
+        with patch(
+            "app.routes.api._resolve_active_production_model_path",
+            return_value=tmp_path / "disaster_lr_v_test_prod_2026-09-21.pkl",
+        ):
+            response = client.get("/api/model-info/dashboard")
     assert response.status_code == 200
     metrics = response.get_json()["metrics"]
     assert metrics["evalCriticalRecall"] == pytest.approx(0.42)
@@ -666,38 +699,65 @@ def test_eval_critical_recall_falls_back_to_validation_results(client, tmp_path)
 )
 def test_eval_critical_recall_null_when_missing_or_malformed(client, tmp_path, bad_value):
     """Missing or invalid eval_critical_recall values surface as null, not 0.0."""
-    _write_model_info(
+    _write_resolver_valid_dashboard_bundle(
         tmp_path,
-        {
-            "version": "test",
-            "status": "production",
-            "performance": {
-                "f1_weighted": 0.5,
-                "eval_critical_recall": bad_value,
-            },
+        performance={
+            "f1_weighted": 0.5,
+            "eval_critical_recall": bad_value,
         },
     )
     with patch("app.routes.api._get_model_dir", return_value=tmp_path):
-        response = client.get("/api/model-info/dashboard")
+        with patch(
+            "app.routes.api._resolve_active_production_model_path",
+            return_value=tmp_path / "disaster_lr_v_test_prod_2026-09-21.pkl",
+        ):
+            response = client.get("/api/model-info/dashboard")
     assert response.status_code == 200
     assert response.get_json()["metrics"]["evalCriticalRecall"] is None
 
 
 def test_eval_critical_recall_null_when_key_absent(client, tmp_path):
     """Absent eval_critical_recall keys yield null."""
-    _write_model_info(
+    _write_resolver_valid_dashboard_bundle(
         tmp_path,
-        {
-            "version": "test",
-            "status": "production",
-            "performance": {"f1_weighted": 0.5},
-            "validation_results": {"f1_weighted": 0.5},
-        },
+        performance={"f1_weighted": 0.5},
+        validation_results={"f1_weighted": 0.5},
     )
     with patch("app.routes.api._get_model_dir", return_value=tmp_path):
-        response = client.get("/api/model-info/dashboard")
+        with patch(
+            "app.routes.api._resolve_active_production_model_path",
+            return_value=tmp_path / "disaster_lr_v_test_prod_2026-09-21.pkl",
+        ):
+            response = client.get("/api/model-info/dashboard")
     assert response.status_code == 200
     assert response.get_json()["metrics"]["evalCriticalRecall"] is None
+
+
+def test_dashboard_fails_closed_when_model_info_exists_without_pickle(client, tmp_path):
+    """Orphan MODEL_INFO alone must not surface production metadata."""
+    (tmp_path / "MODEL_INFO.json").write_text(
+        json.dumps(
+            {
+                "version": "orphan-v1",
+                "status": "production",
+                "performance": {"f1_weighted": 0.99, "eval_critical_recall": 0.88},
+            }
+        ),
+        encoding="utf-8",
+    )
+    with patch("app.routes.api._get_model_dir", return_value=tmp_path):
+        with patch(
+            "app.routes.api._resolve_active_production_model_path",
+            return_value=None,
+        ):
+            response = client.get("/api/model-info/dashboard")
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["model"]["status"] == "unavailable"
+    assert payload["model"]["version"] == "unknown"
+    assert payload["model"]["provenanceCode"] == "active_model_missing"
+    assert payload["metrics"]["evalCriticalRecall"] is None
+    assert payload["metrics"]["f1"] == 0.0
 
 
 def test_eval_critical_recall_matches_checked_in_model_info(client):

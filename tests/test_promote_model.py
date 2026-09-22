@@ -582,6 +582,38 @@ class TestProductionArtifactImmutability:
         assert compute_model_hash(prod_model) == model_hash_before
         assert compute_model_hash(prod_thresholds) == thresholds_hash_before
 
+    def test_matching_triple_with_stale_model_info_repairs_manifest(
+        self, temp_dir, candidate_dir_with_lr_model
+    ):
+        """Matching stem triple + wrong MODEL_INFO must repair, not claim idempotence."""
+        model_dir = temp_dir / "model"
+        model_dir.mkdir()
+        validation_results = validate_candidate_model(candidate_dir_with_lr_model)
+        first = promote_model(candidate_dir_with_lr_model, model_dir, validation_results)
+        prod_model = Path(first['promoted_model'])
+        prod_thresholds = model_dir / f"{prod_model.stem}_thresholds.json"
+        prod_labels = model_dir / f"{prod_model.stem}_labels.json"
+        model_info_path = model_dir / "MODEL_INFO.json"
+
+        model_bytes_before = prod_model.read_bytes()
+        thresholds_bytes_before = prod_thresholds.read_bytes()
+        labels_bytes_before = prod_labels.read_bytes()
+
+        stale = json.loads(model_info_path.read_text(encoding="utf-8"))
+        stale["sha256"] = "0" * 64
+        model_info_path.write_text(json.dumps(stale), encoding="utf-8")
+
+        second = promote_model(candidate_dir_with_lr_model, model_dir, validation_results)
+        assert Path(second['promoted_model']) == prod_model
+        assert prod_model.read_bytes() == model_bytes_before
+        assert prod_thresholds.read_bytes() == thresholds_bytes_before
+        assert prod_labels.read_bytes() == labels_bytes_before
+
+        repaired = json.loads(model_info_path.read_text(encoding="utf-8"))
+        assert repaired["sha256"] == validation_results["model_hash"]
+        assert repaired["thresholds_sha256"] == validation_results["thresholds_sha256"]
+        assert repaired["labels_sha256"] == validation_results["labels_sha256"]
+
     def test_collision_with_different_existing_thresholds(
         self, temp_dir, candidate_dir_with_lr_model
     ):

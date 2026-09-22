@@ -765,24 +765,57 @@ def _cleanup_path(path: Path) -> None:
         print(f"⚠️  Warning: Failed to remove {path}: {cleanup_error}")
 
 
+def _model_info_provenance_matches(
+    model_info_path: Path,
+    *,
+    expected_model_hash: str,
+    expected_thresholds_hash: str,
+    expected_labels_hash: str,
+) -> bool:
+    """Return True when MODEL_INFO records the expected production SHA-256 trio."""
+    if not model_info_path.is_file():
+        return False
+    try:
+        with open(model_info_path, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except (OSError, json.JSONDecodeError, ValueError):
+        return False
+    if not isinstance(payload, dict):
+        return False
+
+    def _normalized(field: str) -> str | None:
+        value = payload.get(field)
+        if not isinstance(value, str):
+            return None
+        return value.lower()
+
+    return (
+        _normalized("sha256") == expected_model_hash.lower()
+        and _normalized("thresholds_sha256") == expected_thresholds_hash.lower()
+        and _normalized("labels_sha256") == expected_labels_hash.lower()
+    )
+
+
 def _resolve_production_bundle_destination_action(
     *,
     prod_model_path: Path,
     prod_thresholds_path: Path,
     prod_labels_path: Path,
+    model_info_path: Path,
     expected_model_hash: str,
     expected_thresholds_hash: str,
     expected_labels_hash: str,
 ) -> str:
     """Decide how to treat existing production artifact names.
 
-    Production filenames are immutable once created:
+    Production stem filenames are immutable once created:
     - create: none of the stem-bound destinations exist
-    - idempotent: model + thresholds + labels exist with matching SHA-256 hashes
+    - idempotent: model + thresholds + labels + MODEL_INFO provenance match
+    - repair_model_info: stem triple matches but MODEL_INFO is missing/stale
     - otherwise fail closed (incomplete bundle or content collision)
 
     Returns:
-        "create" or "idempotent"
+        "create", "idempotent", or "repair_model_info"
     """
     model_exists = prod_model_path.exists()
     thresholds_exist = prod_thresholds_path.exists()
@@ -826,7 +859,14 @@ def _resolve_production_bundle_destination_action(
     labels_match = existing_labels_hash == expected_labels_hash
 
     if model_matches and thresholds_match and labels_match:
-        return "idempotent"
+        if _model_info_provenance_matches(
+            model_info_path,
+            expected_model_hash=expected_model_hash,
+            expected_thresholds_hash=expected_thresholds_hash,
+            expected_labels_hash=expected_labels_hash,
+        ):
+            return "idempotent"
+        return "repair_model_info"
 
     details = []
     if not model_matches:
@@ -853,7 +893,19 @@ def _resolve_production_bundle_destination_action(
     )
 
 
-def _atomic_deploy_production_bundle(
+def _write_model_info_atomically(model_info_path: Path, payload: dict) -> None:
+    """Write MODEL_INFO.json via a sibling staging file then os.replace."""
+    staging = model_info_path.with_suffix(model_info_path.suffix + ".staging")
+    try:
+        with open(staging, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, indent=2)
+        os.replace(staging, model_info_path)
+    except Exception:
+        _cleanup_path(staging)
+        raise
+
+
+def _deploy_production_bundle_fail_closed(
     *,
     candidate_model: Path,
     expected_model_hash: str,
@@ -868,18 +920,26 @@ def _atomic_deploy_production_bundle(
     prod_thresholds_path: Path,
     prod_labels_path: Path,
 ) -> None:
-    """Stage model + thresholds + labels + MODEL_INFO, then finalize with model last.
+    """Publish production companions fail-closed; finalize the pickle last.
 
-    Thresholds and labels are stem-bound and safe to publish before the pickle.
-    ``MODEL_INFO.json`` is updated before the pickle so auto-discovery never
-    selects a new production model against stale provenance hashes. The ``.pkl``
-    remains the final visibility boundary for mtime-based model discovery.
+    This is exception-rollback-safe, not a single filesystem transaction.
+    ``MODEL_INFO.json`` is a singleton while discovery selects the newest
+    ``*_prod_*.pkl`` by mtime, so no ordering can make switchover truly atomic:
+
+    - MODEL_INFO first → old pickle + new manifest may briefly disagree
+    - pickle first → new pickle + old manifest may briefly disagree
+
+    We choose MODEL_INFO before the pickle so auto-discovery never selects a
+    new model against stale provenance. A hard kill between those steps can
+    leave production unavailable until repair. A future active-pointer design
+    would replace that singleton last.
     """
     model_dir.mkdir(parents=True, exist_ok=True)
     action = _resolve_production_bundle_destination_action(
         prod_model_path=prod_model_path,
         prod_thresholds_path=prod_thresholds_path,
         prod_labels_path=prod_labels_path,
+        model_info_path=model_info_path,
         expected_model_hash=expected_model_hash,
         expected_thresholds_hash=expected_thresholds_hash,
         expected_labels_hash=expected_labels_hash,
@@ -887,9 +947,26 @@ def _atomic_deploy_production_bundle(
     if action == "idempotent":
         print(
             f"✅ Idempotent retry: existing production bundle already matches "
-            f"{prod_model_path.name}, {prod_thresholds_path.name}, and "
-            f"{prod_labels_path.name}"
+            f"{prod_model_path.name}, companions, and MODEL_INFO provenance"
         )
+        return
+    if action == "repair_model_info":
+        print(
+            "🛠️  Stem-bound artifacts match; repairing MODEL_INFO provenance "
+            f"at {model_info_path.name}"
+        )
+        _write_model_info_atomically(model_info_path, model_info_payload)
+        if not _model_info_provenance_matches(
+            model_info_path,
+            expected_model_hash=expected_model_hash,
+            expected_thresholds_hash=expected_thresholds_hash,
+            expected_labels_hash=expected_labels_hash,
+        ):
+            raise ValueError(
+                "MODEL_INFO repair failed: provenance hashes still mismatch "
+                "the validated production stem-bound artifacts."
+            )
+        print(f"✅ MODEL_INFO repaired: {model_info_path.name}")
         return
 
     staging_dir = model_dir / f".promotion_staging_{os.getpid()}_{uuid.uuid4().hex}"
@@ -958,6 +1035,7 @@ def _atomic_deploy_production_bundle(
             prod_model_path=prod_model_path,
             prod_thresholds_path=prod_thresholds_path,
             prod_labels_path=prod_labels_path,
+            model_info_path=model_info_path,
             expected_model_hash=expected_model_hash,
             expected_thresholds_hash=expected_thresholds_hash,
             expected_labels_hash=expected_labels_hash,
@@ -967,6 +1045,10 @@ def _atomic_deploy_production_bundle(
                 f"✅ Idempotent retry after staging: existing production bundle "
                 f"already matches {prod_model_path.name}"
             )
+            return
+        if action == "repair_model_info":
+            os.replace(staged_model_info, model_info_path)
+            print(f"✅ MODEL_INFO repaired after staging: {model_info_path.name}")
             return
 
         os.replace(staged_thresholds, prod_thresholds_path)
@@ -1017,7 +1099,7 @@ def _atomic_deploy_production_bundle(
 
 
 def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict) -> dict:
-    """Promote validated candidate model to production atomically."""
+    """Promote validated candidate model to production (fail-closed publish)."""
 
     assert_force_promotion_prerequisites(validation_results)
 
@@ -1092,7 +1174,7 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
     }
     model_info_path = model_dir / "MODEL_INFO.json"
 
-    _atomic_deploy_production_bundle(
+    _deploy_production_bundle_fail_closed(
         candidate_model=candidate_model,
         expected_model_hash=validation_results['model_hash'],
         candidate_thresholds=candidate_thresholds,
