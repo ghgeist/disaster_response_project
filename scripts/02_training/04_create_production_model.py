@@ -8,9 +8,12 @@ Production models are LogisticRegression artifacts promoted via:
   scripts/07_operations/promote_model.py
 
 This script trains a RandomForest pipeline for historical comparison or RF experiments.
-By default, artifacts land under experiments/legacy_rf/<YYYY-MM-DD>/ (model pickle,
-metrics, training_log.json, thresholds). Writing into model/ requires
+By default, artifacts land under experiments/legacy_rf/<YYYY-MM-DD>/<HHMMSS>/ (model
+pickle, metrics, training_log.json, thresholds). Writing into model/ requires
 --allow-write-to-model-dir.
+
+Thresholds written here are eval-tuned diagnostics only (not the cal-tuned
+{model_stem}_thresholds.json required by promote_model.py).
 
 Requires --params and --class-weights (model/parameters.json defaults were removed).
 
@@ -28,6 +31,7 @@ import logging
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
 from time import time
 
 # Third-party imports
@@ -64,21 +68,53 @@ from disasterproject.utils.json_io import load_model_parameters
 LEGACY_RF_ROOT = os.path.join('experiments', 'legacy_rf')
 
 
-def default_legacy_rf_output_path(run_date: str | None = None) -> str:
+def repo_root_from_script() -> Path:
+    """Repository root (parent of scripts/)."""
+    return Path(__file__).resolve().parents[2]
+
+
+def resolve_output_path(output_path: str, repo_root: Path | None = None) -> Path:
+    """Resolve an output path against the repository root when relative."""
+    root = repo_root or repo_root_from_script()
+    candidate = Path(output_path)
+    if candidate.is_absolute():
+        return candidate.resolve()
+    return (root / candidate).resolve()
+
+
+def resolves_under_production_model_dir(
+    output_path: str,
+    repo_root: Path | None = None,
+) -> bool:
+    """Return True when the resolved artifact directory is under model/."""
+    root = repo_root or repo_root_from_script()
+    production_model_dir = (root / 'model').resolve()
+    artifact_path = resolve_output_path(output_path, root)
+    artifact_dir = artifact_path.parent
+    try:
+        artifact_dir.relative_to(production_model_dir)
+    except ValueError:
+        return False
+    return True
+
+
+def default_legacy_rf_output_path(
+    run_date: str | None = None,
+    run_time: str | None = None,
+) -> str:
     """Return the default legacy RF artifact path outside model/."""
     date_part = run_date or datetime.now().strftime('%Y-%m-%d')
-    return os.path.join(LEGACY_RF_ROOT, date_part, 'disaster_rf_legacy.pkl')
+    time_part = run_time or datetime.now().strftime('%H%M%S')
+    return os.path.join(LEGACY_RF_ROOT, date_part, time_part, 'disaster_rf_legacy.pkl')
 
 
-def path_targets_model_dir(output_path: str) -> bool:
-    """Return True when output_path would write under the production model/ directory."""
-    norm = os.path.normpath(output_path).replace('\\', '/')
-    return norm == 'model' or norm.startswith('model/')
-
-
-def validate_legacy_rf_output_path(output_path: str, allow_model_dir: bool) -> None:
+def validate_legacy_rf_output_path(
+    output_path: str,
+    allow_model_dir: bool,
+    repo_root: Path | None = None,
+) -> None:
     """Block accidental writes into model/ unless explicitly allowed."""
-    if path_targets_model_dir(output_path) and not allow_model_dir:
+    if resolves_under_production_model_dir(output_path, repo_root) and not allow_model_dir:
         raise ValueError(
             'Refusing to write RandomForest artifacts into model/. '
             'Use the default experiments/legacy_rf/ output, or pass '
@@ -599,14 +635,12 @@ def main():
     parser.add_argument('--db', dest='database_filepath',
                        default='data/02_stg/stg_disaster_response.db',
                        help='Path to SQLite database (default: data/02_stg/stg_disaster_response.db)')
-    parser.add_argument('--params', dest='params_path',
-                       default='model/parameters.json',
-                       help='Path to hyperparameters JSON (default: model/parameters.json)')
-    parser.add_argument('--class-weights', dest='class_weights_path',
-                       default='model/class_weights.json',
-                       help='Path to class weights JSON (default: model/class_weights.json)')
+    parser.add_argument('--params', dest='params_path', required=True,
+                       help='Path to hyperparameters JSON (e.g. experiments/model_candidates/vocab_15k.json)')
+    parser.add_argument('--class-weights', dest='class_weights_path', required=True,
+                       help='Path to class weights JSON (e.g. experiments/model_candidates/class_weights.json)')
     parser.add_argument('--output', dest='model_out', default=None,
-                       help='Output model path (default: experiments/legacy_rf/<YYYY-MM-DD>/disaster_rf_legacy.pkl)')
+                       help='Output model path (default: experiments/legacy_rf/<YYYY-MM-DD>/<HHMMSS>/disaster_rf_legacy.pkl)')
     parser.add_argument(
         '--allow-write-to-model-dir',
         dest='allow_write_to_model_dir',

@@ -18,6 +18,9 @@ This folder contains experimental model runs, configurations, and comparison res
 
 ## Folder Structure
 
+### `legacy_rf/{YYYY-MM-DD}/{HHMMSS}/`
+Legacy RandomForest training outputs from `scripts/02_training/04_create_production_model.py` (not promoted to production). Each timestamped subfolder holds a pickle, metrics CSV, `training_log.json`, and diagnostic threshold files. Large `.pkl` files remain gitignored like other experiment models; this tree is for local RF baselines only.
+
 ### `experimental_runs/{YYYY-MM-DD}/`
 Dated experiment results. Each folder contains models, metrics, logs, and reports from that date's experiments. Self-contained and organized by date.
 
@@ -66,7 +69,7 @@ Contains:
 
 **Usage:** These files are used as INPUT by:
 - `scripts/02_training/03_create_experimental_model.py` (production LR workflow)
-- `scripts/02_training/04_create_production_model.py` (legacy RandomForest only; outputs under `experiments/legacy_rf/`)
+- `scripts/02_training/04_create_production_model.py` (legacy RandomForest only; outputs under `experiments/legacy_rf/<date>/<HHMMSS>/`)
 
 **Note:** These are specific tested parameter sets, not reusable templates. For reusable experiment templates, see `experimental_configs/`.
 

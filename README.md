@@ -202,8 +202,9 @@ source .venv/bin/activate
      --params experiments/model_candidates/vocab_15k.json \
      --class-weights experiments/model_candidates/class_weights.json
 
-   # Calibrate thresholds on cal, report on frozen eval — see model/README.md
-   python scripts/03_optimization/optimize_per_category_thresholds.py --model-path <candidate.pkl>
+   # Calibrate thresholds on cal (writes {model_stem}_thresholds.json); report on frozen eval
+   python scripts/03_optimization/optimize_per_category_thresholds.py \
+     --model-path experiments/experimental_runs/<date>/<candidate>.pkl
    python scripts/07_operations/promote_model.py experiments/experimental_runs/<date> --dry-run
    python scripts/07_operations/promote_model.py experiments/experimental_runs/<date> --print-new-path
    ```

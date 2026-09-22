@@ -65,7 +65,7 @@ Trains a **legacy RandomForest** pipeline for historical comparison or RF-only e
 - **Use when**: Re-running RandomForest baselines or comparing against archived RF artifacts
 - **Production path instead**: `03_create_experimental_model.py` (LR) → `03_optimization/optimize_per_category_thresholds.py` → `07_operations/promote_model.py`
 - **Usage**: `python scripts/02_training/04_create_production_model.py --params experiments/model_candidates/vocab_15k.json --class-weights experiments/model_candidates/class_weights.json`
-- **Output (default)**: `experiments/legacy_rf/<YYYY-MM-DD>/` (model pickle, metrics, training log). Writing to `model/` requires `--allow-write-to-model-dir`.
+- **Output (default)**: `experiments/legacy_rf/<YYYY-MM-DD>/<HHMMSS>/` (model pickle, metrics, training log). Writing to `model/` requires `--allow-write-to-model-dir`.
 - **Dependencies**: Parameter and class weight configuration files
 
 ### `run_batch_experiments.py`
@@ -242,7 +242,11 @@ python scripts/02_training/03_create_experimental_model.py \
   --class-weights experiments/model_candidates/class_weights.json \
   --algorithm logistic_regression
 
-# Calibrate thresholds, then promote — see model/README.md
+# Calibrate thresholds on cal; writes canonical {model_stem}_thresholds.json
+python scripts/03_optimization/optimize_per_category_thresholds.py \
+  --model-path experiments/experimental_runs/<date>/<candidate>.pkl
+
+# Promote (gates require cal-tuned thresholds + frozen-eval metrics)
 python scripts/07_operations/promote_model.py experiments/experimental_runs/<date> --dry-run
 python scripts/07_operations/promote_model.py experiments/experimental_runs/<date> --print-new-path
 ```
@@ -289,7 +293,7 @@ python scripts/06_validation/validate_multilabel_sampling.py
 ## Output Locations
 
 - **Production models**: `model/` (via `promote_model.py` only)
-- **Legacy RF training runs**: `experiments/legacy_rf/<YYYY-MM-DD>/`
+- **Legacy RF training runs**: `experiments/legacy_rf/<YYYY-MM-DD>/<HHMMSS>/`
 - **Results**: `data/04_fct/` directory
 - **Experiments**: `experiments/` directory
 - **Logs**: `app.log` and console output

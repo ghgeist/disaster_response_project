@@ -1,6 +1,6 @@
 # Dev Notes Overview: Disaster Response Project Evolution
 
-**Last Updated**: 2026-02-28  
+**Last Updated**: 2026-09-22  
 **Total Entries**: 17 dev notes spanning September 2025 - February 2026  
 **Project Status**: Production-ready with promoted LR model (≈4.59 MB, ≈89.75% threshold-optimized weighted F1 on frozen eval, ≈61.5% frozen-eval critical recall), modular architecture, unified Storm Signal + Model Information dashboard (React Router), standardized model naming conventions, and security hardening complete
 

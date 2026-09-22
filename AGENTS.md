@@ -32,7 +32,7 @@ This document explains how to work on the Disaster Response project when operati
   - Create once: `python -m venv .venv`.
   - Do **not** activate the venv; call the interpreter directly:
     - Bash: `./.venv/bin/python scripts/02_training/03_create_experimental_model.py --algorithm logistic_regression`
-    - PowerShell: `.\.venv\Scripts\python scripts\04_create_production_model.py`
+    - PowerShell: `.\.venv\Scripts\python scripts/02_training/03_create_experimental_model.py --algorithm logistic_regression`
 
 - **Replit Environment (SSH)**: Virtual environment is **not required**
   - Replit manages Python environment automatically

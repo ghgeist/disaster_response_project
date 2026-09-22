@@ -142,11 +142,19 @@ Models are promoted using the promotion script, which handles naming automatical
 #### 1. Train Experimental Model
 ```bash
 python scripts/02_training/03_create_experimental_model.py \
-  --config experiments/model_candidates/vocab_15k.json \
-  --output-dir experiments/experimental_runs/2026-09-21
+  --algorithm logistic_regression \
+  --params experiments/model_candidates/vocab_15k.json \
+  --class-weights experiments/model_candidates/class_weights.json \
+  --output experiments/experimental_runs/2026-09-21/lr_vocab15k_model.pkl
 ```
 
-#### 2. Validate and Promote
+#### 2. Calibrate Thresholds
+```bash
+python scripts/03_optimization/optimize_per_category_thresholds.py \
+  --model-path experiments/experimental_runs/2026-09-21/lr_vocab15k_model.pkl
+```
+
+#### 3. Validate and Promote
 ```bash
 # Dry run (validate without promoting)
 python scripts/07_operations/promote_model.py \
@@ -180,11 +188,17 @@ The promotion script:
 
 ### 1. Training Phase
 ```bash
-# Train model with experiments framework
-python scripts/02_training/04_create_production_model.py \
+python scripts/02_training/03_create_experimental_model.py \
+  --algorithm logistic_regression \
   --params experiments/model_candidates/vocab_15k.json \
-  --class-weights experiments/model_candidates/class_weights.json
+  --class-weights experiments/model_candidates/class_weights.json \
+  --output experiments/experimental_runs/2026-09-21/lr_vocab15k_model.pkl
+
+python scripts/03_optimization/optimize_per_category_thresholds.py \
+  --model-path experiments/experimental_runs/2026-09-21/lr_vocab15k_model.pkl
 ```
+
+Legacy RandomForest re-runs (not promoted to production) use `scripts/02_training/04_create_production_model.py` and write under `experiments/legacy_rf/`.
 
 ### 2. Testing Phase
 ```bash
