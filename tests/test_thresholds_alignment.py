@@ -27,6 +27,7 @@ def test_production_thresholds_sha_matches_model_info_provenance() -> None:
     """Deployed thresholds must stay byte-identical to the validated evidence SHA."""
     model_path = Config.MODEL_PATH
     thresholds_path = model_path.with_name(f"{model_path.stem}_thresholds.json")
+    labels_path = model_path.with_name(f"{model_path.stem}_labels.json")
     model_info_path = model_path.with_name("MODEL_INFO.json")
 
     if not model_path.exists() or not thresholds_path.exists() or not model_info_path.exists():
@@ -42,9 +43,19 @@ def test_production_thresholds_sha_matches_model_info_provenance() -> None:
         "(exact validated artifact; do not rewrite metadata after hashing)"
     )
 
+    expected_labels = info.get("labels_sha256")
+    assert isinstance(expected_labels, str) and len(expected_labels) == 64, (
+        "MODEL_INFO.json must record labels_sha256 from promotion validation"
+    )
+    assert labels_path.exists(), "Production stem-bound labels artifact is required"
+    assert _sha256(labels_path) == expected_labels, (
+        "Production labels bytes must match MODEL_INFO labels_sha256"
+    )
+
     # Filename stem pairs the pickle to companions; metadata.model may still
     # name the experimental candidate used during calibration.
     assert thresholds_path.name == f"{model_path.stem}_thresholds.json"
+    assert labels_path.name == f"{model_path.stem}_labels.json"
 
 
 def test_find_production_thresholds_prefers_active_stem_over_newer_orphan(tmp_path: Path) -> None:

@@ -713,8 +713,8 @@ def _find_production_thresholds_file(
     Find production thresholds for the active model stem.
 
     Binding is by filename stem (``{model_stem}_thresholds.json``), matching
-    ``ModelArtifactLoader`` inference — never newest-by-mtime across orphans.
-    Legacy fallback: ``thresholds.json``. Deprecated ``optimized_*`` files are ignored.
+    the shared production-artifact resolver used by inference — never
+    newest-by-mtime across orphans and never legacy ``thresholds.json``.
 
     ``metadata.model`` inside the JSON is training-source provenance and may
     still name the experimental candidate; it is not used for discovery.
@@ -726,16 +726,13 @@ def _find_production_thresholds_file(
     if not stem or stem == "unknown":
         active_model = _resolve_active_production_model_path(model_dir)
         if active_model is None:
-            legacy = model_dir / "thresholds.json"
-            return legacy if legacy.exists() else None
+            return None
         stem = active_model.stem
 
     stem_thresholds = model_dir / f"{stem}_thresholds.json"
     if stem_thresholds.is_file() and not stem_thresholds.name.startswith("optimized_"):
         return stem_thresholds
-
-    legacy = model_dir / "thresholds.json"
-    return legacy if legacy.exists() else None
+    return None
 
 
 def _discover_production_metrics_file(model_dir: Path, model_stem: str | None = None) -> Path | None:

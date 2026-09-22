@@ -108,6 +108,13 @@ def _write_training_log(path: Path, micro_f1: float = 0.6458, overall_f1: float 
     )
 
 
+def _write_contract_labels(path: Path, labels: list | None = None) -> None:
+    path.write_text(
+        json.dumps(labels if labels is not None else list(TARGET_COLUMNS)),
+        encoding="utf-8",
+    )
+
+
 def _build_contract_candidate(
     candidate_dir: Path,
     model_path: Path,
@@ -122,6 +129,7 @@ def _build_contract_candidate(
         candidate_dir / f"{dest_model.stem}_thresholds.json",
         **threshold_kwargs,
     )
+    _write_contract_labels(candidate_dir / f"{dest_model.stem}_labels.json")
     return candidate_dir
 
 
@@ -435,8 +443,20 @@ class TestForcePathPrerequisites:
         candidate.mkdir()
         shutil.copy2(lr_model_path, candidate / "lr_model.pkl")
         _write_training_log(candidate / "training_log.json")
+        _write_contract_labels(candidate / "lr_model_labels.json")
         results = validate_candidate_model(candidate)
         assert results['thresholds_path'] is None
+        with pytest.raises(ValueError, match="structural promotion prerequisites"):
+            assert_force_promotion_prerequisites(results)
+
+    def test_force_prerequisites_reject_missing_labels(self, temp_dir, lr_model_path):
+        candidate = temp_dir / "2026-09-21-force-no-labels"
+        candidate.mkdir()
+        shutil.copy2(lr_model_path, candidate / "lr_model.pkl")
+        _write_training_log(candidate / "training_log.json")
+        _write_contract_thresholds(candidate / "lr_model_thresholds.json")
+        results = validate_candidate_model(candidate)
+        assert results['labels_path'] is None
         with pytest.raises(ValueError, match="structural promotion prerequisites"):
             assert_force_promotion_prerequisites(results)
 
@@ -458,8 +478,11 @@ class TestForcePathPrerequisites:
         promotion_record = promote_model(candidate, model_dir, results)
         promoted = Path(promotion_record['promoted_model'])
         deployed = model_dir / f"{promoted.stem}_thresholds.json"
+        deployed_labels = model_dir / f"{promoted.stem}_labels.json"
         assert deployed.exists()
+        assert deployed_labels.exists()
         assert compute_model_hash(deployed) == results['thresholds_sha256']
+        assert compute_model_hash(deployed_labels) == results['labels_sha256']
 
     def test_promote_refuses_missing_thresholds_even_if_forced_fields_cleared(
         self, temp_dir, candidate_dir_with_lr_model

@@ -47,6 +47,8 @@ FORCE_REQUIRED_FIELDS = (
     "model_hash",
     "thresholds_path",
     "thresholds_sha256",
+    "labels_path",
+    "labels_sha256",
     "algorithm",
 )
 
@@ -233,12 +235,71 @@ def discover_candidate_thresholds(
     return thresholds_path, payload, errors
 
 
+def discover_candidate_labels(
+    candidate_dir: Path, model_stem: Optional[str] = None
+) -> Tuple[Optional[Path], Optional[list], list]:
+    """Discover required `{model_stem}_labels.json` for validation and promotion.
+
+    Returns (path, payload, errors). Legacy ``label_order.json`` is not accepted.
+    """
+    errors: list = []
+    if model_stem is None:
+        model_file, model_errors = _discover_model_file(candidate_dir)
+        if model_errors:
+            return None, None, model_errors
+        model_stem = model_file.stem
+
+    labels_path = (candidate_dir / f"{model_stem}_labels.json").resolve()
+    if not labels_path.exists():
+        errors.append(
+            f"Required labels artifact not found: {labels_path.name} "
+            f"(expected {{model_stem}}_labels.json for stem '{model_stem}')"
+        )
+        return None, None, errors
+
+    try:
+        with open(labels_path, "r", encoding="utf-8") as f:
+            payload = json.load(f)
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        errors.append(f"Unable to parse labels artifact {labels_path.name}: {exc}")
+        return None, None, errors
+
+    if not isinstance(payload, list):
+        errors.append(f"Labels artifact {labels_path.name} must be a JSON array")
+        return None, None, errors
+
+    return labels_path, payload, errors
+
+
+def _validate_labels_order(payload: list) -> list:
+    """Require exact TARGET_COLUMNS order and coverage."""
+    errors: list = []
+    labels = [str(item) for item in payload]
+    expected = list(TARGET_COLUMNS)
+    if labels == expected:
+        return errors
+
+    if set(labels) != set(expected):
+        missing = [label for label in expected if label not in labels]
+        extra = [label for label in labels if label not in expected]
+        errors.append(
+            "Labels artifact coverage mismatch with TARGET_COLUMNS: "
+            f"missing={missing[:8]!r} extra={extra[:8]!r}"
+        )
+    else:
+        errors.append(
+            "Labels artifact order mismatch with TARGET_COLUMNS "
+            f"(expected {len(expected)} labels in contract order)"
+        )
+    return errors
+
+
 def assert_force_promotion_prerequisites(validation_results: dict) -> None:
     """Require structural deploy artifacts; --force cannot bypass these.
 
     --force may override metric/provenance gate failures only. Promoting still
-    requires a loadable supported model and the thresholds artifact validation
-    would deploy.
+    requires a loadable supported model plus the thresholds and labels artifacts
+    validation would deploy.
     """
     missing = [key for key in FORCE_REQUIRED_FIELDS if not validation_results.get(key)]
     algorithm = validation_results.get("algorithm")
@@ -249,9 +310,9 @@ def assert_force_promotion_prerequisites(validation_results: dict) -> None:
     if deduped:
         raise ValueError(
             "--force cannot override missing structural promotion prerequisites: "
-            f"{deduped}. A loadable supported model and thresholds artifact "
-            "(with hashes) are required so the deployed operating point matches "
-            "validated evidence."
+            f"{deduped}. A loadable supported model, thresholds artifact, and "
+            "labels artifact (with hashes) are required so the deployed "
+            "operating point matches validated evidence."
         )
 
 
@@ -433,6 +494,8 @@ def validate_candidate_model(candidate_dir: Path) -> dict:
         'weighted_f1_relative_drop': None,
         'thresholds_path': None,
         'thresholds_sha256': None,
+        'labels_path': None,
+        'labels_sha256': None,
         'optimization_split': None,
         'reporting_split': None,
         # Legacy aliases kept for older promotion-record consumers
@@ -493,6 +556,15 @@ def validate_candidate_model(candidate_dir: Path) -> dict:
             candidate_dir, model_stem=model_stem
         )
         errors.extend(threshold_errors)
+        labels_path, labels_payload, label_errors = discover_candidate_labels(
+            candidate_dir, model_stem=model_stem
+        )
+        errors.extend(label_errors)
+        if labels_path is not None and labels_payload is not None:
+            labels_path = labels_path.resolve()
+            validation_results['labels_path'] = str(labels_path)
+            validation_results['labels_sha256'] = compute_model_hash(labels_path)
+            errors.extend(_validate_labels_order(labels_payload))
 
     if thresholds_path is not None and thresholds_payload is not None:
         thresholds_path = thresholds_path.resolve()
@@ -691,6 +763,65 @@ def _cleanup_path(path: Path) -> None:
             path.unlink()
     except OSError as cleanup_error:
         print(f"⚠️  Warning: Failed to remove {path}: {cleanup_error}")
+
+
+def _deploy_production_labels(
+    *,
+    candidate_labels: Path,
+    expected_labels_hash: str,
+    prod_labels_path: Path,
+) -> None:
+    """Copy/verify the required stem-bound labels artifact for production.
+
+    Existing matching labels are treated as an idempotent retry. Missing or
+    colliding content fails closed.
+    """
+    if not candidate_labels.exists():
+        raise FileNotFoundError(
+            f"Validated labels artifact missing at promotion time: {candidate_labels}"
+        )
+
+    if prod_labels_path.exists():
+        existing_hash = compute_model_hash(prod_labels_path)
+        if existing_hash == expected_labels_hash:
+            print(
+                f"✅ Idempotent retry: existing production labels already match "
+                f"{prod_labels_path.name}"
+            )
+            return
+        raise ValueError(
+            "Production labels collision: destination exists with different content. "
+            f"existing={existing_hash[:16]}... expected={expected_labels_hash[:16]}..."
+        )
+
+    staging = prod_labels_path.with_suffix(prod_labels_path.suffix + ".staging")
+    try:
+        shutil.copy2(candidate_labels, staging)
+        staged_hash = compute_model_hash(staging)
+        if staged_hash != expected_labels_hash:
+            raise ValueError(
+                f"Staged labels integrity check failed!\n"
+                f"  Expected hash: {expected_labels_hash}\n"
+                f"  Staged hash:   {staged_hash}\n"
+                f"Deployed labels must match the artifact validation scored."
+            )
+        os.replace(staging, prod_labels_path)
+        final_hash = compute_model_hash(prod_labels_path)
+        if final_hash != expected_labels_hash:
+            raise ValueError(
+                f"Final labels integrity check failed!\n"
+                f"  Expected hash: {expected_labels_hash}\n"
+                f"  Final hash:    {final_hash}"
+            )
+        print(
+            f"✅ Labels deployed: {prod_labels_path.name} "
+            f"(hash: {expected_labels_hash[:16]}...)"
+        )
+    except Exception:
+        _cleanup_path(staging)
+        if prod_labels_path.exists() and compute_model_hash(prod_labels_path) != expected_labels_hash:
+            _cleanup_path(prod_labels_path)
+        raise
 
 
 def _resolve_production_destination_action(
@@ -938,7 +1069,9 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
     prod_model_path = model_dir / prod_model_name
     base_name = prod_model_path.stem
     prod_thresholds_path = model_dir / f"{base_name}_thresholds.json"
+    prod_labels_path = model_dir / f"{base_name}_labels.json"
     candidate_thresholds = Path(validation_results['thresholds_path'])
+    candidate_labels = Path(validation_results['labels_path'])
 
     _atomic_deploy_model_and_thresholds(
         candidate_model=candidate_model,
@@ -950,21 +1083,16 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
         prod_thresholds_path=prod_thresholds_path,
     )
 
+    _deploy_production_labels(
+        candidate_labels=candidate_labels,
+        expected_labels_hash=validation_results['labels_sha256'],
+        prod_labels_path=prod_labels_path,
+    )
+
     metadata_files = {
         '_thresholds.json': str(prod_thresholds_path),
+        '_labels.json': str(prod_labels_path),
     }
-
-    # Copy optional label metadata if present under either naming convention
-    for candidate_labels in [
-        candidate_dir / f"{candidate_dir.name}_labels.json",
-        candidate_dir / "label_order.json",
-        candidate_dir / f"{candidate_model.stem}_labels.json",
-    ]:
-        if candidate_labels.exists():
-            prod_labels = model_dir / f"{base_name}_labels.json"
-            shutil.copy2(candidate_labels, prod_labels)
-            metadata_files['_labels.json'] = str(prod_labels)
-            break
 
     training_log = candidate_dir / "training_log.json"
     if training_log.exists():
@@ -997,6 +1125,7 @@ def promote_model(candidate_dir: Path, model_dir: Path, validation_results: dict
             'f1_micro': validation_results.get('f1_micro'),
         },
         'thresholds_sha256': validation_results.get('thresholds_sha256'),
+        'labels_sha256': validation_results.get('labels_sha256'),
         'optimization_split': validation_results.get('optimization_split'),
         'reporting_split': validation_results.get('reporting_split'),
         'version': version,
@@ -1114,7 +1243,7 @@ def main():
         action="store_true",
         help=(
             "Override metric/provenance gate failures only; "
-            "still requires model + thresholds artifacts with hashes"
+            "still requires model + thresholds + labels artifacts with hashes"
         ),
     )
     parser.add_argument("--keep-old", type=int, default=1, help="Number of old production models to keep")

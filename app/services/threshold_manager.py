@@ -4,6 +4,7 @@ Threshold management for model predictions.
 from __future__ import annotations
 
 import logging
+import math
 from typing import Dict, Iterable, Optional
 
 from disasterproject.utils.config import CRITICAL_LABELS
@@ -30,6 +31,40 @@ class ThresholdManager:
             dict(critical_thresholds) if critical_thresholds else dict(CRITICAL_CATEGORY_THRESHOLDS)
         )
 
+    def require_loaded_thresholds(
+        self,
+        label_order: Iterable[str],
+        loaded_thresholds: Optional[Dict[str, float]],
+    ) -> Dict[str, float]:
+        """
+        Return a complete thresholds map without smart defaults.
+
+        Production inference must supply every label with a finite ``[0, 1]`` value.
+        """
+        labels = list(label_order)
+        if not isinstance(loaded_thresholds, dict) or not loaded_thresholds:
+            raise ValueError("Production thresholds map is required")
+
+        missing = [name for name in labels if name not in loaded_thresholds]
+        if missing:
+            preview = ", ".join(missing[:8])
+            suffix = f" (+{len(missing) - 8} more)" if len(missing) > 8 else ""
+            raise ValueError(f"Thresholds map incomplete; missing: {preview}{suffix}")
+
+        validated: Dict[str, float] = {}
+        for name in labels:
+            raw_value = loaded_thresholds[name]
+            try:
+                value = float(raw_value)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"Threshold for {name!r} is not numeric: {raw_value!r}") from exc
+            if not math.isfinite(value) or value < 0.0 or value > 1.0:
+                raise ValueError(
+                    f"Threshold for {name!r} out of range: {raw_value!r} (need [0, 1])"
+                )
+            validated[name] = value
+        return validated
+
     def get_thresholds_map(
         self,
         label_order: Iterable[str],
@@ -38,12 +73,7 @@ class ThresholdManager:
         """
         Build a thresholds map with defaults merged by loaded overrides.
 
-        Args:
-            label_order: Ordered iterable of category names.
-            loaded_thresholds: Threshold overrides loaded from artifacts.
-
-        Returns:
-            Threshold map keyed by category name.
+        Prefer :meth:`require_loaded_thresholds` for production inference.
         """
         default_map: Dict[str, float] = {}
         for name in label_order:
